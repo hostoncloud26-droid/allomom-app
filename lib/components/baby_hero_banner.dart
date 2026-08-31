@@ -15,7 +15,7 @@ class BabyHeroBanner extends StatelessWidget {
     required this.speechText,
     this.greetingText = "",
     this.bubblePosition = SpeechBubblePosition.topCenter,
-    this.height = 320,
+    this.height = 270,
     this.babyHeight,
     this.onTap,
   });
@@ -70,7 +70,7 @@ class BabyHeroBanner extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.bottomCenter,
                   child: SizedBox(
-                    height: babyHeight ?? 180,
+                    height: babyHeight ?? (height <= 270 ? 160 : 180),
                     child: Image.asset(
                       'assets/allobaby/AlloMombaby.png',
                       fit: BoxFit.contain,

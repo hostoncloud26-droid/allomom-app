@@ -23,11 +23,23 @@ class _AlloBotPageState extends State<AlloBotPage> {
   late int _currentIndex;
   final GlobalKey<AlloBotAskAiTabState> _askAiKey =
       GlobalKey<AlloBotAskAiTabState>();
+  final ValueNotifier<bool> _isListeningNotifier = ValueNotifier<bool>(false);
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialTab;
+    if (widget.autoStartListening) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _openListeningPopup();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _isListeningNotifier.dispose();
+    super.dispose();
   }
 
   void _onTabSelected(int index) {
@@ -41,19 +53,16 @@ class _AlloBotPageState extends State<AlloBotPage> {
       setState(() {
         _currentIndex = 0;
       });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _askAiKey.currentState?.toggleListening();
-      });
-    } else {
-      _askAiKey.currentState?.toggleListening();
     }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _askAiKey.currentState?.startListening();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
-      extendBody: false,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -61,7 +70,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
             // Top App Bar for tabs 1 and 3 (Tab 0 and 2 have their own tailored headers)
             if (_currentIndex == 1 || _currentIndex == 3)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Row(
                   children: [
                     GestureDetector(
@@ -100,7 +112,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFECFDF5),
                         borderRadius: BorderRadius.circular(16),
@@ -136,22 +151,21 @@ class _AlloBotPageState extends State<AlloBotPage> {
               child: IndexedStack(
                 index: _currentIndex,
                 children: [
-                  // Tab 0: Ask AI
+                  // Tab 0: Ask AI / Ask Allo
                   AlloBotAskAiTab(
                     key: _askAiKey,
                     initialListening: widget.autoStartListening,
+                    onListeningChanged: (isListening) {
+                      _isListeningNotifier.value = isListening;
+                    },
                     onOpenChat: () => _onTabSelected(2),
                   ),
 
                   // Tab 1: Agents
-                  AlloBotAgentsTab(
-                    onAskTap: _openListeningPopup,
-                  ),
+                  AlloBotAgentsTab(onAskTap: _openListeningPopup),
 
                   // Tab 2: Chat
-                  AlloBotChatTab(
-                    onBack: () => _onTabSelected(0),
-                  ),
+                  AlloBotChatTab(onBack: () => _onTabSelected(0)),
 
                   // Tab 3: Settings
                   const AlloBotSettingsTab(),
@@ -162,7 +176,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
         ),
       ),
 
-      // ─── EXACT SAME NOTCHED BOTTOM BAR AS HOME ───
+      // ─── EXACT SAME NOTCHED BOTTOM BAR AS HOME PAGE ───
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
         elevation: 8,
@@ -178,7 +192,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
                     index: 0,
                     activeIcon: Icons.auto_awesome,
                     inactiveIcon: Icons.auto_awesome_outlined,
-                    label: 'Ask AI',
+                    label: 'Ask Allo',
                   ),
                   _buildNavItem(
                     index: 1,
@@ -212,12 +226,23 @@ class _AlloBotPageState extends State<AlloBotPage> {
         ),
       ),
 
-      // ─── EXACT SAME FLOATING DOCKED CENTER MIC BUTTON AS HOME ───
+      // ─── EXACT SAME FLOATING DOCKED CENTER MIC BUTTON AS HOME PAGE ───
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        onPressed: _openListeningPopup,
+        onPressed: () {
+          if (_currentIndex != 0) {
+            setState(() {
+              _currentIndex = 0;
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _askAiKey.currentState?.startListening();
+            });
+          } else {
+            _askAiKey.currentState?.toggleListening();
+          }
+        },
         child: Container(
           width: 64,
           height: 64,
@@ -232,10 +257,15 @@ class _AlloBotPageState extends State<AlloBotPage> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.mic,
-            color: Colors.white,
-            size: 28,
+          child: ValueListenableBuilder<bool>(
+            valueListenable: _isListeningNotifier,
+            builder: (context, isListening, child) {
+              return Icon(
+                isListening ? Icons.pause : Icons.mic,
+                color: Colors.white,
+                size: 28,
+              );
+            },
           ),
         ),
       ),

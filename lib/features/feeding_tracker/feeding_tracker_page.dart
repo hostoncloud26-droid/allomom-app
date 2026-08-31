@@ -141,8 +141,8 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: BabyHeroBanner(
                   speechText: "Time for\nbaby's feed! 🍼",
-                  bubblePosition: SpeechBubblePosition.right,
-                  height: 320,
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 270,
                 ),
               ),
 

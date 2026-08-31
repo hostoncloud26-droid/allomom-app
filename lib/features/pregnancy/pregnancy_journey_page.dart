@@ -58,8 +58,8 @@ class PregnancyJourneyPage extends StatelessWidget {
               // ─── BABY HERO CARD (AM 23 WEEKS) ───
               const BabyHeroBanner(
                 speechText: "Am 23 weeks, Amma! 💕\nWe're growing so strong together.",
-                bubblePosition: SpeechBubblePosition.left,
-                height: 320,
+                bubblePosition: SpeechBubblePosition.topCenter,
+                height: 270,
                 greetingText: "",
               ),
               const SizedBox(height: 18),

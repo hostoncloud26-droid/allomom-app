@@ -153,8 +153,8 @@ class _KickCounterPageState extends State<KickCounterPage>
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: BabyHeroBanner(
                   speechText: "Let's count\ntogether! ❤️",
-                  bubblePosition: SpeechBubblePosition.left,
-                  height: 320,
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 270,
                 ),
               ),
 

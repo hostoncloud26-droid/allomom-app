@@ -144,8 +144,8 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                   // ─── BABY HERO BANNER AT TOP ───
                   const BabyHeroBanner(
                     speechText: "Am 23 weeks, Amma! 💕\nAll our test reports look great.",
-                    bubblePosition: SpeechBubblePosition.left,
-                    height: 320,
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 270,
                     greetingText: "",
                   ),
                   const SizedBox(height: 16),

@@ -216,7 +216,7 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
                 child: BabyHeroBanner(
                   speechText: "I'm listening,\nAmma. ❤️",
                   bubblePosition: SpeechBubblePosition.right,
-                  height: 230,
+                  height: 270,
                 ),
               ),
 

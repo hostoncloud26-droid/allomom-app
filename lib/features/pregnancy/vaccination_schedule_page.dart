@@ -105,8 +105,8 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
                   // ─── BABY HERO BANNER AT TOP ───
                   const BabyHeroBanner(
                     speechText: "Am 23 weeks, Amma! 💕\nStaying protected and strong.",
-                    bubblePosition: SpeechBubblePosition.left,
-                    height: 320,
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 270,
                     greetingText: "",
                   ),
                   const SizedBox(height: 16),

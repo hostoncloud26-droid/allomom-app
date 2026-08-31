@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/services/tts_service.dart';
+import 'package:allomom/features/kick_counter/kick_counter_page.dart';
+import 'package:allomom/features/allobot/widgets/allobot_voice_assistant_modal.dart';
 
 class AlloBotChatTab extends StatefulWidget {
   final VoidCallback? onBack;
@@ -16,21 +19,31 @@ class AlloBotChatTab extends StatefulWidget {
 class _AlloBotChatTabState extends State<AlloBotChatTab> {
   final TextEditingController _textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final TtsService _ttsService = TtsService();
 
   bool _hasStartedChat = false;
 
   final List<Map<String, dynamic>> _messages = [];
 
   final List<String> _suggestedQueries = [
+    '👶 My baby is kicking!',
+    '🦶 I need to go to kick count',
     'What should I eat today?',
     'Why does baby kick more at night?',
     'Is mild swelling in feet normal in week 24?',
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _ttsService.init();
+  }
+
+  @override
   void dispose() {
     _textController.dispose();
     _scrollController.dispose();
+    _ttsService.stop();
     super.dispose();
   }
 
@@ -59,14 +72,16 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
       if (!mounted) return;
       String reply =
           "That's completely normal for week 24, Amma! Stay hydrated with 8-10 glasses of water and keep counting those precious kicks. ❤️";
+      bool hasKickCard = false;
       final lower = text.toLowerCase();
 
-      if (lower.contains('eat') || lower.contains('diet') || lower.contains('food')) {
+      if (lower.contains('kick') || lower.contains('kicking')) {
+        reply =
+            "Babies kick more after you eat and when you rest on your left side. Aim for 10 kicks in 2 hours during active windows! Okay mom, use this Kick Counter feature:";
+        hasKickCard = true;
+      } else if (lower.contains('eat') || lower.contains('diet') || lower.contains('food')) {
         reply =
             "For week 24, focus on iron & calcium rich foods: fresh spinach, lentils, ragi, curd, and citrus fruits like oranges!";
-      } else if (lower.contains('kick')) {
-        reply =
-            "Babies kick more after you eat and when you rest on your left side. Aim for 10 kicks in 2 hours during active windows!";
       } else if (lower.contains('swelling') || lower.contains('feet')) {
         reply =
             "Mild swelling in the feet is very common in the 2nd trimester. Elevate your legs while resting and stay well hydrated.";
@@ -77,6 +92,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
           'sender': 'bot',
           'text': reply,
           'time': timeStr,
+          'hasKickCard': hasKickCard,
           'isPlaying': false,
         });
       });
@@ -370,6 +386,30 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
     );
   }
 
+  void _toggleTtsForMessage(Map<String, dynamic> msg) {
+    final isCurrentlyPlaying = msg['isPlaying'] ?? false;
+    if (isCurrentlyPlaying) {
+      _ttsService.stop();
+      setState(() {
+        msg['isPlaying'] = false;
+      });
+    } else {
+      for (var m in _messages) {
+        m['isPlaying'] = false;
+      }
+      setState(() {
+        msg['isPlaying'] = true;
+      });
+      _ttsService.speak(msg['text'] ?? '', onComplete: () {
+        if (mounted) {
+          setState(() {
+            msg['isPlaying'] = false;
+          });
+        }
+      });
+    }
+  }
+
   Widget _buildBottomInputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
@@ -388,6 +428,30 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
       ),
       child: Row(
         children: [
+          // Voice Assistant Mic Button
+          GestureDetector(
+            onTap: () {
+              AlloBotVoiceAssistantModal.show(
+                context,
+                onOpenChat: () {},
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0F3),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFFFD2DC)),
+              ),
+              child: const Icon(
+                Icons.mic_rounded,
+                color: Color(0xFFFF4E6A),
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+
           // Image attachment icon
           GestureDetector(
             onTap: () {
@@ -411,7 +475,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
 
           // Text Field
           Expanded(
@@ -442,7 +506,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
 
           // Send Button
           GestureDetector(
@@ -508,6 +572,92 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                   height: 1.45,
                 ),
               ),
+
+              // Interactive Kick Counter Card if detected
+              if (msg['hasKickCard'] == true) ...[
+                const SizedBox(height: 12),
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const KickCounterPage(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F3),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFFD2DC)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Image.asset(
+                            'assets/allobaby/KickCounter.png',
+                            fit: BoxFit.contain,
+                            errorBuilder: (c, e, s) => const Icon(
+                              Icons.directions_walk_rounded,
+                              color: Color(0xFFFF4E6A),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Kick Counter',
+                                style: GoogleFonts.outfit(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: const Color(0xFF1E2024),
+                                ),
+                              ),
+                              Text(
+                                'Tap to open & record kicks',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 11,
+                                  color: const Color(0xFF6B7280),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF4E6A),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'Open',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -520,11 +670,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                     ),
                   ),
                   GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        msg['isPlaying'] = !(msg['isPlaying'] ?? false);
-                      });
-                    },
+                    onTap: () => _toggleTtsForMessage(msg),
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(

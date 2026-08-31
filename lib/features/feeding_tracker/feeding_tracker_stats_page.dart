@@ -136,8 +136,8 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                       padding: EdgeInsets.symmetric(horizontal: 20),
                       child: BabyHeroBanner(
                         speechText: "Week 24, Amma!\nWe're growing together. Can you feel the kicks?",
-                        bubblePosition: SpeechBubblePosition.left,
-                        height: 320,
+                        bubblePosition: SpeechBubblePosition.topCenter,
+                        height: 270,
                       ),
                     ),
 
