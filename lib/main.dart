@@ -6,6 +6,11 @@ import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/api/api_base.dart';
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
+import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
+import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
+import 'package:allomom/features/reminders/reminders_page.dart';
+
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,9 +20,41 @@ void main() async {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
   await ApiBase.init();
   await SqLiteService.init();
   await UserSessionManager.instance.init();
+
+  // Initialize Local Notifications & Health Reminder Scheduler
+  try {
+    LocalReminderScheduler.onNotificationAction = (data) {
+      final screen = data['screen'];
+      if (screen == 'prescription_reminder') {
+        final timingId = data['timing_id']?.toString() ?? '';
+        final medName = data['medicine_name']?.toString();
+        rootNavigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => PrescriptionReminderPage(
+              timingId: timingId,
+              medicineName: medName,
+            ),
+          ),
+        );
+      } else if (screen == 'local_reminder') {
+        rootNavigatorKey.currentState?.push(
+          MaterialPageRoute(
+            builder: (_) => const RemindersPage(),
+          ),
+        );
+      }
+    };
+
+    await LocalReminderScheduler.init();
+    LocalReminderScheduler.scheduleAllReminders();
+  } catch (e) {
+    debugPrint('Local notifications init notice: $e');
+  }
+
   runApp(const AllomomApp());
 }
 
@@ -32,6 +69,7 @@ class AllomomApp extends StatelessWidget {
         final isAuthenticated = UserSessionManager.instance.isAuthenticated;
 
         return MaterialApp(
+          navigatorKey: rootNavigatorKey,
           title: 'Allomom',
           debugShowCheckedModeBanner: false,
           theme: ThemeData(

@@ -10097,6 +10097,497 @@ class ReportsCompanion extends UpdateCompanion<Report> {
   }
 }
 
+class $VitalsTable extends Vitals with TableInfo<$VitalsTable, Vital> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VitalsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _vitalKeyMeta = const VerificationMeta(
+    'vitalKey',
+  );
+  @override
+  late final GeneratedColumn<String> vitalKey = GeneratedColumn<String>(
+    'vital_key',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _valueMeta = const VerificationMeta('value');
+  @override
+  late final GeneratedColumn<double> value = GeneratedColumn<double>(
+    'value',
+    aliasedName,
+    false,
+    type: DriftSqlType.double,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _unitMeta = const VerificationMeta('unit');
+  @override
+  late final GeneratedColumn<String> unit = GeneratedColumn<String>(
+    'unit',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dataMeta = const VerificationMeta('data');
+  @override
+  late final GeneratedColumn<String> data = GeneratedColumn<String>(
+    'data',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    vitalKey,
+    value,
+    unit,
+    createdAt,
+    userId,
+    data,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vitals';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Vital> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('vital_key')) {
+      context.handle(
+        _vitalKeyMeta,
+        vitalKey.isAcceptableOrUnknown(data['vital_key']!, _vitalKeyMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_vitalKeyMeta);
+    }
+    if (data.containsKey('value')) {
+      context.handle(
+        _valueMeta,
+        value.isAcceptableOrUnknown(data['value']!, _valueMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_valueMeta);
+    }
+    if (data.containsKey('unit')) {
+      context.handle(
+        _unitMeta,
+        unit.isAcceptableOrUnknown(data['unit']!, _unitMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_unitMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('data')) {
+      context.handle(
+        _dataMeta,
+        this.data.isAcceptableOrUnknown(data['data']!, _dataMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Vital map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Vital(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      vitalKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vital_key'],
+      )!,
+      value: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}value'],
+      )!,
+      unit: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}unit'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      ),
+      data: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}data'],
+      ),
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $VitalsTable createAlias(String alias) {
+    return $VitalsTable(attachedDatabase, alias);
+  }
+}
+
+class Vital extends DataClass implements Insertable<Vital> {
+  final String id;
+  final String vitalKey;
+  final double value;
+  final String unit;
+  final DateTime createdAt;
+  final String? userId;
+  final String? data;
+  final int synced;
+  const Vital({
+    required this.id,
+    required this.vitalKey,
+    required this.value,
+    required this.unit,
+    required this.createdAt,
+    this.userId,
+    this.data,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['vital_key'] = Variable<String>(vitalKey);
+    map['value'] = Variable<double>(value);
+    map['unit'] = Variable<String>(unit);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
+    }
+    if (!nullToAbsent || data != null) {
+      map['data'] = Variable<String>(data);
+    }
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  VitalsCompanion toCompanion(bool nullToAbsent) {
+    return VitalsCompanion(
+      id: Value(id),
+      vitalKey: Value(vitalKey),
+      value: Value(value),
+      unit: Value(unit),
+      createdAt: Value(createdAt),
+      userId: userId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userId),
+      data: data == null && nullToAbsent ? const Value.absent() : Value(data),
+      synced: Value(synced),
+    );
+  }
+
+  factory Vital.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Vital(
+      id: serializer.fromJson<String>(json['id']),
+      vitalKey: serializer.fromJson<String>(json['vitalKey']),
+      value: serializer.fromJson<double>(json['value']),
+      unit: serializer.fromJson<String>(json['unit']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      userId: serializer.fromJson<String?>(json['userId']),
+      data: serializer.fromJson<String?>(json['data']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'vitalKey': serializer.toJson<String>(vitalKey),
+      'value': serializer.toJson<double>(value),
+      'unit': serializer.toJson<String>(unit),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'userId': serializer.toJson<String?>(userId),
+      'data': serializer.toJson<String?>(data),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  Vital copyWith({
+    String? id,
+    String? vitalKey,
+    double? value,
+    String? unit,
+    DateTime? createdAt,
+    Value<String?> userId = const Value.absent(),
+    Value<String?> data = const Value.absent(),
+    int? synced,
+  }) => Vital(
+    id: id ?? this.id,
+    vitalKey: vitalKey ?? this.vitalKey,
+    value: value ?? this.value,
+    unit: unit ?? this.unit,
+    createdAt: createdAt ?? this.createdAt,
+    userId: userId.present ? userId.value : this.userId,
+    data: data.present ? data.value : this.data,
+    synced: synced ?? this.synced,
+  );
+  Vital copyWithCompanion(VitalsCompanion data) {
+    return Vital(
+      id: data.id.present ? data.id.value : this.id,
+      vitalKey: data.vitalKey.present ? data.vitalKey.value : this.vitalKey,
+      value: data.value.present ? data.value.value : this.value,
+      unit: data.unit.present ? data.unit.value : this.unit,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      data: data.data.present ? data.data.value : this.data,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Vital(')
+          ..write('id: $id, ')
+          ..write('vitalKey: $vitalKey, ')
+          ..write('value: $value, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('userId: $userId, ')
+          ..write('data: $data, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, vitalKey, value, unit, createdAt, userId, data, synced);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Vital &&
+          other.id == this.id &&
+          other.vitalKey == this.vitalKey &&
+          other.value == this.value &&
+          other.unit == this.unit &&
+          other.createdAt == this.createdAt &&
+          other.userId == this.userId &&
+          other.data == this.data &&
+          other.synced == this.synced);
+}
+
+class VitalsCompanion extends UpdateCompanion<Vital> {
+  final Value<String> id;
+  final Value<String> vitalKey;
+  final Value<double> value;
+  final Value<String> unit;
+  final Value<DateTime> createdAt;
+  final Value<String?> userId;
+  final Value<String?> data;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const VitalsCompanion({
+    this.id = const Value.absent(),
+    this.vitalKey = const Value.absent(),
+    this.value = const Value.absent(),
+    this.unit = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VitalsCompanion.insert({
+    required String id,
+    required String vitalKey,
+    required double value,
+    required String unit,
+    required DateTime createdAt,
+    this.userId = const Value.absent(),
+    this.data = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       vitalKey = Value(vitalKey),
+       value = Value(value),
+       unit = Value(unit),
+       createdAt = Value(createdAt);
+  static Insertable<Vital> custom({
+    Expression<String>? id,
+    Expression<String>? vitalKey,
+    Expression<double>? value,
+    Expression<String>? unit,
+    Expression<DateTime>? createdAt,
+    Expression<String>? userId,
+    Expression<String>? data,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (vitalKey != null) 'vital_key': vitalKey,
+      if (value != null) 'value': value,
+      if (unit != null) 'unit': unit,
+      if (createdAt != null) 'created_at': createdAt,
+      if (userId != null) 'user_id': userId,
+      if (data != null) 'data': data,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VitalsCompanion copyWith({
+    Value<String>? id,
+    Value<String>? vitalKey,
+    Value<double>? value,
+    Value<String>? unit,
+    Value<DateTime>? createdAt,
+    Value<String?>? userId,
+    Value<String?>? data,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return VitalsCompanion(
+      id: id ?? this.id,
+      vitalKey: vitalKey ?? this.vitalKey,
+      value: value ?? this.value,
+      unit: unit ?? this.unit,
+      createdAt: createdAt ?? this.createdAt,
+      userId: userId ?? this.userId,
+      data: data ?? this.data,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (vitalKey.present) {
+      map['vital_key'] = Variable<String>(vitalKey.value);
+    }
+    if (value.present) {
+      map['value'] = Variable<double>(value.value);
+    }
+    if (unit.present) {
+      map['unit'] = Variable<String>(unit.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (data.present) {
+      map['data'] = Variable<String>(data.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VitalsCompanion(')
+          ..write('id: $id, ')
+          ..write('vitalKey: $vitalKey, ')
+          ..write('value: $value, ')
+          ..write('unit: $unit, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('userId: $userId, ')
+          ..write('data: $data, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDriftDatabase extends GeneratedDatabase {
   _$AppDriftDatabase(QueryExecutor e) : super(e);
   $AppDriftDatabaseManager get managers => $AppDriftDatabaseManager(this);
@@ -10120,6 +10611,7 @@ abstract class _$AppDriftDatabase extends GeneratedDatabase {
   late final $PrescriptionMedicineTimingsTable prescriptionMedicineTimings =
       $PrescriptionMedicineTimingsTable(this);
   late final $ReportsTable reports = $ReportsTable(this);
+  late final $VitalsTable vitals = $VitalsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10139,6 +10631,7 @@ abstract class _$AppDriftDatabase extends GeneratedDatabase {
     prescriptionMedicines,
     prescriptionMedicineTimings,
     reports,
+    vitals,
   ];
 }
 
@@ -14980,6 +15473,257 @@ typedef $$ReportsTableProcessedTableManager =
       Report,
       PrefetchHooks Function()
     >;
+typedef $$VitalsTableCreateCompanionBuilder =
+    VitalsCompanion Function({
+      required String id,
+      required String vitalKey,
+      required double value,
+      required String unit,
+      required DateTime createdAt,
+      Value<String?> userId,
+      Value<String?> data,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$VitalsTableUpdateCompanionBuilder =
+    VitalsCompanion Function({
+      Value<String> id,
+      Value<String> vitalKey,
+      Value<double> value,
+      Value<String> unit,
+      Value<DateTime> createdAt,
+      Value<String?> userId,
+      Value<String?> data,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$VitalsTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $VitalsTable> {
+  $$VitalsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vitalKey => $composableBuilder(
+    column: $table.vitalKey,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VitalsTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $VitalsTable> {
+  $$VitalsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vitalKey => $composableBuilder(
+    column: $table.vitalKey,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get value => $composableBuilder(
+    column: $table.value,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get unit => $composableBuilder(
+    column: $table.unit,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get data => $composableBuilder(
+    column: $table.data,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VitalsTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $VitalsTable> {
+  $$VitalsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get vitalKey =>
+      $composableBuilder(column: $table.vitalKey, builder: (column) => column);
+
+  GeneratedColumn<double> get value =>
+      $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<String> get unit =>
+      $composableBuilder(column: $table.unit, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get data =>
+      $composableBuilder(column: $table.data, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$VitalsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $VitalsTable,
+          Vital,
+          $$VitalsTableFilterComposer,
+          $$VitalsTableOrderingComposer,
+          $$VitalsTableAnnotationComposer,
+          $$VitalsTableCreateCompanionBuilder,
+          $$VitalsTableUpdateCompanionBuilder,
+          (Vital, BaseReferences<_$AppDriftDatabase, $VitalsTable, Vital>),
+          Vital,
+          PrefetchHooks Function()
+        > {
+  $$VitalsTableTableManager(_$AppDriftDatabase db, $VitalsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VitalsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VitalsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VitalsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> vitalKey = const Value.absent(),
+                Value<double> value = const Value.absent(),
+                Value<String> unit = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String?> data = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VitalsCompanion(
+                id: id,
+                vitalKey: vitalKey,
+                value: value,
+                unit: unit,
+                createdAt: createdAt,
+                userId: userId,
+                data: data,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String vitalKey,
+                required double value,
+                required String unit,
+                required DateTime createdAt,
+                Value<String?> userId = const Value.absent(),
+                Value<String?> data = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VitalsCompanion.insert(
+                id: id,
+                vitalKey: vitalKey,
+                value: value,
+                unit: unit,
+                createdAt: createdAt,
+                userId: userId,
+                data: data,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VitalsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $VitalsTable,
+      Vital,
+      $$VitalsTableFilterComposer,
+      $$VitalsTableOrderingComposer,
+      $$VitalsTableAnnotationComposer,
+      $$VitalsTableCreateCompanionBuilder,
+      $$VitalsTableUpdateCompanionBuilder,
+      (Vital, BaseReferences<_$AppDriftDatabase, $VitalsTable, Vital>),
+      Vital,
+      PrefetchHooks Function()
+    >;
 
 class $AppDriftDatabaseManager {
   final _$AppDriftDatabase _db;
@@ -15016,4 +15760,6 @@ class $AppDriftDatabaseManager {
       );
   $$ReportsTableTableManager get reports =>
       $$ReportsTableTableManager(_db, _db.reports);
+  $$VitalsTableTableManager get vitals =>
+      $$VitalsTableTableManager(_db, _db.vitals);
 }

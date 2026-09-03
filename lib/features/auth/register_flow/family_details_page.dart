@@ -60,80 +60,62 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
       });
 
       try {
+        final isPregnant =
+            widget.status.toLowerCase().contains("pregnant") &&
+            !widget.status.toLowerCase().contains("pre");
         final payload = {
           "name": widget.userName.trim(),
           "phone": widget.phone.trim(),
           "countryCode": widget.countryCode,
-          "pregnancyStatus": widget.status.toLowerCase(),
+          "pregnancyStatus": isPregnant ? "pregnant" : "notpregnant",
           "edDate": widget.eddDate.toIso8601String(),
           "lmpDate": widget.lmpDate?.toIso8601String(),
-          if (widget.partnerName != null && widget.partnerName!.trim().isNotEmpty)
-            "partnerName": widget.partnerName!.trim(),
-          if (widget.partnerPhone != null && widget.partnerPhone!.trim().isNotEmpty)
-            "partnerPhone": widget.partnerPhone!.trim(),
+          "gender": "female",
+          "userType": "patient",
         };
 
-        // ─── BACKEND REGISTRATION COMMENTED FOR NOW ───
-        /*
-        final res = await AuthApi.registerMother(payload);
+        String? registeredUserId;
+        String? jwt;
+        String? refresh;
+        String? healthDataId;
 
-        if (!mounted) return;
-
-        if (res.success && res.item is Map) {
-          final item = res.item as Map;
-          await UserSessionManager.instance.setAuthenticatedSession(
-            userId: item["user_id"]?.toString() ?? res.id?.toString() ?? "",
-            jwt: item["jwt"]?.toString() ?? item["access_token"]?.toString() ?? "",
-            refresh: item["refresh"]?.toString(),
-            name: item["name"]?.toString() ?? widget.userName,
-            phone: item["phone"]?.toString() ?? widget.phone,
-            email: item["email"]?.toString(),
-            healthDataId: item["healthDataID"]?.toString(),
-            pregnancyStatus: widget.status.toLowerCase(),
-            eddDate: widget.eddDate,
-            lmpDate: widget.lmpDate,
-          );
-
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Welcome, ${widget.userName}! Your maternal journey is ready.'),
-              backgroundColor: const Color(0xFFFF4E6A),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const MainLayout()),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(res.detail.isNotEmpty ? res.detail : 'Registration failed. Please try again.'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
+        try {
+          final res = await AuthApi.registerMother(payload);
+          if (res.success && res.item is Map) {
+            final item = res.item as Map;
+            registeredUserId =
+                item["user_id"]?.toString() ?? res.id?.toString();
+            jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
+            refresh = item["refresh"]?.toString();
+            healthDataId = item["healthDataID"]?.toString();
+          }
+        } catch (apiErr) {
+          debugPrint("Backend registration warning: $apiErr");
         }
-        */
 
-        // Local session setup in SharedPreferences + SQLite:
         await UserSessionManager.instance.saveRegistration(
           name: widget.userName,
           phone: widget.phone,
           countryCode: widget.countryCode,
-          pregnancyStatus: widget.status.toLowerCase(),
+          pregnancyStatus: isPregnant ? "pregnant" : "notpregnant",
           eddDate: widget.eddDate,
           lmpDate: widget.lmpDate,
           partnerName: widget.partnerName,
           partnerPhone: widget.partnerPhone,
           hasKids: false,
           kidsCount: 0,
+          userId: registeredUserId,
+          jwt: jwt,
+          refresh: refresh,
+          healthDataId: healthDataId,
         );
 
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Welcome, ${widget.userName}! Your maternal journey is ready.'),
+            content: Text(
+              'Welcome, ${widget.userName}! Your maternal journey is ready.',
+            ),
             backgroundColor: const Color(0xFFFF4E6A),
             duration: const Duration(seconds: 2),
           ),
@@ -215,7 +197,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
 
             // ─── BABY SPEECH AVATAR ───
             BabySpeechAvatar(
-              speechText: 'Do you already have sweet little\nbrothers or sisters for me? 👶',
+              speechText:
+                  'Do you already have sweet little\nbrothers or sisters for me? 👶',
               onSpeakerTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -301,7 +284,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
                               ),
                             )
                           : Text(
-                              _hasKids ? 'Next (Add Kids Details)' : 'Finish Setup',
+                              _hasKids
+                                  ? 'Next (Add Kids Details)'
+                                  : 'Finish Setup',
                               style: GoogleFonts.poppins(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -335,7 +320,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+            color: isSelected
+                ? const Color(0xFFFF4E6A)
+                : const Color(0xFFE5E7EB),
             width: isSelected ? 2 : 1.5,
           ),
           boxShadow: isSelected
@@ -388,17 +375,17 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFD1D5DB),
+                  color: isSelected
+                      ? const Color(0xFFFF4E6A)
+                      : const Color(0xFFD1D5DB),
                   width: 2,
                 ),
-                color: isSelected ? const Color(0xFFFF4E6A) : Colors.transparent,
+                color: isSelected
+                    ? const Color(0xFFFF4E6A)
+                    : Colors.transparent,
               ),
               child: isSelected
-                  ? const Icon(
-                      Icons.check,
-                      size: 14,
-                      color: Colors.white,
-                    )
+                  ? const Icon(Icons.check, size: 14, color: Colors.white)
                   : null,
             ),
           ],

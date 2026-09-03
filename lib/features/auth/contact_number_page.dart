@@ -53,8 +53,6 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
       return;
     }
 
-    // ─── BACKEND OTP SENDING COMMENTED FOR NOW ───
-    /*
     setState(() {
       _isLoading = true;
     });
@@ -63,18 +61,38 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
       final res = await OtpApi.sendOtp(phone, _countryCode);
       if (!mounted) return;
 
-      if (res.success) {
-        final otpId = res.id;
-        final isTest = _testNumbers.contains(phone);
+      final otpId = res.id;
+      final isTest = _testNumbers.contains(phone);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTest
+                ? 'OTP sent to $_countryCode $phone! (Test number OTP: 999777)'
+                : (res.detail.isNotEmpty ? res.detail : 'OTP sent successfully to $_countryCode $phone'),
+          ),
+          backgroundColor: const Color(0xFFFF4E6A),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => VerifyOtpPage(
+            phoneNumber: '$_countryCode $phone',
+            rawPhone: phone,
+            countryCode: _countryCode,
+            otpId: otpId,
+            selectedLanguage: widget.selectedLanguage,
+            selectedRole: widget.selectedRole,
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              isTest
-                  ? 'OTP sent to $_countryCode $phone! (Test number OTP: 999777)'
-                  : 'OTP sent successfully to $_countryCode $phone',
-            ),
+            content: Text('Notice: $e - proceeding with verification'),
             backgroundColor: const Color(0xFFFF4E6A),
-            duration: const Duration(seconds: 2),
           ),
         );
         Navigator.push(
@@ -84,26 +102,10 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
               phoneNumber: '$_countryCode $phone',
               rawPhone: phone,
               countryCode: _countryCode,
-              otpId: otpId,
+              otpId: null,
               selectedLanguage: widget.selectedLanguage,
               selectedRole: widget.selectedRole,
             ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res.detail.isNotEmpty ? res.detail : 'Failed to send OTP. Please check your connection.'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sending OTP: $e'),
-            backgroundColor: Colors.red.shade700,
           ),
         );
       }
@@ -114,22 +116,6 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
         });
       }
     }
-    */
-
-    // Directly proceed to OTP verification page
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => VerifyOtpPage(
-          phoneNumber: '$_countryCode $phone',
-          rawPhone: phone,
-          countryCode: _countryCode,
-          otpId: 1,
-          selectedLanguage: widget.selectedLanguage,
-          selectedRole: widget.selectedRole,
-        ),
-      ),
-    );
   }
 
   @override
@@ -138,6 +124,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
+      resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
           children: [

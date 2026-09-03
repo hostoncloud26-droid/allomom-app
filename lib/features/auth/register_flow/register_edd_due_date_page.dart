@@ -23,8 +23,18 @@ class RegisterEddDueDatePage extends StatelessWidget {
 
   String _formatEddDate(DateTime date) {
     const months = [
-      'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
     ];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
@@ -32,7 +42,10 @@ class RegisterEddDueDatePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final eddString = _formatEddDate(eddDate);
-    final daysRemaining = eddDate.difference(DateTime.now()).inDays.clamp(0, 280);
+    final daysRemaining = eddDate
+        .difference(DateTime.now())
+        .inDays
+        .clamp(0, 280);
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
@@ -139,7 +152,10 @@ class RegisterEddDueDatePage extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: const Color(0xFFFFD1DC), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFFFD1DC),
+                        width: 1.5,
+                      ),
                     ),
                     child: Column(
                       children: [
@@ -174,7 +190,10 @@ class RegisterEddDueDatePage extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF4E6A),
                             borderRadius: BorderRadius.circular(20),

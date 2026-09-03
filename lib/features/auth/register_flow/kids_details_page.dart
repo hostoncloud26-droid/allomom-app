@@ -53,75 +53,51 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
     });
 
     try {
+      final isPregnant = widget.status.toLowerCase().contains("pregnant") && !widget.status.toLowerCase().contains("pre");
       final payload = {
         "name": widget.userName.trim(),
         "phone": widget.phone.trim(),
         "countryCode": widget.countryCode,
-        "pregnancyStatus": widget.status.toLowerCase(),
+        "pregnancyStatus": isPregnant ? "pregnant" : "notpregnant",
         "edDate": widget.eddDate.toIso8601String(),
         "lmpDate": widget.lmpDate?.toIso8601String(),
-        if (widget.partnerName != null && widget.partnerName!.trim().isNotEmpty)
-          "partnerName": widget.partnerName!.trim(),
-        if (widget.partnerPhone != null && widget.partnerPhone!.trim().isNotEmpty)
-          "partnerPhone": widget.partnerPhone!.trim(),
+        "gender": "female",
+        "userType": "patient",
       };
 
-      // ─── BACKEND REGISTRATION COMMENTED FOR NOW ───
-      /*
-      final res = await AuthApi.registerMother(payload);
+      String? registeredUserId;
+      String? jwt;
+      String? refresh;
+      String? healthDataId;
 
-      if (!mounted) return;
-
-      if (res.success && res.item is Map) {
-        final item = res.item as Map;
-        await UserSessionManager.instance.setAuthenticatedSession(
-          userId: item["user_id"]?.toString() ?? res.id?.toString() ?? "",
-          jwt: item["jwt"]?.toString() ?? item["access_token"]?.toString() ?? "",
-          refresh: item["refresh"]?.toString(),
-          name: item["name"]?.toString() ?? widget.userName,
-          phone: item["phone"]?.toString() ?? widget.phone,
-          email: item["email"]?.toString(),
-          healthDataId: item["healthDataID"]?.toString(),
-          pregnancyStatus: widget.status.toLowerCase(),
-          eddDate: widget.eddDate,
-          lmpDate: widget.lmpDate,
-        );
-
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome, ${widget.userName}! Your family profile is complete.'),
-            backgroundColor: const Color(0xFFFF4E6A),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const MainLayout()),
-          (route) => false,
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(res.detail.isNotEmpty ? res.detail : 'Registration failed. Please try again.'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
+      try {
+        final res = await AuthApi.registerMother(payload);
+        if (res.success && res.item is Map) {
+          final item = res.item as Map;
+          registeredUserId = item["user_id"]?.toString() ?? res.id?.toString();
+          jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
+          refresh = item["refresh"]?.toString();
+          healthDataId = item["healthDataID"]?.toString();
+        }
+      } catch (apiErr) {
+        debugPrint("Backend registration warning: $apiErr");
       }
-      */
 
-      // Local session setup in SharedPreferences + SQLite:
       await UserSessionManager.instance.saveRegistration(
         name: widget.userName,
         phone: widget.phone,
         countryCode: widget.countryCode,
-        pregnancyStatus: widget.status.toLowerCase(),
+        pregnancyStatus: isPregnant ? "pregnant" : "notpregnant",
         eddDate: widget.eddDate,
         lmpDate: widget.lmpDate,
         partnerName: widget.partnerName,
         partnerPhone: widget.partnerPhone,
         hasKids: _kidsList.isNotEmpty,
         kidsCount: _kidsList.length,
+        userId: registeredUserId,
+        jwt: jwt,
+        refresh: refresh,
+        healthDataId: healthDataId,
       );
 
       if (!mounted) return;

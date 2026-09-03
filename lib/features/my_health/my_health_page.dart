@@ -1,6 +1,19 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/reports/reports_page.dart';
+import 'package:allomom/features/prescriptions/prescriptions_page.dart';
+import 'package:allomom/features/my_health/health_profile_page.dart';
+import 'package:allomom/features/my_health/widgets/my_health_profile_card.dart';
+import 'package:allomom/features/my_health/widgets/advanced_health_summary_card.dart';
+import 'package:allomom/features/my_health/widgets/step_target_tile.dart';
+import 'package:allomom/features/my_health/widgets/fitness_summary_card.dart';
+import 'package:allomom/features/my_health/widgets/calories_tracker_tile.dart';
+import 'package:allomom/features/my_health/widgets/nutrition_tiles.dart';
+import 'package:allomom/features/my_health/widgets/fitness_tiles.dart';
 import 'package:allomom/features/my_health/details/steps_detail_page.dart';
 import 'package:allomom/features/my_health/details/blood_oxygen_detail_page.dart';
 import 'package:allomom/features/my_health/details/heart_rate_detail_page.dart';
@@ -12,8 +25,78 @@ import 'package:allomom/features/my_health/details/hemoglobin_detail_page.dart';
 import 'package:allomom/features/my_health/details/blood_glucose_detail_page.dart';
 import 'package:allomom/features/my_health/details/bmi_tracker_detail_page.dart';
 
-class MyHealthPage extends StatelessWidget {
-  const MyHealthPage({super.key});
+class _HealthTabItem {
+  final IconData icon;
+  final String label;
+
+  const _HealthTabItem({
+    required this.icon,
+    required this.label,
+  });
+}
+
+class MyHealthPage extends StatefulWidget {
+  final int initialTab;
+  const MyHealthPage({super.key, this.initialTab = 0});
+
+  @override
+  State<MyHealthPage> createState() => _MyHealthPageState();
+}
+
+class _MyHealthPageState extends State<MyHealthPage> {
+  late int _currentIndex;
+  late final PageController _pageController;
+  bool _isSyncingAllowear = false;
+
+  final List<_HealthTabItem> _tabs = const [
+    _HealthTabItem(icon: Icons.health_and_safety_rounded, label: 'Health'),
+    _HealthTabItem(icon: Icons.description_rounded, label: 'Reports'),
+    _HealthTabItem(icon: Icons.medication_rounded, label: 'Prescription'),
+    _HealthTabItem(icon: Icons.person_rounded, label: 'Profile'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialTab;
+    _pageController = PageController(initialPage: _currentIndex);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HealthVitalsController.instance.fetchLatestVitals(showLoading: false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _syncAllowearDevice() async {
+    setState(() => _isSyncingAllowear = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Syncing with Allowear device...'),
+        duration: Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    await Future.wait([
+      HealthVitalsController.instance.refreshAndSyncLast30Days(),
+      HealthVitalsController.instance.fetchLatestVitals(),
+    ]);
+
+    if (mounted) {
+      setState(() => _isSyncingAllowear = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Allowear vitals synced successfully!'),
+          backgroundColor: Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,19 +115,132 @@ class MyHealthPage extends StatelessWidget {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
-          'My Health',
-          style: TextStyle(
+        title: Text(
+          _currentIndex == 0
+              ? 'My Health'
+              : _currentIndex == 1
+                  ? 'My Reports'
+                  : _currentIndex == 2
+                      ? 'My Prescriptions'
+                      : 'My Profile',
+          style: GoogleFonts.manrope(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF2D3142),
+            color: const Color(0xFF2D3142),
           ),
         ),
       ),
-      body: const SingleChildScrollView(
-        physics: BouncingScrollPhysics(),
-        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        child: MyHealthSection(showBabyHero: true),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: FloatingActionButton(
+        heroTag: 'my_health_allowear_fab',
+        onPressed: _isSyncingAllowear ? null : _syncAllowearDevice,
+        backgroundColor: const Color(0xFFFF3B5C),
+        elevation: 6,
+        shape: const CircleBorder(),
+        child: _isSyncingAllowear
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+              )
+            : const Icon(
+                Icons.watch_rounded,
+                color: Colors.white,
+                size: 28,
+              ),
+      ),
+      bottomNavigationBar: BottomAppBar(
+        color: Colors.white,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        elevation: 12,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildTabButton(0, _tabs[0]),
+              _buildTabButton(1, _tabs[1]),
+              const SizedBox(width: 48), // Notch space for FAB
+              _buildTabButton(2, _tabs[2]),
+              _buildTabButton(3, _tabs[3]),
+            ],
+          ),
+        ),
+      ),
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (idx) {
+          if (_currentIndex != idx) {
+            setState(() => _currentIndex = idx);
+          }
+        },
+        children: [
+          // Tab 0: Health Section
+          RefreshIndicator(
+            color: const Color(0xFFFF3B5C),
+            onRefresh: () async {
+              await Future.wait([
+                HealthVitalsController.instance.refreshAndSyncLast30Days(),
+                HealthVitalsController.instance.fetchLatestVitals(),
+              ]);
+            },
+            child: const SingleChildScrollView(
+              physics: AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              padding: EdgeInsets.symmetric(horizontal: 0, vertical: 6),
+              child: MyHealthSection(showBabyHero: true),
+            ),
+          ),
+
+          // Tab 1: Reports
+          const ReportsPage(showAppBar: false),
+
+          // Tab 2: Prescriptions
+          const PrescriptionsPage(),
+
+          // Tab 3: Profile
+          const HealthProfilePage(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabButton(int index, _HealthTabItem tab) {
+    final isSelected = _currentIndex == index;
+    const activeColor = Color(0xFFFF3B5C);
+    const inactiveColor = Color(0xFF8E95A5);
+
+    return InkWell(
+      onTap: () {
+        if (_currentIndex != index) {
+          setState(() => _currentIndex = index);
+          _pageController.jumpToPage(index);
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              tab.icon,
+              size: 22,
+              color: isSelected ? activeColor : inactiveColor,
+            ),
+            const SizedBox(height: 3),
+            Text(
+              tab.label,
+              style: GoogleFonts.manrope(
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                color: isSelected ? activeColor : inactiveColor,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -65,25 +261,18 @@ class MyHealthSection extends StatefulWidget {
 }
 
 class _MyHealthSectionState extends State<MyHealthSection> {
-  // Interactive readings state
-  String _bloodPressure = '118/76';
-  String _bloodPressureDate = '26 Aug';
-  
-  String _hemoglobin = '10.8';
-  String _hemoglobinDate = '26 Aug';
-  
-  String _glucose = '92';
-  String _glucoseDate = '25 Aug';
-  
-  String _weight = '62.5';
-  String _weightDate = '25 Aug';
-  
-  double _bmi = 24.1;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HealthVitalsController.instance.fetchLatestVitals();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -93,76 +282,140 @@ class _MyHealthSectionState extends State<MyHealthSection> {
           children: [
             // Optional Section Header (for home overview integration)
             if (widget.showSectionHeader) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'My Health',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'My Health',
+                      style: GoogleFonts.manrope(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1E2024),
+                      ),
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MyHealthPage()),
-                      );
-                    },
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View all',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const MyHealthPage()),
+                        );
+                      },
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View all',
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFFF3B5C),
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
                             color: Color(0xFFFF3B5C),
                           ),
-                        ),
-                        SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_forward_ios_rounded,
-                          size: 11,
-                          color: Color(0xFFFF3B5C),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
             ],
 
+            // ─── COLLAPSIBLE USER PROFILE BANNER ───
+            const MyHealthProfileCard(),
+            const SizedBox(height: 12),
+
             // ─── BABY HERO CARD (OPTIONAL) ───
             if (widget.showBabyHero) ...[
-              BabyHeroBanner(
-                speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                bubblePosition: SpeechBubblePosition.topCenter,
-                height: 270,
-                greetingText: "",
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: BabyHeroBanner(
+                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 270,
+                  greetingText: "",
+                ),
               ),
               const SizedBox(height: 18),
             ],
 
-            // ─── SLEEP CARD (1ST) ───
-            _buildSleepCard(),
+            // ─── ADVANCED READINESS & VITAL SCORING ENGINE ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: AdvancedHealthSummaryCard(),
+            ),
+            const SizedBox(height: 14),
+
+            // ─── DAILY STEP TARGET CARD ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: StepTargetTile(),
+            ),
+            const SizedBox(height: 14),
+
+            // ─── FITNESS & MOVEMENT SUMMARY ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: FitnessSummaryCard(),
+            ),
+            const SizedBox(height: 14),
+
+            // ─── CALORIES & DIET TRACKER ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: CaloriesTrackerTile(),
+            ),
+            const SizedBox(height: 14),
+
+            // ─── SLEEP CARD (1ST VITAL) ───
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildSleepCard(),
+            ),
             const SizedBox(height: 14),
 
             // ─── VITALS GRID (STEPS, HR, HRV, BLOOD OXYGEN, STRESS) ───
-            _buildVitalsGrid(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildVitalsGrid(),
+            ),
             const SizedBox(height: 20),
 
             // ─── HEALTH READINGS (WITH + ADD) ───
-            _buildHealthReadingsSection(context),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildHealthReadingsSection(context),
+            ),
             const SizedBox(height: 14),
 
             // ─── WEIGHT & BMI TRACKER ───
-            _buildWeightAndBmiTrackerCard(context),
-
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _buildWeightAndBmiTrackerCard(context),
+            ),
             const SizedBox(height: 20),
+
+            // ─── NUTRITION MEAL TILES ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: NutritionTiles(),
+            ),
+            const SizedBox(height: 20),
+
+            // ─── GENTLE PREGNANCY FITNESS TILES ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: FitnessTiles(),
+            ),
+
+            const SizedBox(height: 60),
           ],
         );
       },
@@ -213,8 +466,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     );
   }
 
-  // ─── HEART RATE TILE (COMPACT LIKE HRV) ────────────────────
+  // ─── HEART RATE TILE ─────────────────────────────────────────
   Widget _buildHeartRateTile() {
+    final hr = HealthVitalsController.instance.heartRateValue;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -243,7 +498,6 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pink Heart Icon
                 Container(
                   width: 36,
                   height: 36,
@@ -261,34 +515,34 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 ),
                 const SizedBox(height: 10),
 
-                const Text(
+                Text(
                   'Heart Rate',
-                  style: TextStyle(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E2024),
+                    color: const Color(0xFF1E2024),
                   ),
                 ),
                 const SizedBox(height: 2),
 
-                const Row(
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     Text(
-                      '78',
-                      style: TextStyle(
+                      hr,
+                      style: GoogleFonts.manrope(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E2024),
+                        color: const Color(0xFF1E2024),
                       ),
                     ),
-                    SizedBox(width: 3),
+                    const SizedBox(width: 3),
                     Text(
                       'bpm',
-                      style: TextStyle(
+                      style: GoogleFonts.manrope(
                         fontSize: 11,
-                        color: Color(0xFF8E95A5),
+                        color: const Color(0xFF8E95A5),
                       ),
                     ),
                   ],
@@ -297,24 +551,29 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
             const SizedBox(height: 12),
 
-            // Status and Pink Wave Line
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const Text(
+                Text(
                   'Normal',
-                  style: TextStyle(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF10B981),
+                    color: const Color(0xFF10B981),
                   ),
                 ),
                 SizedBox(
                   width: 48,
                   height: 18,
                   child: CustomPaint(
-                    painter: _MiniSparklinePainter(color: const Color(0xFFFF3B5C)),
+                    painter: _MiniSparklinePainter(
+                      color: const Color(0xFFFF3B5C),
+                      dataPoints: HealthVitalsController.instance
+                          .getHistory('heart_rate')
+                          .map((e) => e.value)
+                          .toList(),
+                    ),
                   ),
                 ),
               ],
@@ -325,8 +584,12 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     );
   }
 
-  // ─── STEPS TILE ───────────────────────────────────────────
+  // ─── STEPS TILE ───────────────────────────────────────────────
   Widget _buildStepsTile() {
+    final steps = HealthVitalsController.instance.stepsValue;
+    final goal = HealthVitalsController.instance.currentStepTarget;
+    final pct = ((steps / (goal > 0 ? goal : 6000)) * 100).clamp(0, 100).toInt();
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -348,112 +611,98 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Icon Badge
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE6F9F0),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.directions_walk_rounded,
-                    color: Color(0xFF10B981),
-                    size: 19,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE6F9F0),
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              const Text(
-                'Steps',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E2024),
-                ),
-              ),
-              const SizedBox(height: 2),
-
-              const Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '4,280',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
-                    ),
-                  ),
-                  SizedBox(width: 3),
-                  Text(
-                    'steps',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF8E95A5),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Goal & Progress Bar
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Goal: 6,000',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF8E95A5),
-                    ),
-                  ),
-                  Text(
-                    '71%',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                  child: const Center(
+                    child: Icon(
+                      Icons.directions_walk_rounded,
                       color: Color(0xFF10B981),
+                      size: 19,
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 5),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: const LinearProgressIndicator(
-                  value: 0.71,
-                  minHeight: 5,
-                  backgroundColor: Color(0xFFF0FDF4),
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
                 ),
-              ),
-            ],
-          ),
-        ],
-      ),
+                const SizedBox(height: 10),
+
+                Text(
+                  'Steps',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+                const SizedBox(height: 2),
+
+                Text(
+                  steps.toString(),
+                  style: GoogleFonts.manrope(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      '$pct% of goal',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF8E95A5),
+                      ),
+                    ),
+                    Text(
+                      '$goal',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF8E95A5),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pct / 100.0,
+                    minHeight: 5,
+                    backgroundColor: const Color(0xFFF0F1F5),
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── HRV TILE ─────────────────────────────────────────────
+  // ─── HRV TILE ────────────────────────────────────────────────
   Widget _buildHrvTile() {
+    final hrv = HealthVitalsController.instance.hrvValue;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -475,97 +724,103 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Purple Heart/Pulse Icon
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF3E8FF),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.monitor_heart_rounded,
-                    color: Color(0xFF8B5CF6),
-                    size: 19,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFF3E8FF),
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              const Text(
-                'HRV',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E2024),
-                ),
-              ),
-              const SizedBox(height: 2),
-
-              const Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '52',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
+                  child: const Center(
+                    child: Icon(
+                      Icons.insights_rounded,
+                      color: Color(0xFF9333EA),
+                      size: 19,
                     ),
                   ),
-                  SizedBox(width: 3),
-                  Text(
-                    'ms',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Color(0xFF8E95A5),
+                ),
+                const SizedBox(height: 10),
+
+                Text(
+                  'HRV',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+                const SizedBox(height: 2),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      hrv,
+                      style: GoogleFonts.manrope(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1E2024),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      'ms',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        color: const Color(0xFF8E95A5),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Good',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+                SizedBox(
+                  width: 48,
+                  height: 18,
+                  child: CustomPaint(
+                    painter: _MiniSparklinePainter(
+                      color: const Color(0xFF9333EA),
+                      dataPoints: HealthVitalsController.instance
+                          .getHistory('hrv')
+                          .map((e) => e.value)
+                          .toList(),
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Status and Purple Wave Line
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'Balanced',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF10B981),
                 ),
-              ),
-              SizedBox(
-                width: 48,
-                height: 18,
-                child: CustomPaint(
-                  painter: _MiniSparklinePainter(color: const Color(0xFF8B5CF6)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── BLOOD OXYGEN TILE ────────────────────────────────────
+  // ─── BLOOD OXYGEN TILE ───────────────────────────────────────
   Widget _buildBloodOxygenTile() {
+    final spo2 = HealthVitalsController.instance.bloodOxygenValue;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -587,98 +842,103 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Blue Droplet Icon
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEDF6FF),
-                  shape: BoxShape.circle,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.water_drop_rounded,
-                    color: Color(0xFF3898EC),
-                    size: 19,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE0F2FE),
+                    shape: BoxShape.circle,
                   ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              const Text(
-                'Blood Oxygen',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E2024),
-                ),
-              ),
-              const SizedBox(height: 2),
-
-              const Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '98',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
+                  child: const Center(
+                    child: Icon(
+                      Icons.air_rounded,
+                      color: Color(0xFF0284C7),
+                      size: 19,
                     ),
                   ),
-                  SizedBox(width: 3),
-                  Text(
-                    '%',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E95A5),
-                      fontWeight: FontWeight.w600,
+                ),
+                const SizedBox(height: 10),
+
+                Text(
+                  'Blood Oxygen',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+                const SizedBox(height: 2),
+
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      spo2,
+                      style: GoogleFonts.manrope(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1E2024),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      '%',
+                      style: GoogleFonts.manrope(
+                        fontSize: 11,
+                        color: const Color(0xFF8E95A5),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Text(
+                  'Optimal',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+                SizedBox(
+                  width: 48,
+                  height: 18,
+                  child: CustomPaint(
+                    painter: _MiniSparklinePainter(
+                      color: const Color(0xFF0284C7),
+                      dataPoints: HealthVitalsController.instance
+                          .getHistory('blood_oxygen')
+                          .map((e) => e.value)
+                          .toList(),
                     ),
                   ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Status and Blue Wave Line
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Text(
-                'Normal',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF10B981),
                 ),
-              ),
-              SizedBox(
-                width: 48,
-                height: 18,
-                child: CustomPaint(
-                  painter: _MiniSparklinePainter(color: const Color(0xFF3898EC)),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── STRESS LOAD TILE ─────────────────────────────────────
+  // ─── STRESS LOAD TILE ────────────────────────────────────────
   Widget _buildStressLoadTile() {
+    final stress = HealthVitalsController.instance.stressLevel;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -687,7 +947,8 @@ class _MyHealthSectionState extends State<MyHealthSection> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
@@ -700,78 +961,87 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Orange Leaf/Sparkle Icon
-            Container(
-              width: 38,
-              height: 38,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF6ED),
-                shape: BoxShape.circle,
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.spa_rounded,
-                  color: Color(0xFFF59E0B),
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 14),
-
-            // Title & Value
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Stress Load',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E2024),
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEF3C7),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.spa_rounded,
+                          color: Color(0xFFD97706),
+                          size: 19,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Stress Load',
+                      style: GoogleFonts.manrope(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1E2024),
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Low',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E2024),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE6F9F0),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    stress,
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF10B981),
+                    ),
                   ),
                 ),
               ],
             ),
-            const Spacer(),
+            const SizedBox(height: 14),
 
-            // 5-Segment Indicator + Managing Well Subtitle on right
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: const LinearProgressIndicator(
+                value: 0.28,
+                minHeight: 6,
+                backgroundColor: Color(0xFFF0F1F5),
+                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                SizedBox(
-                  width: 100,
-                  child: Row(
-                    children: [
-                      _buildStressSegment(const Color(0xFF10B981)), // Active Green
-                      const SizedBox(width: 3),
-                      _buildStressSegment(const Color(0xFFD1FAE5)), // Light Green
-                      const SizedBox(width: 3),
-                      _buildStressSegment(const Color(0xFFFEF3C7)), // Light Yellow
-                      const SizedBox(width: 3),
-                      _buildStressSegment(const Color(0xFFFFEDD5)), // Light Orange
-                      const SizedBox(width: 3),
-                      _buildStressSegment(const Color(0xFFFFE4E6)), // Light Pink
-                    ],
+                Text(
+                  'Low stress (28/100)',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8E95A5),
                   ),
                 ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Managing well',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF10B981),
+                Text(
+                  'Well rested',
+                  style: GoogleFonts.manrope(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF10B981),
                   ),
                 ),
               ],
@@ -782,20 +1052,13 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     );
   }
 
-  Widget _buildStressSegment(Color color) {
-    return Expanded(
-      child: Container(
-        height: 5,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(3),
-        ),
-      ),
-    );
-  }
-
-  // ─── SLEEP CARD ───────────────────────────────────────────
+  // ─── SLEEP CARD ──────────────────────────────────────────────
   Widget _buildSleepCard() {
+    final sleepHours = HealthVitalsController.instance.sleepHoursValue;
+    final sleepH = sleepHours.toInt();
+    final sleepM = ((sleepHours - sleepH) * 60).round();
+    final sleepDate = HealthVitalsController.instance.sleepDate;
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -804,10 +1067,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
         );
       },
       child: Container(
-        padding: const EdgeInsets.all(18),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
           boxShadow: [
             BoxShadow(
@@ -817,227 +1081,216 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             ),
           ],
         ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Left: Sleep Stats
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Sleep',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF1E2024),
-                ),
-              ),
-              SizedBox(height: 2),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    '8',
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
-                    ),
-                  ),
-                  SizedBox(width: 4),
-                  Text(
-                    'hrs',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF8E95A5),
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Latest • Today',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8E95A5),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-
-          // Right: Hypnogram Chart (Light / Deep Sleep Bar Timeline)
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Sleep Stage Timeline Graphic
-                SizedBox(
-                  height: 48,
-                  width: double.infinity,
-                  child: CustomPaint(
-                    painter: _SleepHypnogramPainter(),
-                  ),
-                ),
-                const SizedBox(height: 4),
-
-                // Time Labels
-                const Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Row(
                   children: [
-                    Text('10:30 PM', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5))),
-                    Text('2:00 AM', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5))),
-                    Text('5:00 AM', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5))),
-                    Text('6:30 AM', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5))),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFEEF2FF),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.bedtime_rounded,
+                          color: Color(0xFF4F46E5),
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Sleep Duration',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E2024),
+                          ),
+                        ),
+                        Text(
+                          sleepDate,
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: const Color(0xFF8E95A5),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.star_rounded, size: 13, color: Color(0xFF4F46E5)),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Score 88',
+                        style: GoogleFonts.manrope(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF4F46E5),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 14),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '${sleepH}h ${sleepM}m',
+                  style: GoogleFonts.manrope(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1E2024),
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '• Optimal rest',
+                  style: GoogleFonts.manrope(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF10B981),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _SleepHypnogramPainter(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── HEALTH READINGS SECTION (WITH + ADD) ──────────────────
+  // ─── HEALTH READINGS SECTION ─────────────────────────────────
   Widget _buildHealthReadingsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Section Header
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Health Readings',
-              style: TextStyle(
-                fontSize: 19,
+              style: GoogleFonts.manrope(
+                fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E2024),
+                color: const Color(0xFF1E2024),
               ),
             ),
             GestureDetector(
-              onTap: () => _showAddReadingModal(context),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F4),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add_rounded, size: 16, color: Color(0xFFFF3B5C)),
-                    SizedBox(width: 2),
-                    Text(
-                      'Add',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFFF3B5C),
-                      ),
+              onTap: () => _showAddReadingSheet(context),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.add_circle_outline_rounded,
+                    size: 15,
+                    color: Color(0xFFFF3B5C),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Add',
+                    style: GoogleFonts.manrope(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFFFF3B5C),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 12),
 
-        // 2x2 Grid of Readings
-        IntrinsicHeight(
+        // 3 Cards Row: BP, Hemoglobin, Blood Glucose
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Blood Pressure
-              Expanded(
-                child: _buildReadingCard(
-                  icon: Icons.monitor_heart_rounded,
-                  iconColor: const Color(0xFF14B8A6),
-                  iconBg: const Color(0xFFCCFBF1),
-                  title: 'Blood\nPressure',
-                  value: _bloodPressure,
-                  unit: 'mmHg',
-                  date: _bloodPressureDate,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BloodPressureDetailPage()),
-                    );
-                  },
-                ),
+              _buildReadingCard(
+                title: 'Blood Pressure',
+                value: HealthVitalsController.instance.bloodPressureValue,
+                unit: 'mmHg',
+                date: HealthVitalsController.instance.bloodPressureDate,
+                status: 'Optimal',
+                statusColor: const Color(0xFF10B981),
+                accentColor: const Color(0xFFFF3B5C),
+                icon: Icons.favorite_border_rounded,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BloodPressureDetailPage()),
+                  );
+                },
               ),
               const SizedBox(width: 12),
 
-              // Hemoglobin
-              Expanded(
-                child: _buildReadingCard(
-                  icon: Icons.water_drop_rounded,
-                  iconColor: const Color(0xFFEF4444),
-                  iconBg: const Color(0xFFFEE2E2),
-                  title: 'Hemoglobin\n',
-                  value: _hemoglobin,
-                  unit: 'g/dL',
-                  date: _hemoglobinDate,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const HemoglobinDetailPage()),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Glucose (Fasting)
-              Expanded(
-                child: _buildReadingCard(
-                  icon: Icons.water_drop_rounded,
-                  iconColor: const Color(0xFFF59E0B),
-                  iconBg: const Color(0xFFFEF3C7),
-                  title: 'Glucose\n(Fasting)',
-                  value: _glucose,
-                  unit: 'mg/dL',
-                  date: _glucoseDate,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BloodGlucoseDetailPage()),
-                    );
-                  },
-                ),
+              _buildReadingCard(
+                title: 'Hemoglobin',
+                value: HealthVitalsController.instance.hemoglobinValue.toStringAsFixed(1),
+                unit: 'g/dL',
+                date: HealthVitalsController.instance.hemoglobinDate,
+                status: 'Adequate',
+                statusColor: const Color(0xFF10B981),
+                accentColor: const Color(0xFF9333EA),
+                icon: Icons.water_drop_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HemoglobinDetailPage()),
+                  );
+                },
               ),
               const SizedBox(width: 12),
 
-              // Weight
-              Expanded(
-                child: _buildReadingCard(
-                  icon: Icons.scale_rounded,
-                  iconColor: const Color(0xFF8B5CF6),
-                  iconBg: const Color(0xFFEDE9FE),
-                  title: 'Weight\n',
-                  value: _weight,
-                  unit: 'kg',
-                  date: _weightDate,
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const BmiTrackerDetailPage()),
-                    );
-                  },
-                ),
+              _buildReadingCard(
+                title: 'Blood Glucose',
+                value: HealthVitalsController.instance.bloodGlucoseValue.toStringAsFixed(0),
+                unit: 'mg/dL',
+                date: HealthVitalsController.instance.bloodGlucoseDate,
+                status: 'Fasting',
+                statusColor: const Color(0xFF3898EC),
+                accentColor: const Color(0xFFF59E0B),
+                icon: Icons.bloodtype_outlined,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const BloodGlucoseDetailPage()),
+                  );
+                },
               ),
             ],
           ),
@@ -1047,18 +1300,20 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   }
 
   Widget _buildReadingCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
     required String title,
     required String value,
     required String unit,
     required String date,
-    VoidCallback? onTap,
+    required String status,
+    required Color statusColor,
+    required Color accentColor,
+    required IconData icon,
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        width: 160,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -1067,83 +1322,104 @@ class _MyHealthSectionState extends State<MyHealthSection> {
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 12,
+              blurRadius: 14,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  shape: BoxShape.circle,
-                ),
-                child: Center(
-                  child: Icon(icon, color: iconColor, size: 18),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E2024),
-                    height: 1.2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Icon(icon, color: accentColor, size: 17),
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                Text(
+                  date,
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8E95A5),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                unit,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: Color(0xFF8E95A5),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 2),
-
-          Text(
-            date,
-            style: const TextStyle(
-              fontSize: 11,
-              color: Color(0xFF8E95A5),
-              fontWeight: FontWeight.w500,
+              ],
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 12),
+
+            Text(
+              title,
+              style: GoogleFonts.manrope(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: const Color(0xFF8E95A5),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.manrope(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+                const SizedBox(width: 3),
+                Text(
+                  unit,
+                  style: GoogleFonts.manrope(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8E95A5),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: statusColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                status,
+                style: GoogleFonts.manrope(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── WEIGHT & BMI TRACKER CARD ────────────────────────────
+  // ─── WEIGHT & BMI TRACKER CARD ───────────────────────────────
   Widget _buildWeightAndBmiTrackerCard(BuildContext context) {
+    final wt = HealthVitalsController.instance.weightValue.toStringAsFixed(1);
+    final wtDate = HealthVitalsController.instance.weightDate;
+    final bmi = HealthVitalsController.instance.bmiValue.toStringAsFixed(1);
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -1152,184 +1428,176 @@ class _MyHealthSectionState extends State<MyHealthSection> {
         );
       },
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(28),
+          borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 16,
+              blurRadius: 14,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Row: Title, Large Weight, Trend Line on Right
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Left: Title & Value
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
                   children: [
-                    const Text(
-                      'Weight & BMI Tracker',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E2024),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFF0F3),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.monitor_weight_outlined,
+                          color: Color(0xFFFF3B5C),
+                          size: 20,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Weight & BMI Tracker',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E2024),
+                          ),
+                        ),
+                        Text(
+                          'Recorded $wtDate',
+                          style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            color: const Color(0xFF8E95A5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: Color(0xFF8E95A5),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Weight',
+                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.baseline,
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          _weight,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E2024),
-                            height: 1.0,
-                          ),
+                          wt,
+                          style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF1E2024)),
                         ),
-                        const SizedBox(width: 4),
-                        const Text(
-                          'kg',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF8E95A5),
-                          ),
-                        ),
+                        const SizedBox(width: 3),
+                        Text('kg', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF8E95A5))),
                       ],
-                    ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Latest • Today',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF8E95A5),
-                        fontWeight: FontWeight.w500,
-                      ),
                     ),
                   ],
                 ),
-              ),
-
-              // Right: Weight Gain Trend Graphic
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  SizedBox(
-                    width: 120,
-                    height: 44,
-                    child: CustomPaint(
-                      painter: _WeightTrendPainter(),
+                Container(height: 36, width: 1, color: const Color(0xFFF0F1F5)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Gestational Gain',
+                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('20 Jul', style: TextStyle(fontSize: 9, color: Color(0xFF8E95A5))),
-                      SizedBox(width: 50),
-                      Text('Today', style: TextStyle(fontSize: 9, color: Color(0xFF8E95A5), fontWeight: FontWeight.w600)),
-                    ],
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // Bottom Inner Pill Card for BMI
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFBFBFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF0F1F5), width: 1),
-            ),
-            child: Row(
-              children: [
-                const Text(
-                  'BMI',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF8E95A5),
-                    letterSpacing: 0.5,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  _bmi.toStringAsFixed(1),
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E2024),
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1FAE5),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text(
-                    'Normal',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF10B981),
+                    const SizedBox(height: 2),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          '+3.3',
+                          style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF10B981)),
+                        ),
+                        const SizedBox(width: 3),
+                        Text('kg', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF8E95A5))),
+                      ],
                     ),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  color: Color(0xFF9CA3AF),
-                  size: 20,
+                Container(height: 36, width: 1, color: const Color(0xFFF0F1F5)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BMI',
+                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      bmi,
+                      style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF1E2024)),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 18),
+
+            SizedBox(
+              height: 48,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _WeightTrendPainter(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  // ─── ADD READING BOTTOM SHEET MODAL ────────────────────────
-  void _showAddReadingModal(BuildContext context) {
+  // ─── ADD READING BOTTOM SHEET ────────────────────────────────
+  void _showAddReadingSheet(BuildContext context) {
     String selectedType = 'Blood Pressure';
-    final val1Ctrl = TextEditingController(text: '120');
-    final val2Ctrl = TextEditingController(text: '80');
+    final val1Ctrl = TextEditingController();
+    final val2Ctrl = TextEditingController();
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (modalCtx, setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(modalCtx).viewInsets.bottom + 24,
+          builder: (context, setModalState) {
+            return Container(
+              padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 30),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(32),
+                  topRight: Radius.circular(32),
+                ),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1337,57 +1605,53 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 children: [
                   Center(
                     child: Container(
-                      width: 40,
+                      width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5E7EB),
-                        borderRadius: BorderRadius.circular(2),
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  const Text(
+                  const SizedBox(height: 20),
+
+                  Text(
                     'Log Health Reading',
-                    style: TextStyle(
-                      fontSize: 20,
+                    style: GoogleFonts.manrope(
+                      fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
+                      color: const Color(0xFF1E2024),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
-                  // Reading Type Chips
+                  // Reading Type Selector Chips
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: ['Blood Pressure', 'Hemoglobin', 'Glucose', 'Weight'].map((type) {
-                        final isSelected = selectedType == type;
+                        final isSel = selectedType == type;
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
                             label: Text(type),
-                            selected: isSelected,
+                            selected: isSel,
                             selectedColor: const Color(0xFFFF3B5C),
-                            backgroundColor: const Color(0xFFF3F4F6),
-                            labelStyle: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : const Color(0xFF4B5563),
+                            labelStyle: GoogleFonts.manrope(
+                              color: isSel ? Colors.white : const Color(0xFF1E2024),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
                             ),
-                            onSelected: (val) {
-                              if (val) {
-                                setModalState(() => selectedType = type);
-                              }
-                            },
+                            backgroundColor: const Color(0xFFF8FAFC),
+                            onSelected: (_) => setModalState(() => selectedType = type),
                           ),
                         );
                       }).toList(),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // Input Fields
+                  // Input fields
                   if (selectedType == 'Blood Pressure') ...[
                     Row(
                       children: [
@@ -1435,36 +1699,56 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                     width: double.infinity,
                     height: 50,
                     child: ElevatedButton(
-                      onPressed: () {
-                        setState(() {
-                          if (selectedType == 'Blood Pressure') {
-                            _bloodPressure = '${val1Ctrl.text}/${val2Ctrl.text}';
-                            _bloodPressureDate = 'Today';
-                          } else if (selectedType == 'Hemoglobin') {
-                            _hemoglobin = val1Ctrl.text;
-                            _hemoglobinDate = 'Today';
-                          } else if (selectedType == 'Glucose') {
-                            _glucose = val1Ctrl.text;
-                            _glucoseDate = 'Today';
-                          } else if (selectedType == 'Weight') {
-                            _weight = val1Ctrl.text;
-                            _weightDate = 'Today';
-                            final w = double.tryParse(_weight) ?? 62.5;
-                            _bmi = (w / (1.62 * 1.62));
-                          }
-                        });
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('$selectedType logged successfully!')),
-                        );
+                      onPressed: () async {
+                        if (selectedType == 'Blood Pressure') {
+                          final s = int.tryParse(val1Ctrl.text) ?? 120;
+                          final d = int.tryParse(val2Ctrl.text) ?? 80;
+                          await HealthVitalsController.instance.addBloodPressureEntry(
+                            systolic: s,
+                            diastolic: d,
+                          );
+                        } else if (selectedType == 'Hemoglobin') {
+                          final hb = double.tryParse(val1Ctrl.text) ?? 10.8;
+                          await HealthVitalsController.instance.addVitalEntry(
+                            key: 'hemoglobin',
+                            value: hb,
+                            unit: 'g/dL',
+                          );
+                        } else if (selectedType == 'Glucose') {
+                          final g = double.tryParse(val1Ctrl.text) ?? 92.0;
+                          await HealthVitalsController.instance.addVitalEntry(
+                            key: 'glucose',
+                            value: g,
+                            unit: 'mg/dL',
+                          );
+                        } else if (selectedType == 'Weight') {
+                          final w = double.tryParse(val1Ctrl.text) ?? 62.5;
+                          await HealthVitalsController.instance.addVitalEntry(
+                            key: 'weight',
+                            value: w,
+                            unit: 'kg',
+                          );
+                        }
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('$selectedType logged successfully!'),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF3B5C),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
                       ),
-                      child: const Text(
+                      child: Text(
                         'Save Reading',
-                        style: TextStyle(
+                        style: GoogleFonts.manrope(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: Colors.white,
@@ -1485,11 +1769,45 @@ class _MyHealthSectionState extends State<MyHealthSection> {
 // ─── MINI SPARKLINE PAINTER ──────────────────────────────────
 class _MiniSparklinePainter extends CustomPainter {
   final Color color;
+  final List<double>? dataPoints;
 
-  _MiniSparklinePainter({required this.color});
+  _MiniSparklinePainter({required this.color, this.dataPoints});
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (dataPoints != null && dataPoints!.length >= 2) {
+      final pts = dataPoints!;
+      final minVal = pts.reduce(math.min);
+      final maxVal = pts.reduce(math.max);
+      final range = maxVal - minVal == 0 ? 10.0 : maxVal - minVal;
+
+      final stepX = size.width / (pts.length - 1);
+      final points = <Offset>[];
+      for (int i = 0; i < pts.length; i++) {
+        final normY = (pts[i] - minVal) / range;
+        final y = size.height - (normY * (size.height - 8)) - 4;
+        points.add(Offset(i * stepX, y));
+      }
+
+      final path = Path()..moveTo(points.first.dx, points.first.dy);
+      for (int i = 0; i < points.length - 1; i++) {
+        final p0 = points[i];
+        final p1 = points[i + 1];
+        final cp1 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p0.dy);
+        final cp2 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p1.dy);
+        path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
+      }
+
+      final paint = Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawPath(path, paint);
+      return;
+    }
+
     final path = Path();
     path.moveTo(0, size.height * 0.6);
     path.cubicTo(
@@ -1513,14 +1831,13 @@ class _MiniSparklinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _MiniSparklinePainter oldDelegate) => true;
 }
 
 // ─── SLEEP HYPNOGRAM PAINTER ─────────────────────────────────
 class _SleepHypnogramPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Legend labels
     final lightTextPainter = TextPainter(
       text: const TextSpan(
         text: 'Light',
@@ -1542,7 +1859,6 @@ class _SleepHypnogramPainter extends CustomPainter {
     final barStartX = 45.0;
     final usableWidth = size.width - barStartX;
 
-    // Light Sleep Blocks (Top row)
     final lightPaint = Paint()..color = const Color(0xFFC084FC);
     
     // Block 1 (Light)
@@ -1563,7 +1879,6 @@ class _SleepHypnogramPainter extends CustomPainter {
       lightPaint,
     );
 
-    // Deep Sleep Blocks (Bottom row)
     final deepPaint = Paint()..color = const Color(0xFF6366F1);
 
     // Block 1 (Deep)
@@ -1598,33 +1913,28 @@ class _WeightTrendPainter extends CustomPainter {
     final endX = size.width * 0.88;
     final endY = size.height * 0.65;
 
-    // Connecting line
     final linePaint = Paint()
       ..color = const Color(0xFFFFD1DC)
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke;
     canvas.drawLine(Offset(startX, startY), Offset(endX, endY), linePaint);
 
-    // Start Dot
     final startDotPaint = Paint()
       ..color = const Color(0xFFFF6584)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(startX, startY), 4.5, startDotPaint);
 
-    // Start Text Label "63.2" above dot
     final startText = TextPainter(
       text: const TextSpan(text: '63.2', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8E95A5))),
       textDirection: TextDirection.ltr,
     )..layout();
     startText.paint(canvas, Offset(startX - startText.width / 2, startY - 16));
 
-    // End Dot
     final endDotPaint = Paint()
       ..color = const Color(0xFFFF3B5C)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(Offset(endX, endY), 5.5, endDotPaint);
 
-    // End Text Label "66.5" above dot
     final endText = TextPainter(
       text: const TextSpan(text: '66.5', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFFFF3B5C))),
       textDirection: TextDirection.ltr,

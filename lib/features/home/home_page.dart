@@ -10,6 +10,7 @@ import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -36,6 +37,9 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _carouselController = PageController();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      HealthVitalsController.instance.fetchLatestVitals(showLoading: false);
+    });
   }
 
   @override
@@ -321,6 +325,13 @@ class _HomePageState extends State<HomePage> {
 
   // ─── DAILY SUMMARY CARD ────────────────────────────────────
   Widget _buildDailySummaryCard() {
+    final session = UserSessionManager.instance;
+    final gestationalWeek = session.currentGestationalWeek;
+    final trimester = session.currentTrimester;
+    final daysLeft = session.daysLeftUntilEdd;
+    final eddFormatted = session.formattedEddDate;
+    final eddFormattedFull = session.formattedEddDateFull;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -346,14 +357,14 @@ class _HomePageState extends State<HomePage> {
               children: [
                 // Header with Red Star
                 Row(
-                  children: [
-                    const Icon(
+                  children: const [
+                    Icon(
                       Icons.star_rounded,
                       color: Color(0xFFFF3B5C),
                       size: 16,
                     ),
-                    const SizedBox(width: 6),
-                    const Text(
+                    SizedBox(width: 6),
+                    Text(
                       'DAILY SUMMARY',
                       style: TextStyle(
                         fontSize: 12,
@@ -366,11 +377,11 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Title & Subtitle
-                const Column(
+                // Title & Subtitle (Static wording filled with pregnancy data)
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       "You're doing well today.",
                       style: TextStyle(
                         fontSize: 20,
@@ -378,10 +389,10 @@ class _HomePageState extends State<HomePage> {
                         color: Color(0xFF1E2024),
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
-                      "Your vitals are stable and you've completed 5/8 glasses of water.",
-                      style: TextStyle(
+                      "You are in Week $gestationalWeek of your pregnancy ($trimester). Your estimated delivery is on $eddFormattedFull.",
+                      style: const TextStyle(
                         fontSize: 13,
                         color: Color(0xFF6B7280),
                         height: 1.4,
@@ -391,10 +402,30 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 16),
 
-                // 3 Rounded Stat Cards Row
+                // 3 Rounded Stat Cards Row (Pregnancy Data)
                 Row(
                   children: [
-                    // 3/5 Care tasks
+                    // Week of 40
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+                          );
+                        },
+                        child: _buildSummaryMetricChip(
+                          bg: const Color(0xFFFFF0F4),
+                          icon: Icons.favorite_rounded,
+                          iconColor: const Color(0xFFFF4E6A),
+                          value: 'Week $gestationalWeek',
+                          label: 'Of 40 weeks',
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Due Date
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
@@ -404,50 +435,31 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF0F4),
-                          icon: Icons.favorite_rounded,
-                          iconColor: const Color(0xFFFF4E6A),
-                          value: '3/5',
-                          label: 'Care tasks',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // 5/8 Water
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _waterGlasses = (_waterGlasses + 1).clamp(0, 12);
-                          });
-                        },
-                        child: _buildSummaryMetricChip(
                           bg: const Color(0xFFEDF6FF),
-                          icon: Icons.water_drop_rounded,
+                          icon: Icons.calendar_month_rounded,
                           iconColor: const Color(0xFF3898EC),
-                          value: '$_waterGlasses/8',
-                          label: 'Water',
+                          value: eddFormatted,
+                          label: 'Due Date',
                         ),
                       ),
                     ),
                     const SizedBox(width: 10),
 
-                    // 2/3 Medicines
+                    // Days Remaining
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const PrescriptionsPage()),
+                            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
                           );
                         },
                         child: _buildSummaryMetricChip(
                           bg: const Color(0xFFFFF6ED),
-                          icon: Icons.medication_rounded,
+                          icon: Icons.hourglass_bottom_rounded,
                           iconColor: const Color(0xFFFF9438),
-                          value: '2/3',
-                          label: 'Medicines',
+                          value: '$daysLeft days',
+                          label: 'Remaining',
                         ),
                       ),
                     ),
@@ -473,14 +485,14 @@ class _HomePageState extends State<HomePage> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
+                  children: const [
+                    Icon(
                       Icons.favorite_rounded,
                       color: Color(0xFFFF4E6A),
                       size: 16,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
+                    SizedBox(width: 8),
+                    Text(
                       'My Pregnancy Journey',
                       style: TextStyle(
                         fontSize: 14.5,
@@ -488,8 +500,8 @@ class _HomePageState extends State<HomePage> {
                         color: Color(0xFF1E2024),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(
+                    SizedBox(width: 8),
+                    Icon(
                       Icons.arrow_forward_rounded,
                       color: Color(0xFFFF4E6A),
                       size: 16,

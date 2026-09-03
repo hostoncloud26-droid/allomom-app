@@ -22,10 +22,12 @@ class RegisterPartnerDetailsPage extends StatefulWidget {
   });
 
   @override
-  State<RegisterPartnerDetailsPage> createState() => _RegisterPartnerDetailsPageState();
+  State<RegisterPartnerDetailsPage> createState() =>
+      _RegisterPartnerDetailsPageState();
 }
 
-class _RegisterPartnerDetailsPageState extends State<RegisterPartnerDetailsPage> {
+class _RegisterPartnerDetailsPageState
+    extends State<RegisterPartnerDetailsPage> {
   final TextEditingController _partnerNameController = TextEditingController();
   final TextEditingController _partnerPhoneController = TextEditingController();
   final String _countryCode = '+91';
@@ -109,7 +111,8 @@ class _RegisterPartnerDetailsPageState extends State<RegisterPartnerDetailsPage>
 
             // ─── BABY SPEECH AVATAR ───
             BabySpeechAvatar(
-              speechText: 'Tell me about Daddy so he can be\npart of our journey too! 👨‍👩‍👦',
+              speechText:
+                  'Tell me about Daddy so he can be\npart of our journey too! 👨‍👩‍👦',
               onSpeakerTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
@@ -153,11 +156,17 @@ class _RegisterPartnerDetailsPageState extends State<RegisterPartnerDetailsPage>
 
                   // Partner Name Input
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFE5E7EB),
+                        width: 1.5,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -205,11 +214,17 @@ class _RegisterPartnerDetailsPageState extends State<RegisterPartnerDetailsPage>
 
                   // Partner Phone Input
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFE5E7EB),
+                        width: 1.5,
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -265,7 +280,10 @@ class _RegisterPartnerDetailsPageState extends State<RegisterPartnerDetailsPage>
                           child: OutlinedButton(
                             onPressed: _goToFamilyDetails,
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+                              side: const BorderSide(
+                                color: Color(0xFFE5E7EB),
+                                width: 1.5,
+                              ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(22),
                               ),

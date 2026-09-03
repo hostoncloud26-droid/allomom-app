@@ -20,6 +20,7 @@ part 'tables/prescription_table.dart';
 part 'tables/prescription_medicine_table.dart';
 part 'tables/prescription_medicine_timing_table.dart';
 part 'tables/report_table.dart';
+part 'tables/vitals_table.dart';
 
 part 'drift_database.g.dart';
 
@@ -47,6 +48,7 @@ LazyDatabase _openConnection() {
     PrescriptionMedicines,
     PrescriptionMedicineTimings,
     Reports,
+    Vitals,
   ],
 )
 class AppDriftDatabase extends _$AppDriftDatabase {

@@ -6,9 +6,17 @@ typedef MigrationStep =
     Future<void> Function(Migrator migrator, AppDriftDatabase db);
 
 class AppMigrations {
-  static const int currentSchemaVersion = 1;
+  static const int currentSchemaVersion = 2;
 
-  static final Map<int, MigrationStep> _steps = {};
+  static final Map<int, MigrationStep> _steps = {
+    2: (Migrator migrator, AppDriftDatabase db) async {
+      try {
+        await migrator.createTable(db.vitals);
+      } catch (e) {
+        debugPrint('⚠️ Migration step v2 table creation warning: $e');
+      }
+    },
+  };
 
   static MigrationStrategy build(AppDriftDatabase db) {
     return MigrationStrategy(
@@ -24,6 +32,15 @@ class AppMigrations {
         }
       },
       beforeOpen: (details) async {
+        // Defensive creation to ensure all tables exist even if migration state lagged
+        final migrator = Migrator(db);
+        for (final table in db.allTables) {
+          try {
+            await migrator.createTable(table);
+          } catch (_) {
+            // Table already exists, ignore
+          }
+        }
         await _createIndexes(db);
       },
     );
@@ -38,6 +55,8 @@ class AppMigrations {
       'CREATE INDEX IF NOT EXISTS idx_prescriptions_health ON prescriptions(health_id);',
       'CREATE INDEX IF NOT EXISTS idx_reports_health ON reports(healthDataID);',
       'CREATE INDEX IF NOT EXISTS idx_prescription_medicines_health ON prescription_medicines(health_id);',
+      'CREATE INDEX IF NOT EXISTS idx_vitals_user_id ON vitals(user_id);',
+      'CREATE INDEX IF NOT EXISTS idx_vitals_created_at ON vitals(created_at);',
     ];
 
     for (final stmt in statements) {

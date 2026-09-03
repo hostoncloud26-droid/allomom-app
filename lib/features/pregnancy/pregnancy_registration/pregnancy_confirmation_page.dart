@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class PregnancyConfirmationPage extends StatefulWidget {
@@ -351,25 +348,23 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
               height: 52,
               child: ElevatedButton(
                 onPressed: () async {
-                  final healthData = UserSessionManager.instance.currentHealthData;
-                  if (healthData != null) {
-                    await HealthDbService.instance.saveHealthData(
-                      HealthDataTableCompanion(
-                        id: drift.Value(healthData.id),
-                        pregnancyStatus: const drift.Value('pregnant'),
-                        edDate: drift.Value(_selectedDueDate ?? DateTime.now().add(const Duration(days: 112))),
-                      ),
-                    );
-                    await UserSessionManager.instance.refresh();
-                  }
+                  final chosenDueDate = _selectedDueDate ?? DateTime.now().add(const Duration(days: 112));
+                  final calculatedLmp = chosenDueDate.subtract(const Duration(days: 280));
+                  await UserSessionManager.instance.saveOrUpdatePregnancy(
+                    lmpDate: UserSessionManager.instance.lmpDate ?? calculatedLmp,
+                    eddDate: chosenDueDate,
+                  );
+
                   if (context.mounted) {
                     Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text('Care journey successfully registered!'),
+                        content: Text('Care journey successfully registered! ✨'),
                         backgroundColor: Color(0xFFFF4E6A),
+                        behavior: SnackBarBehavior.floating,
                       ),
                     );
+                    Navigator.maybePop(context);
                   }
                 },
                 style: ElevatedButton.styleFrom(

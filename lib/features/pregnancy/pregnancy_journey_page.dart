@@ -1,85 +1,131 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
+import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
-class PregnancyJourneyPage extends StatelessWidget {
+class PregnancyJourneyPage extends StatefulWidget {
   const PregnancyJourneyPage({super.key});
 
   @override
+  State<PregnancyJourneyPage> createState() => _PregnancyJourneyPageState();
+}
+
+class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UserSessionManager.instance.fetchAndSyncProfileFromApi();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E2024),
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'My Pregnancy',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: Color(0xFF1E2024),
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.calendar_month_rounded,
-              color: Color(0xFFFF3B5C),
-              size: 22,
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AncSchedulePage()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ─── BABY HERO CARD (AM 23 WEEKS) ───
-              const BabyHeroBanner(
-                speechText: "Am 23 weeks, Amma! 💕\nWe're growing so strong together.",
-                bubblePosition: SpeechBubblePosition.topCenter,
-                height: 270,
-                greetingText: "",
+    return ListenableBuilder(
+      listenable: UserSessionManager.instance,
+      builder: (context, _) {
+        final session = UserSessionManager.instance;
+        final gestationalWeek = session.currentGestationalWeek;
+        final trimester = session.currentTrimester;
+        final daysLeft = session.daysLeftUntilEdd;
+        final eddFormatted = session.formattedEddDate;
+        final progressFraction = session.pregnancyProgressFraction;
+        final progressPercent = (progressFraction * 100).toInt();
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFFBFBFC),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFFFBFBFC),
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            centerTitle: true,
+            leading: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios_new_rounded,
+                color: Color(0xFF1E2024),
+                size: 20,
               ),
-              const SizedBox(height: 18),
-
-              // ─── PREGNANCY INFO SECTION (EDD, DAYS LEFT, WEEK PROGRESS) ───
-              _buildPregnancyInfoCard(context),
-              const SizedBox(height: 16),
-
-              // ─── UPCOMING CARE & SCHEDULE SECTION CARD ───
-              _buildUpcomingScheduleCard(context),
-              const SizedBox(height: 24),
+              onPressed: () => Navigator.pop(context),
+            ),
+            title: Text(
+              'My Pregnancy Journey',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: const Color(0xFF1E2024),
+              ),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(
+                  Icons.calendar_month_rounded,
+                  color: Color(0xFFFF3B5C),
+                  size: 22,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AncSchedulePage()),
+                  );
+                },
+              ),
             ],
           ),
-        ),
-      ),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ─── BABY HERO CARD ───
+                  BabyHeroBanner(
+                    speechText: "Am $gestationalWeek weeks, Amma! 💕\nWe're growing so strong together.",
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 270,
+                    greetingText: "",
+                  ),
+                  const SizedBox(height: 18),
+
+                  // ─── PREGNANCY INFO SECTION (EDD, DAYS LEFT, WEEK PROGRESS) ───
+                  _buildPregnancyInfoCard(
+                    context: context,
+                    gestationalWeek: gestationalWeek,
+                    trimester: trimester,
+                    daysLeft: daysLeft,
+                    eddFormatted: eddFormatted,
+                    progressFraction: progressFraction,
+                    progressPercent: progressPercent,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // ─── UPCOMING CARE & SCHEDULE SECTION CARD ───
+                  _buildUpcomingScheduleCard(context),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
-  // ─── PREGNANCY INFO CARD (COMPACT & NEAT) ───────────────────
-  Widget _buildPregnancyInfoCard(BuildContext context) {
+  // ─── PREGNANCY INFO CARD (DYNAMIC & LIVE) ───────────────────
+  Widget _buildPregnancyInfoCard({
+    required BuildContext context,
+    required int gestationalWeek,
+    required String trimester,
+    required int daysLeft,
+    required String eddFormatted,
+    required double progressFraction,
+    required int progressPercent,
+  }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -126,9 +172,9 @@ class PregnancyJourneyPage extends StatelessWidget {
                   color: const Color(0xFFFFF0F4),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  '2nd Trimester',
-                  style: TextStyle(
+                child: Text(
+                  trimester,
+                  style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     color: Color(0xFFFF3B5C),
@@ -139,25 +185,60 @@ class PregnancyJourneyPage extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          // Week Title
-          const Text(
-            'Week 23 of 40',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: Color(0xFF1E2024),
-            ),
+          // Week Title & Edit Action
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Week $gestationalWeek of 40',
+                style: GoogleFonts.outfit(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFF1E2024),
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PregnancyConfirmationPage()),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF3F4F6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.edit_calendar_rounded, size: 12, color: Color(0xFF4B5563)),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Edit Timeline',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF4B5563),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
 
-          // Slim Progress Bar (23/40)
+          // Slim Progress Bar
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: const [
-                  Text(
+                children: [
+                  const Text(
                     'Progress',
                     style: TextStyle(
                       fontSize: 10.5,
@@ -166,8 +247,8 @@ class PregnancyJourneyPage extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '58%',
-                    style: TextStyle(
+                    '$progressPercent%',
+                    style: const TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFFFF3B5C),
@@ -178,11 +259,11 @@ class PregnancyJourneyPage extends StatelessWidget {
               const SizedBox(height: 4),
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: const LinearProgressIndicator(
-                  value: 23 / 40,
-                  minHeight: 5,
-                  backgroundColor: Color(0xFFFFE6ED),
-                  valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF3B5C)),
+                child: LinearProgressIndicator(
+                  value: progressFraction,
+                  minHeight: 6,
+                  backgroundColor: const Color(0xFFFFE6ED),
+                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF3B5C)),
                 ),
               ),
             ],
@@ -198,7 +279,7 @@ class PregnancyJourneyPage extends StatelessWidget {
                   bg: const Color(0xFFFFF0F4),
                   icon: Icons.event_available_rounded,
                   iconColor: const Color(0xFFFF4E6A),
-                  value: '28 Feb',
+                  value: eddFormatted,
                   label: 'Due Date',
                 ),
               ),
@@ -210,7 +291,7 @@ class PregnancyJourneyPage extends StatelessWidget {
                   bg: const Color(0xFFEDF6FF),
                   icon: Icons.hourglass_bottom_rounded,
                   iconColor: const Color(0xFF3898EC),
-                  value: '119',
+                  value: '$daysLeft',
                   label: 'Days Left',
                 ),
               ),
@@ -222,7 +303,7 @@ class PregnancyJourneyPage extends StatelessWidget {
                   bg: const Color(0xFFF3E8FF),
                   icon: Icons.child_care_rounded,
                   iconColor: const Color(0xFF8B5CF6),
-                  value: 'W 23',
+                  value: 'W $gestationalWeek',
                   label: 'Week',
                 ),
               ),

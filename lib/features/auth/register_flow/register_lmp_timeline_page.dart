@@ -19,15 +19,26 @@ class RegisterLmpTimelinePage extends StatefulWidget {
   });
 
   @override
-  State<RegisterLmpTimelinePage> createState() => _RegisterLmpTimelinePageState();
+  State<RegisterLmpTimelinePage> createState() =>
+      _RegisterLmpTimelinePageState();
 }
 
 class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
   late DateTime _selectedDate;
 
   static const List<String> _monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
 
   late FixedExtentScrollController _dayController;
@@ -39,8 +50,12 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
     final now = DateTime.now();
     _selectedDate = DateTime(now.year, now.month, now.day);
 
-    _dayController = FixedExtentScrollController(initialItem: _selectedDate.day - 1);
-    _monthController = FixedExtentScrollController(initialItem: _selectedDate.month - 1);
+    _dayController = FixedExtentScrollController(
+      initialItem: _selectedDate.day - 1,
+    );
+    _monthController = FixedExtentScrollController(
+      initialItem: _selectedDate.month - 1,
+    );
   }
 
   @override
@@ -59,7 +74,11 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
     final maxDays = _getDaysInMonth(_selectedDate.year, _selectedDate.month);
     final targetDay = (dayIndex + 1).clamp(1, maxDays);
     setState(() {
-      _selectedDate = DateTime(_selectedDate.year, _selectedDate.month, targetDay);
+      _selectedDate = DateTime(
+        _selectedDate.year,
+        _selectedDate.month,
+        targetDay,
+      );
     });
   }
 
@@ -82,7 +101,10 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
   Widget build(BuildContext context) {
     final selectedFormatted =
         '${_selectedDate.day} ${_monthNames[_selectedDate.month - 1]} ${_selectedDate.year}';
-    final daysInCurrentMonth = _getDaysInMonth(_selectedDate.year, _selectedDate.month);
+    final daysInCurrentMonth = _getDaysInMonth(
+      _selectedDate.year,
+      _selectedDate.month,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
@@ -137,7 +159,8 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
             Padding(
               padding: const EdgeInsets.only(top: 4, bottom: 8),
               child: BabySpeechAvatar(
-                speechText: 'When was the first day of your last\nmenstrual period? 🌸',
+                speechText:
+                    'When was the first day of your last\nmenstrual period? 🌸',
                 onSpeakerTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -198,18 +221,26 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                   // Selected Date Display Card
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF0F3),
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFFFF4E6A), width: 1.5),
+                      border: Border.all(
+                        color: const Color(0xFFFF4E6A),
+                        width: 1.5,
+                      ),
                     ),
                     child: Row(
                       children: [
                         Container(
                           padding: const EdgeInsets.all(7),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFF4E6A).withValues(alpha: 0.12),
+                            color: const Color(
+                              0xFFFF4E6A,
+                            ).withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -230,7 +261,10 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFFF4E6A),
                             borderRadius: BorderRadius.circular(12),
@@ -251,7 +285,10 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
 
                   // ─── SWIPEABLE DAY & MONTH WHEEL SELECTOR (NO YEAR, NO BUTTONS) ───
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFAF6F7),
                       borderRadius: BorderRadius.circular(20),
@@ -302,12 +339,16 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                 child: Container(
                                   height: 44,
                                   width: double.infinity,
-                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  margin: const EdgeInsets.symmetric(
+                                    horizontal: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFFFF0F3),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color: const Color(0xFFFF4E6A).withValues(alpha: 0.6),
+                                      color: const Color(
+                                        0xFFFF4E6A,
+                                      ).withValues(alpha: 0.6),
                                       width: 1.5,
                                     ),
                                   ),
@@ -327,28 +368,42 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                       diameterRatio: 1.5,
                                       physics: const FixedExtentScrollPhysics(),
                                       onSelectedItemChanged: _onDayChanged,
-                                      childDelegate: ListWheelChildBuilderDelegate(
-                                        builder: (context, index) {
-                                          if (index < 0 || index >= daysInCurrentMonth) return null;
-                                          final dayNum = index + 1;
-                                          final isSelected = dayNum == _selectedDate.day;
-                                          return Center(
-                                            child: Text(
-                                              dayNum.toString().padLeft(2, '0'),
-                                              style: GoogleFonts.outfit(
-                                                fontSize: isSelected ? 22 : 16,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w800
-                                                    : FontWeight.w500,
-                                                color: isSelected
-                                                    ? const Color(0xFFFF4E6A)
-                                                    : const Color(0xFF8E95A5),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        childCount: daysInCurrentMonth,
-                                      ),
+                                      childDelegate:
+                                          ListWheelChildBuilderDelegate(
+                                            builder: (context, index) {
+                                              if (index < 0 ||
+                                                  index >= daysInCurrentMonth) {
+                                                return null;
+                                              }
+                                              final dayNum = index + 1;
+                                              final isSelected =
+                                                  dayNum == _selectedDate.day;
+                                              return Center(
+                                                child: Text(
+                                                  dayNum.toString().padLeft(
+                                                    2,
+                                                    '0',
+                                                  ),
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: isSelected
+                                                        ? 22
+                                                        : 16,
+                                                    fontWeight: isSelected
+                                                        ? FontWeight.w800
+                                                        : FontWeight.w500,
+                                                    color: isSelected
+                                                        ? const Color(
+                                                            0xFFFF4E6A,
+                                                          )
+                                                        : const Color(
+                                                            0xFF8E95A5,
+                                                          ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            childCount: daysInCurrentMonth,
+                                          ),
                                     ),
                                   ),
 
@@ -369,28 +424,40 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                       diameterRatio: 1.5,
                                       physics: const FixedExtentScrollPhysics(),
                                       onSelectedItemChanged: _onMonthChanged,
-                                      childDelegate: ListWheelChildBuilderDelegate(
-                                        builder: (context, index) {
-                                          if (index < 0 || index >= 12) return null;
-                                          final monthName = _monthNames[index];
-                                          final isSelected = (index + 1) == _selectedDate.month;
-                                          return Center(
-                                            child: Text(
-                                              monthName,
-                                              style: GoogleFonts.outfit(
-                                                fontSize: isSelected ? 20 : 15,
-                                                fontWeight: isSelected
-                                                    ? FontWeight.w800
-                                                    : FontWeight.w500,
-                                                color: isSelected
-                                                    ? const Color(0xFFFF4E6A)
-                                                    : const Color(0xFF8E95A5),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                        childCount: 12,
-                                      ),
+                                      childDelegate:
+                                          ListWheelChildBuilderDelegate(
+                                            builder: (context, index) {
+                                              if (index < 0 || index >= 12) {
+                                                return null;
+                                              }
+                                              final monthName =
+                                                  _monthNames[index];
+                                              final isSelected =
+                                                  (index + 1) ==
+                                                  _selectedDate.month;
+                                              return Center(
+                                                child: Text(
+                                                  monthName,
+                                                  style: GoogleFonts.outfit(
+                                                    fontSize: isSelected
+                                                        ? 20
+                                                        : 15,
+                                                    fontWeight: isSelected
+                                                        ? FontWeight.w800
+                                                        : FontWeight.w500,
+                                                    color: isSelected
+                                                        ? const Color(
+                                                            0xFFFF4E6A,
+                                                          )
+                                                        : const Color(
+                                                            0xFF8E95A5,
+                                                          ),
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                            childCount: 12,
+                                          ),
                                     ),
                                   ),
                                 ],
