@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
-import 'package:allomom/services/api/reminder_api.dart';
+import 'package:allomom/services/sq_lite/services/reminder_db_service.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
 import 'package:allomom/local_notification/ui/reminder_setup_bottom_sheet.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class ReminderItem {
   final String id;
@@ -151,7 +151,7 @@ class _RemindersPageState extends State<RemindersPage> {
   void initState() {
     super.initState();
     _syncWithLocalController();
-    _fetchServerReminders();
+    _loadCustomReminders();
   }
 
   void _syncWithLocalController() {
@@ -163,13 +163,43 @@ class _RemindersPageState extends State<RemindersPage> {
     }
   }
 
-  Future<void> _fetchServerReminders() async {
+  /// Loads the user's saved custom reminders from the local Drift database
+  /// and appends them to the built-in pregnancy reminder list.
+  Future<void> _loadCustomReminders() async {
     try {
       final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
-      if (targetUserId.isNotEmpty) {
-        await ReminderApi.getReminders(targetUserId);
-      }
-    } catch (_) {}
+      if (targetUserId.isEmpty) return;
+
+      final saved = await ReminderDbService.instance.getReminders(targetUserId);
+      if (!mounted || saved.isEmpty) return;
+
+      setState(() {
+        for (final r in saved) {
+          if (_pregnancyReminders.any((item) => item.id == r.id)) continue;
+          _pregnancyReminders.add(
+            ReminderItem(
+              id: r.id,
+              title: r.title,
+              subtitle: 'Custom daily health reminder',
+              icon: Icons.alarm_rounded,
+              iconColor: const Color(0xFFFF3B5C),
+              iconBg: const Color(0xFFFFECEF),
+              isEnabled: r.enabled,
+              frequency: _formatReminderTime(r.hour, r.minute) ?? r.frequency,
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('Error loading reminders from local database: $e');
+    }
+  }
+
+  static String? _formatReminderTime(int? hour, int? minute) {
+    if (hour == null || minute == null) return null;
+    final period = hour < 12 ? 'AM' : 'PM';
+    final displayHour = hour % 12 == 0 ? 12 : hour % 12;
+    return '$displayHour:${minute.toString().padLeft(2, '0')} $period';
   }
 
   void _showAddCustomReminderDialog() {
@@ -307,31 +337,45 @@ class _RemindersPageState extends State<RemindersPage> {
                         final text = nameCtrl.text.trim();
                         if (text.isEmpty) return;
 
-                        setState(() {
-                          _pregnancyReminders.add(
-                            ReminderItem(
-                              id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
-                              title: text,
-                              subtitle: 'Custom daily health reminder',
-                              icon: Icons.alarm_rounded,
-                              iconColor: const Color(0xFFFF3B5C),
-                              iconBg: const Color(0xFFFFECEF),
-                              isEnabled: true,
-                              frequency: selectedTime.format(context),
-                            ),
-                          );
-                        });
+                        final timeLabel = selectedTime.format(context);
 
+                        // Local-only: saved to SQLite with synced = 0.
+                        String reminderId =
+                            'custom_${DateTime.now().millisecondsSinceEpoch}';
                         try {
-                          final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
-                          await ReminderApi.createReminder({
-                            'userid': targetUserId,
-                            'name': text,
-                            'frequency': 'Daily',
-                            'time': '${selectedTime.hour}:${selectedTime.minute}',
-                            'enabled': true,
+                          final targetUserId = widget.userId ??
+                              UserSessionManager.instance.userId;
+                          if (targetUserId.isNotEmpty) {
+                            reminderId = await ReminderDbService.instance
+                                .createReminder(
+                              userId: targetUserId,
+                              title: text,
+                              reminderType: 'custom',
+                              frequency: 'Daily',
+                              hour: selectedTime.hour,
+                              minute: selectedTime.minute,
+                            );
+                          }
+                        } catch (e) {
+                          debugPrint('Error saving custom reminder: $e');
+                        }
+
+                        if (mounted) {
+                          setState(() {
+                            _pregnancyReminders.add(
+                              ReminderItem(
+                                id: reminderId,
+                                title: text,
+                                subtitle: 'Custom daily health reminder',
+                                icon: Icons.alarm_rounded,
+                                iconColor: const Color(0xFFFF3B5C),
+                                iconBg: const Color(0xFFFFECEF),
+                                isEnabled: true,
+                                frequency: timeLabel,
+                              ),
+                            );
                           });
-                        } catch (_) {}
+                        }
 
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
@@ -481,6 +525,15 @@ class _RemindersPageState extends State<RemindersPage> {
                         setState(() => r.isEnabled = val);
                         if (r.localType != null) {
                           await LocalReminderController.instance.toggleReminder(r.localType!, val);
+                        } else {
+                          // Custom reminder: persist the toggle locally.
+                          try {
+                            await ReminderDbService.instance
+                                .setEnabled(r.id, val);
+                          } catch (e) {
+                            debugPrint(
+                                'Error updating reminder ${r.id}: $e');
+                          }
                         }
                       },
                     ),

@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
+import 'package:allomom/features/overview_section/daily_summary/daily_summary_section.dart';
 import 'package:allomom/features/overview_section/overview_section_page.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
 import 'package:allomom/features/reports/reports_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -20,17 +23,22 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // Interactive state
-  int _waterGlasses = 5;
-  bool _ironTabletDone = false;
-  bool _eveningWalkDone = false;
-
   late final PageController _carouselController;
   int _currentCarouselPage = 0;
 
   static const List<String> _shortMonths = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
 
   @override
@@ -38,7 +46,13 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _carouselController = PageController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      HealthVitalsController.instance.fetchLatestVitals(showLoading: false);
+      final currentUserId = UserSessionManager.instance.userId;
+      if (currentUserId.isNotEmpty &&
+          HealthVitalsController.instance.userId != currentUserId) {
+        HealthVitalsController.instance.setUserId(currentUserId);
+      } else {
+        HealthVitalsController.instance.fetchLatestVitals(showLoading: false);
+      }
     });
   }
 
@@ -54,10 +68,12 @@ class _HomePageState extends State<HomePage> {
       animation: UserSessionManager.instance,
       builder: (context, child) {
         final session = UserSessionManager.instance;
+        final isPregnant = session.isPregnant;
         final name = session.userName;
         final week = session.currentGestationalWeek;
         final trimester = session.currentTrimester;
-        final edd = session.eddDate ?? DateTime.now().add(const Duration(days: 112));
+        final edd =
+            session.eddDate ?? DateTime.now().add(const Duration(days: 112));
         final dueDay = edd.day.toString();
         final dueMonth = _shortMonths[edd.month - 1].toUpperCase();
 
@@ -72,21 +88,36 @@ class _HomePageState extends State<HomePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(context, name, week, trimester, dueDay, dueMonth),
+                      _buildHeader(
+                        context,
+                        session,
+                        name,
+                        isPregnant,
+                        week,
+                        trimester,
+                        dueDay,
+                        dueMonth,
+                      ),
                       const SizedBox(height: 10),
 
                       // ─── HERO BABY CARD ───
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: BabyHeroBanner(
-                          speechText: "Good Morning, $name ❤️",
+                          speechText: isPregnant
+                              ? "Good Morning, $name ❤️"
+                              : session.isNewMom
+                              ? "Hello, $name 💕\nHow are you and baby doing?"
+                              : "Welcome, $name 💕\nReady to start your care journey?",
                           greetingText: "",
                           bubblePosition: SpeechBubblePosition.topCenter,
                           height: 270,
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (_) => const KickCounterPage()),
+                              MaterialPageRoute(
+                                builder: (_) => const KickCounterPage(),
+                              ),
                             );
                           },
                         ),
@@ -122,13 +153,45 @@ class _HomePageState extends State<HomePage> {
   // ─── HEADER / APP BAR ─────────────────────────────────────
   Widget _buildHeader(
     BuildContext context,
+    UserSessionManager session,
     String userName,
+    bool isPregnant,
     int week,
     String trimester,
     String dueDay,
     String dueMonth,
   ) {
     final firstName = userName.split(' ').first;
+
+    // Three states to describe: currently pregnant, recently delivered, and
+    // no pregnancy on record. Only the last one should say "Register".
+    final isNewMom = session.isNewMom;
+    final daysSince = session.daysSinceDelivery;
+    final postpartumDay = daysSince == null || daysSince == 0 ? 1 : daysSince;
+
+    final subtitle = isPregnant
+        ? 'Week $week · $trimester'
+        : isNewMom
+        ? 'Day $postpartumDay postpartum'
+        : 'Maternal Care Journey';
+
+    final badgeLabel = isPregnant
+        ? 'DUE DATE'
+        : isNewMom
+        ? 'POSTPARTUM'
+        : 'CARE';
+
+    final badgeValue = isPregnant
+        ? '$dueDay $dueMonth'
+        : isNewMom
+        ? 'Day $postpartumDay'
+        : 'Register';
+
+    // A finished journey still has a page worth opening (past pregnancies),
+    // so only send a brand-new user straight to registration.
+    Widget headerDestination() => isPregnant || session.hasPregnancyHistory
+        ? const PregnancyJourneyPage()
+        : const PregnancyConfirmationPage();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
@@ -178,7 +241,7 @@ class _HomePageState extends State<HomePage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const PregnancyConfirmationPage()),
+                  MaterialPageRoute(builder: (_) => headerDestination()),
                 );
               },
               child: Column(
@@ -197,7 +260,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Week $week · $trimester',
+                    subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
@@ -212,12 +275,12 @@ class _HomePageState extends State<HomePage> {
           ),
           const SizedBox(width: 10),
 
-          // Due Date Badge Card (Centered on top & bottom date)
+          // Due Date / Register Badge Card
           GestureDetector(
             onTap: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+                MaterialPageRoute(builder: (_) => headerDestination()),
               );
             },
             child: Container(
@@ -238,10 +301,10 @@ class _HomePageState extends State<HomePage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Text(
-                    'DUE DATE',
+                  Text(
+                    badgeLabel,
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF8E95A5),
@@ -251,7 +314,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '$dueDay $dueMonth',
+                    badgeValue,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 14.5,
@@ -323,14 +386,311 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // ─── GENERAL SUMMARY CARD (pregnancy completed / deleted) ──
+  Widget _buildGeneralSummaryCard(UserSessionManager session) {
+    final isNewMom = session.isNewMom;
+    final days = session.daysSinceDelivery;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        padding: const EdgeInsets.all(22),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 20,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  isNewMom
+                      ? Icons.child_friendly_rounded
+                      : Icons.favorite_rounded,
+                  color: const Color(0xFFFF3B5C),
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  isNewMom ? 'POSTPARTUM CARE' : 'MY HEALTH',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFFFF3B5C),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const Spacer(),
+                if (isNewMom && days != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F4),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      days == 0 ? 'Day 1' : 'Day $days',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFF3B5C),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            const DailySummarySection(showHeading: false),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildGeneralAction(
+                    icon: Icons.monitor_heart_rounded,
+                    label: 'My health',
+                    color: const Color(0xFF3898EC),
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MyHealthPage()),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildGeneralAction(
+                    icon: Icons.add_circle_outline_rounded,
+                    label: isNewMom ? 'New pregnancy' : 'Register',
+                    color: const Color(0xFFFF3B5C),
+                    onTap: () async {
+                      final created = await Navigator.push<bool>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const PregnancyConfirmationPage(),
+                        ),
+                      );
+                      if (created == true && mounted) setState(() {});
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGeneralAction({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 0.2)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 16),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ─── DAILY SUMMARY CARD ────────────────────────────────────
   Widget _buildDailySummaryCard() {
     final session = UserSessionManager.instance;
+    final isPregnant = session.isPregnant;
     final gestationalWeek = session.currentGestationalWeek;
     final trimester = session.currentTrimester;
     final daysLeft = session.daysLeftUntilEdd;
     final eddFormatted = session.formattedEddDate;
     final eddFormattedFull = session.formattedEddDateFull;
+
+    // Three distinct states: pregnant, a finished journey (general summary),
+    // and never registered (the invitation to register).
+    if (!isPregnant && session.hasPregnancyHistory) {
+      return _buildGeneralSummaryCard(session);
+    }
+
+    if (!isPregnant) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFFFF0F4), Colors.white],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFFFDCE4), width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFFF3B5C).withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(
+                        Icons.favorite_rounded,
+                        color: Color(0xFFFF3B5C),
+                        size: 16,
+                      ),
+                      SizedBox(width: 6),
+                      Text(
+                        'PREGNANCY JOURNEY',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFFF3B5C),
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    "Start your care journey",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1E2024),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    "Register your pregnancy to track weekly baby development, doctor visits, and vaccination schedules.",
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF6B7280),
+                      height: 1.4,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildSummaryMetricChip(
+                          bg: const Color(0xFFFFF0F4),
+                          icon: Icons.child_care_rounded,
+                          iconColor: const Color(0xFFFF4E6A),
+                          value: '40 Weeks',
+                          label: 'Timeline',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildSummaryMetricChip(
+                          bg: const Color(0xFFEDF6FF),
+                          icon: Icons.calendar_month_rounded,
+                          iconColor: const Color(0xFF3898EC),
+                          value: 'ANC Visits',
+                          label: 'Schedules',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildSummaryMetricChip(
+                          bg: const Color(0xFFECFDF5),
+                          icon: Icons.vaccines_rounded,
+                          iconColor: const Color(0xFF10B981),
+                          value: 'Vaccines',
+                          label: 'Alerts',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const PregnancyConfirmationPage(),
+                    ),
+                  );
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF3B5C),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Register Pregnancy',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -411,7 +771,9 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const PregnancyJourneyPage(),
+                            ),
                           );
                         },
                         child: _buildSummaryMetricChip(
@@ -431,7 +793,9 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const PregnancyConfirmationPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const PregnancyJourneyPage(),
+                            ),
                           );
                         },
                         child: _buildSummaryMetricChip(
@@ -451,7 +815,9 @@ class _HomePageState extends State<HomePage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+                            MaterialPageRoute(
+                              builder: (_) => const PregnancyJourneyPage(),
+                            ),
                           );
                         },
                         child: _buildSummaryMetricChip(
@@ -473,7 +839,9 @@ class _HomePageState extends State<HomePage> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+                  MaterialPageRoute(
+                    builder: (_) => const PregnancyJourneyPage(),
+                  ),
                 );
               },
               child: Container(
@@ -688,7 +1056,10 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildFullGridFeatureItem(BuildContext context, Map<String, dynamic> f) {
+  Widget _buildFullGridFeatureItem(
+    BuildContext context,
+    Map<String, dynamic> f,
+  ) {
     final title = f['title'] as String;
     final subtitle = f['subtitle'] as String;
     final icon = f['icon'] as IconData;
@@ -699,10 +1070,7 @@ class _HomePageState extends State<HomePage> {
     return GestureDetector(
       onTap: () {
         if (page != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => page),
-          );
+          Navigator.push(context, MaterialPageRoute(builder: (_) => page));
         }
       },
       child: Container(
@@ -730,13 +1098,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
-              child: Center(
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 22,
-                ),
-              ),
+              child: Center(child: Icon(icon, color: color, size: 22)),
             ),
             const SizedBox(height: 8),
             Text(
@@ -770,217 +1132,6 @@ class _HomePageState extends State<HomePage> {
 
   // ─── TODAY'S CARE ─────────────────────────────────────────
   Widget _buildTodaysCareSection(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.menu_rounded,
-                    color: Color(0xFFFF4071),
-                    size: 18,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    "TODAY'S CARE",
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                      color: Color(0xFFFF4071),
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '${(_ironTabletDone ? 1 : 0) + (_eveningWalkDone ? 1 : 0) + (_waterGlasses >= 8 ? 1 : 0)} of 3 completed',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFFFF4071),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Care List Card Container
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                // Item 1: Iron Tablet
-                _buildCareListItem(
-                  icon: Icons.medication_rounded,
-                  iconBg: const Color(0xFFFFF0F3),
-                  iconColor: const Color(0xFFFF4E6A),
-                  title: 'Iron Tablet',
-                  subtitle: 'Due after lunch',
-                  trailing: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _ironTabletDone = !_ironTabletDone;
-                      });
-                    },
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _ironTabletDone ? const Color(0xFFFF4E6A) : Colors.transparent,
-                        border: Border.all(
-                          color: const Color(0xFFFF4E6A),
-                          width: 2,
-                        ),
-                      ),
-                      child: _ironTabletDone
-                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-                          : null,
-                    ),
-                  ),
-                ),
-                const Divider(height: 20, color: Color(0xFFF6F7FA)),
-
-                // Item 2: Hydration
-                _buildCareListItem(
-                  icon: Icons.water_drop_rounded,
-                  iconBg: const Color(0xFFEDF6FF),
-                  iconColor: const Color(0xFF3898EC),
-                  title: 'Hydration',
-                  subtitle: '$_waterGlasses / 8 glasses',
-                  trailing: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _waterGlasses = (_waterGlasses + 1).clamp(0, 12);
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('+250 ml logged! Keep drinking water.'),
-                          duration: Duration(milliseconds: 1200),
-                        ),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEDF6FF),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Text(
-                        '+250 ml',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF3898EC),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const Divider(height: 20, color: Color(0xFFF6F7FA)),
-
-                // Item 3: Evening Walk
-                _buildCareListItem(
-                  icon: Icons.directions_walk_rounded,
-                  iconBg: const Color(0xFFF0FDF4),
-                  iconColor: const Color(0xFF22C55E),
-                  title: 'Evening Walk',
-                  subtitle: '30 minutes',
-                  trailing: GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        _eveningWalkDone = !_eveningWalkDone;
-                      });
-                    },
-                    child: Container(
-                      width: 26,
-                      height: 26,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _eveningWalkDone ? const Color(0xFFFF4E6A) : Colors.transparent,
-                        border: Border.all(
-                          color: const Color(0xFFFF4E6A),
-                          width: 2,
-                        ),
-                      ),
-                      child: _eveningWalkDone
-                          ? const Icon(Icons.check_rounded, color: Colors.white, size: 16)
-                          : null,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCareListItem({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String subtitle,
-    required Widget trailing,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 22),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E2024),
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF8E95A5),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          trailing,
-        ],
-      ),
-    );
+    return const TodocareSection();
   }
 }

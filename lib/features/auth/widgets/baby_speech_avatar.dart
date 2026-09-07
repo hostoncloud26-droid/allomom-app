@@ -5,15 +5,19 @@ import 'package:lottie/lottie.dart';
 class BabySpeechAvatar extends StatelessWidget {
   final String speechText;
   final VoidCallback? onSpeakerTap;
+  final double avatarSize;
 
   const BabySpeechAvatar({
     super.key,
     required this.speechText,
     this.onSpeakerTap,
+    this.avatarSize = 190,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = avatarSize < 140;
+
     return Column(
       children: [
         // ─── SPEECH BUBBLE ───
@@ -23,7 +27,10 @@ class BabySpeechAvatar extends StatelessWidget {
           children: [
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+              padding: EdgeInsets.symmetric(
+                horizontal: 18,
+                vertical: isCompact ? 10 : 14,
+              ),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(22),
@@ -42,7 +49,7 @@ class BabySpeechAvatar extends StatelessWidget {
                       speechText,
                       textAlign: TextAlign.center,
                       style: GoogleFonts.poppins(
-                        fontSize: 13.5,
+                        fontSize: isCompact ? 12.5 : 13.5,
                         fontWeight: FontWeight.w600,
                         color: const Color(0xFF1E2024),
                         height: 1.35,
@@ -80,42 +87,44 @@ class BabySpeechAvatar extends StatelessWidget {
           ],
         ),
 
-        const SizedBox(height: 16),
+        SizedBox(height: isCompact ? 8 : 16),
 
         // ─── CIRCULAR BABY HALO ───
-        Container(
-          width: 190,
-          height: 190,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: avatarSize,
+          height: avatarSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: const Color(0xFFFFF0F5),
             border: Border.all(
               color: const Color(0xFFFFD2DC),
-              width: 5,
+              width: isCompact ? 3.5 : 5,
             ),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFFF4E6A).withValues(alpha: 0.08),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
+                blurRadius: isCompact ? 14 : 24,
+                offset: Offset(0, isCompact ? 4 : 8),
               ),
             ],
           ),
           child: Center(
             child: ClipOval(
               child: SizedBox(
-                width: 150,
-                height: 150,
+                width: avatarSize * (150 / 190),
+                height: avatarSize * (150 / 190),
                 child: Lottie.asset(
                   'assets/animations/Baby Speaking F.json',
                   fit: BoxFit.contain,
                   errorBuilder: (_, __, ___) => Image.asset(
                     'assets/allobaby/Baby3D.png',
                     fit: BoxFit.contain,
-                    errorBuilder: (_, __, ___) => const Icon(
+                    errorBuilder: (_, __, ___) => Icon(
                       Icons.child_care_rounded,
-                      size: 80,
-                      color: Color(0xFFFF4E6A),
+                      size: avatarSize * 0.45,
+                      color: const Color(0xFFFF4E6A),
                     ),
                   ),
                 ),

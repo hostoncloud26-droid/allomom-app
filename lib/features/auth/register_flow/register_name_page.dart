@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
 import 'package:allomom/features/auth/register_flow/register_status_page.dart';
+import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 
 class RegisterNamePage extends StatefulWidget {
   final String phone;
@@ -175,18 +176,32 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                       onPressed: () {
                         final name = _nameController.text.trim();
                         if (name.isNotEmpty) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => RegisterStatusPage(
-                                userName: name,
-                                phone: widget.phone,
-                                countryCode: widget.countryCode,
-                                selectedLanguage: widget.selectedLanguage,
-                                selectedRole: widget.selectedRole,
+                          if (widget.selectedRole.trim().toLowerCase() == 'dad') {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DadFamilySetupPage(
+                                  userName: name,
+                                  phone: widget.phone,
+                                  countryCode: widget.countryCode,
+                                  selectedLanguage: widget.selectedLanguage,
+                                ),
                               ),
-                            ),
-                          );
+                            );
+                          } else {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => RegisterStatusPage(
+                                  userName: name,
+                                  phone: widget.phone,
+                                  countryCode: widget.countryCode,
+                                  selectedLanguage: widget.selectedLanguage,
+                                  selectedRole: widget.selectedRole,
+                                ),
+                              ),
+                            );
+                          }
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(content: Text('Please enter your name')),

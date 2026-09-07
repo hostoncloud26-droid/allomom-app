@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
 import 'package:allomom/features/auth/register_flow/family_details_page.dart';
+import 'package:allomom/features/auth/register_flow/register_lmp_timeline_page.dart';
 
 class RegisterPartnerDetailsPage extends StatefulWidget {
   final String userName;
@@ -10,6 +11,7 @@ class RegisterPartnerDetailsPage extends StatefulWidget {
   final DateTime? lmpDate;
   final String phone;
   final String countryCode;
+  final String selectedRole;
 
   const RegisterPartnerDetailsPage({
     super.key,
@@ -19,6 +21,7 @@ class RegisterPartnerDetailsPage extends StatefulWidget {
     this.lmpDate,
     this.phone = '',
     this.countryCode = '+91',
+    this.selectedRole = 'Mom',
   });
 
   @override
@@ -32,6 +35,8 @@ class _RegisterPartnerDetailsPageState
   final TextEditingController _partnerPhoneController = TextEditingController();
   final String _countryCode = '+91';
 
+  bool get _isDad => widget.selectedRole.trim().toLowerCase() == 'dad';
+
   @override
   void dispose() {
     _partnerNameController.dispose();
@@ -39,19 +44,169 @@ class _RegisterPartnerDetailsPageState
     super.dispose();
   }
 
+  void _promptRegisterPregnancy(String partnerName, String partnerPhone) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFCE7F0),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.favorite_rounded,
+                  color: Color(0xFFFF5277),
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                "Register Mommy's Pregnancy?",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.outfit(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF1E2024),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "Would you like to record Mommy's pregnancy timeline (LMP & expected due date) so you can track her journey together?",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                  fontSize: 13.5,
+                  color: const Color(0xFF6B7280),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RegisterLmpTimelinePage(
+                          userName: widget.userName,
+                          status: 'pregnant',
+                          phone: widget.phone,
+                          countryCode: widget.countryCode,
+                          selectedRole: 'Dad',
+                          partnerName: partnerName,
+                          partnerPhone: partnerPhone,
+                          registerPregnancyForPartner: true,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF5277),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Yes, Record Pregnancy',
+                    style: GoogleFonts.poppins(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FamilyDetailsPage(
+                          userName: widget.userName,
+                          status: 'notpregnant',
+                          eddDate: widget.eddDate,
+                          lmpDate: null,
+                          partnerName: partnerName,
+                          partnerPhone: partnerPhone,
+                          phone: widget.phone,
+                          countryCode: widget.countryCode,
+                          selectedRole: 'Dad',
+                          registerPregnancyForPartner: false,
+                        ),
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'No, Continue Without Pregnancy',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF6B7280),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _onNext() {
+    final pName = _partnerNameController.text.trim();
+    final pPhone = _partnerPhoneController.text.trim();
+
+    if (_isDad) {
+      if (pName.isNotEmpty) {
+        _promptRegisterPregnancy(pName, pPhone);
+      } else {
+        _goToFamilyDetails();
+      }
+    } else {
+      _goToFamilyDetails();
+    }
+  }
+
   void _goToFamilyDetails() {
+    final pName = _partnerNameController.text.trim();
+    final pPhone = _partnerPhoneController.text.trim();
+
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => FamilyDetailsPage(
           userName: widget.userName,
-          status: widget.status,
+          status: _isDad ? 'notpregnant' : widget.status,
           eddDate: widget.eddDate,
           lmpDate: widget.lmpDate,
-          partnerName: _partnerNameController.text.trim(),
-          partnerPhone: _partnerPhoneController.text.trim(),
+          partnerName: pName.isNotEmpty ? pName : null,
+          partnerPhone: pPhone.isNotEmpty ? pPhone : null,
           phone: widget.phone,
           countryCode: widget.countryCode,
+          selectedRole: widget.selectedRole,
+          registerPregnancyForPartner: false,
         ),
       ),
     );
@@ -59,6 +214,14 @@ class _RegisterPartnerDetailsPageState
 
   @override
   Widget build(BuildContext context) {
+    final speechText = _isDad
+        ? 'Tell me about Mommy so she can be\npart of our journey too! 🌸'
+        : 'Tell me about Daddy so he can be\npart of our journey too! 👨‍👩‍👦';
+
+    final nameLabel = _isDad ? "MOMMY'S FULL NAME" : 'PARTNER FULL NAME';
+    final nameHint = _isDad ? 'e.g. Ananya Kumar' : 'e.g. Anand Kumar';
+    final phoneLabel = _isDad ? "MOMMY'S MOBILE NUMBER" : 'PARTNER MOBILE NUMBER';
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
@@ -111,13 +274,12 @@ class _RegisterPartnerDetailsPageState
 
             // ─── BABY SPEECH AVATAR ───
             BabySpeechAvatar(
-              speechText:
-                  'Tell me about Daddy so he can be\npart of our journey too! 👨‍👩‍👦',
+              speechText: speechText,
               onSpeakerTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing Daddy prompt...'),
-                    duration: Duration(milliseconds: 1000),
+                  SnackBar(
+                    content: Text('Playing ${_isDad ? "Mommy" : "Daddy"} prompt...'),
+                    duration: const Duration(milliseconds: 1000),
                   ),
                 );
               },
@@ -144,7 +306,7 @@ class _RegisterPartnerDetailsPageState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'PARTNER FULL NAME',
+                    nameLabel,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -185,7 +347,7 @@ class _RegisterPartnerDetailsPageState
                               color: const Color(0xFF1E2024),
                             ),
                             decoration: InputDecoration(
-                              hintText: 'e.g. Anand Kumar',
+                              hintText: nameHint,
                               hintStyle: GoogleFonts.poppins(
                                 color: const Color(0xFF9CA3AF),
                                 fontSize: 14.5,
@@ -202,7 +364,7 @@ class _RegisterPartnerDetailsPageState
                   const SizedBox(height: 16),
 
                   Text(
-                    'PARTNER MOBILE NUMBER',
+                    phoneLabel,
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -307,7 +469,7 @@ class _RegisterPartnerDetailsPageState
                         child: SizedBox(
                           height: 52,
                           child: ElevatedButton(
-                            onPressed: _goToFamilyDetails,
+                            onPressed: _onNext,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFFFF5277),
                               shape: RoundedRectangleBorder(

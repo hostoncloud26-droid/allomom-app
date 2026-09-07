@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class StepsDetailPage extends StatefulWidget {
@@ -12,10 +15,17 @@ class StepsDetailPage extends StatefulWidget {
 class _StepsDetailPageState extends State<StepsDetailPage> {
   String _selectedTab = 'Day';
 
+  void _openLogSheet() async {
+    final updated = await VitalLogBottomSheet.show(context, initialKey: 'steps', lockKey: true);
+    if (updated == true && mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -43,35 +53,70 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 color: Color(0xFF2D3142),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── BABY HERO CARD ───
-                BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
+            actions: [
+              TextButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF10B981)),
+                label: const Text(
+                  'Log',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF10B981),
+                  ),
                 ),
-                const SizedBox(height: 18),
-
-                // ─── PERIOD TABS (Day / Week / Month) ───
-                _buildPeriodTabs(const Color(0xFFD1FAE5), const Color(0xFF10B981)),
-                const SizedBox(height: 16),
-
-                // ─── MAIN CHART CARD ───
-                _buildMainChartCard(),
-                const SizedBox(height: 16),
-
-                // ─── 3 BOTTOM STAT CARDS (Distance, Calories, Active) ───
-                _buildBottomStatsRow(),
-                const SizedBox(height: 40),
-              ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openLogSheet,
+            backgroundColor: const Color(0xFF10B981),
+            elevation: 3,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Log Steps',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── FIXED TOP SECTION (Baby Hero Card & Period Tabs) ───
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 250,
+                      greetingText: "",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPeriodTabs(const Color(0xFFD1FAE5), const Color(0xFF10B981)),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // ─── SCROLLABLE BOTTOM SECTION (After the tab) ───
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMainChartCard(),
+                      const SizedBox(height: 16),
+                      _buildBottomStatsRow(),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -117,6 +162,32 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   }
 
   Widget _buildMainChartCard() {
+    String headerTitle;
+    String dateRangeText;
+    List<String> xLabels;
+    final now = DateTime.now();
+
+    if (_selectedTab == 'Day') {
+      headerTitle = 'TODAY';
+      dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
+      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
+    } else if (_selectedTab == 'Week') {
+      headerTitle = 'THIS WEEK';
+      final start = now.subtract(const Duration(days: 6));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return i == 6 ? 'Today' : DateFormat('E').format(d);
+      });
+    } else {
+      headerTitle = 'THIS MONTH';
+      final start = now.subtract(const Duration(days: 28));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
+    }
+
+    final steps = HealthVitalsController.instance.stepsValue;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,12 +206,12 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'TODAY',
-                style: TextStyle(
+                headerTitle,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E2024),
@@ -148,8 +219,8 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 ),
               ),
               Text(
-                '26 Aug 2026',
-                style: TextStyle(
+                dateRangeText,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF8E95A5),
@@ -164,21 +235,25 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             height: 180,
             width: double.infinity,
             child: CustomPaint(
-              painter: _StepsChartPainter(),
+              painter: _StepsChartPainter(
+                period: _selectedTab,
+                steps: steps,
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
           // X-Axis Time Labels
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('12 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('6 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('12 PM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('6 PM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('12 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-            ],
+            children: xLabels.map((lbl) => Text(
+              lbl,
+              style: TextStyle(
+                fontSize: 10,
+                color: const Color(0xFF8E95A5),
+                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
+              ),
+            )).toList(),
           ),
         ],
       ),
@@ -186,6 +261,23 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   }
 
   Widget _buildBottomStatsRow() {
+    final vitals = HealthVitalsController.instance;
+    final periodHistory = vitals.getHistoryForPeriod('steps', _selectedTab);
+    int displaySteps = vitals.stepsValue;
+
+    if (periodHistory.isNotEmpty) {
+      if (_selectedTab == 'Day') {
+        displaySteps = periodHistory.last.value.toInt();
+      } else {
+        final sum = periodHistory.map((e) => e.value).reduce((a, b) => a + b);
+        displaySteps = (sum / periodHistory.length).round();
+      }
+    }
+
+    final dist = (displaySteps * 0.00075).toStringAsFixed(1);
+    final cals = (displaySteps * 0.04).toInt().toString();
+    final active = (displaySteps / 100).clamp(0, 300).toInt().toString();
+
     return Row(
       children: [
         // Distance
@@ -195,7 +287,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             iconColor: const Color(0xFF3898EC),
             iconBg: const Color(0xFFEDF6FF),
             label: 'Distance',
-            value: '6.2',
+            value: dist,
             unit: 'km',
           ),
         ),
@@ -208,7 +300,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             iconColor: const Color(0xFFF59E0B),
             iconBg: const Color(0xFFFEF3C7),
             label: 'Calories',
-            value: '240',
+            value: cals,
             unit: 'kcal',
           ),
         ),
@@ -221,7 +313,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Active',
-            value: '92',
+            value: active,
             unit: 'min',
           ),
         ),
@@ -313,6 +405,14 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
 }
 
 class _StepsChartPainter extends CustomPainter {
+  final String period;
+  final int steps;
+
+  const _StepsChartPainter({
+    this.period = 'Day',
+    this.steps = 0,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const rightPadding = 24.0;
@@ -334,19 +434,45 @@ class _StepsChartPainter extends CustomPainter {
     canvas.drawLine(Offset(0, chartHeight * 0.40 + 6), Offset(chartWidth, chartHeight * 0.40 + 6), dashPaint);
     canvas.drawLine(Offset(0, chartHeight * 0.70 + 6), Offset(chartWidth, chartHeight * 0.70 + 6), dashPaint);
 
-    // Cumulative Step Curve
+    // Step Curve adapts to Day, Week, Month
     final path = Path();
-    path.moveTo(0, chartHeight * 0.85);
-    path.cubicTo(
-      chartWidth * 0.25, chartHeight * 0.80,
-      chartWidth * 0.35, chartHeight * 0.72,
-      chartWidth * 0.50, chartHeight * 0.60,
-    );
-    path.cubicTo(
-      chartWidth * 0.65, chartHeight * 0.48,
-      chartWidth * 0.80, chartHeight * 0.30,
-      chartWidth, chartHeight * 0.15,
-    );
+    if (period == 'Day') {
+      path.moveTo(0, chartHeight * 0.85);
+      path.cubicTo(
+        chartWidth * 0.25, chartHeight * 0.80,
+        chartWidth * 0.35, chartHeight * 0.72,
+        chartWidth * 0.50, chartHeight * 0.60,
+      );
+      path.cubicTo(
+        chartWidth * 0.65, chartHeight * 0.48,
+        chartWidth * 0.80, chartHeight * 0.30,
+        chartWidth, chartHeight * 0.15,
+      );
+    } else if (period == 'Week') {
+      path.moveTo(0, chartHeight * 0.75);
+      path.cubicTo(
+        chartWidth * 0.18, chartHeight * 0.45,
+        chartWidth * 0.35, chartHeight * 0.65,
+        chartWidth * 0.50, chartHeight * 0.35,
+      );
+      path.cubicTo(
+        chartWidth * 0.68, chartHeight * 0.55,
+        chartWidth * 0.85, chartHeight * 0.25,
+        chartWidth, chartHeight * 0.20,
+      );
+    } else {
+      path.moveTo(0, chartHeight * 0.70);
+      path.cubicTo(
+        chartWidth * 0.25, chartHeight * 0.60,
+        chartWidth * 0.50, chartHeight * 0.45,
+        chartWidth * 0.75, chartHeight * 0.35,
+      );
+      path.cubicTo(
+        chartWidth * 0.85, chartHeight * 0.30,
+        chartWidth * 0.95, chartHeight * 0.22,
+        chartWidth, chartHeight * 0.18,
+      );
+    }
 
     // Fill Gradient under curve
     final fillPath = Path.from(path)
@@ -373,9 +499,9 @@ class _StepsChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, strokePaint);
 
-    // Dotted vertical line at 12:30 PM (x = chartWidth * 0.52)
+    // Dotted vertical line
     final dotX = chartWidth * 0.52;
-    final dotY = chartHeight * 0.58;
+    final dotY = period == 'Day' ? chartHeight * 0.58 : (period == 'Week' ? chartHeight * 0.42 : chartHeight * 0.45);
 
     final verticalLinePaint = Paint()
       ..color = const Color(0xFF10B981)
@@ -393,7 +519,7 @@ class _StepsChartPainter extends CustomPainter {
     canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
 
     // Tooltip Card above point
-    const tooltipW = 75.0;
+    const tooltipW = 78.0;
     const tooltipH = 50.0;
     final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 8, tooltipW, tooltipH);
 
@@ -401,14 +527,16 @@ class _StepsChartPainter extends CustomPainter {
     canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.12), 4.0, true);
     canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
 
+    final tipTitle = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
     final tTime = TextPainter(
-      text: const TextSpan(text: '12:30 PM', style: TextStyle(fontSize: 9, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
+      text: TextSpan(text: tipTitle, style: const TextStyle(fontSize: 9, color: Color(0xFF8E95A5), fontWeight: FontWeight.w600)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 6));
 
+    final displayStepStr = steps > 0 ? NumberFormat('#,###').format(steps) : '5,680';
     final tVal = TextPainter(
-      text: const TextSpan(text: '5,680', style: TextStyle(fontSize: 13, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
+      text: TextSpan(text: displayStepStr, style: const TextStyle(fontSize: 12.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
@@ -421,5 +549,6 @@ class _StepsChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StepsChartPainter oldDelegate) =>
+      oldDelegate.period != period || oldDelegate.steps != steps;
 }

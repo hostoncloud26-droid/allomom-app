@@ -33,7 +33,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _imageUrl;
   bool _isSaving = false;
 
-  final List<String> _bloodGroups = ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'];
+  final List<String> _bloodGroups = [
+    'A+',
+    'A-',
+    'B+',
+    'B-',
+    'O+',
+    'O-',
+    'AB+',
+    'AB-',
+  ];
 
   @override
   void initState() {
@@ -47,11 +56,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _adline2Controller = TextEditingController(text: session.adline2);
     _cityController = TextEditingController(text: session.city);
     _pincodeController = TextEditingController(text: session.pincode);
-    _macController = TextEditingController(text: session.allowearMacAddress ?? '');
+    _macController = TextEditingController(
+      text: session.allowearMacAddress ?? '',
+    );
 
-    _gender = session.gender.isNotEmpty ? (session.gender[0].toUpperCase() + session.gender.substring(1).toLowerCase()) : 'Female';
+    _gender = session.gender.isNotEmpty
+        ? (session.gender[0].toUpperCase() +
+              session.gender.substring(1).toLowerCase())
+        : 'Female';
     _dob = session.dob;
-    _pregnancyStatus = session.pregnancyStatus;
+    _pregnancyStatus = _normalizeStatus(session.pregnancyStatus);
     _lmpDate = session.lmpDate;
     _eddDate = session.eddDate;
     _bloodGroup = session.bloodGroup;
@@ -103,6 +117,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  /// Maps any stored spelling onto one of the three chip values.
+  static String _normalizeStatus(String raw) {
+    final s = raw.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
+    if (s == 'pregnant') return 'pregnant';
+    if (s == 'newmom' || s == 'postpartum' || s == 'delivered') {
+      return 'new_mom';
+    }
+    return 'notpregnant';
+  }
+
   Future<void> _handleSave() async {
     if (_nameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,23 +142,40 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     final success = await UserSessionManager.instance.updateProfile(
       name: _nameController.text.trim(),
-      email: _emailController.text.trim().isEmpty ? null : _emailController.text.trim(),
-      phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+      email: _emailController.text.trim().isEmpty
+          ? null
+          : _emailController.text.trim(),
+      phone: _phoneController.text.trim().isEmpty
+          ? null
+          : _phoneController.text.trim(),
       gender: _gender.toLowerCase(),
       dob: _dob,
-      bio: _bioController.text.trim().isEmpty ? null : _bioController.text.trim(),
-      city: _cityController.text.trim().isEmpty ? null : _cityController.text.trim(),
-      pincode: _pincodeController.text.trim().isEmpty ? null : _pincodeController.text.trim(),
-      adline1: _adline1Controller.text.trim().isEmpty ? null : _adline1Controller.text.trim(),
-      adline2: _adline2Controller.text.trim().isEmpty ? null : _adline2Controller.text.trim(),
+      bio: _bioController.text.trim().isEmpty
+          ? null
+          : _bioController.text.trim(),
+      city: _cityController.text.trim().isEmpty
+          ? null
+          : _cityController.text.trim(),
+      pincode: _pincodeController.text.trim().isEmpty
+          ? null
+          : _pincodeController.text.trim(),
+      adline1: _adline1Controller.text.trim().isEmpty
+          ? null
+          : _adline1Controller.text.trim(),
+      adline2: _adline2Controller.text.trim().isEmpty
+          ? null
+          : _adline2Controller.text.trim(),
       bloodGroup: _bloodGroup,
       pregnancyStatus: _pregnancyStatus,
       lmpDate: _lmpDate,
       eddDate: _eddDate,
       image: _imageUrl,
-      allowearMacAddress: _macController.text.trim().isEmpty ? null : _macController.text.trim(),
+      allowearMacAddress: _macController.text.trim().isEmpty
+          ? null
+          : _macController.text.trim(),
     );
 
+    // Local-only: the pregnancy row is created/removed in SQLite.
     if (_pregnancyStatus == 'pregnant' && _lmpDate != null) {
       await UserSessionManager.instance.saveOrUpdatePregnancy(
         lmpDate: _lmpDate!,
@@ -159,12 +200,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Failed to update profile remotely, saved locally.'),
+          content: Text('Could not save your profile. Please try again.'),
           backgroundColor: Color(0xFFFFA500),
           behavior: SnackBarBehavior.floating,
         ),
       );
-      Navigator.pop(context);
     }
   }
 
@@ -223,7 +263,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   items: const ['Female', 'Male', 'Other'],
                                   icon: Icons.female_rounded,
                                   onChanged: (val) {
-                                    if (val != null) setState(() => _gender = val);
+                                    if (val != null) {
+                                      setState(() => _gender = val);
+                                    }
                                   },
                                 ),
                               ),
@@ -239,7 +281,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     initialDate: _dob ?? DateTime(1995, 1, 1),
                                     firstDate: DateTime(1940),
                                     lastDate: DateTime.now(),
-                                    onDateSelected: (d) => setState(() => _dob = d),
+                                    onDateSelected: (d) =>
+                                        setState(() => _dob = d),
                                   ),
                                 ),
                               ),
@@ -263,38 +306,50 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         title: 'Maternal & Pregnancy Care',
                         icon: Icons.child_care_rounded,
                         children: [
-                          Row(
+                          Text(
+                            'Pregnancy Status:',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          // 'New mom' is its own state: the journey is over,
+                          // but the completed pregnancy stays on record.
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
                             children: [
-                              Text(
-                                'Pregnancy Status:',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFF1E2024),
+                              for (final option in const [
+                                ('pregnant', 'Pregnant'),
+                                ('new_mom', 'New Mom'),
+                                ('notpregnant', 'Not Pregnant'),
+                              ])
+                                ChoiceChip(
+                                  label: Text(
+                                    option.$2,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  selected: _pregnancyStatus == option.$1,
+                                  selectedColor: const Color(0xFFFF4E6A),
+                                  labelStyle: TextStyle(
+                                    color: _pregnancyStatus == option.$1
+                                        ? Colors.white
+                                        : const Color(0xFF4B5563),
+                                  ),
+                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  onSelected: (sel) {
+                                    if (sel) {
+                                      setState(
+                                        () => _pregnancyStatus = option.$1,
+                                      );
+                                    }
+                                  },
                                 ),
-                              ),
-                              const Spacer(),
-                              ChoiceChip(
-                                label: Text('Pregnant', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-                                selected: _pregnancyStatus == 'pregnant',
-                                selectedColor: const Color(0xFFFF4E6A),
-                                labelStyle: TextStyle(color: _pregnancyStatus == 'pregnant' ? Colors.white : const Color(0xFF4B5563)),
-                                backgroundColor: const Color(0xFFF3F4F6),
-                                onSelected: (sel) {
-                                  if (sel) setState(() => _pregnancyStatus = 'pregnant');
-                                },
-                              ),
-                              const SizedBox(width: 8),
-                              ChoiceChip(
-                                label: Text('Not Pregnant', style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.w600)),
-                                selected: _pregnancyStatus == 'notpregnant',
-                                selectedColor: const Color(0xFFFF4E6A),
-                                labelStyle: TextStyle(color: _pregnancyStatus == 'notpregnant' ? Colors.white : const Color(0xFF4B5563)),
-                                backgroundColor: const Color(0xFFF3F4F6),
-                                onSelected: (sel) {
-                                  if (sel) setState(() => _pregnancyStatus = 'notpregnant');
-                                },
-                              ),
                             ],
                           ),
                           const SizedBox(height: 16),
@@ -310,13 +365,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     icon: Icons.calendar_today_rounded,
                                     onTap: () => _selectDate(
                                       context: context,
-                                      initialDate: _lmpDate ?? DateTime.now().subtract(const Duration(days: 90)),
-                                      firstDate: DateTime.now().subtract(const Duration(days: 300)),
+                                      initialDate:
+                                          _lmpDate ??
+                                          DateTime.now().subtract(
+                                            const Duration(days: 90),
+                                          ),
+                                      firstDate: DateTime.now().subtract(
+                                        const Duration(days: 300),
+                                      ),
                                       lastDate: DateTime.now(),
                                       onDateSelected: (d) {
                                         setState(() {
                                           _lmpDate = d;
-                                          _eddDate ??= d.add(const Duration(days: 280));
+                                          _eddDate ??= d.add(
+                                            const Duration(days: 280),
+                                          );
                                         });
                                       },
                                     ),
@@ -331,10 +394,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     icon: Icons.event_available_rounded,
                                     onTap: () => _selectDate(
                                       context: context,
-                                      initialDate: _eddDate ?? DateTime.now().add(const Duration(days: 190)),
-                                      firstDate: DateTime.now().subtract(const Duration(days: 60)),
-                                      lastDate: DateTime.now().add(const Duration(days: 320)),
-                                      onDateSelected: (d) => setState(() => _eddDate = d),
+                                      initialDate:
+                                          _eddDate ??
+                                          DateTime.now().add(
+                                            const Duration(days: 190),
+                                          ),
+                                      firstDate: DateTime.now().subtract(
+                                        const Duration(days: 60),
+                                      ),
+                                      lastDate: DateTime.now().add(
+                                        const Duration(days: 320),
+                                      ),
+                                      onDateSelected: (d) =>
+                                          setState(() => _eddDate = d),
                                     ),
                                   ),
                                 ),
@@ -358,13 +430,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             children: _bloodGroups.map((bg) {
                               final isSelected = _bloodGroup == bg;
                               return ChoiceChip(
-                                label: Text(bg, style: GoogleFonts.poppins(fontSize: 13, fontWeight: FontWeight.bold)),
+                                label: Text(
+                                  bg,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                                 selected: isSelected,
                                 selectedColor: const Color(0xFFFF5277),
-                                labelStyle: TextStyle(color: isSelected ? Colors.white : const Color(0xFF374151)),
+                                labelStyle: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : const Color(0xFF374151),
+                                ),
                                 backgroundColor: Colors.white,
                                 side: BorderSide(
-                                  color: isSelected ? const Color(0xFFFF5277) : const Color(0xFFE5E7EB),
+                                  color: isSelected
+                                      ? const Color(0xFFFF5277)
+                                      : const Color(0xFFE5E7EB),
                                   width: 1.2,
                                 ),
                                 onSelected: (sel) {
@@ -440,7 +524,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           const SizedBox(height: 6),
                           Text(
                             'Pair with Allowear to sync maternal vitals, heart rate, and temperature continuously.',
-                            style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF6B7280)),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: const Color(0xFF6B7280),
+                            ),
                           ),
                         ],
                       ),
@@ -472,19 +559,28 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 onPressed: _isSaving ? null : _handleSave,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF5277),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   elevation: 2,
                 ),
                 child: _isSaving
                     ? const SizedBox(
                         width: 24,
                         height: 24,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
                       )
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.check_circle_outline_rounded, color: Colors.white, size: 20),
+                          const Icon(
+                            Icons.check_circle_outline_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Save Profile Changes',
@@ -516,7 +612,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
         child: CircleAvatar(
           backgroundColor: Colors.black.withValues(alpha: 0.25),
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: Colors.white, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
         ),
@@ -605,10 +705,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       color: Color(0xFFFF4E6A),
                       shape: BoxShape.circle,
                       boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                        ),
+                        BoxShadow(color: Colors.black26, blurRadius: 4),
                       ],
                     ),
                     child: const Icon(
@@ -710,10 +807,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF9CA3AF)),
+              hintStyle: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF9CA3AF),
+              ),
               prefixIcon: Icon(icon, color: const Color(0xFF6B7280), size: 20),
               border: InputBorder.none,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
             ),
           ),
         ),
@@ -752,8 +855,21 @@ class _EditProfilePageState extends State<EditProfilePage> {
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
-              icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF6B7280)),
-              items: items.map((e) => DropdownMenuItem(value: e, child: Text(e.toString(), style: GoogleFonts.poppins(fontSize: 14)))).toList(),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                color: Color(0xFF6B7280),
+              ),
+              items: items
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(
+                        e.toString(),
+                        style: GoogleFonts.poppins(fontSize: 14),
+                      ),
+                    ),
+                  )
+                  .toList(),
               onChanged: onChanged,
             ),
           ),
@@ -763,7 +879,20 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   String _formatDate(DateTime d) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}';
   }
 
@@ -806,8 +935,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     date != null ? _formatDate(date) : hint,
                     style: GoogleFonts.poppins(
                       fontSize: 13.5,
-                      fontWeight: date != null ? FontWeight.w600 : FontWeight.normal,
-                      color: date != null ? const Color(0xFF1E2024) : const Color(0xFF9CA3AF),
+                      fontWeight: date != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      color: date != null
+                          ? const Color(0xFF1E2024)
+                          : const Color(0xFF9CA3AF),
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

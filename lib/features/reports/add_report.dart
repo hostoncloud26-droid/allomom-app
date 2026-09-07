@@ -6,12 +6,13 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:uuid/uuid.dart';
 
-import 'package:allomom/services/api/report_api.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
+import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 import 'package:allomom/services/report_parser/on_device_report_parser.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class AddReport extends StatefulWidget {
   final String? checklistId;
@@ -138,7 +139,9 @@ class _AddReportState extends State<AddReport> {
     try {
       final session = UserSessionManager.instance;
       final userId = session.userId;
-      final healthId = session.currentHealthData?.id ?? (userId.isNotEmpty ? userId : 'health_me');
+      final healthId = session.healthDataId.isNotEmpty
+          ? session.healthDataId
+          : (userId.isNotEmpty ? userId : 'health_me');
 
       final filePaths = _selectedFiles.map((f) => f.path).toList();
       final primaryFile = filePaths.first;
@@ -162,22 +165,8 @@ class _AddReportState extends State<AddReport> {
         });
       }
 
-      final Map<String, dynamic> data = {
-        'report_type': reportType,
-        'imageUrl': primaryFile,
-        'description': description.text.trim(),
-        'userID': userId,
-        'checklistId': widget.checklistId,
-        'detail': detailData,
-      };
-
-      final response = await ReportApi.addReport(data);
-
-      final reportId = response.item is Map
-          ? (response.item['id']?.toString() ?? '')
-          : 'rep_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Persist to SQLite Drift DB
+      // Local-only: the report is written straight to SQLite with synced = 0.
+      final reportId = const Uuid().v4();
       final rRow = ReportsCompanion(
         id: drift.Value(reportId),
         reportType: drift.Value(reportType!),
@@ -185,10 +174,42 @@ class _AddReportState extends State<AddReport> {
         imageUrl: drift.Value(primaryFile),
         detail: drift.Value(jsonEncode(detailData)),
         healthDataID: drift.Value(healthId),
+        createdBy: drift.Value(userId.isEmpty ? null : userId),
         saved: const drift.Value(true),
         createdAt: drift.Value(DateTime.now()),
+        synced: const drift.Value(0),
       );
       await ReportDbService.instance.saveReport(rRow);
+
+      // Record every picked file as an attachment row so the report keeps
+      // track of all of them, not just the primary one.
+      for (final file in _selectedFiles) {
+        await PregnancyCareDbService.instance.createReportAttachment(
+          ReportAttachmentsCompanion(
+            reportId: drift.Value(reportId),
+            localPath: drift.Value(file.path),
+            fileName: drift.Value(file.path.split('/').last),
+            mimeType: drift.Value(_isPdf(file.path) ? 'application/pdf' : 'image/*'),
+            fileSizeBytes: drift.Value(
+              file.existsSync() ? file.lengthSync() : null,
+            ),
+            synced: const drift.Value(0),
+          ),
+        );
+      }
+
+      // Close out the checklist entry this report was filed against.
+      final checklistId = widget.checklistId;
+      if (checklistId != null && checklistId.isNotEmpty) {
+        await PregnancyCareDbService.instance.updateReportChecklist(
+          ReportChecklistsCompanion(
+            id: drift.Value(checklistId),
+            status: const drift.Value('done'),
+            completedDate: drift.Value(DateTime.now()),
+            filePath: drift.Value(primaryFile),
+          ),
+        );
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

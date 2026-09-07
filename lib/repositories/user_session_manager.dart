@@ -1,20 +1,32 @@
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:uuid/uuid.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/user_db_service.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/api/api_base.dart';
 import 'package:allomom/services/api/auth_api.dart';
-import 'package:allomom/services/api/pregnancy_api.dart';
 
-class UserSessionManager extends ChangeNotifier {
-  static final UserSessionManager instance = UserSessionManager._internal();
+class UserSessionManager extends GetxController {
+  static UserSessionManager get instance =>
+      Get.isRegistered<UserSessionManager>()
+      ? Get.find<UserSessionManager>()
+      : Get.put(UserSessionManager._internal(), permanent: true);
+
+  factory UserSessionManager() => instance;
   UserSessionManager._internal();
+
+  /// Compatibility alias for any Flutter Listeners
+  void notifyListeners() => update();
 
   User? _currentUser;
   HealthDataTableData? _currentHealthData;
   Pregnancy? _currentPregnancy;
+  int _completedPregnancyCount = 0;
+  DateTime? _lastDeliveryDate;
   bool _isLoading = true;
 
   // Local storage cached properties
@@ -54,15 +66,44 @@ class UserSessionManager extends ChangeNotifier {
   String get userPhone => _userPhone ?? _currentUser?.phone ?? '';
   String get userEmail => _userEmail ?? _currentUser?.email ?? '';
   String get countryCode => _countryCode ?? _currentUser?.countryCode ?? '+91';
-  String get pregnancyStatus => _pregnancyStatus ?? _currentHealthData?.pregnancyStatus ?? 'pregnant';
-  bool get isPregnant {
-    if (_lmpDate != null || _eddDate != null || _currentPregnancy != null) return true;
-    final s = pregnancyStatus.toLowerCase().trim();
-    if (s == 'notpregnant' || s == 'not_pregnant' || s == 'not pregnant') return false;
-    return true;
+  String get pregnancyStatus =>
+      _pregnancyStatus ?? _currentHealthData?.pregnancyStatus ?? 'pregnant';
+
+  /// Whether the mother is currently pregnant.
+  ///
+  /// Delegates to [resolveIsPregnant] so the precedence rules stay testable:
+  /// an explicit status wins, and the stored LMP / EDD are only a fallback.
+  bool get isPregnant => resolveIsPregnant(
+    status: pregnancyStatus,
+    hasPregnancyDates:
+        _lmpDate != null || _eddDate != null || _currentPregnancy != null,
+  );
+
+  /// Delivered recently — postpartum rather than simply not pregnant.
+  bool get isNewMom => resolveIsNewMom(pregnancyStatus);
+
+  /// Completed pregnancies on record. Lets the UI tell "never registered"
+  /// apart from "this journey is finished".
+  int get completedPregnancyCount => _completedPregnancyCount;
+
+  bool get hasPregnancyHistory => _completedPregnancyCount > 0 || isNewMom;
+
+  /// The most recent delivery date, when one is on record.
+  DateTime? get lastDeliveryDate =>
+      _lastDeliveryDate ?? _currentHealthData?.lastDeliveryDate;
+
+  /// Days since the last delivery, or null when there is none.
+  int? get daysSinceDelivery {
+    final delivered = lastDeliveryDate;
+    if (delivered == null) return null;
+    final days = DateTime.now().difference(delivered).inDays;
+    return days < 0 ? 0 : days;
   }
-  DateTime? get lmpDate => _lmpDate ?? _currentHealthData?.lmpDate ?? _currentPregnancy?.lmpDate;
-  DateTime? get eddDate => _eddDate ?? _currentHealthData?.edDate ?? _currentPregnancy?.edDate;
+
+  DateTime? get lmpDate =>
+      _lmpDate ?? _currentHealthData?.lmpDate ?? _currentPregnancy?.lmpDate;
+  DateTime? get eddDate =>
+      _eddDate ?? _currentHealthData?.edDate ?? _currentPregnancy?.edDate;
   String? get partnerName => _partnerName;
   String? get partnerPhone => _partnerPhone;
   bool get hasKids => _hasKids;
@@ -77,8 +118,36 @@ class UserSessionManager extends ChangeNotifier {
   String? get bloodGroup => _bloodGroup ?? _currentHealthData?.bloodGroup;
   String? get image => _image ?? _currentUser?.image;
   String? get coverPic => _coverPic ?? _currentUser?.coverPic;
-  String? get allowearMacAddress => _allowearMacAddress ?? _currentUser?.allowearMacAddress;
-  String get riskStatus => _riskStatus ?? _currentPregnancy?.riskStatus ?? 'Low';
+  String? get allowearMacAddress =>
+      _allowearMacAddress ?? _currentUser?.allowearMacAddress;
+  String get riskStatus =>
+      _riskStatus ?? _currentPregnancy?.riskStatus ?? 'Low';
+
+  /// Health-data UUID for the active user. Every local record that hangs off
+  /// the mother's health profile (pregnancies, prescriptions, reports) is keyed
+  /// by this, so fall back to a deterministic id rather than an empty string.
+  String get healthDataId {
+    final hid = _currentUser?.healthDataID;
+    if (hid != null && hid.isNotEmpty) return hid;
+    final uid = userId;
+    return uid.isEmpty ? '' : 'hd_$uid';
+  }
+
+  /// Days elapsed since LMP, i.e. the current day of the pregnancy.
+  int get currentPregnancyDay {
+    final lmp = lmpDate;
+    final now = DateTime.now();
+    if (lmp != null) {
+      final days = now.difference(lmp).inDays;
+      if (days >= 0) return days;
+    }
+    final edd = eddDate;
+    if (edd != null) {
+      final daysPassed = 280 - edd.difference(now).inDays;
+      if (daysPassed > 0) return daysPassed;
+    }
+    return 0;
+  }
 
   int get currentGestationalWeek {
     final lmp = lmpDate;
@@ -115,14 +184,40 @@ class UserSessionManager extends ChangeNotifier {
   String get formattedEddDate {
     final edd = eddDate;
     if (edd == null) return '28 Feb';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${edd.day} ${months[edd.month - 1]}';
   }
 
   String get formattedEddDateFull {
     final edd = eddDate;
     if (edd == null) return '28 Feb 2026';
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${edd.day} ${months[edd.month - 1]} ${edd.year}';
   }
 
@@ -135,7 +230,7 @@ class UserSessionManager extends ChangeNotifier {
 
   Future<void> init() async {
     _isLoading = true;
-    notifyListeners();
+    update();
     try {
       final prefs = await SharedPreferences.getInstance();
       final jwt = await ApiBase.getJwt();
@@ -188,29 +283,86 @@ class UserSessionManager extends ChangeNotifier {
           await _loadHealthAndPregnancy(_currentUser!);
         }
 
-        // Ensure is_logged_in flag is synced in SharedPreferences
+        // Ensure is_logged_in flag is stored in SharedPreferences
         await prefs.setBool('is_logged_in', true);
 
-        // Background sync with API
-        fetchAndSyncProfileFromApi();
+        // Local-only hydration: the SQLite row is the source of truth outside
+        // of login/signup, so fill in anything SharedPreferences was missing.
+        _hydrateFromLocalRecords();
       }
     } catch (e) {
       debugPrint('Error initializing UserSessionManager: $e');
     } finally {
       _isLoading = false;
-      notifyListeners();
+      update();
     }
   }
 
   Future<void> _loadHealthAndPregnancy(User user) async {
     if (user.healthDataID != null && user.healthDataID!.isNotEmpty) {
-      _currentHealthData =
-          await HealthDbService.instance.getHealthDataById(user.healthDataID!);
+      _currentHealthData = await HealthDbService.instance.getHealthDataById(
+        user.healthDataID!,
+      );
       if (_currentHealthData != null) {
-        _currentPregnancy = await HealthDbService.instance
-            .getActivePregnancy(_currentHealthData!.id);
+        _currentPregnancy = await HealthDbService.instance.getActivePregnancy(
+          _currentHealthData!.id,
+        );
+
+        final completed = await HealthDbService.instance
+            .getCompletedPregnancies(_currentHealthData!.id);
+        _completedPregnancyCount = completed.length;
+        _lastDeliveryDate = completed
+            .map((p) => p.deliveryDate ?? p.completedAt)
+            .whereType<DateTime>()
+            .fold<DateTime?>(
+              null,
+              (latest, date) =>
+                  latest == null || date.isAfter(latest) ? date : latest,
+            );
       }
     }
+  }
+
+  /// Fills the cached session fields from the local SQLite rows. Used on init
+  /// so a fresh install / cleared SharedPreferences still shows the stored
+  /// profile without needing the network.
+  void _hydrateFromLocalRecords() {
+    final user = _currentUser;
+    final health = _currentHealthData;
+    final preg = _currentPregnancy;
+
+    if (user != null) {
+      _userName ??= user.name;
+      _userPhone ??= user.phone;
+      _userEmail ??= user.email;
+      _countryCode ??= user.countryCode;
+      _gender ??= user.gender;
+      _dob ??= user.dob;
+      _bio ??= user.bio;
+      _city ??= user.city;
+      _pincode ??= user.pincode;
+      _adline1 ??= user.adline1;
+      _adline2 ??= user.adline2;
+      _image ??= user.image;
+      _coverPic ??= user.coverPic;
+      _allowearMacAddress ??= user.allowearMacAddress;
+    }
+
+    if (health != null) {
+      _bloodGroup ??= health.bloodGroup;
+      _pregnancyStatus ??= health.pregnancyStatus;
+      _lmpDate ??= health.lmpDate;
+      _eddDate ??= health.edDate;
+    }
+
+    if (preg != null) {
+      _lmpDate ??= preg.lmpDate;
+      _eddDate ??= preg.edDate;
+      _riskStatus ??= preg.riskStatus;
+      if (preg.status == 'active') _pregnancyStatus = 'pregnant';
+    }
+
+    update();
   }
 
   /// Save full user registration details to local storage and SQLite
@@ -263,8 +415,10 @@ class UserSessionManager extends ChangeNotifier {
     _hasKids = hasKids;
     _kidsCount = kidsCount;
 
-    final resolvedUserId = userId ?? "usr_${DateTime.now().millisecondsSinceEpoch}";
-    final resolvedHealthId = healthDataId ?? "hd_${DateTime.now().millisecondsSinceEpoch}";
+    final resolvedUserId =
+        userId ?? "usr_${DateTime.now().millisecondsSinceEpoch}";
+    final resolvedHealthId =
+        healthDataId ?? "hd_${DateTime.now().millisecondsSinceEpoch}";
 
     await setAuthenticatedSession(
       userId: resolvedUserId,
@@ -278,7 +432,7 @@ class UserSessionManager extends ChangeNotifier {
       lmpDate: lmpDate,
     );
 
-    notifyListeners();
+    update();
   }
 
   /// Sets authenticated session in SQLite database
@@ -302,12 +456,24 @@ class UserSessionManager extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_logged_in', true);
     await prefs.setString('user_id', userId);
-    if (name != null && name.isNotEmpty) await prefs.setString('user_name', name);
-    if (phone != null && phone.isNotEmpty) await prefs.setString('user_phone', phone);
-    if (email != null && email.isNotEmpty) await prefs.setString('user_email', email);
-    if (pregnancyStatus != null && pregnancyStatus.isNotEmpty) await prefs.setString('pregnancy_status', pregnancyStatus);
-    if (eddDate != null) await prefs.setString('edd_date', eddDate.toIso8601String());
-    if (lmpDate != null) await prefs.setString('lmp_date', lmpDate.toIso8601String());
+    if (name != null && name.isNotEmpty) {
+      await prefs.setString('user_name', name);
+    }
+    if (phone != null && phone.isNotEmpty) {
+      await prefs.setString('user_phone', phone);
+    }
+    if (email != null && email.isNotEmpty) {
+      await prefs.setString('user_email', email);
+    }
+    if (pregnancyStatus != null && pregnancyStatus.isNotEmpty) {
+      await prefs.setString('pregnancy_status', pregnancyStatus);
+    }
+    if (eddDate != null) {
+      await prefs.setString('edd_date', eddDate.toIso8601String());
+    }
+    if (lmpDate != null) {
+      await prefs.setString('lmp_date', lmpDate.toIso8601String());
+    }
 
     final savedUser = await UserDbService.instance.saveUser(
       UsersCompanion(
@@ -317,6 +483,7 @@ class UserSessionManager extends ChangeNotifier {
         email: drift.Value(email ?? ""),
         healthDataID: drift.Value(healthDataId),
         isDeleted: const drift.Value(false),
+        synced: const drift.Value(0),
       ),
     );
 
@@ -328,17 +495,25 @@ class UserSessionManager extends ChangeNotifier {
           pregnancyStatus: drift.Value(pregnancyStatus ?? "pregnant"),
           edDate: drift.Value(eddDate),
           lmpDate: drift.Value(lmpDate),
+          synced: const drift.Value(0),
         ),
       );
 
       if (pregnancyStatus == "pregnant" || eddDate != null) {
+        // Reuse the existing active pregnancy on re-login so a second row is
+        // not created for the same journey.
+        final existing = await HealthDbService.instance.getActivePregnancy(
+          healthDataId,
+        );
         await HealthDbService.instance.savePregnancy(
           PregnanciesCompanion(
-            id: drift.Value(healthDataId),
+            id: drift.Value(existing?.id ?? const Uuid().v4()),
             healthId: drift.Value(healthDataId),
             status: const drift.Value("active"),
             edDate: drift.Value(eddDate),
             lmpDate: drift.Value(lmpDate),
+            createdAt: drift.Value(existing?.createdAt ?? DateTime.now()),
+            synced: const drift.Value(0),
           ),
         );
       }
@@ -355,7 +530,7 @@ class UserSessionManager extends ChangeNotifier {
 
     await _loadHealthAndPregnancy(_currentUser!);
     _isLoggedIn = true;
-    notifyListeners();
+    update();
   }
 
   Future<void> switchUser(String userId) async {
@@ -364,9 +539,10 @@ class UserSessionManager extends ChangeNotifier {
     if (_currentUser != null) {
       await _loadHealthAndPregnancy(_currentUser!);
     }
-    notifyListeners();
+    update();
   }
 
+  @override
   Future<void> refresh() async {
     if (_currentUser != null) {
       _currentUser = await UserDbService.instance.getUserById(_currentUser!.id);
@@ -380,7 +556,7 @@ class UserSessionManager extends ChangeNotifier {
         await _loadHealthAndPregnancy(_currentUser!);
       }
     }
-    notifyListeners();
+    update();
   }
 
   /// Update profile details in memory, SharedPreferences, SQLite, and remotely via API
@@ -405,23 +581,74 @@ class UserSessionManager extends ChangeNotifier {
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
-    if (name != null) { _userName = name; await prefs.setString('user_name', name); }
-    if (email != null) { _userEmail = email; await prefs.setString('user_email', email); }
-    if (phone != null) { _userPhone = phone; await prefs.setString('user_phone', phone); }
-    if (gender != null) { _gender = gender; await prefs.setString('user_gender', gender); }
-    if (dob != null) { _dob = dob; await prefs.setString('user_dob', dob.toIso8601String()); }
-    if (bio != null) { _bio = bio; await prefs.setString('user_bio', bio); }
-    if (city != null) { _city = city; await prefs.setString('user_city', city); }
-    if (pincode != null) { _pincode = pincode; await prefs.setString('user_pincode', pincode); }
-    if (adline1 != null) { _adline1 = adline1; await prefs.setString('user_adline1', adline1); }
-    if (adline2 != null) { _adline2 = adline2; await prefs.setString('user_adline2', adline2); }
-    if (bloodGroup != null) { _bloodGroup = bloodGroup; await prefs.setString('user_blood_group', bloodGroup); }
-    if (pregnancyStatus != null) { _pregnancyStatus = pregnancyStatus; await prefs.setString('pregnancy_status', pregnancyStatus); }
-    if (lmpDate != null) { _lmpDate = lmpDate; await prefs.setString('lmp_date', lmpDate.toIso8601String()); }
-    if (eddDate != null) { _eddDate = eddDate; await prefs.setString('edd_date', eddDate.toIso8601String()); }
-    if (image != null) { _image = image; await prefs.setString('user_image', image); }
-    if (coverPic != null) { _coverPic = coverPic; await prefs.setString('user_cover_pic', coverPic); }
-    if (allowearMacAddress != null) { _allowearMacAddress = allowearMacAddress; await prefs.setString('allowear_mac_address', allowearMacAddress); }
+    if (name != null) {
+      _userName = name;
+      await prefs.setString('user_name', name);
+    }
+    if (email != null) {
+      _userEmail = email;
+      await prefs.setString('user_email', email);
+    }
+    if (phone != null) {
+      _userPhone = phone;
+      await prefs.setString('user_phone', phone);
+    }
+    if (gender != null) {
+      _gender = gender;
+      await prefs.setString('user_gender', gender);
+    }
+    if (dob != null) {
+      _dob = dob;
+      await prefs.setString('user_dob', dob.toIso8601String());
+    }
+    if (bio != null) {
+      _bio = bio;
+      await prefs.setString('user_bio', bio);
+    }
+    if (city != null) {
+      _city = city;
+      await prefs.setString('user_city', city);
+    }
+    if (pincode != null) {
+      _pincode = pincode;
+      await prefs.setString('user_pincode', pincode);
+    }
+    if (adline1 != null) {
+      _adline1 = adline1;
+      await prefs.setString('user_adline1', adline1);
+    }
+    if (adline2 != null) {
+      _adline2 = adline2;
+      await prefs.setString('user_adline2', adline2);
+    }
+    if (bloodGroup != null) {
+      _bloodGroup = bloodGroup;
+      await prefs.setString('user_blood_group', bloodGroup);
+    }
+    if (pregnancyStatus != null) {
+      _pregnancyStatus = pregnancyStatus;
+      await prefs.setString('pregnancy_status', pregnancyStatus);
+    }
+    if (lmpDate != null) {
+      _lmpDate = lmpDate;
+      await prefs.setString('lmp_date', lmpDate.toIso8601String());
+    }
+    if (eddDate != null) {
+      _eddDate = eddDate;
+      await prefs.setString('edd_date', eddDate.toIso8601String());
+    }
+    if (image != null) {
+      _image = image;
+      await prefs.setString('user_image', image);
+    }
+    if (coverPic != null) {
+      _coverPic = coverPic;
+      await prefs.setString('user_cover_pic', coverPic);
+    }
+    if (allowearMacAddress != null) {
+      _allowearMacAddress = allowearMacAddress;
+      await prefs.setString('allowear_mac_address', allowearMacAddress);
+    }
 
     // Update SQLite local tables
     if (_currentUser != null) {
@@ -440,9 +667,12 @@ class UserSessionManager extends ChangeNotifier {
           adline2: drift.Value(_adline2 ?? _currentUser!.adline2),
           image: drift.Value(_image ?? _currentUser!.image),
           coverPic: drift.Value(_coverPic ?? _currentUser!.coverPic),
-          allowearMacAddress: drift.Value(_allowearMacAddress ?? _currentUser!.allowearMacAddress),
+          allowearMacAddress: drift.Value(
+            _allowearMacAddress ?? _currentUser!.allowearMacAddress,
+          ),
           healthDataID: drift.Value(_currentUser!.healthDataID),
           isDeleted: const drift.Value(false),
+          synced: const drift.Value(0),
         ),
       );
 
@@ -456,180 +686,166 @@ class UserSessionManager extends ChangeNotifier {
             pregnancyStatus: drift.Value(_pregnancyStatus ?? "pregnant"),
             edDate: drift.Value(_eddDate),
             lmpDate: drift.Value(_lmpDate),
+            synced: const drift.Value(0),
           ),
         );
       }
     }
 
-    notifyListeners();
+    update();
 
-    // Sync with backend API
-    try {
-      final payload = <String, dynamic>{};
-      if (name != null) payload['name'] = name;
-      if (email != null) payload['email'] = email;
-      if (phone != null) payload['phone'] = phone;
-      if (gender != null) payload['gender'] = gender.toLowerCase();
-      if (dob != null) payload['dob'] = dob.toIso8601String();
-      if (bio != null) payload['bio'] = bio;
-      if (city != null) payload['city'] = city;
-      if (pincode != null) payload['pincode'] = pincode;
-      if (adline1 != null) payload['adline1'] = adline1;
-      if (adline2 != null) payload['adline2'] = adline2;
-      if (image != null) payload['image'] = image;
-      if (coverPic != null) payload['cover_pic'] = coverPic;
-      if (allowearMacAddress != null) payload['allowear_mac_address'] = allowearMacAddress;
-      if (bloodGroup != null) payload['bloodGroup'] = bloodGroup;
-      if (pregnancyStatus != null) payload['pregnancyStatus'] = pregnancyStatus;
-      if (lmpDate != null) payload['lmpDate'] = lmpDate.toIso8601String();
-      if (eddDate != null) payload['edDate'] = eddDate.toIso8601String();
-
-      final res = await AuthApi.updateProfile(payload);
-      return res.success;
-    } catch (e) {
-      debugPrint('Error updating profile with API: $e');
-      return true;
-    }
+    // Local-only: the row is written with synced = 0 so a future sync worker
+    // can push it. No network call is made here.
+    return true;
   }
 
   Future<bool> updateBloodGroup(String bg) => updateProfile(bloodGroup: bg);
   Future<bool> updateLmpDate(DateTime lmp) => updateProfile(lmpDate: lmp);
   Future<bool> updateEddDate(DateTime edd) => updateProfile(eddDate: edd);
 
-  /// Syncs latest profile information from GET /me
-  Future<void> fetchAndSyncProfileFromApi() async {
+  /// Pulls the profile from `GET /me` and writes it into local storage.
+  ///
+  /// This is the ONE place outside of login/signup that touches the network,
+  /// and it is only meant to be called straight after a successful
+  /// authentication (e.g. Google sign-in) to seed the local database with the
+  /// account that was just logged into. Everything after that reads and writes
+  /// SQLite only.
+  Future<void> fetchUser() async {
+    Map? data;
     try {
       final res = await AuthApi.getMe();
       if (res.success && res.item is Map) {
-        final data = res.item as Map;
-        final prefs = await SharedPreferences.getInstance();
-
-        if (data['name'] != null) {
-          _userName = data['name'].toString();
-          await prefs.setString('user_name', _userName!);
-        }
-        if (data['email'] != null) {
-          _userEmail = data['email'].toString();
-          await prefs.setString('user_email', _userEmail!);
-        }
-        if (data['phone'] != null) {
-          _userPhone = data['phone'].toString();
-          await prefs.setString('user_phone', _userPhone!);
-        }
-        if (data['gender'] != null) {
-          _gender = data['gender'].toString();
-          await prefs.setString('user_gender', _gender!);
-        }
-        if (data['dob'] != null) {
-          _dob = DateTime.tryParse(data['dob'].toString());
-          if (_dob != null) await prefs.setString('user_dob', _dob!.toIso8601String());
-        }
-        if (data['bio'] != null) {
-          _bio = data['bio'].toString();
-          await prefs.setString('user_bio', _bio!);
-        }
-        if (data['city'] != null) {
-          _city = data['city'].toString();
-          await prefs.setString('user_city', _city!);
-        }
-        if (data['pincode'] != null) {
-          _pincode = data['pincode'].toString();
-          await prefs.setString('user_pincode', _pincode!);
-        }
-        if (data['adline1'] != null) {
-          _adline1 = data['adline1'].toString();
-          await prefs.setString('user_adline1', _adline1!);
-        }
-        if (data['adline2'] != null) {
-          _adline2 = data['adline2'].toString();
-          await prefs.setString('user_adline2', _adline2!);
-        }
-        if (data['bloodGroup'] != null) {
-          _bloodGroup = data['bloodGroup'].toString();
-          await prefs.setString('user_blood_group', _bloodGroup!);
-        }
-        if (data['pregnancyStatus'] != null) {
-          _pregnancyStatus = data['pregnancyStatus'].toString();
-          await prefs.setString('pregnancy_status', _pregnancyStatus!);
-        }
-        if (data['lmpDate'] != null) {
-          _lmpDate = DateTime.tryParse(data['lmpDate'].toString());
-          if (_lmpDate != null) await prefs.setString('lmp_date', _lmpDate!.toIso8601String());
-        }
-        if (data['edDate'] != null) {
-          _eddDate = DateTime.tryParse(data['edDate'].toString());
-          if (_eddDate != null) await prefs.setString('edd_date', _eddDate!.toIso8601String());
-        }
-        if (data['image'] != null) {
-          _image = data['image'].toString();
-          await prefs.setString('user_image', _image!);
-        }
-        if (data['cover_pic'] != null) {
-          _coverPic = data['cover_pic'].toString();
-          await prefs.setString('user_cover_pic', _coverPic!);
-        }
-        if (data['allowear_mac_address'] != null) {
-          _allowearMacAddress = data['allowear_mac_address'].toString();
-          await prefs.setString('allowear_mac_address', _allowearMacAddress!);
-        }
-
-        if (data['pregnancy'] is Map) {
-          final preg = data['pregnancy'] as Map;
-          if (preg['lmpDate'] != null) {
-            _lmpDate = DateTime.tryParse(preg['lmpDate'].toString());
-            if (_lmpDate != null) await prefs.setString('lmp_date', _lmpDate!.toIso8601String());
-          }
-          if (preg['edDate'] != null) {
-            _eddDate = DateTime.tryParse(preg['edDate'].toString());
-            if (_eddDate != null) await prefs.setString('edd_date', _eddDate!.toIso8601String());
-          }
-          if (preg['riskStatus'] != null) {
-            _riskStatus = preg['riskStatus'].toString();
-          }
-          if (preg['status'] != null && preg['status'].toString().toLowerCase() != 'notpregnant') {
-            _pregnancyStatus = 'pregnant';
-            await prefs.setString('pregnancy_status', 'pregnant');
-          }
-        }
-
-        notifyListeners();
+        data = res.item as Map;
       }
     } catch (e) {
-      debugPrint('Background profile sync notice: $e');
+      debugPrint('fetchUser: could not load profile from API: $e');
+    }
+    if (data == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+
+    String? str(String key) => data![key]?.toString();
+
+    DateTime? date(String key) {
+      final v = data![key];
+      return v == null ? null : DateTime.tryParse(v.toString());
     }
 
-    // Sync active pregnancy info from PregnancyApi
-    try {
-      final pregInfoRes = await PregnancyApi.getPregnancyInfo();
-      if (pregInfoRes.success && pregInfoRes.item is Map) {
-        final pregItem = pregInfoRes.item as Map;
-        final prefs = await SharedPreferences.getInstance();
+    final userId = str('id') ?? str('userId') ?? _currentUser?.id;
 
-        if (pregItem['lmp_date'] != null) {
-          _lmpDate = DateTime.tryParse(pregItem['lmp_date'].toString());
-          if (_lmpDate != null) await prefs.setString('lmp_date', _lmpDate!.toIso8601String());
-        }
-        if (pregItem['estimatedDueDate'] != null) {
-          _eddDate = DateTime.tryParse(pregItem['estimatedDueDate'].toString());
-          if (_eddDate != null) await prefs.setString('edd_date', _eddDate!.toIso8601String());
-        }
-        if (pregItem['riskStatus'] != null) {
-          _riskStatus = pregItem['riskStatus'].toString();
-        }
-        if (pregItem['status'] != null && pregItem['status'] == 'active') {
-          _pregnancyStatus = 'pregnant';
-          await prefs.setString('pregnancy_status', 'pregnant');
-        }
+    _userName = str('name') ?? _userName;
+    _userEmail = str('email') ?? _userEmail;
+    _userPhone = str('phone') ?? _userPhone;
+    _gender = str('gender') ?? _gender;
+    _dob = date('dob') ?? _dob;
+    _bio = str('bio') ?? _bio;
+    _city = str('city') ?? _city;
+    _pincode = str('pincode') ?? _pincode;
+    _adline1 = str('adline1') ?? _adline1;
+    _adline2 = str('adline2') ?? _adline2;
+    _bloodGroup = str('bloodGroup') ?? _bloodGroup;
+    _pregnancyStatus = str('pregnancyStatus') ?? _pregnancyStatus;
+    _lmpDate = date('lmpDate') ?? _lmpDate;
+    _eddDate = date('edDate') ?? _eddDate;
+    _image = str('image') ?? _image;
+    _coverPic = str('cover_pic') ?? _coverPic;
+    _allowearMacAddress = str('allowear_mac_address') ?? _allowearMacAddress;
 
-        notifyListeners();
+    final healthDataId =
+        str('healthDataID') ??
+        str('healthDataId') ??
+        _currentUser?.healthDataID;
+
+    if (data['pregnancy'] is Map) {
+      final preg = data['pregnancy'] as Map;
+      _lmpDate =
+          DateTime.tryParse(preg['lmpDate']?.toString() ?? '') ?? _lmpDate;
+      _eddDate =
+          DateTime.tryParse(preg['edDate']?.toString() ?? '') ?? _eddDate;
+      _riskStatus = preg['riskStatus']?.toString() ?? _riskStatus;
+      final pregStatus = preg['status']?.toString().toLowerCase();
+      if (pregStatus != null && pregStatus != 'notpregnant') {
+        _pregnancyStatus = 'pregnant';
       }
-    } catch (e) {
-      debugPrint('Background pregnancy sync notice: $e');
     }
+
+    // Mirror into SharedPreferences
+    Future<void> put(String key, String? value) async {
+      if (value != null && value.isNotEmpty) await prefs.setString(key, value);
+    }
+
+    await put('user_id', userId);
+    await put('user_name', _userName);
+    await put('user_email', _userEmail);
+    await put('user_phone', _userPhone);
+    await put('user_gender', _gender);
+    await put('user_dob', _dob?.toIso8601String());
+    await put('user_bio', _bio);
+    await put('user_city', _city);
+    await put('user_pincode', _pincode);
+    await put('user_adline1', _adline1);
+    await put('user_adline2', _adline2);
+    await put('user_blood_group', _bloodGroup);
+    await put('pregnancy_status', _pregnancyStatus);
+    await put('lmp_date', _lmpDate?.toIso8601String());
+    await put('edd_date', _eddDate?.toIso8601String());
+    await put('user_image', _image);
+    await put('user_cover_pic', _coverPic);
+    await put('allowear_mac_address', _allowearMacAddress);
+
+    // Persist into SQLite as the local source of truth
+    if (userId != null && userId.isNotEmpty) {
+      _currentUser = await UserDbService.instance.saveUser(
+        UsersCompanion(
+          id: drift.Value(userId),
+          name: drift.Value(_userName),
+          email: drift.Value(_userEmail),
+          phone: drift.Value(_userPhone),
+          gender: drift.Value(_gender),
+          dob: drift.Value(_dob),
+          bio: drift.Value(_bio),
+          city: drift.Value(_city),
+          pincode: drift.Value(_pincode),
+          adline1: drift.Value(_adline1),
+          adline2: drift.Value(_adline2),
+          image: drift.Value(_image),
+          coverPic: drift.Value(_coverPic),
+          allowearMacAddress: drift.Value(_allowearMacAddress),
+          healthDataID: drift.Value(healthDataId),
+          isDeleted: const drift.Value(false),
+          synced: const drift.Value(0),
+        ),
+      );
+      await UserDbService.instance.setActiveUser(userId);
+
+      if (healthDataId != null && healthDataId.isNotEmpty) {
+        await HealthDbService.instance.saveHealthData(
+          HealthDataTableCompanion(
+            id: drift.Value(healthDataId),
+            userId: drift.Value(userId),
+            bloodGroup: drift.Value(_bloodGroup),
+            pregnancyStatus: drift.Value(_pregnancyStatus ?? 'pregnant'),
+            lmpDate: drift.Value(_lmpDate),
+            edDate: drift.Value(_eddDate),
+            synced: const drift.Value(0),
+          ),
+        );
+      }
+
+      await _loadHealthAndPregnancy(_currentUser!);
+    }
+
+    _isLoggedIn = true;
+    await prefs.setBool('is_logged_in', true);
+    update();
   }
 
-  /// Create or update pregnancy record both locally and remotely via allomom-api
-  Future<bool> saveOrUpdatePregnancy({
+  /// Create or update the active pregnancy record in local SQLite.
+  ///
+  /// Written with `synced = 0`; no API call is made. Returns the pregnancy's
+  /// id so callers can hang a care schedule off it, or null if there is no
+  /// signed-in user to attach it to.
+  Future<String?> saveOrUpdatePregnancy({
     required DateTime lmpDate,
     DateTime? eddDate,
     String? methodOfConception,
@@ -652,60 +868,71 @@ class UserSessionManager extends ChangeNotifier {
     await prefs.setString('edd_date', resolvedEdd.toIso8601String());
     await prefs.setString('pregnancy_status', 'pregnant');
 
-    // Update SQLite
-    final hid = _currentUser?.healthDataID ?? 'hd_${DateTime.now().millisecondsSinceEpoch}';
-    if (_currentUser != null) {
-      await HealthDbService.instance.saveHealthData(
-        HealthDataTableCompanion(
-          id: drift.Value(hid),
-          userId: drift.Value(_currentUser!.id),
-          pregnancyStatus: const drift.Value('pregnant'),
-          edDate: drift.Value(resolvedEdd),
-          lmpDate: drift.Value(lmpDate),
-        ),
-      );
+    final user = _currentUser;
+    if (user == null) {
+      update();
+      return null;
+    }
 
-      await HealthDbService.instance.savePregnancy(
-        PregnanciesCompanion(
-          id: drift.Value(hid),
-          healthId: drift.Value(hid),
-          status: const drift.Value('active'),
-          edDate: drift.Value(resolvedEdd),
-          lmpDate: drift.Value(lmpDate),
-          gravidity: drift.Value(gravidity ?? 0),
-          parity: drift.Value(parity ?? 0),
-          livingChildren: drift.Value(livingChildren ?? 0),
-          abortions: drift.Value(abortions ?? 0),
-          stillBirths: drift.Value(stillBirths ?? 0),
-          miscarriages: drift.Value(miscarriages ?? 0),
-          csectionDeliveries: drift.Value(csectionDeliveries ?? 0),
-          methodOfConception: drift.Value(methodOfConception),
+    final hid = healthDataId;
+
+    await HealthDbService.instance.saveHealthData(
+      HealthDataTableCompanion(
+        id: drift.Value(hid),
+        userId: drift.Value(user.id),
+        pregnancyStatus: const drift.Value('pregnant'),
+        edDate: drift.Value(resolvedEdd),
+        lmpDate: drift.Value(lmpDate),
+        synced: const drift.Value(0),
+      ),
+    );
+
+    final linkedHealthId = user.healthDataID;
+    if (linkedHealthId == null || linkedHealthId.isEmpty) {
+      _currentUser = await UserDbService.instance.saveUser(
+        UsersCompanion(
+          id: drift.Value(user.id),
+          healthDataID: drift.Value(hid),
+          isDeleted: const drift.Value(false),
+          synced: const drift.Value(0),
         ),
       );
     }
 
-    notifyListeners();
+    // Reuse the existing active pregnancy so repeated edits update one row
+    // instead of piling up new ones.
+    final existing = await HealthDbService.instance.getActivePregnancy(hid);
+    final pregnancyId = existing?.id ?? const Uuid().v4();
 
-    // Call PregnancyApi.createPregnancy
-    try {
-      final payload = {
-        'lmpDate': lmpDate.toIso8601String(),
-        'edDate': resolvedEdd.toIso8601String(),
-        'methodOfConception': methodOfConception,
-        'gravidity': gravidity ?? 0,
-        'parity': parity ?? 0,
-        'livingChildren': livingChildren ?? 0,
-        'abortions': abortions ?? 0,
-        'stillBirths': stillBirths ?? 0,
-        'miscarriages': miscarriages ?? 0,
-        'csectionDeliveries': csectionDeliveries ?? 0,
-      };
-      final res = await PregnancyApi.createPregnancy(payload);
-      return res.success;
-    } catch (e) {
-      debugPrint('Error creating pregnancy record in API: $e');
-      return true;
-    }
+    await HealthDbService.instance.savePregnancy(
+      PregnanciesCompanion(
+        id: drift.Value(pregnancyId),
+        healthId: drift.Value(hid),
+        status: const drift.Value('active'),
+        edDate: drift.Value(resolvedEdd),
+        lmpDate: drift.Value(lmpDate),
+        gravidity: drift.Value(gravidity ?? existing?.gravidity ?? 0),
+        parity: drift.Value(parity ?? existing?.parity ?? 0),
+        livingChildren: drift.Value(
+          livingChildren ?? existing?.livingChildren ?? 0,
+        ),
+        abortions: drift.Value(abortions ?? existing?.abortions ?? 0),
+        stillBirths: drift.Value(stillBirths ?? existing?.stillBirths ?? 0),
+        miscarriages: drift.Value(miscarriages ?? existing?.miscarriages ?? 0),
+        csectionDeliveries: drift.Value(
+          csectionDeliveries ?? existing?.csectionDeliveries ?? 0,
+        ),
+        methodOfConception: drift.Value(
+          methodOfConception ?? existing?.methodOfConception,
+        ),
+        createdAt: drift.Value(existing?.createdAt ?? DateTime.now()),
+        synced: const drift.Value(0),
+      ),
+    );
+
+    await _loadHealthAndPregnancy(_currentUser ?? user);
+    update();
+    return pregnancyId;
   }
 
   /// Sets pregnancy status (e.g. 'pregnant', 'notpregnant', 'new_mom')
@@ -714,25 +941,25 @@ class UserSessionManager extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pregnancy_status', status);
 
-    if (_currentUser != null && _currentUser!.healthDataID != null) {
+    final user = _currentUser;
+    if (user != null && user.healthDataID != null) {
       await HealthDbService.instance.saveHealthData(
         HealthDataTableCompanion(
-          id: drift.Value(_currentUser!.healthDataID!),
-          userId: drift.Value(_currentUser!.id),
+          id: drift.Value(user.healthDataID!),
+          userId: drift.Value(user.id),
           pregnancyStatus: drift.Value(status),
+          synced: const drift.Value(0),
         ),
       );
+
+      // Reload so the active pregnancy, completed count and delivery date
+      // match the new status — a journey marked complete must stop reading
+      // as active straight away, not after the next app launch.
+      await _loadHealthAndPregnancy(user);
     }
 
-    notifyListeners();
-
-    try {
-      final res = await AuthApi.updateProfile({'pregnancyStatus': status});
-      return res.success;
-    } catch (e) {
-      debugPrint('Error updating pregnancy status in API: $e');
-      return true;
-    }
+    update();
+    return true;
   }
 
   /// Delete active pregnancy record
@@ -756,20 +983,16 @@ class UserSessionManager extends ChangeNotifier {
           pregnancyStatus: const drift.Value('notpregnant'),
           edDate: const drift.Value(null),
           lmpDate: const drift.Value(null),
+          synced: const drift.Value(0),
         ),
       );
     }
 
-    notifyListeners();
-
-    if (activePregId != null) {
-      try {
-        final res = await PregnancyApi.deletePregnancy(activePregId);
-        return res.success;
-      } catch (e) {
-        debugPrint('Error deleting pregnancy in API: $e');
-      }
+    if (activePregId != null && activePregId.isNotEmpty) {
+      await HealthDbService.instance.deletePregnancy(activePregId);
     }
+
+    update();
     return true;
   }
 
@@ -804,6 +1027,6 @@ class UserSessionManager extends ChangeNotifier {
     _hasKids = false;
     _kidsCount = 0;
 
-    notifyListeners();
+    update();
   }
 }

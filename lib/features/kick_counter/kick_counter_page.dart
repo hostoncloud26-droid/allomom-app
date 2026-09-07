@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
 
 class KickCounterPage extends StatefulWidget {
   const KickCounterPage({super.key});
@@ -11,19 +12,11 @@ class KickCounterPage extends StatefulWidget {
 
 class _KickCounterPageState extends State<KickCounterPage>
     with SingleTickerProviderStateMixin {
-  int _kickCount = 7;
+  int _kickCount = 0;
   final int _kickGoal = 10;
-  final int _bestCount = 14;
-  final String _startTime = '12:42 PM';
-  final List<String> _kickTimestamps = [
-    '12:43 PM',
-    '12:45 PM',
-    '12:49 PM',
-    '12:52 PM',
-    '12:56 PM',
-    '01:02 PM',
-    '01:05 PM',
-  ];
+  int _bestCount = 10;
+  String _startTime = '--';
+  final List<String> _kickTimestamps = [];
 
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
@@ -31,6 +24,10 @@ class _KickCounterPageState extends State<KickCounterPage>
   @override
   void initState() {
     super.initState();
+    final vitals = HealthVitalsController.instance;
+    if (vitals.hasKickCount && vitals.kickCountValue > _bestCount) {
+      _bestCount = vitals.kickCountValue;
+    }
     _animController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 150),
@@ -46,6 +43,34 @@ class _KickCounterPageState extends State<KickCounterPage>
     super.dispose();
   }
 
+  Future<void> _saveKickSession() async {
+    if (_kickCount == 0) return;
+    await HealthVitalsController.instance.addKickCountEntry(
+      count: _kickCount,
+      extraData: {
+        'count': _kickCount,
+        'timestamps': _kickTimestamps,
+        'startTime': _startTime,
+      },
+    );
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text('$_kickCount kicks saved to Vitals Stream! 👶'),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFFFF4E6A),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
+
   void _onKickPressed() {
     _animController.forward().then((_) => _animController.reverse());
     final now = TimeOfDay.now();
@@ -55,11 +80,18 @@ class _KickCounterPageState extends State<KickCounterPage>
     final timeStr = '$hour:$minute $period';
 
     setState(() {
+      if (_startTime == '--' || _startTime.isEmpty) {
+        _startTime = timeStr;
+      }
       _kickCount++;
       _kickTimestamps.insert(0, timeStr);
+      if (_kickCount > _bestCount) {
+        _bestCount = _kickCount;
+      }
     });
 
     if (_kickCount == _kickGoal) {
+      _saveKickSession();
       _showGoalReachedDialog();
     }
   }
@@ -67,6 +99,7 @@ class _KickCounterPageState extends State<KickCounterPage>
   void _resetKicks() {
     setState(() {
       _kickCount = 0;
+      _startTime = '--';
       _kickTimestamps.clear();
     });
   }
@@ -191,7 +224,44 @@ class _KickCounterPageState extends State<KickCounterPage>
                 ),
               ),
 
-              const SizedBox(height: 36),
+              const SizedBox(height: 18),
+
+              // Save Session Button & Reset
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 32),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _saveKickSession,
+                        icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 18),
+                        label: const Text(
+                          'Save Session',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF4E6A),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton(
+                      onPressed: _resetKicks,
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                        side: const BorderSide(color: Color(0xFFFF4E6A)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      child: const Icon(Icons.refresh_rounded, color: Color(0xFFFF4E6A), size: 18),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
 
               // Bottom Stats Row Card
               _buildBottomStatsCard(),

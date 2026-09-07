@@ -82,7 +82,13 @@ class APIPaginationResponse {
 
   static APIPaginationResponse fromJson(dynamic map) {
     if (map is! Map) {
-      return APIPaginationResponse(total: 0, page: 0, limit: 0, pages: 0, size: 0);
+      return APIPaginationResponse(
+        total: 0,
+        page: 0,
+        limit: 0,
+        pages: 0,
+        size: 0,
+      );
     }
     return APIPaginationResponse(
       total: map["total"] ?? 0,

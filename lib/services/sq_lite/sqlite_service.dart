@@ -27,6 +27,13 @@ class SqLiteService {
     }
   }
 
+  /// Points the singleton at [db] so the domain services can be exercised
+  /// against an in-memory database in tests. Pass null to reset.
+  @visibleForTesting
+  static void overrideDatabaseForTesting(AppDriftDatabase? db) {
+    _database = db;
+  }
+
   static Future<void> clearDatabase() async {
     final db = _database;
     if (db != null) {

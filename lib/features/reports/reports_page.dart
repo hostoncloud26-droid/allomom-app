@@ -3,11 +3,11 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:allomom/services/api/report_api.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/features/reports/add_report.dart';
 import 'package:allomom/features/reports/view_report.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class ReportsPage extends StatefulWidget {
   final bool showAppBar;
@@ -58,41 +58,26 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   Future<void> _loadInitialData() async {
-    _loadCachedReports();
-    await Future.wait([
-      _fetchReports(refresh: true),
-      _fetchSummary(),
-    ]);
+    await _fetchReports(refresh: true);
+    await _fetchSummary();
   }
 
-  Future<void> _loadCachedReports() async {
-    try {
-      final session = UserSessionManager.instance;
-      final healthId = session.currentHealthData?.id ?? (session.userId.isNotEmpty ? session.userId : 'health_me');
-      final localRows = await ReportDbService.instance.getReports(healthId);
+  String get _healthId {
+    final session = UserSessionManager.instance;
+    return session.healthDataId.isNotEmpty
+        ? session.healthDataId
+        : (session.userId.isNotEmpty ? session.userId : 'health_me');
+  }
 
-      if (localRows.isNotEmpty && mounted && _reports.isEmpty) {
-        setState(() {
-          _reports = localRows.map((r) {
-            Map<String, dynamic> detailMap = {};
-            if (r.detail != null && r.detail!.isNotEmpty) {
-              try {
-                detailMap = Map<String, dynamic>.from(jsonDecode(r.detail!));
-              } catch (_) {}
-            }
-            return {
-              'id': r.id,
-              'report_type': r.reportType,
-              'description': r.description,
-              'imageUrl': r.imageUrl,
-              'detail': detailMap,
-              'createdAt': r.createdAt.toIso8601String(),
-            };
-          }).toList();
-        });
-        _updateSummaryFromReports();
-      }
-    } catch (_) {}
+  Map<String, dynamic> _rowToMap(Report r) {
+    return {
+      'id': r.id,
+      'report_type': r.reportType,
+      'description': r.description,
+      'imageUrl': r.imageUrl,
+      'detail': ReportDbService.decodeDetail(r),
+      'createdAt': r.createdAt.toIso8601String(),
+    };
   }
 
   void _updateSummaryFromReports() {
@@ -103,9 +88,12 @@ class _ReportsPageState extends State<ReportsPage> {
     final summaries = <String>[];
     for (final r in _reports) {
       final detail = r['detail'];
-      if (detail is Map && detail['ocr_summary'] != null && detail['ocr_summary'].toString().isNotEmpty) {
+      if (detail is Map &&
+          detail['ocr_summary'] != null &&
+          detail['ocr_summary'].toString().isNotEmpty) {
         summaries.add(detail['ocr_summary'].toString());
-      } else if (r['description'] != null && r['description'].toString().isNotEmpty) {
+      } else if (r['description'] != null &&
+          r['description'].toString().isNotEmpty) {
         summaries.add('${r['report_type'] ?? 'Report'}: ${r['description']}');
       }
     }
@@ -117,16 +105,24 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
+  /// Builds the summary line from the locally stored reports. Replaces the
+  /// old `GET /reports/summary` call.
   Future<void> _fetchSummary() async {
     if (!mounted) return;
     setState(() => _isLoadingSummary = true);
     try {
-      final res = await ReportApi.getReportsSummary();
-      if (res.success && res.item is Map) {
-        final text = res.item['summary']?.toString() ?? '';
-        if (mounted && text.isNotEmpty) setState(() => _summary = text);
+      final summary =
+          await ReportDbService.instance.getReportsSummary(_healthId);
+      if (mounted && summary.total > 0) {
+        final parts = summary.countsByType.entries
+            .map((e) => '${e.value} ${e.key}')
+            .toList()
+          ..sort();
+        setState(() => _summary = '${summary.total} report(s) stored '
+            '— ${parts.join(', ')}');
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error building local reports summary: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoadingSummary = false);
@@ -135,6 +131,7 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
+  /// Loads a page of reports from the local Drift database.
   Future<void> _fetchReports({bool refresh = false}) async {
     if (refresh) {
       _skip = 0;
@@ -145,26 +142,23 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() => _isLoading = refresh ? true : _isLoading);
 
     try {
-      final response = await ReportApi.getReports(skip: _skip, limit: _limit);
+      final rows = await ReportDbService.instance
+          .getReports(_healthId, limit: _limit, offset: _skip);
+      final items = rows.map(_rowToMap).toList();
 
-      if (response.success && response.items != null) {
-        final List fetched = response.items is List ? response.items : [];
-        final items = fetched.map((e) => Map<String, dynamic>.from(e as Map)).toList();
-
-        if (mounted) {
-          setState(() {
-            if (refresh) {
-              _reports = items;
-            } else {
-              _reports.addAll(items);
-            }
-            _skip += items.length;
-            _hasMore = items.length >= _limit;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          if (refresh) {
+            _reports = items;
+          } else {
+            _reports.addAll(items);
+          }
+          _skip += items.length;
+          _hasMore = items.length >= _limit;
+        });
       }
     } catch (e) {
-      // Fallback: stay on cached reports
+      debugPrint('Error loading reports from local database: $e');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -178,30 +172,27 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final response = await ReportApi.getReports(skip: _skip, limit: _limit);
-      if (response.success && response.items != null) {
-        final List fetched = response.items is List ? response.items : [];
-        final items = fetched.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+      final rows = await ReportDbService.instance
+          .getReports(_healthId, limit: _limit, offset: _skip);
+      final items = rows.map(_rowToMap).toList();
 
-        if (mounted) {
-          setState(() {
-            _reports.addAll(items);
-            _skip += items.length;
-            _hasMore = items.length >= _limit;
-          });
-        }
+      if (mounted) {
+        setState(() {
+          _reports.addAll(items);
+          _skip += items.length;
+          _hasMore = items.length >= _limit;
+        });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error loading more reports: $e');
     } finally {
       if (mounted) setState(() => _isLoadingMore = false);
     }
   }
 
   Future<void> _refresh() async {
-    await Future.wait([
-      _fetchReports(refresh: true),
-      _fetchSummary(),
-    ]);
+    await _fetchReports(refresh: true);
+    await _fetchSummary();
   }
 
   List<String> _extractReportFiles(Map<String, dynamic> report) {

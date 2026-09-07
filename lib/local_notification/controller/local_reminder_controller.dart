@@ -1,25 +1,44 @@
-import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/services/local_reminder_storage.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
 
-class LocalReminderController extends ChangeNotifier {
-  static final LocalReminderController instance = LocalReminderController._internal();
+class LocalReminderController extends GetxController {
+  static LocalReminderController get instance =>
+      Get.isRegistered<LocalReminderController>()
+          ? Get.find<LocalReminderController>()
+          : Get.put(LocalReminderController._internal(), permanent: true);
+
+  factory LocalReminderController() => instance;
   LocalReminderController._internal() {
     _loadConfigs();
   }
 
-  final Map<LocalReminderType, LocalReminderConfig> _configs = {};
-  bool _isLoading = false;
+  @override
+  void onInit() {
+    super.onInit();
+    _loadConfigs();
+  }
 
-  bool get isLoading => _isLoading;
-  List<LocalReminderConfig> get configs => LocalReminderType.values.map((t) => getConfig(t)).toList();
+  final Map<LocalReminderType, LocalReminderConfig> _configs = {};
+  final RxMap<LocalReminderType, LocalReminderConfig> configsRx =
+      <LocalReminderType, LocalReminderConfig>{}.obs;
+  final RxBool isLoadingRx = false.obs;
+
+  bool get isLoading => isLoadingRx.value;
+  List<LocalReminderConfig> get configs =>
+      LocalReminderType.values.map((t) => getConfig(t)).toList();
+
+  /// Compatibility alias for any Flutter Listeners
+  void notifyListeners() => update();
 
   void _loadConfigs() {
     for (final type in LocalReminderType.values) {
-      _configs[type] = LocalReminderStorage.load(type);
+      final config = LocalReminderStorage.load(type);
+      _configs[type] = config;
+      configsRx[type] = config;
     }
-    notifyListeners();
+    update();
   }
 
   LocalReminderConfig getConfig(LocalReminderType type) {
@@ -35,17 +54,22 @@ class LocalReminderController extends ChangeNotifier {
     final current = getConfig(type);
     final updated = current.copyWith(enabled: enabled);
     _configs[type] = updated;
-    notifyListeners();
+    configsRx[type] = updated;
+    update();
 
     await LocalReminderScheduler.scheduleReminder(updated);
   }
 
   /// Update interval for interval-based reminders
-  Future<void> updateInterval(LocalReminderType type, int intervalMinutes) async {
+  Future<void> updateInterval(
+    LocalReminderType type,
+    int intervalMinutes,
+  ) async {
     final current = getConfig(type);
     final updated = current.copyWith(intervalMinutes: intervalMinutes);
     _configs[type] = updated;
-    notifyListeners();
+    configsRx[type] = updated;
+    update();
 
     if (updated.enabled) {
       await LocalReminderScheduler.scheduleReminder(updated);
@@ -59,7 +83,8 @@ class LocalReminderController extends ChangeNotifier {
     final current = getConfig(type);
     final updated = current.copyWith(hour: hour, minute: minute);
     _configs[type] = updated;
-    notifyListeners();
+    configsRx[type] = updated;
+    update();
 
     if (updated.enabled) {
       await LocalReminderScheduler.scheduleReminder(updated);
@@ -69,11 +94,16 @@ class LocalReminderController extends ChangeNotifier {
   }
 
   /// Update active window hours
-  Future<void> updateActiveHours(LocalReminderType type, int startHour, int endHour) async {
+  Future<void> updateActiveHours(
+    LocalReminderType type,
+    int startHour,
+    int endHour,
+  ) async {
     final current = getConfig(type);
     final updated = current.copyWith(startHour: startHour, endHour: endHour);
     _configs[type] = updated;
-    notifyListeners();
+    configsRx[type] = updated;
+    update();
 
     if (updated.enabled) {
       await LocalReminderScheduler.scheduleReminder(updated);
@@ -84,13 +114,13 @@ class LocalReminderController extends ChangeNotifier {
 
   /// Refresh and reschedule all
   Future<void> refreshAndReschedule() async {
-    _isLoading = true;
-    notifyListeners();
+    isLoadingRx.value = true;
+    update();
 
     _loadConfigs();
     await LocalReminderScheduler.rescheduleAll();
 
-    _isLoading = false;
-    notifyListeners();
+    isLoadingRx.value = false;
+    update();
   }
 }

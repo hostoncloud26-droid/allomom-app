@@ -5,6 +5,7 @@ import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/api/auth_api.dart';
+import 'package:allomom/services/api/api_base.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class FamilyDetailsPage extends StatefulWidget {
@@ -16,6 +17,9 @@ class FamilyDetailsPage extends StatefulWidget {
   final String? partnerPhone;
   final String phone;
   final String countryCode;
+  final String selectedRole;
+  final String? familyCode;
+  final bool registerPregnancyForPartner;
 
   const FamilyDetailsPage({
     super.key,
@@ -27,6 +31,9 @@ class FamilyDetailsPage extends StatefulWidget {
     this.partnerPhone,
     this.phone = '',
     this.countryCode = '+91',
+    this.selectedRole = 'Mom',
+    this.familyCode,
+    this.registerPregnancyForPartner = false,
   });
 
   @override
@@ -51,6 +58,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             partnerPhone: widget.partnerPhone,
             phone: widget.phone,
             countryCode: widget.countryCode,
+            selectedRole: widget.selectedRole,
+            familyCode: widget.familyCode,
+            registerPregnancyForPartner: widget.registerPregnancyForPartner,
           ),
         ),
       );
@@ -60,18 +70,30 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
       });
 
       try {
-        final isPregnant =
+        final isDad = widget.selectedRole.trim().toLowerCase() == 'dad';
+        final isPregnant = !isDad &&
             widget.status.toLowerCase().contains("pregnant") &&
             !widget.status.toLowerCase().contains("pre");
+
         final payload = {
           "name": widget.userName.trim(),
           "phone": widget.phone.trim(),
           "countryCode": widget.countryCode,
-          "pregnancyStatus": isPregnant ? "pregnant" : "notpregnant",
+          "userRole": widget.selectedRole,
+          "gender": isDad ? "male" : "female",
+          "userType": isDad ? "dad" : "patient",
+          "pregnancyStatus": isDad
+              ? (widget.registerPregnancyForPartner ? "pregnant" : "notpregnant")
+              : (isPregnant ? "pregnant" : "notpregnant"),
           "edDate": widget.eddDate.toIso8601String(),
           "lmpDate": widget.lmpDate?.toIso8601String(),
-          "gender": "female",
-          "userType": "patient",
+          if (widget.partnerName != null && widget.partnerName!.trim().isNotEmpty)
+            "partnerName": widget.partnerName!.trim(),
+          if (widget.partnerPhone != null && widget.partnerPhone!.trim().isNotEmpty)
+            "partnerPhone": widget.partnerPhone!.trim(),
+          if (widget.familyCode != null && widget.familyCode!.trim().isNotEmpty)
+            "familyCode": widget.familyCode!.trim(),
+          "registerPregnancyForPartner": widget.registerPregnancyForPartner,
         };
 
         String? registeredUserId;
@@ -79,18 +101,19 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
         String? refresh;
         String? healthDataId;
 
-        try {
-          final res = await AuthApi.registerMother(payload);
-          if (res.success && res.item is Map) {
-            final item = res.item as Map;
-            registeredUserId =
-                item["user_id"]?.toString() ?? res.id?.toString();
-            jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
-            refresh = item["refresh"]?.toString();
-            healthDataId = item["healthDataID"]?.toString();
-          }
-        } catch (apiErr) {
-          debugPrint("Backend registration warning: $apiErr");
+        final res = await AuthApi.registerMother(payload);
+        if (!res.success) {
+          throw Exception(res.detail.isNotEmpty ? res.detail : "Registration failed. Please try again.");
+        }
+
+        if (res.item is Map) {
+          final item = res.item as Map;
+          registeredUserId = item["user_id"]?.toString() ?? res.id?.toString();
+          jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
+          refresh = item["refresh"]?.toString();
+          healthDataId = item["healthDataID"]?.toString();
+        } else if (res.id != null) {
+          registeredUserId = res.id.toString();
         }
 
         await UserSessionManager.instance.saveRegistration(
@@ -114,7 +137,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Welcome, ${widget.userName}! Your maternal journey is ready.',
+              'Welcome, ${widget.userName}! Your family profile is ready.',
             ),
             backgroundColor: const Color(0xFFFF4E6A),
             duration: const Duration(seconds: 2),

@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/models/vitals_stream_model.dart';
 
 class FeedingTrackerPage extends StatefulWidget {
   const FeedingTrackerPage({super.key});
@@ -20,32 +23,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
 
   int _bottleAmountMl = 120;
 
-  final List<Map<String, dynamic>> _recentFeeds = [
-    {
-      'type': 'Breastfeeding',
-      'detail': 'Left: 12 min · Right: 8 min',
-      'time': 'Today, 1:30 PM',
-      'icon': Icons.child_care_rounded,
-      'color': const Color(0xFFFF4E6A),
-      'amount': '20 min',
-    },
-    {
-      'type': 'Bottle (Expressed)',
-      'detail': 'Warm breastmilk',
-      'time': 'Today, 10:15 AM',
-      'icon': Icons.water_drop_rounded,
-      'color': const Color(0xFF3898EC),
-      'amount': '120 ml',
-    },
-    {
-      'type': 'Breastfeeding',
-      'detail': 'Left: 15 min',
-      'time': 'Today, 6:45 AM',
-      'icon': Icons.child_care_rounded,
-      'color': const Color(0xFFFF4E6A),
-      'amount': '15 min',
-    },
-  ];
+  final List<Map<String, dynamic>> _recentFeeds = [];
 
   @override
   void dispose() {
@@ -84,15 +62,73 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
   void _saveFeedSession() {
     _pauseTimer();
     final totalMin = ((_leftSeconds + _rightSeconds) / 60).ceil();
-    if (totalMin > 0 || _selectedFeedType == 1) {
+    if (totalMin > 0 || _selectedFeedType == 1 || _selectedFeedType == 2) {
       final now = TimeOfDay.now();
       final timeStr = 'Today, ${now.format(context)}';
+
+      double vitalValue = 0.0;
+      String vitalUnit = 'mins';
+      String feedTypeStr = 'Breastfeeding';
+      String side = 'Both';
+
+      if (_selectedFeedType == 0) {
+        vitalValue = (totalMin > 0 ? totalMin : 1).toDouble();
+        vitalUnit = 'mins';
+        feedTypeStr = 'Breastfeeding';
+        side = (_leftSeconds > 0 && _rightSeconds > 0)
+            ? 'Both'
+            : (_leftSeconds > 0 ? 'Left' : 'Right');
+      } else if (_selectedFeedType == 1) {
+        vitalValue = _bottleAmountMl.toDouble();
+        vitalUnit = 'ml';
+        feedTypeStr = 'Bottle Feed';
+      } else {
+        vitalValue = 1.0;
+        vitalUnit = 'meal';
+        feedTypeStr = 'Solid Food';
+      }
+
+      String detailStr = '';
+      if (_selectedFeedType == 0) {
+        final lMin = (_leftSeconds / 60).ceil();
+        final rMin = (_rightSeconds / 60).ceil();
+        if (lMin > 0 && rMin > 0) {
+          detailStr = 'Left: $lMin min · Right: $rMin min';
+        } else if (lMin > 0) {
+          detailStr = 'Left: $lMin min';
+        } else if (rMin > 0) {
+          detailStr = 'Right: $rMin min';
+        } else {
+          detailStr = side;
+        }
+      } else if (_selectedFeedType == 1) {
+        detailStr = 'Formula / Milk';
+      } else {
+        detailStr = 'Puree / Mash';
+      }
+
+      // Sync with Vitals Stream
+      HealthVitalsController.instance.addFeedingEntry(
+        value: vitalValue,
+        unit: vitalUnit,
+        feedingType: feedTypeStr,
+        side: side,
+        leftMinutes: (_leftSeconds / 60).ceil(),
+        rightMinutes: (_rightSeconds / 60).ceil(),
+        amountMl: _selectedFeedType == 1 ? _bottleAmountMl : null,
+        extraData: {
+          'count': vitalValue,
+          'type': feedTypeStr,
+          'time': timeStr,
+          'detail': detailStr,
+        },
+      );
 
       setState(() {
         if (_selectedFeedType == 0) {
           _recentFeeds.insert(0, {
             'type': 'Breastfeeding',
-            'detail': 'Left: ${(_leftSeconds / 60).ceil()} min · Right: ${(_rightSeconds / 60).ceil()} min',
+            'detail': detailStr,
             'time': timeStr,
             'icon': Icons.child_care_rounded,
             'color': const Color(0xFFFF4E6A),
@@ -109,11 +145,30 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
             'color': const Color(0xFF3898EC),
             'amount': '$_bottleAmountMl ml',
           });
+        } else {
+          _recentFeeds.insert(0, {
+            'type': 'Solid Food',
+            'detail': 'Puree / Mash',
+            'time': timeStr,
+            'icon': Icons.restaurant_rounded,
+            'color': const Color(0xFF10B981),
+            'amount': '1 meal',
+          });
         }
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Feed recorded successfully! 🍼')),
+        const SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle_rounded, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Feed saved to Vitals Stream! 🍼'),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Color(0xFF8B5CF6),
+        ),
       );
     }
   }
@@ -129,46 +184,53 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 8),
+        child: Column(
+          children: [
+            _buildHeader(context),
+            const SizedBox(height: 6),
 
-              // Hero Baby Card
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: BabyHeroBanner(
-                  speechText: "Time for\nbaby's feed! 🍼",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
+            // Hero Baby Card (Fixed)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: BabyHeroBanner(
+                speechText: "Time for\nbaby's feed! 🍼",
+                bubblePosition: SpeechBubblePosition.topCenter,
+                height: 250,
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
+            // Type Selector Tabs (Fixed)
+            _buildTypeSelector(),
+
+            const SizedBox(height: 14),
+
+            // Scrollable Content Below Tab Nav
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  children: [
+                    // Active Tracker Component
+                    if (_selectedFeedType == 0)
+                      _buildBreastfeedingTracker()
+                    else if (_selectedFeedType == 1)
+                      _buildBottleTracker()
+                    else
+                      _buildSolidsTracker(),
+
+                    const SizedBox(height: 24),
+
+                    // Recent Feeds List
+                    _buildRecentFeedsSection(),
+
+                    const SizedBox(height: 24),
+                  ],
                 ),
               ),
-
-              const SizedBox(height: 20),
-
-              // Type Selector Tabs
-              _buildTypeSelector(),
-
-              const SizedBox(height: 20),
-
-              // Active Tracker Component
-              if (_selectedFeedType == 0)
-                _buildBreastfeedingTracker()
-              else if (_selectedFeedType == 1)
-                _buildBottleTracker()
-              else
-                _buildSolidsTracker(),
-
-              const SizedBox(height: 28),
-
-              // Recent Feeds List
-              _buildRecentFeedsSection(),
-
-              const SizedBox(height: 32),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -563,94 +625,239 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
     );
   }
 
+  List<Map<String, dynamic>> _getRecentFeeds() {
+    final vitals = HealthVitalsController.instance.getHistory('feeding');
+    if (vitals.isNotEmpty) {
+      final sorted = List<VitalsStreamResponse>.from(vitals)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return sorted.map(_mapVitalToFeed).toList();
+    }
+    return _recentFeeds;
+  }
+
+  Map<String, dynamic> _mapVitalToFeed(VitalsStreamResponse v) {
+    final type = v.data?['type']?.toString() ??
+        (v.unit == 'ml' ? 'Bottle Feed' : (v.unit == 'meal' ? 'Solid Food' : 'Breastfeeding'));
+
+    IconData icon = Icons.child_care_rounded;
+    Color color = const Color(0xFFFF4E6A);
+    if (type.toLowerCase().contains('bottle') || v.unit == 'ml') {
+      icon = Icons.water_drop_rounded;
+      color = const Color(0xFF3898EC);
+    } else if (type.toLowerCase().contains('solid') || v.unit == 'meal') {
+      icon = Icons.restaurant_rounded;
+      color = const Color(0xFF10B981);
+    }
+
+    String amount;
+    if (v.unit == 'ml') {
+      amount = '${v.value.toInt()} ml';
+    } else if (v.unit == 'meal') {
+      amount = '${v.value.toInt()} meal';
+    } else {
+      amount = '${v.value.toInt()} min';
+    }
+
+    String detail = '';
+    if (v.data != null && v.data!['detail'] != null && v.data!['detail'].toString().isNotEmpty) {
+      detail = v.data!['detail'].toString();
+    } else if (v.data?['leftMinutes'] != null || v.data?['rightMinutes'] != null) {
+      final l = (v.data?['leftMinutes'] as num?)?.toInt() ?? 0;
+      final r = (v.data?['rightMinutes'] as num?)?.toInt() ?? 0;
+      if (l > 0 && r > 0) {
+        detail = 'Left: $l min · Right: $r min';
+      } else if (l > 0) {
+        detail = 'Left: $l min';
+      } else if (r > 0) {
+        detail = 'Right: $r min';
+      } else {
+        detail = '${v.data?['side'] ?? 'Breastfeeding'}';
+      }
+    } else if (v.data?['side'] != null && v.data!['side'].toString().isNotEmpty) {
+      detail = '${v.data!['side']} side';
+    } else if (type.toLowerCase().contains('bottle')) {
+      detail = 'Formula / Milk';
+    } else if (type.toLowerCase().contains('solid')) {
+      detail = 'Puree / Mash';
+    } else {
+      detail = 'Breastfeeding';
+    }
+
+    final now = DateTime.now();
+    final isToday = v.createdAt.year == now.year &&
+        v.createdAt.month == now.month &&
+        v.createdAt.day == now.day;
+    final timeFormatted = DateFormat('h:mm a').format(v.createdAt);
+    String time;
+    if (isToday) {
+      time = 'Today, $timeFormatted';
+    } else {
+      final yesterday = now.subtract(const Duration(days: 1));
+      final isYesterday = v.createdAt.year == yesterday.year &&
+          v.createdAt.month == yesterday.month &&
+          v.createdAt.day == yesterday.day;
+      if (isYesterday) {
+        time = 'Yesterday, $timeFormatted';
+      } else {
+        time = '${DateFormat('d MMM').format(v.createdAt)}, $timeFormatted';
+      }
+    }
+
+    return {
+      'type': type,
+      'detail': detail,
+      'time': time,
+      'icon': icon,
+      'color': color,
+      'amount': amount,
+    };
+  }
+
   Widget _buildRecentFeedsSection() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return ListenableBuilder(
+      listenable: HealthVitalsController.instance,
+      builder: (context, _) {
+        final recentFeeds = _getRecentFeeds();
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Recent Feeds',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E2024)),
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FeedingTrackerStatsPage()),
-                  );
-                },
-                child: const Text(
-                  'View Stats >',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFFF4E6A)),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ..._recentFeeds.map((f) => Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Recent Feeds',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E2024)),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FeedingTrackerStatsPage()),
+                      );
+                    },
+                    child: const Text(
+                      'View Stats >',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFFFF4E6A)),
                     ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: (f['color'] as Color).withValues(alpha: 0.1),
-                        shape: BoxShape.circle,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (recentFeeds.isEmpty)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.02),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
                       ),
-                      child: Icon(f['icon'] as IconData, color: f['color'] as Color, size: 20),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            f['type'] as String,
-                            style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Color(0xFF1E2024)),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            f['detail'] as String,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFF8C93A3)),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFEBF0),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.child_care_rounded,
+                          color: Color(0xFFFF4E6A),
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'No feeds recorded yet',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E2024),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Start the timer or tap "Save Feed" above to log a feed.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                ...recentFeeds.map((f) => Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
                           ),
                         ],
                       ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          f['amount'] as String,
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFFF4E6A)),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          f['time'] as String,
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF8C93A3)),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: (f['color'] as Color).withValues(alpha: 0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(f['icon'] as IconData, color: f['color'] as Color, size: 20),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  f['type'] as String,
+                                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Color(0xFF1E2024)),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  f['detail'] as String,
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF8C93A3)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                f['amount'] as String,
+                                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFFFF4E6A)),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                f['time'] as String,
+                                style: const TextStyle(fontSize: 11, color: Color(0xFF8C93A3)),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )),
+            ],
+          ),
+        );
+      },
     );
   }
 }

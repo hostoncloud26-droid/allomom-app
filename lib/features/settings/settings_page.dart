@@ -1,13 +1,15 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
+import 'package:allomom/features/pregnancy/test_pregnancy_page.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -28,7 +30,7 @@ class _SettingsPageState extends State<SettingsPage> {
           listenable: UserSessionManager.instance,
           builder: (context, _) {
             final session = UserSessionManager.instance;
-            final isPregnant = session.pregnancyStatus == 'pregnant';
+            final isPregnant = session.isPregnant;
             final gestationalWeek = session.currentGestationalWeek;
             final trimester = session.currentTrimester;
 
@@ -52,7 +54,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 18),
 
                   // ─── CONTACT PROFILE CARD ───
-                  _buildContactCard(context, session, isPregnant, gestationalWeek, trimester),
+                  _buildContactCard(
+                    context,
+                    session,
+                    isPregnant,
+                    gestationalWeek,
+                    trimester,
+                  ),
                   const SizedBox(height: 24),
 
                   // ─── SECTION 1: PROFILE & CARE CIRCLE ───
@@ -67,7 +75,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const EditProfilePage()),
+                          MaterialPageRoute(
+                            builder: (_) => const EditProfilePage(),
+                          ),
                         );
                       },
                     ),
@@ -79,11 +89,15 @@ class _SettingsPageState extends State<SettingsPage> {
                       title: 'Pregnancy Timeline & Due Date',
                       subtitle: isPregnant
                           ? 'Week $gestationalWeek · $trimester (Due: ${session.formattedEddDateFull})'
+                          : session.isNewMom
+                          ? 'Journey complete · register a new pregnancy'
                           : 'Update pregnancy status & LMP',
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const PregnancyConfirmationPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const PregnancyConfirmationPage(),
+                          ),
                         );
                       },
                     ),
@@ -93,7 +107,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       iconBg: const Color(0xFFEFF6FF),
                       iconColor: const Color(0xFF3B82F6),
                       title: 'My Family & Care Circle',
-                      subtitle: session.partnerName != null && session.partnerName!.isNotEmpty
+                      subtitle:
+                          session.partnerName != null &&
+                              session.partnerName!.isNotEmpty
                           ? '${session.partnerName} · Care circle active'
                           : 'Invite partner & family caregivers',
                       onTap: () {
@@ -114,7 +130,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       iconBg: const Color(0xFFF3E8FF),
                       iconColor: const Color(0xFF9333EA),
                       title: 'Allowear Smart Band',
-                      subtitle: session.allowearMacAddress != null && session.allowearMacAddress!.isNotEmpty
+                      subtitle:
+                          session.allowearMacAddress != null &&
+                              session.allowearMacAddress!.isNotEmpty
                           ? 'Paired: ${session.allowearMacAddress}'
                           : 'Connect Bluetooth smart band for vitals',
                       onTap: () => _showAllowearDialog(context, session),
@@ -197,6 +215,29 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ]),
                   const SizedBox(height: 20),
+
+                  // ─── SECTION 4b: DEVELOPER (debug builds only) ───
+                  if (kDebugMode) ...[
+                    _buildSectionHeader('Developer'),
+                    _buildCardGroup([
+                      _buildSettingsItem(
+                        icon: Icons.storage_rounded,
+                        iconBg: const Color(0xFFEDE9FE),
+                        iconColor: const Color(0xFF7C3AED),
+                        title: 'Test Pregnancy · Local DB',
+                        subtitle: 'CRUD harness for ANC, vaccines & reports',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const TestPregnancyPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ]),
+                    const SizedBox(height: 20),
+                  ],
 
                   // ─── SECTION 5: LOGOUT ───
                   _buildCardGroup([
@@ -318,13 +359,20 @@ class _SettingsPageState extends State<SettingsPage> {
                   runSpacing: 4,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 3.5,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFECEF),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
-                        isPregnant ? 'Week $week · $trimester' : 'Maternal Journey',
+                        isPregnant
+                            ? 'Week $week · $trimester'
+                            : session.isNewMom
+                            ? 'New mom'
+                            : 'Maternal Journey',
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
@@ -334,7 +382,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                     if (isPregnant)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 9,
+                          vertical: 3.5,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEDF6FF),
                           borderRadius: BorderRadius.circular(12),
@@ -342,7 +393,11 @@ class _SettingsPageState extends State<SettingsPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.event_available_rounded, size: 12, color: Color(0xFF3B82F6)),
+                            const Icon(
+                              Icons.event_available_rounded,
+                              size: 12,
+                              color: Color(0xFF3B82F6),
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Due: ${session.formattedEddDate}',
@@ -468,7 +523,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       style: GoogleFonts.poppins(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w600,
-                        color: isLogout ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
+                        color: isLogout
+                            ? const Color(0xFFFF4E6A)
+                            : const Color(0xFF1E2024),
                       ),
                     ),
                     const SizedBox(height: 1.5),
@@ -486,7 +543,9 @@ class _SettingsPageState extends State<SettingsPage> {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 20,
-                color: isLogout ? const Color(0xFFFF4E6A) : const Color(0xFF9CA3AF),
+                color: isLogout
+                    ? const Color(0xFFFF4E6A)
+                    : const Color(0xFF9CA3AF),
               ),
             ],
           ),
@@ -555,7 +614,9 @@ class _SettingsPageState extends State<SettingsPage> {
   // ─── MODALS & DIALOGS ───
 
   void _showAllowearDialog(BuildContext context, UserSessionManager session) {
-    final macController = TextEditingController(text: session.allowearMacAddress ?? '');
+    final macController = TextEditingController(
+      text: session.allowearMacAddress ?? '',
+    );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -564,7 +625,10 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             const Icon(Icons.watch_rounded, color: Color(0xFFFF4E6A)),
             const SizedBox(width: 8),
-            Text('Allowear Band', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            Text(
+              'Allowear Band',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -573,7 +637,10 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             Text(
               'Enter your Allowear Smart Band MAC address to enable continuous vital streaming:',
-              style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF4B5563)),
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF4B5563),
+              ),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -581,7 +648,9 @@ class _SettingsPageState extends State<SettingsPage> {
               decoration: InputDecoration(
                 labelText: 'MAC Address',
                 hintText: 'AA:BB:CC:11:22:33',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -589,22 +658,38 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await session.updateProfile(allowearMacAddress: macController.text.trim());
+              await session.updateProfile(
+                allowearMacAddress: macController.text.trim(),
+              );
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Allowear settings saved!'), backgroundColor: Color(0xFFFF4E6A)),
+                const SnackBar(
+                  content: Text('Allowear settings saved!'),
+                  backgroundColor: Color(0xFFFF4E6A),
+                ),
               );
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF4E6A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text('Save', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Save',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -665,10 +750,21 @@ class _SettingsPageState extends State<SettingsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Accessibility', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              'Accessibility',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 14),
-            Text('Baby voice speech rate, haptic feedback, and text size scaling for comfortable maternal experience.',
-                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF4B5563))),
+            Text(
+              'Baby voice speech rate, haptic feedback, and text size scaling for comfortable maternal experience.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF4B5563),
+              ),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -690,24 +786,55 @@ class _SettingsPageState extends State<SettingsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Help & Support', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              'Help & Support',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text('Need urgent pregnancy guidance or technical assistance? AlloMom support is here 24/7.',
-                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF4B5563))),
+            Text(
+              'Need urgent pregnancy guidance or technical assistance? AlloMom support is here 24/7.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF4B5563),
+              ),
+            ),
             const SizedBox(height: 14),
             Row(
               children: [
-                const Icon(Icons.phone_in_talk_rounded, color: Color(0xFFFF4E6A), size: 18),
+                const Icon(
+                  Icons.phone_in_talk_rounded,
+                  color: Color(0xFFFF4E6A),
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
-                Text('Support Helpline: 1800-SAVEMOM', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                Text(
+                  'Support Helpline: 1800-SAVEMOM',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.email_outlined, color: Color(0xFFFF4E6A), size: 18),
+                const Icon(
+                  Icons.email_outlined,
+                  color: Color(0xFFFF4E6A),
+                  size: 18,
+                ),
                 const SizedBox(width: 8),
-                Text('support@savemom.app', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                Text(
+                  'support@savemom.app',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13.5,
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -731,10 +858,21 @@ class _SettingsPageState extends State<SettingsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Privacy & Terms', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(
+              'Privacy & Terms',
+              style: GoogleFonts.outfit(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 12),
-            Text('Your maternal vitals and medical data are end-to-end encrypted and safeguarded with strict clinical standards.',
-                style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF4B5563))),
+            Text(
+              'Your maternal vitals and medical data are end-to-end encrypted and safeguarded with strict clinical standards.',
+              style: GoogleFonts.poppins(
+                fontSize: 13,
+                color: const Color(0xFF4B5563),
+              ),
+            ),
             const SizedBox(height: 20),
           ],
         ),
@@ -751,25 +889,45 @@ class _SettingsPageState extends State<SettingsPage> {
           children: [
             const Icon(Icons.info_outline_rounded, color: Color(0xFFFF4E6A)),
             const SizedBox(width: 8),
-            Text('AlloMom Maternal Care', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+            Text(
+              'AlloMom Maternal Care',
+              style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Version: 1.0.4 (Build 2026)', style: GoogleFonts.poppins(fontWeight: FontWeight.w600, fontSize: 13.5)),
+            Text(
+              'Version: 1.0.4 (Build 2026)',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+                fontSize: 13.5,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text('SaveMom AlloConnect Ecosystem', style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey)),
+            Text(
+              'SaveMom AlloConnect Ecosystem',
+              style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey),
+            ),
             const SizedBox(height: 6),
-            Text('© 2026 SaveMom Healthcare Technologies. All rights reserved.',
-                style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey)),
+            Text(
+              '© 2026 SaveMom Healthcare Technologies. All rights reserved.',
+              style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey),
+            ),
           ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Close', style: GoogleFonts.poppins(color: const Color(0xFFFF4E6A), fontWeight: FontWeight.bold)),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFFFF4E6A),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
@@ -781,12 +939,21 @@ class _SettingsPageState extends State<SettingsPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Log out of AlloMom?', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
-        content: Text('Are you sure you want to log out from this device?', style: GoogleFonts.poppins(fontSize: 13)),
+        title: Text(
+          'Log out of AlloMom?',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to log out from this device?',
+          style: GoogleFonts.poppins(fontSize: 13),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.poppins(color: Colors.grey)),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: Colors.grey),
+            ),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -800,9 +967,17 @@ class _SettingsPageState extends State<SettingsPage> {
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF4E6A),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
-            child: Text('Log out', style: GoogleFonts.poppins(color: Colors.white, fontWeight: FontWeight.bold)),
+            child: Text(
+              'Log out',
+              style: GoogleFonts.poppins(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),

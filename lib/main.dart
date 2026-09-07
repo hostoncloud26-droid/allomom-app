@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/api/api_base.dart';
+
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
 import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
+import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/services/health_vital_sync_service.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -24,6 +28,8 @@ void main() async {
   await ApiBase.init();
   await SqLiteService.init();
   await UserSessionManager.instance.init();
+  await ConnectionController.instance.init();
+  HealthVitalSyncService.instance.init();
 
   // Initialize Local Notifications & Health Reminder Scheduler
   try {
@@ -42,9 +48,7 @@ void main() async {
         );
       } else if (screen == 'local_reminder') {
         rootNavigatorKey.currentState?.push(
-          MaterialPageRoute(
-            builder: (_) => const RemindersPage(),
-          ),
+          MaterialPageRoute(builder: (_) => const RemindersPage()),
         );
       }
     };
@@ -68,7 +72,7 @@ class AllomomApp extends StatelessWidget {
       builder: (context, _) {
         final isAuthenticated = UserSessionManager.instance.isAuthenticated;
 
-        return MaterialApp(
+        return GetMaterialApp(
           navigatorKey: rootNavigatorKey,
           title: 'Allomom',
           debugShowCheckedModeBanner: false,
@@ -92,7 +96,9 @@ class AllomomApp extends StatelessWidget {
             ),
             useMaterial3: true,
           ),
-          home: isAuthenticated ? const MainLayout() : const LanguageSelectionPage(),
+          home: isAuthenticated
+              ? const MainLayout()
+              : const LanguageSelectionPage(),
         );
       },
     );

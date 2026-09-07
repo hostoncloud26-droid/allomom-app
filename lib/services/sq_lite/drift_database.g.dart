@@ -10588,6 +10588,3978 @@ class VitalsCompanion extends UpdateCompanion<Vital> {
   }
 }
 
+class $PregnancyAncScheduleTable extends PregnancyAncSchedule
+    with TableInfo<$PregnancyAncScheduleTable, PregnancyAncScheduleData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $PregnancyAncScheduleTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pregnancyIdMeta = const VerificationMeta(
+    'pregnancyId',
+  );
+  @override
+  late final GeneratedColumn<String> pregnancyId = GeneratedColumn<String>(
+    'pregnancy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _visitNumberMeta = const VerificationMeta(
+    'visitNumber',
+  );
+  @override
+  late final GeneratedColumn<int> visitNumber = GeneratedColumn<int>(
+    'visit_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _trimesterMeta = const VerificationMeta(
+    'trimester',
+  );
+  @override
+  late final GeneratedColumn<int> trimester = GeneratedColumn<int>(
+    'trimester',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pregnancyMonthMeta = const VerificationMeta(
+    'pregnancyMonth',
+  );
+  @override
+  late final GeneratedColumn<int> pregnancyMonth = GeneratedColumn<int>(
+    'pregnancy_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledDateMeta = const VerificationMeta(
+    'scheduledDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledDate =
+      GeneratedColumn<DateTime>(
+        'scheduled_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _actualDateMeta = const VerificationMeta(
+    'actualDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> actualDate = GeneratedColumn<DateTime>(
+    'actual_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _weightKgMeta = const VerificationMeta(
+    'weightKg',
+  );
+  @override
+  late final GeneratedColumn<double> weightKg = GeneratedColumn<double>(
+    'weight_kg',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _bpMeta = const VerificationMeta('bp');
+  @override
+  late final GeneratedColumn<String> bp = GeneratedColumn<String>(
+    'bp',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fundalHeightCmMeta = const VerificationMeta(
+    'fundalHeightCm',
+  );
+  @override
+  late final GeneratedColumn<double> fundalHeightCm = GeneratedColumn<double>(
+    'fundal_height_cm',
+    aliasedName,
+    true,
+    type: DriftSqlType.double,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fetalHeartRateMeta = const VerificationMeta(
+    'fetalHeartRate',
+  );
+  @override
+  late final GeneratedColumn<int> fetalHeartRate = GeneratedColumn<int>(
+    'fetal_heart_rate',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    pregnancyId,
+    visitNumber,
+    trimester,
+    pregnancyMonth,
+    scheduledDate,
+    actualDate,
+    status,
+    weightKg,
+    bp,
+    fundalHeightCm,
+    fetalHeartRate,
+    notes,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'pregnancy_anc_schedule';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<PregnancyAncScheduleData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('pregnancy_id')) {
+      context.handle(
+        _pregnancyIdMeta,
+        pregnancyId.isAcceptableOrUnknown(
+          data['pregnancy_id']!,
+          _pregnancyIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('visit_number')) {
+      context.handle(
+        _visitNumberMeta,
+        visitNumber.isAcceptableOrUnknown(
+          data['visit_number']!,
+          _visitNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('trimester')) {
+      context.handle(
+        _trimesterMeta,
+        trimester.isAcceptableOrUnknown(data['trimester']!, _trimesterMeta),
+      );
+    }
+    if (data.containsKey('pregnancy_month')) {
+      context.handle(
+        _pregnancyMonthMeta,
+        pregnancyMonth.isAcceptableOrUnknown(
+          data['pregnancy_month']!,
+          _pregnancyMonthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('scheduled_date')) {
+      context.handle(
+        _scheduledDateMeta,
+        scheduledDate.isAcceptableOrUnknown(
+          data['scheduled_date']!,
+          _scheduledDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduledDateMeta);
+    }
+    if (data.containsKey('actual_date')) {
+      context.handle(
+        _actualDateMeta,
+        actualDate.isAcceptableOrUnknown(data['actual_date']!, _actualDateMeta),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('weight_kg')) {
+      context.handle(
+        _weightKgMeta,
+        weightKg.isAcceptableOrUnknown(data['weight_kg']!, _weightKgMeta),
+      );
+    }
+    if (data.containsKey('bp')) {
+      context.handle(_bpMeta, bp.isAcceptableOrUnknown(data['bp']!, _bpMeta));
+    }
+    if (data.containsKey('fundal_height_cm')) {
+      context.handle(
+        _fundalHeightCmMeta,
+        fundalHeightCm.isAcceptableOrUnknown(
+          data['fundal_height_cm']!,
+          _fundalHeightCmMeta,
+        ),
+      );
+    }
+    if (data.containsKey('fetal_heart_rate')) {
+      context.handle(
+        _fetalHeartRateMeta,
+        fetalHeartRate.isAcceptableOrUnknown(
+          data['fetal_heart_rate']!,
+          _fetalHeartRateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  PregnancyAncScheduleData map(
+    Map<String, dynamic> data, {
+    String? tablePrefix,
+  }) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return PregnancyAncScheduleData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      pregnancyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pregnancy_id'],
+      ),
+      visitNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}visit_number'],
+      )!,
+      trimester: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}trimester'],
+      ),
+      pregnancyMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pregnancy_month'],
+      ),
+      scheduledDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_date'],
+      )!,
+      actualDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}actual_date'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      weightKg: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}weight_kg'],
+      ),
+      bp: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}bp'],
+      ),
+      fundalHeightCm: attachedDatabase.typeMapping.read(
+        DriftSqlType.double,
+        data['${effectivePrefix}fundal_height_cm'],
+      ),
+      fetalHeartRate: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}fetal_heart_rate'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $PregnancyAncScheduleTable createAlias(String alias) {
+    return $PregnancyAncScheduleTable(attachedDatabase, alias);
+  }
+}
+
+class PregnancyAncScheduleData extends DataClass
+    implements Insertable<PregnancyAncScheduleData> {
+  final String id;
+  final String? pregnancyId;
+  final int visitNumber;
+  final int? trimester;
+
+  /// Pregnancy month (1-10) this visit was booked for.
+  final int? pregnancyMonth;
+  final DateTime scheduledDate;
+  final DateTime? actualDate;
+  final String status;
+  final double? weightKg;
+  final String? bp;
+  final double? fundalHeightCm;
+  final int? fetalHeartRate;
+  final String? notes;
+  final DateTime createdAt;
+  final int synced;
+  const PregnancyAncScheduleData({
+    required this.id,
+    this.pregnancyId,
+    required this.visitNumber,
+    this.trimester,
+    this.pregnancyMonth,
+    required this.scheduledDate,
+    this.actualDate,
+    required this.status,
+    this.weightKg,
+    this.bp,
+    this.fundalHeightCm,
+    this.fetalHeartRate,
+    this.notes,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || pregnancyId != null) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId);
+    }
+    map['visit_number'] = Variable<int>(visitNumber);
+    if (!nullToAbsent || trimester != null) {
+      map['trimester'] = Variable<int>(trimester);
+    }
+    if (!nullToAbsent || pregnancyMonth != null) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth);
+    }
+    map['scheduled_date'] = Variable<DateTime>(scheduledDate);
+    if (!nullToAbsent || actualDate != null) {
+      map['actual_date'] = Variable<DateTime>(actualDate);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || weightKg != null) {
+      map['weight_kg'] = Variable<double>(weightKg);
+    }
+    if (!nullToAbsent || bp != null) {
+      map['bp'] = Variable<String>(bp);
+    }
+    if (!nullToAbsent || fundalHeightCm != null) {
+      map['fundal_height_cm'] = Variable<double>(fundalHeightCm);
+    }
+    if (!nullToAbsent || fetalHeartRate != null) {
+      map['fetal_heart_rate'] = Variable<int>(fetalHeartRate);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  PregnancyAncScheduleCompanion toCompanion(bool nullToAbsent) {
+    return PregnancyAncScheduleCompanion(
+      id: Value(id),
+      pregnancyId: pregnancyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyId),
+      visitNumber: Value(visitNumber),
+      trimester: trimester == null && nullToAbsent
+          ? const Value.absent()
+          : Value(trimester),
+      pregnancyMonth: pregnancyMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyMonth),
+      scheduledDate: Value(scheduledDate),
+      actualDate: actualDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(actualDate),
+      status: Value(status),
+      weightKg: weightKg == null && nullToAbsent
+          ? const Value.absent()
+          : Value(weightKg),
+      bp: bp == null && nullToAbsent ? const Value.absent() : Value(bp),
+      fundalHeightCm: fundalHeightCm == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fundalHeightCm),
+      fetalHeartRate: fetalHeartRate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fetalHeartRate),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory PregnancyAncScheduleData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return PregnancyAncScheduleData(
+      id: serializer.fromJson<String>(json['id']),
+      pregnancyId: serializer.fromJson<String?>(json['pregnancyId']),
+      visitNumber: serializer.fromJson<int>(json['visitNumber']),
+      trimester: serializer.fromJson<int?>(json['trimester']),
+      pregnancyMonth: serializer.fromJson<int?>(json['pregnancyMonth']),
+      scheduledDate: serializer.fromJson<DateTime>(json['scheduledDate']),
+      actualDate: serializer.fromJson<DateTime?>(json['actualDate']),
+      status: serializer.fromJson<String>(json['status']),
+      weightKg: serializer.fromJson<double?>(json['weightKg']),
+      bp: serializer.fromJson<String?>(json['bp']),
+      fundalHeightCm: serializer.fromJson<double?>(json['fundalHeightCm']),
+      fetalHeartRate: serializer.fromJson<int?>(json['fetalHeartRate']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'pregnancyId': serializer.toJson<String?>(pregnancyId),
+      'visitNumber': serializer.toJson<int>(visitNumber),
+      'trimester': serializer.toJson<int?>(trimester),
+      'pregnancyMonth': serializer.toJson<int?>(pregnancyMonth),
+      'scheduledDate': serializer.toJson<DateTime>(scheduledDate),
+      'actualDate': serializer.toJson<DateTime?>(actualDate),
+      'status': serializer.toJson<String>(status),
+      'weightKg': serializer.toJson<double?>(weightKg),
+      'bp': serializer.toJson<String?>(bp),
+      'fundalHeightCm': serializer.toJson<double?>(fundalHeightCm),
+      'fetalHeartRate': serializer.toJson<int?>(fetalHeartRate),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  PregnancyAncScheduleData copyWith({
+    String? id,
+    Value<String?> pregnancyId = const Value.absent(),
+    int? visitNumber,
+    Value<int?> trimester = const Value.absent(),
+    Value<int?> pregnancyMonth = const Value.absent(),
+    DateTime? scheduledDate,
+    Value<DateTime?> actualDate = const Value.absent(),
+    String? status,
+    Value<double?> weightKg = const Value.absent(),
+    Value<String?> bp = const Value.absent(),
+    Value<double?> fundalHeightCm = const Value.absent(),
+    Value<int?> fetalHeartRate = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+    int? synced,
+  }) => PregnancyAncScheduleData(
+    id: id ?? this.id,
+    pregnancyId: pregnancyId.present ? pregnancyId.value : this.pregnancyId,
+    visitNumber: visitNumber ?? this.visitNumber,
+    trimester: trimester.present ? trimester.value : this.trimester,
+    pregnancyMonth: pregnancyMonth.present
+        ? pregnancyMonth.value
+        : this.pregnancyMonth,
+    scheduledDate: scheduledDate ?? this.scheduledDate,
+    actualDate: actualDate.present ? actualDate.value : this.actualDate,
+    status: status ?? this.status,
+    weightKg: weightKg.present ? weightKg.value : this.weightKg,
+    bp: bp.present ? bp.value : this.bp,
+    fundalHeightCm: fundalHeightCm.present
+        ? fundalHeightCm.value
+        : this.fundalHeightCm,
+    fetalHeartRate: fetalHeartRate.present
+        ? fetalHeartRate.value
+        : this.fetalHeartRate,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  PregnancyAncScheduleData copyWithCompanion(
+    PregnancyAncScheduleCompanion data,
+  ) {
+    return PregnancyAncScheduleData(
+      id: data.id.present ? data.id.value : this.id,
+      pregnancyId: data.pregnancyId.present
+          ? data.pregnancyId.value
+          : this.pregnancyId,
+      visitNumber: data.visitNumber.present
+          ? data.visitNumber.value
+          : this.visitNumber,
+      trimester: data.trimester.present ? data.trimester.value : this.trimester,
+      pregnancyMonth: data.pregnancyMonth.present
+          ? data.pregnancyMonth.value
+          : this.pregnancyMonth,
+      scheduledDate: data.scheduledDate.present
+          ? data.scheduledDate.value
+          : this.scheduledDate,
+      actualDate: data.actualDate.present
+          ? data.actualDate.value
+          : this.actualDate,
+      status: data.status.present ? data.status.value : this.status,
+      weightKg: data.weightKg.present ? data.weightKg.value : this.weightKg,
+      bp: data.bp.present ? data.bp.value : this.bp,
+      fundalHeightCm: data.fundalHeightCm.present
+          ? data.fundalHeightCm.value
+          : this.fundalHeightCm,
+      fetalHeartRate: data.fetalHeartRate.present
+          ? data.fetalHeartRate.value
+          : this.fetalHeartRate,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PregnancyAncScheduleData(')
+          ..write('id: $id, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('visitNumber: $visitNumber, ')
+          ..write('trimester: $trimester, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('actualDate: $actualDate, ')
+          ..write('status: $status, ')
+          ..write('weightKg: $weightKg, ')
+          ..write('bp: $bp, ')
+          ..write('fundalHeightCm: $fundalHeightCm, ')
+          ..write('fetalHeartRate: $fetalHeartRate, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    pregnancyId,
+    visitNumber,
+    trimester,
+    pregnancyMonth,
+    scheduledDate,
+    actualDate,
+    status,
+    weightKg,
+    bp,
+    fundalHeightCm,
+    fetalHeartRate,
+    notes,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is PregnancyAncScheduleData &&
+          other.id == this.id &&
+          other.pregnancyId == this.pregnancyId &&
+          other.visitNumber == this.visitNumber &&
+          other.trimester == this.trimester &&
+          other.pregnancyMonth == this.pregnancyMonth &&
+          other.scheduledDate == this.scheduledDate &&
+          other.actualDate == this.actualDate &&
+          other.status == this.status &&
+          other.weightKg == this.weightKg &&
+          other.bp == this.bp &&
+          other.fundalHeightCm == this.fundalHeightCm &&
+          other.fetalHeartRate == this.fetalHeartRate &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class PregnancyAncScheduleCompanion
+    extends UpdateCompanion<PregnancyAncScheduleData> {
+  final Value<String> id;
+  final Value<String?> pregnancyId;
+  final Value<int> visitNumber;
+  final Value<int?> trimester;
+  final Value<int?> pregnancyMonth;
+  final Value<DateTime> scheduledDate;
+  final Value<DateTime?> actualDate;
+  final Value<String> status;
+  final Value<double?> weightKg;
+  final Value<String?> bp;
+  final Value<double?> fundalHeightCm;
+  final Value<int?> fetalHeartRate;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const PregnancyAncScheduleCompanion({
+    this.id = const Value.absent(),
+    this.pregnancyId = const Value.absent(),
+    this.visitNumber = const Value.absent(),
+    this.trimester = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.actualDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.weightKg = const Value.absent(),
+    this.bp = const Value.absent(),
+    this.fundalHeightCm = const Value.absent(),
+    this.fetalHeartRate = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  PregnancyAncScheduleCompanion.insert({
+    required String id,
+    this.pregnancyId = const Value.absent(),
+    this.visitNumber = const Value.absent(),
+    this.trimester = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    required DateTime scheduledDate,
+    this.actualDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.weightKg = const Value.absent(),
+    this.bp = const Value.absent(),
+    this.fundalHeightCm = const Value.absent(),
+    this.fetalHeartRate = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       scheduledDate = Value(scheduledDate);
+  static Insertable<PregnancyAncScheduleData> custom({
+    Expression<String>? id,
+    Expression<String>? pregnancyId,
+    Expression<int>? visitNumber,
+    Expression<int>? trimester,
+    Expression<int>? pregnancyMonth,
+    Expression<DateTime>? scheduledDate,
+    Expression<DateTime>? actualDate,
+    Expression<String>? status,
+    Expression<double>? weightKg,
+    Expression<String>? bp,
+    Expression<double>? fundalHeightCm,
+    Expression<int>? fetalHeartRate,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (pregnancyId != null) 'pregnancy_id': pregnancyId,
+      if (visitNumber != null) 'visit_number': visitNumber,
+      if (trimester != null) 'trimester': trimester,
+      if (pregnancyMonth != null) 'pregnancy_month': pregnancyMonth,
+      if (scheduledDate != null) 'scheduled_date': scheduledDate,
+      if (actualDate != null) 'actual_date': actualDate,
+      if (status != null) 'status': status,
+      if (weightKg != null) 'weight_kg': weightKg,
+      if (bp != null) 'bp': bp,
+      if (fundalHeightCm != null) 'fundal_height_cm': fundalHeightCm,
+      if (fetalHeartRate != null) 'fetal_heart_rate': fetalHeartRate,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  PregnancyAncScheduleCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? pregnancyId,
+    Value<int>? visitNumber,
+    Value<int?>? trimester,
+    Value<int?>? pregnancyMonth,
+    Value<DateTime>? scheduledDate,
+    Value<DateTime?>? actualDate,
+    Value<String>? status,
+    Value<double?>? weightKg,
+    Value<String?>? bp,
+    Value<double?>? fundalHeightCm,
+    Value<int?>? fetalHeartRate,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return PregnancyAncScheduleCompanion(
+      id: id ?? this.id,
+      pregnancyId: pregnancyId ?? this.pregnancyId,
+      visitNumber: visitNumber ?? this.visitNumber,
+      trimester: trimester ?? this.trimester,
+      pregnancyMonth: pregnancyMonth ?? this.pregnancyMonth,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      actualDate: actualDate ?? this.actualDate,
+      status: status ?? this.status,
+      weightKg: weightKg ?? this.weightKg,
+      bp: bp ?? this.bp,
+      fundalHeightCm: fundalHeightCm ?? this.fundalHeightCm,
+      fetalHeartRate: fetalHeartRate ?? this.fetalHeartRate,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (pregnancyId.present) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId.value);
+    }
+    if (visitNumber.present) {
+      map['visit_number'] = Variable<int>(visitNumber.value);
+    }
+    if (trimester.present) {
+      map['trimester'] = Variable<int>(trimester.value);
+    }
+    if (pregnancyMonth.present) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth.value);
+    }
+    if (scheduledDate.present) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate.value);
+    }
+    if (actualDate.present) {
+      map['actual_date'] = Variable<DateTime>(actualDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (weightKg.present) {
+      map['weight_kg'] = Variable<double>(weightKg.value);
+    }
+    if (bp.present) {
+      map['bp'] = Variable<String>(bp.value);
+    }
+    if (fundalHeightCm.present) {
+      map['fundal_height_cm'] = Variable<double>(fundalHeightCm.value);
+    }
+    if (fetalHeartRate.present) {
+      map['fetal_heart_rate'] = Variable<int>(fetalHeartRate.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('PregnancyAncScheduleCompanion(')
+          ..write('id: $id, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('visitNumber: $visitNumber, ')
+          ..write('trimester: $trimester, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('actualDate: $actualDate, ')
+          ..write('status: $status, ')
+          ..write('weightKg: $weightKg, ')
+          ..write('bp: $bp, ')
+          ..write('fundalHeightCm: $fundalHeightCm, ')
+          ..write('fetalHeartRate: $fetalHeartRate, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $VaccinationsTable extends Vaccinations
+    with TableInfo<$VaccinationsTable, Vaccination> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $VaccinationsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pregnancyIdMeta = const VerificationMeta(
+    'pregnancyId',
+  );
+  @override
+  late final GeneratedColumn<String> pregnancyId = GeneratedColumn<String>(
+    'pregnancy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _vaccineNameMeta = const VerificationMeta(
+    'vaccineName',
+  );
+  @override
+  late final GeneratedColumn<String> vaccineName = GeneratedColumn<String>(
+    'vaccine_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _doseNumberMeta = const VerificationMeta(
+    'doseNumber',
+  );
+  @override
+  late final GeneratedColumn<int> doseNumber = GeneratedColumn<int>(
+    'dose_number',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _pregnancyMonthMeta = const VerificationMeta(
+    'pregnancyMonth',
+  );
+  @override
+  late final GeneratedColumn<int> pregnancyMonth = GeneratedColumn<int>(
+    'pregnancy_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _scheduledDateMeta = const VerificationMeta(
+    'scheduledDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> scheduledDate =
+      GeneratedColumn<DateTime>(
+        'scheduled_date',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _administeredDateMeta = const VerificationMeta(
+    'administeredDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> administeredDate =
+      GeneratedColumn<DateTime>(
+        'administered_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _batchNumberMeta = const VerificationMeta(
+    'batchNumber',
+  );
+  @override
+  late final GeneratedColumn<String> batchNumber = GeneratedColumn<String>(
+    'batch_number',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _administeredByMeta = const VerificationMeta(
+    'administeredBy',
+  );
+  @override
+  late final GeneratedColumn<String> administeredBy = GeneratedColumn<String>(
+    'administered_by',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    pregnancyId,
+    vaccineName,
+    doseNumber,
+    pregnancyMonth,
+    scheduledDate,
+    administeredDate,
+    status,
+    batchNumber,
+    administeredBy,
+    notes,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'vaccinations';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Vaccination> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('pregnancy_id')) {
+      context.handle(
+        _pregnancyIdMeta,
+        pregnancyId.isAcceptableOrUnknown(
+          data['pregnancy_id']!,
+          _pregnancyIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('vaccine_name')) {
+      context.handle(
+        _vaccineNameMeta,
+        vaccineName.isAcceptableOrUnknown(
+          data['vaccine_name']!,
+          _vaccineNameMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_vaccineNameMeta);
+    }
+    if (data.containsKey('dose_number')) {
+      context.handle(
+        _doseNumberMeta,
+        doseNumber.isAcceptableOrUnknown(data['dose_number']!, _doseNumberMeta),
+      );
+    }
+    if (data.containsKey('pregnancy_month')) {
+      context.handle(
+        _pregnancyMonthMeta,
+        pregnancyMonth.isAcceptableOrUnknown(
+          data['pregnancy_month']!,
+          _pregnancyMonthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('scheduled_date')) {
+      context.handle(
+        _scheduledDateMeta,
+        scheduledDate.isAcceptableOrUnknown(
+          data['scheduled_date']!,
+          _scheduledDateMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_scheduledDateMeta);
+    }
+    if (data.containsKey('administered_date')) {
+      context.handle(
+        _administeredDateMeta,
+        administeredDate.isAcceptableOrUnknown(
+          data['administered_date']!,
+          _administeredDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('batch_number')) {
+      context.handle(
+        _batchNumberMeta,
+        batchNumber.isAcceptableOrUnknown(
+          data['batch_number']!,
+          _batchNumberMeta,
+        ),
+      );
+    }
+    if (data.containsKey('administered_by')) {
+      context.handle(
+        _administeredByMeta,
+        administeredBy.isAcceptableOrUnknown(
+          data['administered_by']!,
+          _administeredByMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Vaccination map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Vaccination(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      ),
+      pregnancyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pregnancy_id'],
+      ),
+      vaccineName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}vaccine_name'],
+      )!,
+      doseNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}dose_number'],
+      )!,
+      pregnancyMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pregnancy_month'],
+      ),
+      scheduledDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}scheduled_date'],
+      )!,
+      administeredDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}administered_date'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      batchNumber: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}batch_number'],
+      ),
+      administeredBy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}administered_by'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $VaccinationsTable createAlias(String alias) {
+    return $VaccinationsTable(attachedDatabase, alias);
+  }
+}
+
+class Vaccination extends DataClass implements Insertable<Vaccination> {
+  final String id;
+  final String? userId;
+  final String? pregnancyId;
+  final String vaccineName;
+  final int doseNumber;
+
+  /// Pregnancy month (1-10) this dose is due in; null for child vaccines.
+  final int? pregnancyMonth;
+  final DateTime scheduledDate;
+  final DateTime? administeredDate;
+  final String status;
+  final String? batchNumber;
+  final String? administeredBy;
+  final String? notes;
+  final DateTime createdAt;
+  final int synced;
+  const Vaccination({
+    required this.id,
+    this.userId,
+    this.pregnancyId,
+    required this.vaccineName,
+    required this.doseNumber,
+    this.pregnancyMonth,
+    required this.scheduledDate,
+    this.administeredDate,
+    required this.status,
+    this.batchNumber,
+    this.administeredBy,
+    this.notes,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
+    }
+    if (!nullToAbsent || pregnancyId != null) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId);
+    }
+    map['vaccine_name'] = Variable<String>(vaccineName);
+    map['dose_number'] = Variable<int>(doseNumber);
+    if (!nullToAbsent || pregnancyMonth != null) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth);
+    }
+    map['scheduled_date'] = Variable<DateTime>(scheduledDate);
+    if (!nullToAbsent || administeredDate != null) {
+      map['administered_date'] = Variable<DateTime>(administeredDate);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || batchNumber != null) {
+      map['batch_number'] = Variable<String>(batchNumber);
+    }
+    if (!nullToAbsent || administeredBy != null) {
+      map['administered_by'] = Variable<String>(administeredBy);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  VaccinationsCompanion toCompanion(bool nullToAbsent) {
+    return VaccinationsCompanion(
+      id: Value(id),
+      userId: userId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userId),
+      pregnancyId: pregnancyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyId),
+      vaccineName: Value(vaccineName),
+      doseNumber: Value(doseNumber),
+      pregnancyMonth: pregnancyMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyMonth),
+      scheduledDate: Value(scheduledDate),
+      administeredDate: administeredDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(administeredDate),
+      status: Value(status),
+      batchNumber: batchNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(batchNumber),
+      administeredBy: administeredBy == null && nullToAbsent
+          ? const Value.absent()
+          : Value(administeredBy),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory Vaccination.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Vaccination(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String?>(json['userId']),
+      pregnancyId: serializer.fromJson<String?>(json['pregnancyId']),
+      vaccineName: serializer.fromJson<String>(json['vaccineName']),
+      doseNumber: serializer.fromJson<int>(json['doseNumber']),
+      pregnancyMonth: serializer.fromJson<int?>(json['pregnancyMonth']),
+      scheduledDate: serializer.fromJson<DateTime>(json['scheduledDate']),
+      administeredDate: serializer.fromJson<DateTime?>(
+        json['administeredDate'],
+      ),
+      status: serializer.fromJson<String>(json['status']),
+      batchNumber: serializer.fromJson<String?>(json['batchNumber']),
+      administeredBy: serializer.fromJson<String?>(json['administeredBy']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String?>(userId),
+      'pregnancyId': serializer.toJson<String?>(pregnancyId),
+      'vaccineName': serializer.toJson<String>(vaccineName),
+      'doseNumber': serializer.toJson<int>(doseNumber),
+      'pregnancyMonth': serializer.toJson<int?>(pregnancyMonth),
+      'scheduledDate': serializer.toJson<DateTime>(scheduledDate),
+      'administeredDate': serializer.toJson<DateTime?>(administeredDate),
+      'status': serializer.toJson<String>(status),
+      'batchNumber': serializer.toJson<String?>(batchNumber),
+      'administeredBy': serializer.toJson<String?>(administeredBy),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  Vaccination copyWith({
+    String? id,
+    Value<String?> userId = const Value.absent(),
+    Value<String?> pregnancyId = const Value.absent(),
+    String? vaccineName,
+    int? doseNumber,
+    Value<int?> pregnancyMonth = const Value.absent(),
+    DateTime? scheduledDate,
+    Value<DateTime?> administeredDate = const Value.absent(),
+    String? status,
+    Value<String?> batchNumber = const Value.absent(),
+    Value<String?> administeredBy = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+    int? synced,
+  }) => Vaccination(
+    id: id ?? this.id,
+    userId: userId.present ? userId.value : this.userId,
+    pregnancyId: pregnancyId.present ? pregnancyId.value : this.pregnancyId,
+    vaccineName: vaccineName ?? this.vaccineName,
+    doseNumber: doseNumber ?? this.doseNumber,
+    pregnancyMonth: pregnancyMonth.present
+        ? pregnancyMonth.value
+        : this.pregnancyMonth,
+    scheduledDate: scheduledDate ?? this.scheduledDate,
+    administeredDate: administeredDate.present
+        ? administeredDate.value
+        : this.administeredDate,
+    status: status ?? this.status,
+    batchNumber: batchNumber.present ? batchNumber.value : this.batchNumber,
+    administeredBy: administeredBy.present
+        ? administeredBy.value
+        : this.administeredBy,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  Vaccination copyWithCompanion(VaccinationsCompanion data) {
+    return Vaccination(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      pregnancyId: data.pregnancyId.present
+          ? data.pregnancyId.value
+          : this.pregnancyId,
+      vaccineName: data.vaccineName.present
+          ? data.vaccineName.value
+          : this.vaccineName,
+      doseNumber: data.doseNumber.present
+          ? data.doseNumber.value
+          : this.doseNumber,
+      pregnancyMonth: data.pregnancyMonth.present
+          ? data.pregnancyMonth.value
+          : this.pregnancyMonth,
+      scheduledDate: data.scheduledDate.present
+          ? data.scheduledDate.value
+          : this.scheduledDate,
+      administeredDate: data.administeredDate.present
+          ? data.administeredDate.value
+          : this.administeredDate,
+      status: data.status.present ? data.status.value : this.status,
+      batchNumber: data.batchNumber.present
+          ? data.batchNumber.value
+          : this.batchNumber,
+      administeredBy: data.administeredBy.present
+          ? data.administeredBy.value
+          : this.administeredBy,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Vaccination(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('vaccineName: $vaccineName, ')
+          ..write('doseNumber: $doseNumber, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('administeredDate: $administeredDate, ')
+          ..write('status: $status, ')
+          ..write('batchNumber: $batchNumber, ')
+          ..write('administeredBy: $administeredBy, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    pregnancyId,
+    vaccineName,
+    doseNumber,
+    pregnancyMonth,
+    scheduledDate,
+    administeredDate,
+    status,
+    batchNumber,
+    administeredBy,
+    notes,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Vaccination &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.pregnancyId == this.pregnancyId &&
+          other.vaccineName == this.vaccineName &&
+          other.doseNumber == this.doseNumber &&
+          other.pregnancyMonth == this.pregnancyMonth &&
+          other.scheduledDate == this.scheduledDate &&
+          other.administeredDate == this.administeredDate &&
+          other.status == this.status &&
+          other.batchNumber == this.batchNumber &&
+          other.administeredBy == this.administeredBy &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class VaccinationsCompanion extends UpdateCompanion<Vaccination> {
+  final Value<String> id;
+  final Value<String?> userId;
+  final Value<String?> pregnancyId;
+  final Value<String> vaccineName;
+  final Value<int> doseNumber;
+  final Value<int?> pregnancyMonth;
+  final Value<DateTime> scheduledDate;
+  final Value<DateTime?> administeredDate;
+  final Value<String> status;
+  final Value<String?> batchNumber;
+  final Value<String?> administeredBy;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const VaccinationsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.pregnancyId = const Value.absent(),
+    this.vaccineName = const Value.absent(),
+    this.doseNumber = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    this.scheduledDate = const Value.absent(),
+    this.administeredDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.batchNumber = const Value.absent(),
+    this.administeredBy = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  VaccinationsCompanion.insert({
+    required String id,
+    this.userId = const Value.absent(),
+    this.pregnancyId = const Value.absent(),
+    required String vaccineName,
+    this.doseNumber = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    required DateTime scheduledDate,
+    this.administeredDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.batchNumber = const Value.absent(),
+    this.administeredBy = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       vaccineName = Value(vaccineName),
+       scheduledDate = Value(scheduledDate);
+  static Insertable<Vaccination> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? pregnancyId,
+    Expression<String>? vaccineName,
+    Expression<int>? doseNumber,
+    Expression<int>? pregnancyMonth,
+    Expression<DateTime>? scheduledDate,
+    Expression<DateTime>? administeredDate,
+    Expression<String>? status,
+    Expression<String>? batchNumber,
+    Expression<String>? administeredBy,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (pregnancyId != null) 'pregnancy_id': pregnancyId,
+      if (vaccineName != null) 'vaccine_name': vaccineName,
+      if (doseNumber != null) 'dose_number': doseNumber,
+      if (pregnancyMonth != null) 'pregnancy_month': pregnancyMonth,
+      if (scheduledDate != null) 'scheduled_date': scheduledDate,
+      if (administeredDate != null) 'administered_date': administeredDate,
+      if (status != null) 'status': status,
+      if (batchNumber != null) 'batch_number': batchNumber,
+      if (administeredBy != null) 'administered_by': administeredBy,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  VaccinationsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? userId,
+    Value<String?>? pregnancyId,
+    Value<String>? vaccineName,
+    Value<int>? doseNumber,
+    Value<int?>? pregnancyMonth,
+    Value<DateTime>? scheduledDate,
+    Value<DateTime?>? administeredDate,
+    Value<String>? status,
+    Value<String?>? batchNumber,
+    Value<String?>? administeredBy,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return VaccinationsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      pregnancyId: pregnancyId ?? this.pregnancyId,
+      vaccineName: vaccineName ?? this.vaccineName,
+      doseNumber: doseNumber ?? this.doseNumber,
+      pregnancyMonth: pregnancyMonth ?? this.pregnancyMonth,
+      scheduledDate: scheduledDate ?? this.scheduledDate,
+      administeredDate: administeredDate ?? this.administeredDate,
+      status: status ?? this.status,
+      batchNumber: batchNumber ?? this.batchNumber,
+      administeredBy: administeredBy ?? this.administeredBy,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (pregnancyId.present) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId.value);
+    }
+    if (vaccineName.present) {
+      map['vaccine_name'] = Variable<String>(vaccineName.value);
+    }
+    if (doseNumber.present) {
+      map['dose_number'] = Variable<int>(doseNumber.value);
+    }
+    if (pregnancyMonth.present) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth.value);
+    }
+    if (scheduledDate.present) {
+      map['scheduled_date'] = Variable<DateTime>(scheduledDate.value);
+    }
+    if (administeredDate.present) {
+      map['administered_date'] = Variable<DateTime>(administeredDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (batchNumber.present) {
+      map['batch_number'] = Variable<String>(batchNumber.value);
+    }
+    if (administeredBy.present) {
+      map['administered_by'] = Variable<String>(administeredBy.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('VaccinationsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('vaccineName: $vaccineName, ')
+          ..write('doseNumber: $doseNumber, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('scheduledDate: $scheduledDate, ')
+          ..write('administeredDate: $administeredDate, ')
+          ..write('status: $status, ')
+          ..write('batchNumber: $batchNumber, ')
+          ..write('administeredBy: $administeredBy, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReportChecklistsTable extends ReportChecklists
+    with TableInfo<$ReportChecklistsTable, ReportChecklist> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReportChecklistsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pregnancyIdMeta = const VerificationMeta(
+    'pregnancyId',
+  );
+  @override
+  late final GeneratedColumn<String> pregnancyId = GeneratedColumn<String>(
+    'pregnancy_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _reportNameMeta = const VerificationMeta(
+    'reportName',
+  );
+  @override
+  late final GeneratedColumn<String> reportName = GeneratedColumn<String>(
+    'report_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _categoryMeta = const VerificationMeta(
+    'category',
+  );
+  @override
+  late final GeneratedColumn<String> category = GeneratedColumn<String>(
+    'category',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _pregnancyMonthMeta = const VerificationMeta(
+    'pregnancyMonth',
+  );
+  @override
+  late final GeneratedColumn<int> pregnancyMonth = GeneratedColumn<int>(
+    'pregnancy_month',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _isRequiredMeta = const VerificationMeta(
+    'isRequired',
+  );
+  @override
+  late final GeneratedColumn<bool> isRequired = GeneratedColumn<bool>(
+    'is_required',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_required" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _completedDateMeta = const VerificationMeta(
+    'completedDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedDate =
+      GeneratedColumn<DateTime>(
+        'completed_date',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
+  @override
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+    'status',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('pending'),
+  );
+  static const VerificationMeta _filePathMeta = const VerificationMeta(
+    'filePath',
+  );
+  @override
+  late final GeneratedColumn<String> filePath = GeneratedColumn<String>(
+    'file_path',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _resultSummaryMeta = const VerificationMeta(
+    'resultSummary',
+  );
+  @override
+  late final GeneratedColumn<String> resultSummary = GeneratedColumn<String>(
+    'result_summary',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    pregnancyId,
+    reportName,
+    category,
+    pregnancyMonth,
+    isRequired,
+    dueDate,
+    completedDate,
+    status,
+    filePath,
+    resultSummary,
+    notes,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'report_checklists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReportChecklist> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('pregnancy_id')) {
+      context.handle(
+        _pregnancyIdMeta,
+        pregnancyId.isAcceptableOrUnknown(
+          data['pregnancy_id']!,
+          _pregnancyIdMeta,
+        ),
+      );
+    }
+    if (data.containsKey('report_name')) {
+      context.handle(
+        _reportNameMeta,
+        reportName.isAcceptableOrUnknown(data['report_name']!, _reportNameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_reportNameMeta);
+    }
+    if (data.containsKey('category')) {
+      context.handle(
+        _categoryMeta,
+        category.isAcceptableOrUnknown(data['category']!, _categoryMeta),
+      );
+    }
+    if (data.containsKey('pregnancy_month')) {
+      context.handle(
+        _pregnancyMonthMeta,
+        pregnancyMonth.isAcceptableOrUnknown(
+          data['pregnancy_month']!,
+          _pregnancyMonthMeta,
+        ),
+      );
+    }
+    if (data.containsKey('is_required')) {
+      context.handle(
+        _isRequiredMeta,
+        isRequired.isAcceptableOrUnknown(data['is_required']!, _isRequiredMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('completed_date')) {
+      context.handle(
+        _completedDateMeta,
+        completedDate.isAcceptableOrUnknown(
+          data['completed_date']!,
+          _completedDateMeta,
+        ),
+      );
+    }
+    if (data.containsKey('status')) {
+      context.handle(
+        _statusMeta,
+        status.isAcceptableOrUnknown(data['status']!, _statusMeta),
+      );
+    }
+    if (data.containsKey('file_path')) {
+      context.handle(
+        _filePathMeta,
+        filePath.isAcceptableOrUnknown(data['file_path']!, _filePathMeta),
+      );
+    }
+    if (data.containsKey('result_summary')) {
+      context.handle(
+        _resultSummaryMeta,
+        resultSummary.isAcceptableOrUnknown(
+          data['result_summary']!,
+          _resultSummaryMeta,
+        ),
+      );
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReportChecklist map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReportChecklist(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      ),
+      pregnancyId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}pregnancy_id'],
+      ),
+      reportName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_name'],
+      )!,
+      category: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}category'],
+      ),
+      pregnancyMonth: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pregnancy_month'],
+      ),
+      isRequired: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_required'],
+      )!,
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      ),
+      completedDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_date'],
+      ),
+      status: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}status'],
+      )!,
+      filePath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_path'],
+      ),
+      resultSummary: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}result_summary'],
+      ),
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $ReportChecklistsTable createAlias(String alias) {
+    return $ReportChecklistsTable(attachedDatabase, alias);
+  }
+}
+
+class ReportChecklist extends DataClass implements Insertable<ReportChecklist> {
+  final String id;
+  final String? userId;
+  final String? pregnancyId;
+  final String reportName;
+  final String? category;
+
+  /// Pregnancy month (1-10) this test belongs to. Stored rather than derived
+  /// because month arithmetic off the LMP is lossy at month ends.
+  final int? pregnancyMonth;
+
+  /// False for tests a doctor orders only when indicated (TB screening, NST).
+  final bool isRequired;
+  final DateTime? dueDate;
+  final DateTime? completedDate;
+  final String status;
+  final String? filePath;
+  final String? resultSummary;
+  final String? notes;
+  final DateTime createdAt;
+  final int synced;
+  const ReportChecklist({
+    required this.id,
+    this.userId,
+    this.pregnancyId,
+    required this.reportName,
+    this.category,
+    this.pregnancyMonth,
+    required this.isRequired,
+    this.dueDate,
+    this.completedDate,
+    required this.status,
+    this.filePath,
+    this.resultSummary,
+    this.notes,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
+    }
+    if (!nullToAbsent || pregnancyId != null) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId);
+    }
+    map['report_name'] = Variable<String>(reportName);
+    if (!nullToAbsent || category != null) {
+      map['category'] = Variable<String>(category);
+    }
+    if (!nullToAbsent || pregnancyMonth != null) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth);
+    }
+    map['is_required'] = Variable<bool>(isRequired);
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || completedDate != null) {
+      map['completed_date'] = Variable<DateTime>(completedDate);
+    }
+    map['status'] = Variable<String>(status);
+    if (!nullToAbsent || filePath != null) {
+      map['file_path'] = Variable<String>(filePath);
+    }
+    if (!nullToAbsent || resultSummary != null) {
+      map['result_summary'] = Variable<String>(resultSummary);
+    }
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  ReportChecklistsCompanion toCompanion(bool nullToAbsent) {
+    return ReportChecklistsCompanion(
+      id: Value(id),
+      userId: userId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userId),
+      pregnancyId: pregnancyId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyId),
+      reportName: Value(reportName),
+      category: category == null && nullToAbsent
+          ? const Value.absent()
+          : Value(category),
+      pregnancyMonth: pregnancyMonth == null && nullToAbsent
+          ? const Value.absent()
+          : Value(pregnancyMonth),
+      isRequired: Value(isRequired),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      completedDate: completedDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedDate),
+      status: Value(status),
+      filePath: filePath == null && nullToAbsent
+          ? const Value.absent()
+          : Value(filePath),
+      resultSummary: resultSummary == null && nullToAbsent
+          ? const Value.absent()
+          : Value(resultSummary),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory ReportChecklist.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReportChecklist(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String?>(json['userId']),
+      pregnancyId: serializer.fromJson<String?>(json['pregnancyId']),
+      reportName: serializer.fromJson<String>(json['reportName']),
+      category: serializer.fromJson<String?>(json['category']),
+      pregnancyMonth: serializer.fromJson<int?>(json['pregnancyMonth']),
+      isRequired: serializer.fromJson<bool>(json['isRequired']),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      completedDate: serializer.fromJson<DateTime?>(json['completedDate']),
+      status: serializer.fromJson<String>(json['status']),
+      filePath: serializer.fromJson<String?>(json['filePath']),
+      resultSummary: serializer.fromJson<String?>(json['resultSummary']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String?>(userId),
+      'pregnancyId': serializer.toJson<String?>(pregnancyId),
+      'reportName': serializer.toJson<String>(reportName),
+      'category': serializer.toJson<String?>(category),
+      'pregnancyMonth': serializer.toJson<int?>(pregnancyMonth),
+      'isRequired': serializer.toJson<bool>(isRequired),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'completedDate': serializer.toJson<DateTime?>(completedDate),
+      'status': serializer.toJson<String>(status),
+      'filePath': serializer.toJson<String?>(filePath),
+      'resultSummary': serializer.toJson<String?>(resultSummary),
+      'notes': serializer.toJson<String?>(notes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  ReportChecklist copyWith({
+    String? id,
+    Value<String?> userId = const Value.absent(),
+    Value<String?> pregnancyId = const Value.absent(),
+    String? reportName,
+    Value<String?> category = const Value.absent(),
+    Value<int?> pregnancyMonth = const Value.absent(),
+    bool? isRequired,
+    Value<DateTime?> dueDate = const Value.absent(),
+    Value<DateTime?> completedDate = const Value.absent(),
+    String? status,
+    Value<String?> filePath = const Value.absent(),
+    Value<String?> resultSummary = const Value.absent(),
+    Value<String?> notes = const Value.absent(),
+    DateTime? createdAt,
+    int? synced,
+  }) => ReportChecklist(
+    id: id ?? this.id,
+    userId: userId.present ? userId.value : this.userId,
+    pregnancyId: pregnancyId.present ? pregnancyId.value : this.pregnancyId,
+    reportName: reportName ?? this.reportName,
+    category: category.present ? category.value : this.category,
+    pregnancyMonth: pregnancyMonth.present
+        ? pregnancyMonth.value
+        : this.pregnancyMonth,
+    isRequired: isRequired ?? this.isRequired,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    completedDate: completedDate.present
+        ? completedDate.value
+        : this.completedDate,
+    status: status ?? this.status,
+    filePath: filePath.present ? filePath.value : this.filePath,
+    resultSummary: resultSummary.present
+        ? resultSummary.value
+        : this.resultSummary,
+    notes: notes.present ? notes.value : this.notes,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  ReportChecklist copyWithCompanion(ReportChecklistsCompanion data) {
+    return ReportChecklist(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      pregnancyId: data.pregnancyId.present
+          ? data.pregnancyId.value
+          : this.pregnancyId,
+      reportName: data.reportName.present
+          ? data.reportName.value
+          : this.reportName,
+      category: data.category.present ? data.category.value : this.category,
+      pregnancyMonth: data.pregnancyMonth.present
+          ? data.pregnancyMonth.value
+          : this.pregnancyMonth,
+      isRequired: data.isRequired.present
+          ? data.isRequired.value
+          : this.isRequired,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      completedDate: data.completedDate.present
+          ? data.completedDate.value
+          : this.completedDate,
+      status: data.status.present ? data.status.value : this.status,
+      filePath: data.filePath.present ? data.filePath.value : this.filePath,
+      resultSummary: data.resultSummary.present
+          ? data.resultSummary.value
+          : this.resultSummary,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReportChecklist(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('reportName: $reportName, ')
+          ..write('category: $category, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('isRequired: $isRequired, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('completedDate: $completedDate, ')
+          ..write('status: $status, ')
+          ..write('filePath: $filePath, ')
+          ..write('resultSummary: $resultSummary, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    pregnancyId,
+    reportName,
+    category,
+    pregnancyMonth,
+    isRequired,
+    dueDate,
+    completedDate,
+    status,
+    filePath,
+    resultSummary,
+    notes,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReportChecklist &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.pregnancyId == this.pregnancyId &&
+          other.reportName == this.reportName &&
+          other.category == this.category &&
+          other.pregnancyMonth == this.pregnancyMonth &&
+          other.isRequired == this.isRequired &&
+          other.dueDate == this.dueDate &&
+          other.completedDate == this.completedDate &&
+          other.status == this.status &&
+          other.filePath == this.filePath &&
+          other.resultSummary == this.resultSummary &&
+          other.notes == this.notes &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class ReportChecklistsCompanion extends UpdateCompanion<ReportChecklist> {
+  final Value<String> id;
+  final Value<String?> userId;
+  final Value<String?> pregnancyId;
+  final Value<String> reportName;
+  final Value<String?> category;
+  final Value<int?> pregnancyMonth;
+  final Value<bool> isRequired;
+  final Value<DateTime?> dueDate;
+  final Value<DateTime?> completedDate;
+  final Value<String> status;
+  final Value<String?> filePath;
+  final Value<String?> resultSummary;
+  final Value<String?> notes;
+  final Value<DateTime> createdAt;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const ReportChecklistsCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.pregnancyId = const Value.absent(),
+    this.reportName = const Value.absent(),
+    this.category = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    this.isRequired = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.completedDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.resultSummary = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReportChecklistsCompanion.insert({
+    required String id,
+    this.userId = const Value.absent(),
+    this.pregnancyId = const Value.absent(),
+    required String reportName,
+    this.category = const Value.absent(),
+    this.pregnancyMonth = const Value.absent(),
+    this.isRequired = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.completedDate = const Value.absent(),
+    this.status = const Value.absent(),
+    this.filePath = const Value.absent(),
+    this.resultSummary = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       reportName = Value(reportName);
+  static Insertable<ReportChecklist> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? pregnancyId,
+    Expression<String>? reportName,
+    Expression<String>? category,
+    Expression<int>? pregnancyMonth,
+    Expression<bool>? isRequired,
+    Expression<DateTime>? dueDate,
+    Expression<DateTime>? completedDate,
+    Expression<String>? status,
+    Expression<String>? filePath,
+    Expression<String>? resultSummary,
+    Expression<String>? notes,
+    Expression<DateTime>? createdAt,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (pregnancyId != null) 'pregnancy_id': pregnancyId,
+      if (reportName != null) 'report_name': reportName,
+      if (category != null) 'category': category,
+      if (pregnancyMonth != null) 'pregnancy_month': pregnancyMonth,
+      if (isRequired != null) 'is_required': isRequired,
+      if (dueDate != null) 'due_date': dueDate,
+      if (completedDate != null) 'completed_date': completedDate,
+      if (status != null) 'status': status,
+      if (filePath != null) 'file_path': filePath,
+      if (resultSummary != null) 'result_summary': resultSummary,
+      if (notes != null) 'notes': notes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReportChecklistsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? userId,
+    Value<String?>? pregnancyId,
+    Value<String>? reportName,
+    Value<String?>? category,
+    Value<int?>? pregnancyMonth,
+    Value<bool>? isRequired,
+    Value<DateTime?>? dueDate,
+    Value<DateTime?>? completedDate,
+    Value<String>? status,
+    Value<String?>? filePath,
+    Value<String?>? resultSummary,
+    Value<String?>? notes,
+    Value<DateTime>? createdAt,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return ReportChecklistsCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      pregnancyId: pregnancyId ?? this.pregnancyId,
+      reportName: reportName ?? this.reportName,
+      category: category ?? this.category,
+      pregnancyMonth: pregnancyMonth ?? this.pregnancyMonth,
+      isRequired: isRequired ?? this.isRequired,
+      dueDate: dueDate ?? this.dueDate,
+      completedDate: completedDate ?? this.completedDate,
+      status: status ?? this.status,
+      filePath: filePath ?? this.filePath,
+      resultSummary: resultSummary ?? this.resultSummary,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (pregnancyId.present) {
+      map['pregnancy_id'] = Variable<String>(pregnancyId.value);
+    }
+    if (reportName.present) {
+      map['report_name'] = Variable<String>(reportName.value);
+    }
+    if (category.present) {
+      map['category'] = Variable<String>(category.value);
+    }
+    if (pregnancyMonth.present) {
+      map['pregnancy_month'] = Variable<int>(pregnancyMonth.value);
+    }
+    if (isRequired.present) {
+      map['is_required'] = Variable<bool>(isRequired.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (completedDate.present) {
+      map['completed_date'] = Variable<DateTime>(completedDate.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (filePath.present) {
+      map['file_path'] = Variable<String>(filePath.value);
+    }
+    if (resultSummary.present) {
+      map['result_summary'] = Variable<String>(resultSummary.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReportChecklistsCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('pregnancyId: $pregnancyId, ')
+          ..write('reportName: $reportName, ')
+          ..write('category: $category, ')
+          ..write('pregnancyMonth: $pregnancyMonth, ')
+          ..write('isRequired: $isRequired, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('completedDate: $completedDate, ')
+          ..write('status: $status, ')
+          ..write('filePath: $filePath, ')
+          ..write('resultSummary: $resultSummary, ')
+          ..write('notes: $notes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $ReportAttachmentsTable extends ReportAttachments
+    with TableInfo<$ReportAttachmentsTable, ReportAttachment> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $ReportAttachmentsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reportIdMeta = const VerificationMeta(
+    'reportId',
+  );
+  @override
+  late final GeneratedColumn<String> reportId = GeneratedColumn<String>(
+    'report_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _localPathMeta = const VerificationMeta(
+    'localPath',
+  );
+  @override
+  late final GeneratedColumn<String> localPath = GeneratedColumn<String>(
+    'local_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _cloudUrlMeta = const VerificationMeta(
+    'cloudUrl',
+  );
+  @override
+  late final GeneratedColumn<String> cloudUrl = GeneratedColumn<String>(
+    'cloud_url',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileNameMeta = const VerificationMeta(
+    'fileName',
+  );
+  @override
+  late final GeneratedColumn<String> fileName = GeneratedColumn<String>(
+    'file_name',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _mimeTypeMeta = const VerificationMeta(
+    'mimeType',
+  );
+  @override
+  late final GeneratedColumn<String> mimeType = GeneratedColumn<String>(
+    'mime_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _fileSizeBytesMeta = const VerificationMeta(
+    'fileSizeBytes',
+  );
+  @override
+  late final GeneratedColumn<int> fileSizeBytes = GeneratedColumn<int>(
+    'file_size_bytes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    reportId,
+    localPath,
+    cloudUrl,
+    fileName,
+    mimeType,
+    fileSizeBytes,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'report_attachments';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<ReportAttachment> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('report_id')) {
+      context.handle(
+        _reportIdMeta,
+        reportId.isAcceptableOrUnknown(data['report_id']!, _reportIdMeta),
+      );
+    }
+    if (data.containsKey('local_path')) {
+      context.handle(
+        _localPathMeta,
+        localPath.isAcceptableOrUnknown(data['local_path']!, _localPathMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_localPathMeta);
+    }
+    if (data.containsKey('cloud_url')) {
+      context.handle(
+        _cloudUrlMeta,
+        cloudUrl.isAcceptableOrUnknown(data['cloud_url']!, _cloudUrlMeta),
+      );
+    }
+    if (data.containsKey('file_name')) {
+      context.handle(
+        _fileNameMeta,
+        fileName.isAcceptableOrUnknown(data['file_name']!, _fileNameMeta),
+      );
+    }
+    if (data.containsKey('mime_type')) {
+      context.handle(
+        _mimeTypeMeta,
+        mimeType.isAcceptableOrUnknown(data['mime_type']!, _mimeTypeMeta),
+      );
+    }
+    if (data.containsKey('file_size_bytes')) {
+      context.handle(
+        _fileSizeBytesMeta,
+        fileSizeBytes.isAcceptableOrUnknown(
+          data['file_size_bytes']!,
+          _fileSizeBytesMeta,
+        ),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  ReportAttachment map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return ReportAttachment(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      reportId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}report_id'],
+      ),
+      localPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}local_path'],
+      )!,
+      cloudUrl: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cloud_url'],
+      ),
+      fileName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}file_name'],
+      ),
+      mimeType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}mime_type'],
+      ),
+      fileSizeBytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}file_size_bytes'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $ReportAttachmentsTable createAlias(String alias) {
+    return $ReportAttachmentsTable(attachedDatabase, alias);
+  }
+}
+
+class ReportAttachment extends DataClass
+    implements Insertable<ReportAttachment> {
+  final String id;
+  final String? reportId;
+  final String localPath;
+  final String? cloudUrl;
+  final String? fileName;
+  final String? mimeType;
+  final int? fileSizeBytes;
+  final DateTime createdAt;
+  final int synced;
+  const ReportAttachment({
+    required this.id,
+    this.reportId,
+    required this.localPath,
+    this.cloudUrl,
+    this.fileName,
+    this.mimeType,
+    this.fileSizeBytes,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || reportId != null) {
+      map['report_id'] = Variable<String>(reportId);
+    }
+    map['local_path'] = Variable<String>(localPath);
+    if (!nullToAbsent || cloudUrl != null) {
+      map['cloud_url'] = Variable<String>(cloudUrl);
+    }
+    if (!nullToAbsent || fileName != null) {
+      map['file_name'] = Variable<String>(fileName);
+    }
+    if (!nullToAbsent || mimeType != null) {
+      map['mime_type'] = Variable<String>(mimeType);
+    }
+    if (!nullToAbsent || fileSizeBytes != null) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  ReportAttachmentsCompanion toCompanion(bool nullToAbsent) {
+    return ReportAttachmentsCompanion(
+      id: Value(id),
+      reportId: reportId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reportId),
+      localPath: Value(localPath),
+      cloudUrl: cloudUrl == null && nullToAbsent
+          ? const Value.absent()
+          : Value(cloudUrl),
+      fileName: fileName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileName),
+      mimeType: mimeType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(mimeType),
+      fileSizeBytes: fileSizeBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(fileSizeBytes),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory ReportAttachment.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return ReportAttachment(
+      id: serializer.fromJson<String>(json['id']),
+      reportId: serializer.fromJson<String?>(json['reportId']),
+      localPath: serializer.fromJson<String>(json['localPath']),
+      cloudUrl: serializer.fromJson<String?>(json['cloudUrl']),
+      fileName: serializer.fromJson<String?>(json['fileName']),
+      mimeType: serializer.fromJson<String?>(json['mimeType']),
+      fileSizeBytes: serializer.fromJson<int?>(json['fileSizeBytes']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'reportId': serializer.toJson<String?>(reportId),
+      'localPath': serializer.toJson<String>(localPath),
+      'cloudUrl': serializer.toJson<String?>(cloudUrl),
+      'fileName': serializer.toJson<String?>(fileName),
+      'mimeType': serializer.toJson<String?>(mimeType),
+      'fileSizeBytes': serializer.toJson<int?>(fileSizeBytes),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  ReportAttachment copyWith({
+    String? id,
+    Value<String?> reportId = const Value.absent(),
+    String? localPath,
+    Value<String?> cloudUrl = const Value.absent(),
+    Value<String?> fileName = const Value.absent(),
+    Value<String?> mimeType = const Value.absent(),
+    Value<int?> fileSizeBytes = const Value.absent(),
+    DateTime? createdAt,
+    int? synced,
+  }) => ReportAttachment(
+    id: id ?? this.id,
+    reportId: reportId.present ? reportId.value : this.reportId,
+    localPath: localPath ?? this.localPath,
+    cloudUrl: cloudUrl.present ? cloudUrl.value : this.cloudUrl,
+    fileName: fileName.present ? fileName.value : this.fileName,
+    mimeType: mimeType.present ? mimeType.value : this.mimeType,
+    fileSizeBytes: fileSizeBytes.present
+        ? fileSizeBytes.value
+        : this.fileSizeBytes,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  ReportAttachment copyWithCompanion(ReportAttachmentsCompanion data) {
+    return ReportAttachment(
+      id: data.id.present ? data.id.value : this.id,
+      reportId: data.reportId.present ? data.reportId.value : this.reportId,
+      localPath: data.localPath.present ? data.localPath.value : this.localPath,
+      cloudUrl: data.cloudUrl.present ? data.cloudUrl.value : this.cloudUrl,
+      fileName: data.fileName.present ? data.fileName.value : this.fileName,
+      mimeType: data.mimeType.present ? data.mimeType.value : this.mimeType,
+      fileSizeBytes: data.fileSizeBytes.present
+          ? data.fileSizeBytes.value
+          : this.fileSizeBytes,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReportAttachment(')
+          ..write('id: $id, ')
+          ..write('reportId: $reportId, ')
+          ..write('localPath: $localPath, ')
+          ..write('cloudUrl: $cloudUrl, ')
+          ..write('fileName: $fileName, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    reportId,
+    localPath,
+    cloudUrl,
+    fileName,
+    mimeType,
+    fileSizeBytes,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is ReportAttachment &&
+          other.id == this.id &&
+          other.reportId == this.reportId &&
+          other.localPath == this.localPath &&
+          other.cloudUrl == this.cloudUrl &&
+          other.fileName == this.fileName &&
+          other.mimeType == this.mimeType &&
+          other.fileSizeBytes == this.fileSizeBytes &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class ReportAttachmentsCompanion extends UpdateCompanion<ReportAttachment> {
+  final Value<String> id;
+  final Value<String?> reportId;
+  final Value<String> localPath;
+  final Value<String?> cloudUrl;
+  final Value<String?> fileName;
+  final Value<String?> mimeType;
+  final Value<int?> fileSizeBytes;
+  final Value<DateTime> createdAt;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const ReportAttachmentsCompanion({
+    this.id = const Value.absent(),
+    this.reportId = const Value.absent(),
+    this.localPath = const Value.absent(),
+    this.cloudUrl = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  ReportAttachmentsCompanion.insert({
+    required String id,
+    this.reportId = const Value.absent(),
+    required String localPath,
+    this.cloudUrl = const Value.absent(),
+    this.fileName = const Value.absent(),
+    this.mimeType = const Value.absent(),
+    this.fileSizeBytes = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       localPath = Value(localPath);
+  static Insertable<ReportAttachment> custom({
+    Expression<String>? id,
+    Expression<String>? reportId,
+    Expression<String>? localPath,
+    Expression<String>? cloudUrl,
+    Expression<String>? fileName,
+    Expression<String>? mimeType,
+    Expression<int>? fileSizeBytes,
+    Expression<DateTime>? createdAt,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (reportId != null) 'report_id': reportId,
+      if (localPath != null) 'local_path': localPath,
+      if (cloudUrl != null) 'cloud_url': cloudUrl,
+      if (fileName != null) 'file_name': fileName,
+      if (mimeType != null) 'mime_type': mimeType,
+      if (fileSizeBytes != null) 'file_size_bytes': fileSizeBytes,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  ReportAttachmentsCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? reportId,
+    Value<String>? localPath,
+    Value<String?>? cloudUrl,
+    Value<String?>? fileName,
+    Value<String?>? mimeType,
+    Value<int?>? fileSizeBytes,
+    Value<DateTime>? createdAt,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return ReportAttachmentsCompanion(
+      id: id ?? this.id,
+      reportId: reportId ?? this.reportId,
+      localPath: localPath ?? this.localPath,
+      cloudUrl: cloudUrl ?? this.cloudUrl,
+      fileName: fileName ?? this.fileName,
+      mimeType: mimeType ?? this.mimeType,
+      fileSizeBytes: fileSizeBytes ?? this.fileSizeBytes,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (reportId.present) {
+      map['report_id'] = Variable<String>(reportId.value);
+    }
+    if (localPath.present) {
+      map['local_path'] = Variable<String>(localPath.value);
+    }
+    if (cloudUrl.present) {
+      map['cloud_url'] = Variable<String>(cloudUrl.value);
+    }
+    if (fileName.present) {
+      map['file_name'] = Variable<String>(fileName.value);
+    }
+    if (mimeType.present) {
+      map['mime_type'] = Variable<String>(mimeType.value);
+    }
+    if (fileSizeBytes.present) {
+      map['file_size_bytes'] = Variable<int>(fileSizeBytes.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('ReportAttachmentsCompanion(')
+          ..write('id: $id, ')
+          ..write('reportId: $reportId, ')
+          ..write('localPath: $localPath, ')
+          ..write('cloudUrl: $cloudUrl, ')
+          ..write('fileName: $fileName, ')
+          ..write('mimeType: $mimeType, ')
+          ..write('fileSizeBytes: $fileSizeBytes, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $RemindersTable extends Reminders
+    with TableInfo<$RemindersTable, Reminder> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $RemindersTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _reminderTypeMeta = const VerificationMeta(
+    'reminderType',
+  );
+  @override
+  late final GeneratedColumn<String> reminderType = GeneratedColumn<String>(
+    'reminder_type',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _frequencyMeta = const VerificationMeta(
+    'frequency',
+  );
+  @override
+  late final GeneratedColumn<String> frequency = GeneratedColumn<String>(
+    'frequency',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('Daily'),
+  );
+  static const VerificationMeta _hourMeta = const VerificationMeta('hour');
+  @override
+  late final GeneratedColumn<int> hour = GeneratedColumn<int>(
+    'hour',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _minuteMeta = const VerificationMeta('minute');
+  @override
+  late final GeneratedColumn<int> minute = GeneratedColumn<int>(
+    'minute',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _channelsMeta = const VerificationMeta(
+    'channels',
+  );
+  @override
+  late final GeneratedColumn<String> channels = GeneratedColumn<String>(
+    'channels',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _enabledMeta = const VerificationMeta(
+    'enabled',
+  );
+  @override
+  late final GeneratedColumn<bool> enabled = GeneratedColumn<bool>(
+    'enabled',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("enabled" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _configurableMeta = const VerificationMeta(
+    'configurable',
+  );
+  @override
+  late final GeneratedColumn<bool> configurable = GeneratedColumn<bool>(
+    'configurable',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("configurable" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  static const VerificationMeta _startDateMeta = const VerificationMeta(
+    'startDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> startDate = GeneratedColumn<DateTime>(
+    'start_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _endDateMeta = const VerificationMeta(
+    'endDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> endDate = GeneratedColumn<DateTime>(
+    'end_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  static const VerificationMeta _syncedMeta = const VerificationMeta('synced');
+  @override
+  late final GeneratedColumn<int> synced = GeneratedColumn<int>(
+    'synced',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    userId,
+    title,
+    reminderType,
+    frequency,
+    hour,
+    minute,
+    channels,
+    enabled,
+    configurable,
+    startDate,
+    endDate,
+    createdAt,
+    synced,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'reminders';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Reminder> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('reminder_type')) {
+      context.handle(
+        _reminderTypeMeta,
+        reminderType.isAcceptableOrUnknown(
+          data['reminder_type']!,
+          _reminderTypeMeta,
+        ),
+      );
+    }
+    if (data.containsKey('frequency')) {
+      context.handle(
+        _frequencyMeta,
+        frequency.isAcceptableOrUnknown(data['frequency']!, _frequencyMeta),
+      );
+    }
+    if (data.containsKey('hour')) {
+      context.handle(
+        _hourMeta,
+        hour.isAcceptableOrUnknown(data['hour']!, _hourMeta),
+      );
+    }
+    if (data.containsKey('minute')) {
+      context.handle(
+        _minuteMeta,
+        minute.isAcceptableOrUnknown(data['minute']!, _minuteMeta),
+      );
+    }
+    if (data.containsKey('channels')) {
+      context.handle(
+        _channelsMeta,
+        channels.isAcceptableOrUnknown(data['channels']!, _channelsMeta),
+      );
+    }
+    if (data.containsKey('enabled')) {
+      context.handle(
+        _enabledMeta,
+        enabled.isAcceptableOrUnknown(data['enabled']!, _enabledMeta),
+      );
+    }
+    if (data.containsKey('configurable')) {
+      context.handle(
+        _configurableMeta,
+        configurable.isAcceptableOrUnknown(
+          data['configurable']!,
+          _configurableMeta,
+        ),
+      );
+    }
+    if (data.containsKey('start_date')) {
+      context.handle(
+        _startDateMeta,
+        startDate.isAcceptableOrUnknown(data['start_date']!, _startDateMeta),
+      );
+    }
+    if (data.containsKey('end_date')) {
+      context.handle(
+        _endDateMeta,
+        endDate.isAcceptableOrUnknown(data['end_date']!, _endDateMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
+    if (data.containsKey('synced')) {
+      context.handle(
+        _syncedMeta,
+        synced.isAcceptableOrUnknown(data['synced']!, _syncedMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Reminder map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Reminder(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      ),
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      reminderType: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}reminder_type'],
+      ),
+      frequency: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}frequency'],
+      )!,
+      hour: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}hour'],
+      ),
+      minute: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}minute'],
+      ),
+      channels: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}channels'],
+      ),
+      enabled: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}enabled'],
+      )!,
+      configurable: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}configurable'],
+      )!,
+      startDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}start_date'],
+      ),
+      endDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}end_date'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      synced: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}synced'],
+      )!,
+    );
+  }
+
+  @override
+  $RemindersTable createAlias(String alias) {
+    return $RemindersTable(attachedDatabase, alias);
+  }
+}
+
+class Reminder extends DataClass implements Insertable<Reminder> {
+  final String id;
+  final String? userId;
+  final String title;
+  final String? reminderType;
+  final String frequency;
+  final int? hour;
+  final int? minute;
+  final String? channels;
+  final bool enabled;
+  final bool configurable;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final DateTime createdAt;
+  final int synced;
+  const Reminder({
+    required this.id,
+    this.userId,
+    required this.title,
+    this.reminderType,
+    required this.frequency,
+    this.hour,
+    this.minute,
+    this.channels,
+    required this.enabled,
+    required this.configurable,
+    this.startDate,
+    this.endDate,
+    required this.createdAt,
+    required this.synced,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    if (!nullToAbsent || userId != null) {
+      map['user_id'] = Variable<String>(userId);
+    }
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || reminderType != null) {
+      map['reminder_type'] = Variable<String>(reminderType);
+    }
+    map['frequency'] = Variable<String>(frequency);
+    if (!nullToAbsent || hour != null) {
+      map['hour'] = Variable<int>(hour);
+    }
+    if (!nullToAbsent || minute != null) {
+      map['minute'] = Variable<int>(minute);
+    }
+    if (!nullToAbsent || channels != null) {
+      map['channels'] = Variable<String>(channels);
+    }
+    map['enabled'] = Variable<bool>(enabled);
+    map['configurable'] = Variable<bool>(configurable);
+    if (!nullToAbsent || startDate != null) {
+      map['start_date'] = Variable<DateTime>(startDate);
+    }
+    if (!nullToAbsent || endDate != null) {
+      map['end_date'] = Variable<DateTime>(endDate);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['synced'] = Variable<int>(synced);
+    return map;
+  }
+
+  RemindersCompanion toCompanion(bool nullToAbsent) {
+    return RemindersCompanion(
+      id: Value(id),
+      userId: userId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(userId),
+      title: Value(title),
+      reminderType: reminderType == null && nullToAbsent
+          ? const Value.absent()
+          : Value(reminderType),
+      frequency: Value(frequency),
+      hour: hour == null && nullToAbsent ? const Value.absent() : Value(hour),
+      minute: minute == null && nullToAbsent
+          ? const Value.absent()
+          : Value(minute),
+      channels: channels == null && nullToAbsent
+          ? const Value.absent()
+          : Value(channels),
+      enabled: Value(enabled),
+      configurable: Value(configurable),
+      startDate: startDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(startDate),
+      endDate: endDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(endDate),
+      createdAt: Value(createdAt),
+      synced: Value(synced),
+    );
+  }
+
+  factory Reminder.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Reminder(
+      id: serializer.fromJson<String>(json['id']),
+      userId: serializer.fromJson<String?>(json['userId']),
+      title: serializer.fromJson<String>(json['title']),
+      reminderType: serializer.fromJson<String?>(json['reminderType']),
+      frequency: serializer.fromJson<String>(json['frequency']),
+      hour: serializer.fromJson<int?>(json['hour']),
+      minute: serializer.fromJson<int?>(json['minute']),
+      channels: serializer.fromJson<String?>(json['channels']),
+      enabled: serializer.fromJson<bool>(json['enabled']),
+      configurable: serializer.fromJson<bool>(json['configurable']),
+      startDate: serializer.fromJson<DateTime?>(json['startDate']),
+      endDate: serializer.fromJson<DateTime?>(json['endDate']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      synced: serializer.fromJson<int>(json['synced']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'userId': serializer.toJson<String?>(userId),
+      'title': serializer.toJson<String>(title),
+      'reminderType': serializer.toJson<String?>(reminderType),
+      'frequency': serializer.toJson<String>(frequency),
+      'hour': serializer.toJson<int?>(hour),
+      'minute': serializer.toJson<int?>(minute),
+      'channels': serializer.toJson<String?>(channels),
+      'enabled': serializer.toJson<bool>(enabled),
+      'configurable': serializer.toJson<bool>(configurable),
+      'startDate': serializer.toJson<DateTime?>(startDate),
+      'endDate': serializer.toJson<DateTime?>(endDate),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'synced': serializer.toJson<int>(synced),
+    };
+  }
+
+  Reminder copyWith({
+    String? id,
+    Value<String?> userId = const Value.absent(),
+    String? title,
+    Value<String?> reminderType = const Value.absent(),
+    String? frequency,
+    Value<int?> hour = const Value.absent(),
+    Value<int?> minute = const Value.absent(),
+    Value<String?> channels = const Value.absent(),
+    bool? enabled,
+    bool? configurable,
+    Value<DateTime?> startDate = const Value.absent(),
+    Value<DateTime?> endDate = const Value.absent(),
+    DateTime? createdAt,
+    int? synced,
+  }) => Reminder(
+    id: id ?? this.id,
+    userId: userId.present ? userId.value : this.userId,
+    title: title ?? this.title,
+    reminderType: reminderType.present ? reminderType.value : this.reminderType,
+    frequency: frequency ?? this.frequency,
+    hour: hour.present ? hour.value : this.hour,
+    minute: minute.present ? minute.value : this.minute,
+    channels: channels.present ? channels.value : this.channels,
+    enabled: enabled ?? this.enabled,
+    configurable: configurable ?? this.configurable,
+    startDate: startDate.present ? startDate.value : this.startDate,
+    endDate: endDate.present ? endDate.value : this.endDate,
+    createdAt: createdAt ?? this.createdAt,
+    synced: synced ?? this.synced,
+  );
+  Reminder copyWithCompanion(RemindersCompanion data) {
+    return Reminder(
+      id: data.id.present ? data.id.value : this.id,
+      userId: data.userId.present ? data.userId.value : this.userId,
+      title: data.title.present ? data.title.value : this.title,
+      reminderType: data.reminderType.present
+          ? data.reminderType.value
+          : this.reminderType,
+      frequency: data.frequency.present ? data.frequency.value : this.frequency,
+      hour: data.hour.present ? data.hour.value : this.hour,
+      minute: data.minute.present ? data.minute.value : this.minute,
+      channels: data.channels.present ? data.channels.value : this.channels,
+      enabled: data.enabled.present ? data.enabled.value : this.enabled,
+      configurable: data.configurable.present
+          ? data.configurable.value
+          : this.configurable,
+      startDate: data.startDate.present ? data.startDate.value : this.startDate,
+      endDate: data.endDate.present ? data.endDate.value : this.endDate,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      synced: data.synced.present ? data.synced.value : this.synced,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Reminder(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('reminderType: $reminderType, ')
+          ..write('frequency: $frequency, ')
+          ..write('hour: $hour, ')
+          ..write('minute: $minute, ')
+          ..write('channels: $channels, ')
+          ..write('enabled: $enabled, ')
+          ..write('configurable: $configurable, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    userId,
+    title,
+    reminderType,
+    frequency,
+    hour,
+    minute,
+    channels,
+    enabled,
+    configurable,
+    startDate,
+    endDate,
+    createdAt,
+    synced,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Reminder &&
+          other.id == this.id &&
+          other.userId == this.userId &&
+          other.title == this.title &&
+          other.reminderType == this.reminderType &&
+          other.frequency == this.frequency &&
+          other.hour == this.hour &&
+          other.minute == this.minute &&
+          other.channels == this.channels &&
+          other.enabled == this.enabled &&
+          other.configurable == this.configurable &&
+          other.startDate == this.startDate &&
+          other.endDate == this.endDate &&
+          other.createdAt == this.createdAt &&
+          other.synced == this.synced);
+}
+
+class RemindersCompanion extends UpdateCompanion<Reminder> {
+  final Value<String> id;
+  final Value<String?> userId;
+  final Value<String> title;
+  final Value<String?> reminderType;
+  final Value<String> frequency;
+  final Value<int?> hour;
+  final Value<int?> minute;
+  final Value<String?> channels;
+  final Value<bool> enabled;
+  final Value<bool> configurable;
+  final Value<DateTime?> startDate;
+  final Value<DateTime?> endDate;
+  final Value<DateTime> createdAt;
+  final Value<int> synced;
+  final Value<int> rowid;
+  const RemindersCompanion({
+    this.id = const Value.absent(),
+    this.userId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.reminderType = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.hour = const Value.absent(),
+    this.minute = const Value.absent(),
+    this.channels = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.configurable = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  RemindersCompanion.insert({
+    required String id,
+    this.userId = const Value.absent(),
+    required String title,
+    this.reminderType = const Value.absent(),
+    this.frequency = const Value.absent(),
+    this.hour = const Value.absent(),
+    this.minute = const Value.absent(),
+    this.channels = const Value.absent(),
+    this.enabled = const Value.absent(),
+    this.configurable = const Value.absent(),
+    this.startDate = const Value.absent(),
+    this.endDate = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.synced = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title);
+  static Insertable<Reminder> custom({
+    Expression<String>? id,
+    Expression<String>? userId,
+    Expression<String>? title,
+    Expression<String>? reminderType,
+    Expression<String>? frequency,
+    Expression<int>? hour,
+    Expression<int>? minute,
+    Expression<String>? channels,
+    Expression<bool>? enabled,
+    Expression<bool>? configurable,
+    Expression<DateTime>? startDate,
+    Expression<DateTime>? endDate,
+    Expression<DateTime>? createdAt,
+    Expression<int>? synced,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (userId != null) 'user_id': userId,
+      if (title != null) 'title': title,
+      if (reminderType != null) 'reminder_type': reminderType,
+      if (frequency != null) 'frequency': frequency,
+      if (hour != null) 'hour': hour,
+      if (minute != null) 'minute': minute,
+      if (channels != null) 'channels': channels,
+      if (enabled != null) 'enabled': enabled,
+      if (configurable != null) 'configurable': configurable,
+      if (startDate != null) 'start_date': startDate,
+      if (endDate != null) 'end_date': endDate,
+      if (createdAt != null) 'created_at': createdAt,
+      if (synced != null) 'synced': synced,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  RemindersCompanion copyWith({
+    Value<String>? id,
+    Value<String?>? userId,
+    Value<String>? title,
+    Value<String?>? reminderType,
+    Value<String>? frequency,
+    Value<int?>? hour,
+    Value<int?>? minute,
+    Value<String?>? channels,
+    Value<bool>? enabled,
+    Value<bool>? configurable,
+    Value<DateTime?>? startDate,
+    Value<DateTime?>? endDate,
+    Value<DateTime>? createdAt,
+    Value<int>? synced,
+    Value<int>? rowid,
+  }) {
+    return RemindersCompanion(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      reminderType: reminderType ?? this.reminderType,
+      frequency: frequency ?? this.frequency,
+      hour: hour ?? this.hour,
+      minute: minute ?? this.minute,
+      channels: channels ?? this.channels,
+      enabled: enabled ?? this.enabled,
+      configurable: configurable ?? this.configurable,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      createdAt: createdAt ?? this.createdAt,
+      synced: synced ?? this.synced,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (reminderType.present) {
+      map['reminder_type'] = Variable<String>(reminderType.value);
+    }
+    if (frequency.present) {
+      map['frequency'] = Variable<String>(frequency.value);
+    }
+    if (hour.present) {
+      map['hour'] = Variable<int>(hour.value);
+    }
+    if (minute.present) {
+      map['minute'] = Variable<int>(minute.value);
+    }
+    if (channels.present) {
+      map['channels'] = Variable<String>(channels.value);
+    }
+    if (enabled.present) {
+      map['enabled'] = Variable<bool>(enabled.value);
+    }
+    if (configurable.present) {
+      map['configurable'] = Variable<bool>(configurable.value);
+    }
+    if (startDate.present) {
+      map['start_date'] = Variable<DateTime>(startDate.value);
+    }
+    if (endDate.present) {
+      map['end_date'] = Variable<DateTime>(endDate.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (synced.present) {
+      map['synced'] = Variable<int>(synced.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('RemindersCompanion(')
+          ..write('id: $id, ')
+          ..write('userId: $userId, ')
+          ..write('title: $title, ')
+          ..write('reminderType: $reminderType, ')
+          ..write('frequency: $frequency, ')
+          ..write('hour: $hour, ')
+          ..write('minute: $minute, ')
+          ..write('channels: $channels, ')
+          ..write('enabled: $enabled, ')
+          ..write('configurable: $configurable, ')
+          ..write('startDate: $startDate, ')
+          ..write('endDate: $endDate, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('synced: $synced, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDriftDatabase extends GeneratedDatabase {
   _$AppDriftDatabase(QueryExecutor e) : super(e);
   $AppDriftDatabaseManager get managers => $AppDriftDatabaseManager(this);
@@ -10612,6 +14584,15 @@ abstract class _$AppDriftDatabase extends GeneratedDatabase {
       $PrescriptionMedicineTimingsTable(this);
   late final $ReportsTable reports = $ReportsTable(this);
   late final $VitalsTable vitals = $VitalsTable(this);
+  late final $PregnancyAncScheduleTable pregnancyAncSchedule =
+      $PregnancyAncScheduleTable(this);
+  late final $VaccinationsTable vaccinations = $VaccinationsTable(this);
+  late final $ReportChecklistsTable reportChecklists = $ReportChecklistsTable(
+    this,
+  );
+  late final $ReportAttachmentsTable reportAttachments =
+      $ReportAttachmentsTable(this);
+  late final $RemindersTable reminders = $RemindersTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -10632,6 +14613,11 @@ abstract class _$AppDriftDatabase extends GeneratedDatabase {
     prescriptionMedicineTimings,
     reports,
     vitals,
+    pregnancyAncSchedule,
+    vaccinations,
+    reportChecklists,
+    reportAttachments,
+    reminders,
   ];
 }
 
@@ -15724,6 +19710,1890 @@ typedef $$VitalsTableProcessedTableManager =
       Vital,
       PrefetchHooks Function()
     >;
+typedef $$PregnancyAncScheduleTableCreateCompanionBuilder =
+    PregnancyAncScheduleCompanion Function({
+      required String id,
+      Value<String?> pregnancyId,
+      Value<int> visitNumber,
+      Value<int?> trimester,
+      Value<int?> pregnancyMonth,
+      required DateTime scheduledDate,
+      Value<DateTime?> actualDate,
+      Value<String> status,
+      Value<double?> weightKg,
+      Value<String?> bp,
+      Value<double?> fundalHeightCm,
+      Value<int?> fetalHeartRate,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$PregnancyAncScheduleTableUpdateCompanionBuilder =
+    PregnancyAncScheduleCompanion Function({
+      Value<String> id,
+      Value<String?> pregnancyId,
+      Value<int> visitNumber,
+      Value<int?> trimester,
+      Value<int?> pregnancyMonth,
+      Value<DateTime> scheduledDate,
+      Value<DateTime?> actualDate,
+      Value<String> status,
+      Value<double?> weightKg,
+      Value<String?> bp,
+      Value<double?> fundalHeightCm,
+      Value<int?> fetalHeartRate,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$PregnancyAncScheduleTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $PregnancyAncScheduleTable> {
+  $$PregnancyAncScheduleTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get visitNumber => $composableBuilder(
+    column: $table.visitNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get trimester => $composableBuilder(
+    column: $table.trimester,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get actualDate => $composableBuilder(
+    column: $table.actualDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get bp => $composableBuilder(
+    column: $table.bp,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<double> get fundalHeightCm => $composableBuilder(
+    column: $table.fundalHeightCm,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fetalHeartRate => $composableBuilder(
+    column: $table.fetalHeartRate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$PregnancyAncScheduleTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $PregnancyAncScheduleTable> {
+  $$PregnancyAncScheduleTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get visitNumber => $composableBuilder(
+    column: $table.visitNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get trimester => $composableBuilder(
+    column: $table.trimester,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get actualDate => $composableBuilder(
+    column: $table.actualDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get weightKg => $composableBuilder(
+    column: $table.weightKg,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get bp => $composableBuilder(
+    column: $table.bp,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<double> get fundalHeightCm => $composableBuilder(
+    column: $table.fundalHeightCm,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fetalHeartRate => $composableBuilder(
+    column: $table.fetalHeartRate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$PregnancyAncScheduleTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $PregnancyAncScheduleTable> {
+  $$PregnancyAncScheduleTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get visitNumber => $composableBuilder(
+    column: $table.visitNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get trimester =>
+      $composableBuilder(column: $table.trimester, builder: (column) => column);
+
+  GeneratedColumn<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get actualDate => $composableBuilder(
+    column: $table.actualDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<double> get weightKg =>
+      $composableBuilder(column: $table.weightKg, builder: (column) => column);
+
+  GeneratedColumn<String> get bp =>
+      $composableBuilder(column: $table.bp, builder: (column) => column);
+
+  GeneratedColumn<double> get fundalHeightCm => $composableBuilder(
+    column: $table.fundalHeightCm,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get fetalHeartRate => $composableBuilder(
+    column: $table.fetalHeartRate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$PregnancyAncScheduleTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $PregnancyAncScheduleTable,
+          PregnancyAncScheduleData,
+          $$PregnancyAncScheduleTableFilterComposer,
+          $$PregnancyAncScheduleTableOrderingComposer,
+          $$PregnancyAncScheduleTableAnnotationComposer,
+          $$PregnancyAncScheduleTableCreateCompanionBuilder,
+          $$PregnancyAncScheduleTableUpdateCompanionBuilder,
+          (
+            PregnancyAncScheduleData,
+            BaseReferences<
+              _$AppDriftDatabase,
+              $PregnancyAncScheduleTable,
+              PregnancyAncScheduleData
+            >,
+          ),
+          PregnancyAncScheduleData,
+          PrefetchHooks Function()
+        > {
+  $$PregnancyAncScheduleTableTableManager(
+    _$AppDriftDatabase db,
+    $PregnancyAncScheduleTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$PregnancyAncScheduleTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$PregnancyAncScheduleTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$PregnancyAncScheduleTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> pregnancyId = const Value.absent(),
+                Value<int> visitNumber = const Value.absent(),
+                Value<int?> trimester = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                Value<DateTime> scheduledDate = const Value.absent(),
+                Value<DateTime?> actualDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<double?> weightKg = const Value.absent(),
+                Value<String?> bp = const Value.absent(),
+                Value<double?> fundalHeightCm = const Value.absent(),
+                Value<int?> fetalHeartRate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PregnancyAncScheduleCompanion(
+                id: id,
+                pregnancyId: pregnancyId,
+                visitNumber: visitNumber,
+                trimester: trimester,
+                pregnancyMonth: pregnancyMonth,
+                scheduledDate: scheduledDate,
+                actualDate: actualDate,
+                status: status,
+                weightKg: weightKg,
+                bp: bp,
+                fundalHeightCm: fundalHeightCm,
+                fetalHeartRate: fetalHeartRate,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> pregnancyId = const Value.absent(),
+                Value<int> visitNumber = const Value.absent(),
+                Value<int?> trimester = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                required DateTime scheduledDate,
+                Value<DateTime?> actualDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<double?> weightKg = const Value.absent(),
+                Value<String?> bp = const Value.absent(),
+                Value<double?> fundalHeightCm = const Value.absent(),
+                Value<int?> fetalHeartRate = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => PregnancyAncScheduleCompanion.insert(
+                id: id,
+                pregnancyId: pregnancyId,
+                visitNumber: visitNumber,
+                trimester: trimester,
+                pregnancyMonth: pregnancyMonth,
+                scheduledDate: scheduledDate,
+                actualDate: actualDate,
+                status: status,
+                weightKg: weightKg,
+                bp: bp,
+                fundalHeightCm: fundalHeightCm,
+                fetalHeartRate: fetalHeartRate,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$PregnancyAncScheduleTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $PregnancyAncScheduleTable,
+      PregnancyAncScheduleData,
+      $$PregnancyAncScheduleTableFilterComposer,
+      $$PregnancyAncScheduleTableOrderingComposer,
+      $$PregnancyAncScheduleTableAnnotationComposer,
+      $$PregnancyAncScheduleTableCreateCompanionBuilder,
+      $$PregnancyAncScheduleTableUpdateCompanionBuilder,
+      (
+        PregnancyAncScheduleData,
+        BaseReferences<
+          _$AppDriftDatabase,
+          $PregnancyAncScheduleTable,
+          PregnancyAncScheduleData
+        >,
+      ),
+      PregnancyAncScheduleData,
+      PrefetchHooks Function()
+    >;
+typedef $$VaccinationsTableCreateCompanionBuilder =
+    VaccinationsCompanion Function({
+      required String id,
+      Value<String?> userId,
+      Value<String?> pregnancyId,
+      required String vaccineName,
+      Value<int> doseNumber,
+      Value<int?> pregnancyMonth,
+      required DateTime scheduledDate,
+      Value<DateTime?> administeredDate,
+      Value<String> status,
+      Value<String?> batchNumber,
+      Value<String?> administeredBy,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$VaccinationsTableUpdateCompanionBuilder =
+    VaccinationsCompanion Function({
+      Value<String> id,
+      Value<String?> userId,
+      Value<String?> pregnancyId,
+      Value<String> vaccineName,
+      Value<int> doseNumber,
+      Value<int?> pregnancyMonth,
+      Value<DateTime> scheduledDate,
+      Value<DateTime?> administeredDate,
+      Value<String> status,
+      Value<String?> batchNumber,
+      Value<String?> administeredBy,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$VaccinationsTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $VaccinationsTable> {
+  $$VaccinationsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get vaccineName => $composableBuilder(
+    column: $table.vaccineName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get doseNumber => $composableBuilder(
+    column: $table.doseNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get administeredDate => $composableBuilder(
+    column: $table.administeredDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get administeredBy => $composableBuilder(
+    column: $table.administeredBy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$VaccinationsTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $VaccinationsTable> {
+  $$VaccinationsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get vaccineName => $composableBuilder(
+    column: $table.vaccineName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get doseNumber => $composableBuilder(
+    column: $table.doseNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get administeredDate => $composableBuilder(
+    column: $table.administeredDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get administeredBy => $composableBuilder(
+    column: $table.administeredBy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$VaccinationsTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $VaccinationsTable> {
+  $$VaccinationsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get vaccineName => $composableBuilder(
+    column: $table.vaccineName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get doseNumber => $composableBuilder(
+    column: $table.doseNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get scheduledDate => $composableBuilder(
+    column: $table.scheduledDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get administeredDate => $composableBuilder(
+    column: $table.administeredDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get batchNumber => $composableBuilder(
+    column: $table.batchNumber,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get administeredBy => $composableBuilder(
+    column: $table.administeredBy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$VaccinationsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $VaccinationsTable,
+          Vaccination,
+          $$VaccinationsTableFilterComposer,
+          $$VaccinationsTableOrderingComposer,
+          $$VaccinationsTableAnnotationComposer,
+          $$VaccinationsTableCreateCompanionBuilder,
+          $$VaccinationsTableUpdateCompanionBuilder,
+          (
+            Vaccination,
+            BaseReferences<_$AppDriftDatabase, $VaccinationsTable, Vaccination>,
+          ),
+          Vaccination,
+          PrefetchHooks Function()
+        > {
+  $$VaccinationsTableTableManager(
+    _$AppDriftDatabase db,
+    $VaccinationsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$VaccinationsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$VaccinationsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$VaccinationsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String?> pregnancyId = const Value.absent(),
+                Value<String> vaccineName = const Value.absent(),
+                Value<int> doseNumber = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                Value<DateTime> scheduledDate = const Value.absent(),
+                Value<DateTime?> administeredDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> batchNumber = const Value.absent(),
+                Value<String?> administeredBy = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VaccinationsCompanion(
+                id: id,
+                userId: userId,
+                pregnancyId: pregnancyId,
+                vaccineName: vaccineName,
+                doseNumber: doseNumber,
+                pregnancyMonth: pregnancyMonth,
+                scheduledDate: scheduledDate,
+                administeredDate: administeredDate,
+                status: status,
+                batchNumber: batchNumber,
+                administeredBy: administeredBy,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> userId = const Value.absent(),
+                Value<String?> pregnancyId = const Value.absent(),
+                required String vaccineName,
+                Value<int> doseNumber = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                required DateTime scheduledDate,
+                Value<DateTime?> administeredDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> batchNumber = const Value.absent(),
+                Value<String?> administeredBy = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => VaccinationsCompanion.insert(
+                id: id,
+                userId: userId,
+                pregnancyId: pregnancyId,
+                vaccineName: vaccineName,
+                doseNumber: doseNumber,
+                pregnancyMonth: pregnancyMonth,
+                scheduledDate: scheduledDate,
+                administeredDate: administeredDate,
+                status: status,
+                batchNumber: batchNumber,
+                administeredBy: administeredBy,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$VaccinationsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $VaccinationsTable,
+      Vaccination,
+      $$VaccinationsTableFilterComposer,
+      $$VaccinationsTableOrderingComposer,
+      $$VaccinationsTableAnnotationComposer,
+      $$VaccinationsTableCreateCompanionBuilder,
+      $$VaccinationsTableUpdateCompanionBuilder,
+      (
+        Vaccination,
+        BaseReferences<_$AppDriftDatabase, $VaccinationsTable, Vaccination>,
+      ),
+      Vaccination,
+      PrefetchHooks Function()
+    >;
+typedef $$ReportChecklistsTableCreateCompanionBuilder =
+    ReportChecklistsCompanion Function({
+      required String id,
+      Value<String?> userId,
+      Value<String?> pregnancyId,
+      required String reportName,
+      Value<String?> category,
+      Value<int?> pregnancyMonth,
+      Value<bool> isRequired,
+      Value<DateTime?> dueDate,
+      Value<DateTime?> completedDate,
+      Value<String> status,
+      Value<String?> filePath,
+      Value<String?> resultSummary,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$ReportChecklistsTableUpdateCompanionBuilder =
+    ReportChecklistsCompanion Function({
+      Value<String> id,
+      Value<String?> userId,
+      Value<String?> pregnancyId,
+      Value<String> reportName,
+      Value<String?> category,
+      Value<int?> pregnancyMonth,
+      Value<bool> isRequired,
+      Value<DateTime?> dueDate,
+      Value<DateTime?> completedDate,
+      Value<String> status,
+      Value<String?> filePath,
+      Value<String?> resultSummary,
+      Value<String?> notes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$ReportChecklistsTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $ReportChecklistsTable> {
+  $$ReportChecklistsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportName => $composableBuilder(
+    column: $table.reportName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isRequired => $composableBuilder(
+    column: $table.isRequired,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get resultSummary => $composableBuilder(
+    column: $table.resultSummary,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReportChecklistsTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $ReportChecklistsTable> {
+  $$ReportChecklistsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportName => $composableBuilder(
+    column: $table.reportName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get category => $composableBuilder(
+    column: $table.category,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isRequired => $composableBuilder(
+    column: $table.isRequired,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get status => $composableBuilder(
+    column: $table.status,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get filePath => $composableBuilder(
+    column: $table.filePath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get resultSummary => $composableBuilder(
+    column: $table.resultSummary,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReportChecklistsTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $ReportChecklistsTable> {
+  $$ReportChecklistsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get pregnancyId => $composableBuilder(
+    column: $table.pregnancyId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get reportName => $composableBuilder(
+    column: $table.reportName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get category =>
+      $composableBuilder(column: $table.category, builder: (column) => column);
+
+  GeneratedColumn<int> get pregnancyMonth => $composableBuilder(
+    column: $table.pregnancyMonth,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isRequired => $composableBuilder(
+    column: $table.isRequired,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get completedDate => $composableBuilder(
+    column: $table.completedDate,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get status =>
+      $composableBuilder(column: $table.status, builder: (column) => column);
+
+  GeneratedColumn<String> get filePath =>
+      $composableBuilder(column: $table.filePath, builder: (column) => column);
+
+  GeneratedColumn<String> get resultSummary => $composableBuilder(
+    column: $table.resultSummary,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$ReportChecklistsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $ReportChecklistsTable,
+          ReportChecklist,
+          $$ReportChecklistsTableFilterComposer,
+          $$ReportChecklistsTableOrderingComposer,
+          $$ReportChecklistsTableAnnotationComposer,
+          $$ReportChecklistsTableCreateCompanionBuilder,
+          $$ReportChecklistsTableUpdateCompanionBuilder,
+          (
+            ReportChecklist,
+            BaseReferences<
+              _$AppDriftDatabase,
+              $ReportChecklistsTable,
+              ReportChecklist
+            >,
+          ),
+          ReportChecklist,
+          PrefetchHooks Function()
+        > {
+  $$ReportChecklistsTableTableManager(
+    _$AppDriftDatabase db,
+    $ReportChecklistsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReportChecklistsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReportChecklistsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReportChecklistsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String?> pregnancyId = const Value.absent(),
+                Value<String> reportName = const Value.absent(),
+                Value<String?> category = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                Value<bool> isRequired = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> completedDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
+                Value<String?> resultSummary = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReportChecklistsCompanion(
+                id: id,
+                userId: userId,
+                pregnancyId: pregnancyId,
+                reportName: reportName,
+                category: category,
+                pregnancyMonth: pregnancyMonth,
+                isRequired: isRequired,
+                dueDate: dueDate,
+                completedDate: completedDate,
+                status: status,
+                filePath: filePath,
+                resultSummary: resultSummary,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> userId = const Value.absent(),
+                Value<String?> pregnancyId = const Value.absent(),
+                required String reportName,
+                Value<String?> category = const Value.absent(),
+                Value<int?> pregnancyMonth = const Value.absent(),
+                Value<bool> isRequired = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<DateTime?> completedDate = const Value.absent(),
+                Value<String> status = const Value.absent(),
+                Value<String?> filePath = const Value.absent(),
+                Value<String?> resultSummary = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReportChecklistsCompanion.insert(
+                id: id,
+                userId: userId,
+                pregnancyId: pregnancyId,
+                reportName: reportName,
+                category: category,
+                pregnancyMonth: pregnancyMonth,
+                isRequired: isRequired,
+                dueDate: dueDate,
+                completedDate: completedDate,
+                status: status,
+                filePath: filePath,
+                resultSummary: resultSummary,
+                notes: notes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReportChecklistsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $ReportChecklistsTable,
+      ReportChecklist,
+      $$ReportChecklistsTableFilterComposer,
+      $$ReportChecklistsTableOrderingComposer,
+      $$ReportChecklistsTableAnnotationComposer,
+      $$ReportChecklistsTableCreateCompanionBuilder,
+      $$ReportChecklistsTableUpdateCompanionBuilder,
+      (
+        ReportChecklist,
+        BaseReferences<
+          _$AppDriftDatabase,
+          $ReportChecklistsTable,
+          ReportChecklist
+        >,
+      ),
+      ReportChecklist,
+      PrefetchHooks Function()
+    >;
+typedef $$ReportAttachmentsTableCreateCompanionBuilder =
+    ReportAttachmentsCompanion Function({
+      required String id,
+      Value<String?> reportId,
+      required String localPath,
+      Value<String?> cloudUrl,
+      Value<String?> fileName,
+      Value<String?> mimeType,
+      Value<int?> fileSizeBytes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$ReportAttachmentsTableUpdateCompanionBuilder =
+    ReportAttachmentsCompanion Function({
+      Value<String> id,
+      Value<String?> reportId,
+      Value<String> localPath,
+      Value<String?> cloudUrl,
+      Value<String?> fileName,
+      Value<String?> mimeType,
+      Value<int?> fileSizeBytes,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$ReportAttachmentsTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $ReportAttachmentsTable> {
+  $$ReportAttachmentsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reportId => $composableBuilder(
+    column: $table.reportId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get cloudUrl => $composableBuilder(
+    column: $table.cloudUrl,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$ReportAttachmentsTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $ReportAttachmentsTable> {
+  $$ReportAttachmentsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reportId => $composableBuilder(
+    column: $table.reportId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get localPath => $composableBuilder(
+    column: $table.localPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get cloudUrl => $composableBuilder(
+    column: $table.cloudUrl,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get fileName => $composableBuilder(
+    column: $table.fileName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get mimeType => $composableBuilder(
+    column: $table.mimeType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$ReportAttachmentsTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $ReportAttachmentsTable> {
+  $$ReportAttachmentsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get reportId =>
+      $composableBuilder(column: $table.reportId, builder: (column) => column);
+
+  GeneratedColumn<String> get localPath =>
+      $composableBuilder(column: $table.localPath, builder: (column) => column);
+
+  GeneratedColumn<String> get cloudUrl =>
+      $composableBuilder(column: $table.cloudUrl, builder: (column) => column);
+
+  GeneratedColumn<String> get fileName =>
+      $composableBuilder(column: $table.fileName, builder: (column) => column);
+
+  GeneratedColumn<String> get mimeType =>
+      $composableBuilder(column: $table.mimeType, builder: (column) => column);
+
+  GeneratedColumn<int> get fileSizeBytes => $composableBuilder(
+    column: $table.fileSizeBytes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$ReportAttachmentsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $ReportAttachmentsTable,
+          ReportAttachment,
+          $$ReportAttachmentsTableFilterComposer,
+          $$ReportAttachmentsTableOrderingComposer,
+          $$ReportAttachmentsTableAnnotationComposer,
+          $$ReportAttachmentsTableCreateCompanionBuilder,
+          $$ReportAttachmentsTableUpdateCompanionBuilder,
+          (
+            ReportAttachment,
+            BaseReferences<
+              _$AppDriftDatabase,
+              $ReportAttachmentsTable,
+              ReportAttachment
+            >,
+          ),
+          ReportAttachment,
+          PrefetchHooks Function()
+        > {
+  $$ReportAttachmentsTableTableManager(
+    _$AppDriftDatabase db,
+    $ReportAttachmentsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$ReportAttachmentsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$ReportAttachmentsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$ReportAttachmentsTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> reportId = const Value.absent(),
+                Value<String> localPath = const Value.absent(),
+                Value<String?> cloudUrl = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> mimeType = const Value.absent(),
+                Value<int?> fileSizeBytes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReportAttachmentsCompanion(
+                id: id,
+                reportId: reportId,
+                localPath: localPath,
+                cloudUrl: cloudUrl,
+                fileName: fileName,
+                mimeType: mimeType,
+                fileSizeBytes: fileSizeBytes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> reportId = const Value.absent(),
+                required String localPath,
+                Value<String?> cloudUrl = const Value.absent(),
+                Value<String?> fileName = const Value.absent(),
+                Value<String?> mimeType = const Value.absent(),
+                Value<int?> fileSizeBytes = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => ReportAttachmentsCompanion.insert(
+                id: id,
+                reportId: reportId,
+                localPath: localPath,
+                cloudUrl: cloudUrl,
+                fileName: fileName,
+                mimeType: mimeType,
+                fileSizeBytes: fileSizeBytes,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$ReportAttachmentsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $ReportAttachmentsTable,
+      ReportAttachment,
+      $$ReportAttachmentsTableFilterComposer,
+      $$ReportAttachmentsTableOrderingComposer,
+      $$ReportAttachmentsTableAnnotationComposer,
+      $$ReportAttachmentsTableCreateCompanionBuilder,
+      $$ReportAttachmentsTableUpdateCompanionBuilder,
+      (
+        ReportAttachment,
+        BaseReferences<
+          _$AppDriftDatabase,
+          $ReportAttachmentsTable,
+          ReportAttachment
+        >,
+      ),
+      ReportAttachment,
+      PrefetchHooks Function()
+    >;
+typedef $$RemindersTableCreateCompanionBuilder =
+    RemindersCompanion Function({
+      required String id,
+      Value<String?> userId,
+      required String title,
+      Value<String?> reminderType,
+      Value<String> frequency,
+      Value<int?> hour,
+      Value<int?> minute,
+      Value<String?> channels,
+      Value<bool> enabled,
+      Value<bool> configurable,
+      Value<DateTime?> startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+typedef $$RemindersTableUpdateCompanionBuilder =
+    RemindersCompanion Function({
+      Value<String> id,
+      Value<String?> userId,
+      Value<String> title,
+      Value<String?> reminderType,
+      Value<String> frequency,
+      Value<int?> hour,
+      Value<int?> minute,
+      Value<String?> channels,
+      Value<bool> enabled,
+      Value<bool> configurable,
+      Value<DateTime?> startDate,
+      Value<DateTime?> endDate,
+      Value<DateTime> createdAt,
+      Value<int> synced,
+      Value<int> rowid,
+    });
+
+class $$RemindersTableFilterComposer
+    extends Composer<_$AppDriftDatabase, $RemindersTable> {
+  $$RemindersTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get reminderType => $composableBuilder(
+    column: $table.reminderType,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get hour => $composableBuilder(
+    column: $table.hour,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get minute => $composableBuilder(
+    column: $table.minute,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get channels => $composableBuilder(
+    column: $table.channels,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get configurable => $composableBuilder(
+    column: $table.configurable,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$RemindersTableOrderingComposer
+    extends Composer<_$AppDriftDatabase, $RemindersTable> {
+  $$RemindersTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get reminderType => $composableBuilder(
+    column: $table.reminderType,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get frequency => $composableBuilder(
+    column: $table.frequency,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get hour => $composableBuilder(
+    column: $table.hour,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get minute => $composableBuilder(
+    column: $table.minute,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get channels => $composableBuilder(
+    column: $table.channels,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get enabled => $composableBuilder(
+    column: $table.enabled,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get configurable => $composableBuilder(
+    column: $table.configurable,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get startDate => $composableBuilder(
+    column: $table.startDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get endDate => $composableBuilder(
+    column: $table.endDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get synced => $composableBuilder(
+    column: $table.synced,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$RemindersTableAnnotationComposer
+    extends Composer<_$AppDriftDatabase, $RemindersTable> {
+  $$RemindersTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get reminderType => $composableBuilder(
+    column: $table.reminderType,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get frequency =>
+      $composableBuilder(column: $table.frequency, builder: (column) => column);
+
+  GeneratedColumn<int> get hour =>
+      $composableBuilder(column: $table.hour, builder: (column) => column);
+
+  GeneratedColumn<int> get minute =>
+      $composableBuilder(column: $table.minute, builder: (column) => column);
+
+  GeneratedColumn<String> get channels =>
+      $composableBuilder(column: $table.channels, builder: (column) => column);
+
+  GeneratedColumn<bool> get enabled =>
+      $composableBuilder(column: $table.enabled, builder: (column) => column);
+
+  GeneratedColumn<bool> get configurable => $composableBuilder(
+    column: $table.configurable,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get startDate =>
+      $composableBuilder(column: $table.startDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get endDate =>
+      $composableBuilder(column: $table.endDate, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get synced =>
+      $composableBuilder(column: $table.synced, builder: (column) => column);
+}
+
+class $$RemindersTableTableManager
+    extends
+        RootTableManager<
+          _$AppDriftDatabase,
+          $RemindersTable,
+          Reminder,
+          $$RemindersTableFilterComposer,
+          $$RemindersTableOrderingComposer,
+          $$RemindersTableAnnotationComposer,
+          $$RemindersTableCreateCompanionBuilder,
+          $$RemindersTableUpdateCompanionBuilder,
+          (
+            Reminder,
+            BaseReferences<_$AppDriftDatabase, $RemindersTable, Reminder>,
+          ),
+          Reminder,
+          PrefetchHooks Function()
+        > {
+  $$RemindersTableTableManager(_$AppDriftDatabase db, $RemindersTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$RemindersTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$RemindersTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$RemindersTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String?> userId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> reminderType = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<int?> hour = const Value.absent(),
+                Value<int?> minute = const Value.absent(),
+                Value<String?> channels = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<bool> configurable = const Value.absent(),
+                Value<DateTime?> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion(
+                id: id,
+                userId: userId,
+                title: title,
+                reminderType: reminderType,
+                frequency: frequency,
+                hour: hour,
+                minute: minute,
+                channels: channels,
+                enabled: enabled,
+                configurable: configurable,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                Value<String?> userId = const Value.absent(),
+                required String title,
+                Value<String?> reminderType = const Value.absent(),
+                Value<String> frequency = const Value.absent(),
+                Value<int?> hour = const Value.absent(),
+                Value<int?> minute = const Value.absent(),
+                Value<String?> channels = const Value.absent(),
+                Value<bool> enabled = const Value.absent(),
+                Value<bool> configurable = const Value.absent(),
+                Value<DateTime?> startDate = const Value.absent(),
+                Value<DateTime?> endDate = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> synced = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => RemindersCompanion.insert(
+                id: id,
+                userId: userId,
+                title: title,
+                reminderType: reminderType,
+                frequency: frequency,
+                hour: hour,
+                minute: minute,
+                channels: channels,
+                enabled: enabled,
+                configurable: configurable,
+                startDate: startDate,
+                endDate: endDate,
+                createdAt: createdAt,
+                synced: synced,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$RemindersTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDriftDatabase,
+      $RemindersTable,
+      Reminder,
+      $$RemindersTableFilterComposer,
+      $$RemindersTableOrderingComposer,
+      $$RemindersTableAnnotationComposer,
+      $$RemindersTableCreateCompanionBuilder,
+      $$RemindersTableUpdateCompanionBuilder,
+      (Reminder, BaseReferences<_$AppDriftDatabase, $RemindersTable, Reminder>),
+      Reminder,
+      PrefetchHooks Function()
+    >;
 
 class $AppDriftDatabaseManager {
   final _$AppDriftDatabase _db;
@@ -15762,4 +21632,14 @@ class $AppDriftDatabaseManager {
       $$ReportsTableTableManager(_db, _db.reports);
   $$VitalsTableTableManager get vitals =>
       $$VitalsTableTableManager(_db, _db.vitals);
+  $$PregnancyAncScheduleTableTableManager get pregnancyAncSchedule =>
+      $$PregnancyAncScheduleTableTableManager(_db, _db.pregnancyAncSchedule);
+  $$VaccinationsTableTableManager get vaccinations =>
+      $$VaccinationsTableTableManager(_db, _db.vaccinations);
+  $$ReportChecklistsTableTableManager get reportChecklists =>
+      $$ReportChecklistsTableTableManager(_db, _db.reportChecklists);
+  $$ReportAttachmentsTableTableManager get reportAttachments =>
+      $$ReportAttachmentsTableTableManager(_db, _db.reportAttachments);
+  $$RemindersTableTableManager get reminders =>
+      $$RemindersTableTableManager(_db, _db.reminders);
 }

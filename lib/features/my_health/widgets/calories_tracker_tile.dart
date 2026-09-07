@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class CaloriesTrackerTile extends StatefulWidget {
   final String? userId;

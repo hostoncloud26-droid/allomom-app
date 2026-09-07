@@ -21,6 +21,11 @@ part 'tables/prescription_medicine_table.dart';
 part 'tables/prescription_medicine_timing_table.dart';
 part 'tables/report_table.dart';
 part 'tables/vitals_table.dart';
+part 'tables/pregnancy_anc_schedule_table.dart';
+part 'tables/vaccination_table.dart';
+part 'tables/report_checklist_table.dart';
+part 'tables/report_attachment_table.dart';
+part 'tables/reminder_table.dart';
 
 part 'drift_database.g.dart';
 
@@ -49,10 +54,19 @@ LazyDatabase _openConnection() {
     PrescriptionMedicineTimings,
     Reports,
     Vitals,
+    PregnancyAncSchedule,
+    Vaccinations,
+    ReportChecklists,
+    ReportAttachments,
+    Reminders,
   ],
 )
 class AppDriftDatabase extends _$AppDriftDatabase {
   AppDriftDatabase() : super(_openConnection());
+
+  /// Lets tests drive the schema over an in-memory executor instead of the
+  /// on-device file, which needs path_provider.
+  AppDriftDatabase.forTesting(super.executor);
 
   @override
   int get schemaVersion => AppMigrations.currentSchemaVersion;

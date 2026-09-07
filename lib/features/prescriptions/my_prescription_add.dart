@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,13 +8,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:intl/intl.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:uuid/uuid.dart';
 
-import 'package:allomom/services/api/prescription_api.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
 import 'package:allomom/services/prescription_parser/on_device_prescription_parser.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class MyPrescriptionAdd extends StatefulWidget {
   const MyPrescriptionAdd({super.key});
@@ -161,23 +162,19 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
     setState(() => isSubmitting = true);
     try {
       final session = UserSessionManager.instance;
-      final primaryFile = _selectedFiles.isNotEmpty ? _selectedFiles.first.path : null;
+      final primaryFile =
+          _selectedFiles.isNotEmpty ? _selectedFiles.first.path : null;
 
-      final response = await PrescriptionApi.addPrescriptionOneShot({
-        'description': description.text.trim().isEmpty ? null : description.text.trim(),
-        'imageUrl': primaryFile,
-        'medicine_start_date': startDate.toIso8601String(),
-        'user_id': session.userId,
-        'medicines': preparedMedicines,
-      });
-
-      final prescriptionId = response.item is Map
-          ? (response.item['id']?.toString() ?? '')
-          : 'presc_${DateTime.now().millisecondsSinceEpoch}';
-
-      // Persist to SQLite Drift DB
-      final healthId = session.currentHealthData?.id ?? (session.userId.isNotEmpty ? session.userId : 'health_me');
-      final desc = description.text.trim().isNotEmpty ? description.text.trim() : 'Prescription';
+      // Local-only: the prescription, its medicines and every scheduled dose
+      // are written straight to SQLite with synced = 0.
+      const uuid = Uuid();
+      final prescriptionId = uuid.v4();
+      final healthId = session.healthDataId.isNotEmpty
+          ? session.healthDataId
+          : (session.userId.isNotEmpty ? session.userId : 'health_me');
+      final desc = description.text.trim().isNotEmpty
+          ? description.text.trim()
+          : 'Prescription';
 
       final pRow = PrescriptionsCompanion(
         id: drift.Value(prescriptionId),
@@ -185,14 +182,23 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
         description: drift.Value(desc),
         imageUrl: drift.Value(primaryFile),
         createdAt: drift.Value(DateTime.now()),
+        synced: const drift.Value(0),
       );
 
       final medRows = <PrescriptionMedicinesCompanion>[];
+      // Medicine id -> the doses to log for it, so timings can be written
+      // once the medicine rows are in place.
+      final dosesByMedicineId = <String, List<DateTime>>{};
+
       for (final item in medicines) {
         final name = item.nameController.text.trim();
         if (name.isEmpty) continue;
-        final durationDays = int.tryParse(item.durationDaysController.text.trim()) ?? 7;
-        final medId = 'med_${DateTime.now().millisecondsSinceEpoch}_$name';
+
+        final durationDays =
+            int.tryParse(item.durationDaysController.text.trim()) ?? 7;
+        final medId = uuid.v4();
+        final notes = item.notesController.text.trim();
+        final dosage = notes.isNotEmpty ? notes : '1 Tablet';
 
         final timeStrings = item.times.map((t) {
           final hh = t.hour.toString().padLeft(2, '0');
@@ -205,45 +211,63 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
             id: drift.Value(medId),
             prescriptionId: drift.Value(prescriptionId),
             medicineName: drift.Value(name),
-            dosage: drift.Value(item.notesController.text.trim().isNotEmpty ? item.notesController.text.trim() : '1 Tablet'),
+            dosage: drift.Value(dosage),
             durationDays: drift.Value(durationDays),
-            timings: drift.Value(timeStrings.join(',')),
-            notes: drift.Value(item.notesController.text.trim()),
+            timings: drift.Value(jsonEncode(timeStrings)),
+            notes: drift.Value(notes),
             healthId: drift.Value(healthId),
             userId: drift.Value(session.userId),
+            synced: const drift.Value(0),
           ),
         );
-      }
 
-      await PrescriptionDbService.instance.savePrescription(pRow, medRows);
-
-      // Schedule local notifications for each dose
-      int notifCounter = 0;
-      for (final item in medicines) {
-        final name = item.nameController.text.trim();
-        if (name.isEmpty) continue;
-        final durationDays = int.tryParse(item.durationDaysController.text.trim()) ?? 7;
-
+        final doses = <DateTime>[];
         for (int day = 0; day < durationDays; day++) {
           final currentDay = startDate.add(Duration(days: day));
           for (final time in item.times) {
-            final timingDateTime = DateTime(
+            doses.add(DateTime(
               currentDay.year,
               currentDay.month,
               currentDay.day,
               time.hour,
               time.minute,
-            );
-
-            await LocalReminderScheduler.scheduleMedicationReminder(
-              id: notifCounter++,
-              medicineName: name,
-              dosage: item.notesController.text.trim().isNotEmpty ? item.notesController.text.trim() : '1 Tablet',
-              mealInstruction: item.notesController.text.trim(),
-              dateTime: timingDateTime,
-              timingId: '${prescriptionId}_${name}_$day',
-            );
+            ));
           }
+        }
+        dosesByMedicineId[medId] = doses;
+      }
+
+      await PrescriptionDbService.instance.savePrescription(pRow, medRows);
+
+      // Log every dose as a pending timing row, then schedule the matching
+      // local notification against that row's real id.
+      int notifCounter = 0;
+      for (final med in medRows) {
+        final medId = med.id.value;
+        final medicineName = med.medicineName.value;
+        final dosage = med.dosage.value;
+        final notes = med.notes.value ?? '';
+
+        for (final doseTime in dosesByMedicineId[medId] ?? const <DateTime>[]) {
+          final timingId = await PrescriptionDbService.instance
+              .logMedicineTiming(
+            PrescriptionMedicineTimingsCompanion(
+              id: drift.Value(uuid.v4()),
+              prescriptionMedicineId: drift.Value(medId),
+              timingDateTime: drift.Value(doseTime),
+              status: const drift.Value('pending'),
+              synced: const drift.Value(0),
+            ),
+          );
+
+          await LocalReminderScheduler.scheduleMedicationReminder(
+            id: notifCounter++,
+            medicineName: medicineName,
+            dosage: dosage,
+            mealInstruction: notes,
+            dateTime: doseTime,
+            timingId: timingId,
+          );
         }
       }
 

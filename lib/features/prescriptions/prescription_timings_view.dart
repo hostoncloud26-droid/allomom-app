@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/prescription_timing.dart';
-import 'package:allomom/services/api/prescription_api.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/features/prescriptions/my_prescription_list.dart';
 import 'package:allomom/features/prescriptions/my_prescription_add.dart';
 import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class PrescriptionTimingsView extends StatefulWidget {
   final String? userId;
@@ -63,69 +65,54 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
     }
   }
 
+  /// Loads the doses logged for [_selectedDate] from the local Drift database.
   Future<void> _loadTimings() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
 
     try {
-      final startOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
-      final endOfDay = DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59);
+      final startOfDay =
+          DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
+      final endOfDay = DateTime(
+          _selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59);
       final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
 
-      final response = await PrescriptionApi.getUserTimings(startOfDay, endOfDay, targetUserId);
-      if (response.success && response.items != null) {
-        final List<dynamic> items = response.items as List<dynamic>;
-        if (mounted) {
-          setState(() {
-            _timings = items.map((e) => TimingWithMedicationResponse.fromJson(Map<String, dynamic>.from(e as Map))).toList()
-              ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-    } catch (_) {}
+      final details = await PrescriptionDbService.instance.getTimingsInRange(
+        from: startOfDay,
+        to: endOfDay,
+        userId: targetUserId.isEmpty ? null : targetUserId,
+      );
 
-    // Fallback default mocked day schedule for preview/offline
-    if (mounted) {
-      final isToday = _selectedDate.day == DateTime.now().day && _selectedDate.month == DateTime.now().month;
-      setState(() {
-        _timings = isToday
-            ? [
-                TimingWithMedicationResponse(
-                  id: 't1',
-                  medicineId: 'm1',
-                  medicineName: 'Iron + Folic Acid',
-                  dosage: '1 Tablet',
-                  mealInstruction: 'After breakfast',
-                  dateTime: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 8, 30),
-                  status: 'taken',
-                  doctorName: 'Dr. Sarah Smith',
-                ),
-                TimingWithMedicationResponse(
-                  id: 't2',
-                  medicineId: 'm2',
-                  medicineName: 'Calcium Carbonate',
-                  dosage: '500 mg',
-                  mealInstruction: 'After lunch',
-                  dateTime: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 13, 30),
-                  status: 'pending',
-                  doctorName: 'Dr. Sarah Smith',
-                ),
-                TimingWithMedicationResponse(
-                  id: 't3',
-                  medicineId: 'm3',
-                  medicineName: 'DHA Omega-3',
-                  dosage: '1 Softgel',
-                  mealInstruction: 'After dinner',
-                  dateTime: DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day, 20, 0),
-                  status: 'pending',
-                  doctorName: 'Dr. Sarah Smith',
-                ),
-              ]
-            : [];
-        _isLoading = false;
-      });
+      final mapped = details
+          .map((d) => TimingWithMedicationResponse(
+                id: d.id,
+                medicineId: d.medicine?.id ?? '',
+                medicineName: d.medicineName,
+                dosage: d.dosage,
+                mealInstruction: d.notes,
+                instructions: d.notes,
+                dateTime: d.dateTime,
+                status: d.status,
+                isTaken: d.isTaken,
+                prescriptionId: d.prescription?.id,
+              ))
+          .toList()
+        ..sort((a, b) => a.dateTime.compareTo(b.dateTime));
+
+      if (mounted) {
+        setState(() {
+          _timings = mapped;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading medicine timings from local database: $e');
+      if (mounted) {
+        setState(() {
+          _timings = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -153,9 +140,24 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
 
     try {
       if (newStatus == 'taken') {
-        await PrescriptionApi.markMedicationTimingTaken(timing.id);
+        await PrescriptionDbService.instance.markTimingTaken(timing.id);
+      } else {
+        await PrescriptionDbService.instance.logMedicineTiming(
+          PrescriptionMedicineTimingsCompanion(
+            id: drift.Value(timing.id),
+            status: const drift.Value('pending'),
+            medicineTakenTime: const drift.Value(null),
+            timingDateTime: drift.Value(timing.dateTime),
+            prescriptionMedicineId: drift.Value(
+              timing.medicineId.isEmpty ? null : timing.medicineId,
+            ),
+            synced: const drift.Value(0),
+          ),
+        );
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error updating medicine timing ${timing.id}: $e');
+    }
   }
 
   @override

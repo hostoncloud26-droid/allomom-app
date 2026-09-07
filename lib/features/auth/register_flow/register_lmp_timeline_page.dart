@@ -9,6 +9,10 @@ class RegisterLmpTimelinePage extends StatefulWidget {
   final String status;
   final String phone;
   final String countryCode;
+  final String selectedRole;
+  final String? partnerName;
+  final String? partnerPhone;
+  final bool registerPregnancyForPartner;
 
   const RegisterLmpTimelinePage({
     super.key,
@@ -16,6 +20,10 @@ class RegisterLmpTimelinePage extends StatefulWidget {
     required this.status,
     this.phone = '',
     this.countryCode = '+91',
+    this.selectedRole = 'Mom',
+    this.partnerName,
+    this.partnerPhone,
+    this.registerPregnancyForPartner = false,
   });
 
   @override
@@ -159,8 +167,9 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
             Padding(
               padding: const EdgeInsets.only(top: 4, bottom: 8),
               child: BabySpeechAvatar(
-                speechText:
-                    'When was the first day of your last\nmenstrual period? 🌸',
+                speechText: widget.selectedRole.trim().toLowerCase() == 'dad'
+                    ? "When was the first day of Mommy's last\nmenstrual period? 🌸"
+                    : 'When was the first day of your last\nmenstrual period? 🌸',
                 onSpeakerTap: () {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -490,6 +499,10 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                               eddDate: edd,
                               phone: widget.phone,
                               countryCode: widget.countryCode,
+                              selectedRole: widget.selectedRole,
+                              partnerName: widget.partnerName,
+                              partnerPhone: widget.partnerPhone,
+                              registerPregnancyForPartner: widget.registerPregnancyForPartner,
                             ),
                           ),
                         );

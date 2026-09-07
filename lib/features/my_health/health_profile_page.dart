@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class HealthProfilePage extends StatefulWidget {
   const HealthProfilePage({super.key});

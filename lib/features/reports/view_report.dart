@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 
-import 'package:allomom/services/api/report_api.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/features/reports/edit_report.dart';
 
@@ -107,7 +106,6 @@ class _ViewReportState extends State<ViewReport> {
     if (!shouldDelete) return;
 
     try {
-      await ReportApi.deleteReport(reportId);
       await ReportDbService.instance.deleteReport(reportId);
 
       if (context.mounted) {

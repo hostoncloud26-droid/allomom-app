@@ -5,6 +5,7 @@ import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
 import 'package:allomom/features/auth/register_flow/register_name_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/api/otp_api.dart';
+import 'package:allomom/services/api/api_base.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class VerifyOtpPage extends StatefulWidget {
@@ -232,215 +233,240 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   @override
   Widget build(BuildContext context) {
     final roleName = widget.selectedRole == 'Mom' ? 'Mommy' : 'Daddy';
+    final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP APP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Color(0xFF1E2024),
-                        size: 24,
-                      ),
-                    ),
+        child: GestureDetector(
+          onTap: () => FocusScope.of(context).unfocus(),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight,
                   ),
-                  Expanded(
-                    child: Text(
-                      'Verify Your OTP',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── BABY SPEECH AVATAR ───
-            BabySpeechAvatar(
-              speechText: 'I just sent a secret 6-digit code to\nyour phone, $roleName! 🔑',
-              onSpeakerTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing OTP voice note...'),
-                    duration: Duration(milliseconds: 1000),
-                  ),
-                );
-              },
-            ),
-
-            const Spacer(),
-
-            // ─── BOTTOM OTP INPUT CONTAINER ───
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  RichText(
-                    text: TextSpan(
-                      text: 'Enter 6-Digit OTP sent to ',
-                      style: GoogleFonts.poppins(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF5A5D64),
-                      ),
+                  child: IntrinsicHeight(
+                    child: Column(
                       children: [
-                        TextSpan(
-                          text: widget.phoneNumber,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E2024),
+                        // ─── TOP APP BAR ───
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            children: [
+                              GestureDetector(
+                                onTap: () => Navigator.maybePop(context),
+                                child: Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black12,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 2),
+                                      ),
+                                    ],
+                                  ),
+                                  child: const Icon(
+                                    Icons.chevron_left_rounded,
+                                    color: Color(0xFF1E2024),
+                                    size: 24,
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  'Verify Your OTP',
+                                  textAlign: TextAlign.center,
+                                  style: GoogleFonts.outfit(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF1E2024),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 40),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: isKeyboardOpen ? 4 : 12),
+
+                        // ─── BABY SPEECH AVATAR ───
+                        BabySpeechAvatar(
+                          avatarSize: isKeyboardOpen ? 100 : 190,
+                          speechText: 'I just sent a secret 6-digit code to\nyour phone, $roleName! 🔑',
+                          onSpeakerTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Playing OTP voice note...'),
+                                duration: Duration(milliseconds: 1000),
+                              ),
+                            );
+                          },
+                        ),
+
+                        if (!isKeyboardOpen)
+                          const Spacer()
+                        else
+                          const SizedBox(height: 12),
+
+                        // ─── BOTTOM OTP INPUT CONTAINER ───
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: isKeyboardOpen ? 16 : 24,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 20,
+                                offset: Offset(0, -4),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              RichText(
+                                text: TextSpan(
+                                  text: 'Enter 6-Digit OTP sent to ',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: const Color(0xFF5A5D64),
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: widget.phoneNumber,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: const Color(0xFF1E2024),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (_testNumbers.contains(widget.rawPhone)) ...[
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: () {
+                                    setState(() {
+                                      _controllers[0].text = '9';
+                                      _controllers[1].text = '9';
+                                      _controllers[2].text = '9';
+                                      _controllers[3].text = '7';
+                                      _controllers[4].text = '7';
+                                      _controllers[5].text = '7';
+                                    });
+                                  },
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFFFF0F3),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFFF8FA3)),
+                                    ),
+                                    child: Text(
+                                      '⚡ Test Number: Tap to fill 999777',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 11.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFFFF4E6A),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                              SizedBox(height: isKeyboardOpen ? 12 : 20),
+
+                              // ─── 6 DIGIT OTP BOXES ───
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: List.generate(6, (index) => _buildOtpBox(index)),
+                              ),
+
+                              SizedBox(height: isKeyboardOpen ? 12 : 18),
+
+                              // ─── RESEND OTP ROW ───
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    "Didn't receive the code?",
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12.5,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: _isResending ? null : _handleResendOtp,
+                                    child: Text(
+                                      _isResending ? 'Sending...' : 'Resend OTP',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        color: const Color(0xFFFF5277),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+
+                              SizedBox(height: isKeyboardOpen ? 14 : 24),
+
+                              // ─── VERIFY BUTTON ───
+                              SizedBox(
+                                width: double.infinity,
+                                height: 54,
+                                child: ElevatedButton(
+                                  onPressed: _isVerifying ? null : _handleVerifyOtp,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFFFF5277),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(25),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: _isVerifying
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: Colors.white,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Verify & Continue',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  if (_testNumbers.contains(widget.rawPhone)) ...[
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: () {
-                        setState(() {
-                          _controllers[0].text = '9';
-                          _controllers[1].text = '9';
-                          _controllers[2].text = '9';
-                          _controllers[3].text = '7';
-                          _controllers[4].text = '7';
-                          _controllers[5].text = '7';
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0F3),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFF8FA3)),
-                        ),
-                        child: Text(
-                          '⚡ Test Number: Tap to fill 999777',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFFF4E6A),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 20),
-
-                  // ─── 6 DIGIT OTP BOXES ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(6, (index) => _buildOtpBox(index)),
-                  ),
-
-                  const SizedBox(height: 18),
-
-                  // ─── RESEND OTP ROW ───
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Didn't receive the code?",
-                        style: GoogleFonts.poppins(
-                          fontSize: 12.5,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: _isResending ? null : _handleResendOtp,
-                        child: Text(
-                          _isResending ? 'Sending...' : 'Resend OTP',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFFFF5277),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ─── VERIFY BUTTON ───
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isVerifying ? null : _handleVerifyOtp,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF5277),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: _isVerifying
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              'Verify & Continue',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );

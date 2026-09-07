@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 
 class FeedingTrackerStatsPage extends StatefulWidget {
   const FeedingTrackerStatsPage({super.key});
@@ -12,34 +15,49 @@ class FeedingTrackerStatsPage extends StatefulWidget {
 class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
   int _selectedFilter = 0; // 0: Day, 1: Week, 2: Month
 
-  final List<Map<String, dynamic>> _feeds = [
-    {
-      'time': '1:45 PM',
-      'type': 'Breastfeeding',
-      'amount': '18',
-      'unit': 'min',
-      'icon': Icons.water_drop_rounded,
-      'isBreastfeeding': true,
-    },
-    {
-      'time': '11:20 AM',
-      'type': 'Bottle',
-      'amount': '90',
-      'unit': 'ml',
-      'icon': Icons.local_drink_rounded,
-      'isBreastfeeding': false,
-    },
-    {
-      'time': '8:10 AM',
-      'type': 'Breastfeeding',
-      'amount': '22',
-      'unit': 'min',
-      'icon': Icons.water_drop_rounded,
-      'isBreastfeeding': true,
-    },
-  ];
+  String get _periodKey {
+    switch (_selectedFilter) {
+      case 0:
+        return 'day';
+      case 1:
+        return 'week';
+      case 2:
+      default:
+        return 'month';
+    }
+  }
 
-  void _showAllFeedsSheet() {
+  void _logFeed() async {
+    final logged = await VitalLogBottomSheet.show(
+      context,
+      initialKey: 'feeding',
+      lockKey: true,
+    );
+    if (logged == true) {
+      setState(() {});
+    }
+  }
+
+  List<Map<String, dynamic>> _getDisplayFeeds(List<dynamic> vitalsList) {
+    if (vitalsList.isEmpty) return [];
+    return vitalsList.map((v) {
+      final isBottle = (v.data?['type']?.toString().toLowerCase().contains('bottle') ?? false) || v.unit == 'ml';
+      final timeStr = DateFormat('hh:mm a').format(v.createdAt);
+      final feedType = v.data?['type']?.toString() ?? (isBottle ? 'Bottle Feed' : 'Breastfeeding');
+      final amount = v.value.toInt().toString();
+      final unit = v.unit.isNotEmpty ? v.unit : (isBottle ? 'ml' : 'min');
+      return {
+        'time': timeStr,
+        'type': feedType,
+        'amount': amount,
+        'unit': unit,
+        'icon': isBottle ? Icons.local_drink_rounded : Icons.water_drop_rounded,
+        'isBreastfeeding': !isBottle,
+      };
+    }).toList().reversed.toList();
+  }
+
+  void _showAllFeedsSheet(List<Map<String, dynamic>> feeds) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -62,10 +80,18 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                 ),
               ),
               const SizedBox(height: 16),
-              ..._feeds.map((feed) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: _buildFeedRow(feed),
-                  )),
+              if (feeds.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(
+                    child: Text('No feeds recorded yet.', style: TextStyle(color: Colors.grey)),
+                  ),
+                )
+              else
+                ...feeds.map((feed) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: _buildFeedRow(feed),
+                    )),
               const SizedBox(height: 16),
             ],
           ),
@@ -76,202 +102,229 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP APP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      color: Color(0xFF1E2024),
-                      size: 24,
-                    ),
-                  ),
-                  const Expanded(
-                    child: Center(
-                      child: Text(
-                        'Feeding Tracker',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+    return ListenableBuilder(
+      listenable: HealthVitalsController.instance,
+      builder: (context, _) {
+        final vitals = HealthVitalsController.instance;
+        final periodHistory = vitals.getHistoryForPeriod('feeding', _periodKey);
+        final feeds = _getDisplayFeeds(periodHistory);
+
+        final totalFeeds = periodHistory.isNotEmpty ? periodHistory.length : 0;
+        final totalDurationMinutes = periodHistory.isNotEmpty
+            ? periodHistory.where((v) => v.unit != 'ml').map((v) => v.value.toInt()).fold<int>(0, (a, b) => a + b)
+            : 0;
+
+        String periodTitle = "Today's feeds";
+        String periodSubheader = DateFormat('dd MMM').format(DateTime.now());
+        String totalSubLabel = 'feeds today';
+
+        if (_selectedFilter == 1) {
+          periodTitle = "This week's feeds";
+          final start = DateTime.now().subtract(const Duration(days: 6));
+          periodSubheader = '${DateFormat('dd MMM').format(start)} - Today';
+          totalSubLabel = 'feeds this week';
+        } else if (_selectedFilter == 2) {
+          periodTitle = "This month's feeds";
+          periodSubheader = DateFormat('MMMM yyyy').format(DateTime.now());
+          totalSubLabel = 'feeds this month';
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFFAF6F7),
+          body: SafeArea(
+            child: Column(
+              children: [
+                // ─── TOP APP BAR ───
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(
+                          Icons.arrow_back,
                           color: Color(0xFF1E2024),
+                          size: 24,
                         ),
                       ),
-                    ),
+                      const Expanded(
+                        child: Center(
+                          child: Text(
+                            'Feeding Tracker',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1E2024),
+                            ),
+                          ),
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: _logFeed,
+                        icon: const Icon(Icons.add, size: 16, color: Color(0xFF8B5CF6)),
+                        label: const Text(
+                          'Log',
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF8B5CF6),
+                          ),
+                        ),
+                        style: TextButton.styleFrom(
+                          backgroundColor: const Color(0xFFEDE9FE),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        ),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    onPressed: () {
-                      showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now().subtract(const Duration(days: 90)),
-                        lastDate: DateTime.now(),
+                ),
+
+                // ─── FIXED TOP: Baby Hero Banner, Top Summary Card & Filter Tabs ───
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                  child: BabyHeroBanner(
+                    speechText: "Week 24, Amma!\nWe're growing together. Can you feel the kicks?",
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 220,
+                  ),
+                ),
+
+                // ─── TOP SUMMARY CARD ───
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const FeedingTrackerPage()),
                       );
                     },
-                    icon: const Icon(
-                      Icons.calendar_month_rounded,
-                      color: Color(0xFF1E2024),
-                      size: 24,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // ─── SCROLLABLE BODY ───
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  children: [
-                    // Baby Hero Banner
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      child: BabyHeroBanner(
-                        speechText: "Week 24, Amma!\nWe're growing together. Can you feel the kicks?",
-                        bubblePosition: SpeechBubblePosition.topCenter,
-                        height: 270,
-                      ),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // ─── TOP SUMMARY CARD ───
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const FeedingTrackerPage()),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(24),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 14,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.03),
+                            blurRadius: 14,
+                            offset: const Offset(0, 4),
                           ),
-                          child: Row(
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 50,
+                            height: 50,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFEDE9FE),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.local_drink_rounded,
+                              color: Color(0xFF8B5CF6),
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Container(
-                                width: 54,
-                                height: 54,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFEDE9FE),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.local_drink_rounded,
-                                  color: Color(0xFF8B5CF6),
-                                  size: 26,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              const Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
                                 children: [
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                                    textBaseline: TextBaseline.alphabetic,
-                                    children: [
-                                      Text(
-                                        '6',
-                                        style: TextStyle(
-                                          fontSize: 28,
-                                          fontWeight: FontWeight.w800,
-                                          color: Color(0xFF1E2024),
-                                          height: 1.0,
-                                        ),
-                                      ),
-                                      SizedBox(width: 6),
-                                      Text(
-                                        'feeds today',
-                                        style: TextStyle(
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1E2024),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  SizedBox(height: 2),
                                   Text(
-                                    'Total feeding time',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      color: Color(0xFF8C93A3),
+                                    '$totalFeeds',
+                                    style: const TextStyle(
+                                      fontSize: 26,
+                                      fontWeight: FontWeight.w800,
+                                      color: Color(0xFF1E2024),
+                                      height: 1.0,
                                     ),
                                   ),
-                                  SizedBox(height: 1),
+                                  const SizedBox(width: 6),
                                   Text(
-                                    '128 min',
-                                    style: TextStyle(
+                                    totalSubLabel,
+                                    style: const TextStyle(
                                       fontSize: 14,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       color: Color(0xFF1E2024),
                                     ),
                                   ),
                                 ],
                               ),
-                              const Spacer(),
-                              const Icon(
-                                Icons.chevron_right_rounded,
-                                color: Color(0xFF8C93A3),
-                                size: 26,
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Total feeding time',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF8C93A3),
+                                ),
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                totalDurationMinutes > 0 ? '$totalDurationMinutes min' : '${totalFeeds * 20} min',
+                                style: const TextStyle(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF1E2024),
+                                ),
                               ),
                             ],
                           ),
-                        ),
+                          const Spacer(),
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            color: Color(0xFF8C93A3),
+                            size: 24,
+                          ),
+                        ],
                       ),
                     ),
+                  ),
+                ),
 
-                    const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                    // ─── FILTER TABS (Day / Week / Month) ───
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Container(
-                        height: 48,
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(24),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                // ─── FILTER TABS (Day / Week / Month) ───
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(22),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.02),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
                         ),
-                        child: Row(
-                          children: [
-                            _buildFilterTab(0, 'Day'),
-                            _buildFilterTab(1, 'Week'),
-                            _buildFilterTab(2, 'Month'),
-                          ],
-                        ),
-                      ),
+                      ],
                     ),
+                    child: Row(
+                      children: [
+                        _buildFilterTab(0, 'Day'),
+                        _buildFilterTab(1, 'Week'),
+                        _buildFilterTab(2, 'Month'),
+                      ],
+                    ),
+                  ),
+                ),
 
-                    const SizedBox(height: 16),
+                const SizedBox(height: 12),
 
-                    // ─── TODAY'S FEEDS CARD ───
+                // ─── SCROLLABLE BODY (After the tab) ───
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Column(
+                      children: [
+                        // ─── FEEDS CARD ───
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Container(
@@ -289,20 +342,20 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                         ),
                         child: Column(
                           children: [
-                            const Row(
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  "Today's feeds",
-                                  style: TextStyle(
+                                  periodTitle,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                     color: Color(0xFF1E2024),
                                   ),
                                 ),
                                 Text(
-                                  '26 Aug',
-                                  style: TextStyle(
+                                  periodSubheader,
+                                  style: const TextStyle(
                                     fontSize: 13,
                                     color: Color(0xFF8C93A3),
                                     fontWeight: FontWeight.w500,
@@ -313,25 +366,43 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                             const SizedBox(height: 16),
 
                             // List of Feeds
-                            for (int i = 0; i < _feeds.length; i++) ...[
-                              _buildFeedRow(_feeds[i]),
-                              if (i < _feeds.length - 1) const SizedBox(height: 14),
-                            ],
+                            if (feeds.isEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.child_care_rounded, size: 36, color: Colors.grey.shade300),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'No feeds recorded for this period',
+                                        style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              for (int i = 0; i < feeds.length; i++) ...[
+                                _buildFeedRow(feeds[i]),
+                                if (i < feeds.length - 1) const SizedBox(height: 14),
+                              ],
 
-                            const SizedBox(height: 18),
+                              const SizedBox(height: 18),
 
-                            // View All Action
-                            GestureDetector(
-                              onTap: _showAllFeedsSheet,
-                              child: const Text(
-                                'View all',
-                                style: TextStyle(
-                                  fontSize: 14.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF8B5CF6),
+                              // View All Action
+                              GestureDetector(
+                                onTap: () => _showAllFeedsSheet(feeds),
+                                child: const Text(
+                                  'View all',
+                                  style: TextStyle(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF8B5CF6),
+                                  ),
                                 ),
                               ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -381,6 +452,8 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
         ),
       ),
     );
+  },
+);
   }
 
   Widget _buildFeedRow(Map<String, dynamic> feed) {

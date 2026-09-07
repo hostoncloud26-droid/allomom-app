@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'package:allomom/services/api/report_api.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:drift/drift.dart' as drift;
@@ -53,16 +52,7 @@ class _EditReportState extends State<EditReport> {
 
     setState(() => isSaving = true);
     try {
-      final updatedData = {
-        'id': reportId,
-        'report_type': reportType,
-        'description': descriptionController.text.trim(),
-        'imageUrl': widget.reportDetails['imageUrl'],
-        'detail': widget.reportDetails['detail'],
-      };
-
-      await ReportApi.updateReport(updatedData);
-
+      // Local-only: written straight to SQLite with synced = 0.
       final rRow = ReportsCompanion(
         id: drift.Value(reportId),
         reportType: drift.Value(reportType ?? 'Report'),
@@ -74,7 +64,7 @@ class _EditReportState extends State<EditReport> {
                 : jsonEncode(widget.reportDetails['detail']))
             : const drift.Value.absent(),
       );
-      await ReportDbService.instance.saveReport(rRow);
+      await ReportDbService.instance.updateReport(rRow);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

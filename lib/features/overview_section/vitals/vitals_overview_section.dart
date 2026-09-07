@@ -7,6 +7,7 @@ import 'package:allomom/features/my_health/details/sleep_detail_page.dart';
 import 'package:allomom/features/my_health/details/blood_pressure_detail_page.dart';
 import 'package:allomom/features/my_health/details/blood_glucose_detail_page.dart';
 import 'package:allomom/features/my_health/details/hemoglobin_detail_page.dart';
+import 'package:allomom/features/my_health/my_health_page.dart';
 
 class VitalsOverviewSection extends StatelessWidget {
   const VitalsOverviewSection({super.key});
@@ -22,15 +23,51 @@ class VitalsOverviewSection extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4, bottom: 14),
-              child: Text(
-                'My Vitals',
-                style: GoogleFonts.manrope(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1B1C1A),
-                  letterSpacing: -0.5,
-                ),
+              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'My Vitals',
+                    style: GoogleFonts.manrope(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1B1C1A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MyHealthPage()),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View All',
+                            style: GoogleFonts.manrope(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFFF3B5C),
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 11,
+                            color: Color(0xFFFF3B5C),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
 

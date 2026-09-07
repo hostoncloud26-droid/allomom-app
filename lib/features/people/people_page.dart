@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
+import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/services/family_db_service.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 
 class PeoplePage extends StatefulWidget {
   const PeoplePage({super.key});
@@ -13,28 +18,68 @@ class _PeoplePageState extends State<PeoplePage> {
   int _selectedTab = 0; // 0: Family, 1: Community
   final TextEditingController _searchController = TextEditingController();
 
-  final List<Map<String, dynamic>> _familyMembers = [
-    {
-      'name': 'Lakshmi',
-      'phone': '94872 43682',
-      'relation': 'Myself',
-      'badgeBg': const Color(0xFFFEF3C7),
-      'badgeTextColor': const Color(0xFFD97706),
-      'avatarLetter': 'L',
-      'avatarBg': const Color(0xFFFCE7F0),
-      'avatarLetterColor': primaryColor,
-    },
-    {
-      'name': 'Ravi',
-      'phone': '97874 64432',
-      'relation': 'Anna · co-parent',
-      'badgeBg': const Color(0xFFEFF6FF),
-      'badgeTextColor': const Color(0xFF3B82F6),
-      'avatarLetter': 'R',
-      'avatarBg': const Color(0xFFE0E7FF),
-      'avatarLetterColor': const Color(0xFF3730A3),
-    },
-  ];
+  Map<String, dynamic>? _familyData;
+  List<dynamic> _apiFamilyMembers = [];
+  bool _isLoadingFamily = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFamilyData();
+  }
+
+  /// Loads the family and its members from the local Drift database.
+  Future<void> _loadFamilyData() async {
+    setState(() {
+      _isLoadingFamily = true;
+    });
+    try {
+      final userId = UserSessionManager.instance.userId;
+      final family = userId.isEmpty
+          ? null
+          : await FamilyDbService.instance.getMyFamily(userId);
+
+      if (family == null) {
+        if (!mounted) return;
+        setState(() {
+          _familyData = null;
+          _apiFamilyMembers = [];
+          _isLoadingFamily = false;
+        });
+        return;
+      }
+
+      final members = await FamilyDbService.instance.getFamilyMembers(family.id);
+      if (!mounted) return;
+      setState(() {
+        _familyData = {
+          'id': family.id,
+          'name': family.name ?? 'My Family',
+          'code': family.code ?? '',
+          'profileImage': family.profileImage,
+          'bannerImage': family.bannerImage,
+        };
+        _apiFamilyMembers = members
+            .map((m) => {
+                  'userid': m.userId,
+                  'id': m.userId,
+                  'name': m.name,
+                  'phone': m.phone ?? '',
+                  'relation': m.relation,
+                  'image': m.image,
+                })
+            .toList();
+        _isLoadingFamily = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading family from local database: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingFamily = false;
+        });
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -153,103 +198,136 @@ class _PeoplePageState extends State<PeoplePage> {
   // ─── FAMILY TAB ────────────────────────────────────────────────────────────
   // ===========================================================================
   Widget _buildFamilyTab() {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      children: [
-        _buildFamilyBannerCard(),
-        mediumSpacingBox(),
-        _buildFamilyActionButtons(),
-        largeSpacingBox(),
-        _buildFamilyMembersHeader(),
-        mediumSpacingBox(),
-        for (int i = 0; i < _familyMembers.length; i++) ...[
-          Dismissible(
-            key: ValueKey('${_familyMembers[i]['name']}_${_familyMembers[i]['phone']}_$i'),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF4E6A),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Delete',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.white,
-                    size: 22,
-                  ),
-                ],
-              ),
-            ),
-            confirmDismiss: (direction) async {
-              if (_familyMembers[i]['relation'] == 'Myself') {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Text("Primary account (Myself) cannot be deleted."),
-                    backgroundColor: const Color(0xFFFF4E6A),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-                return false;
-              }
-              return true;
-            },
-            onDismissed: (direction) {
-              final removedMember = _familyMembers[i];
-              final removedIndex = i;
-              setState(() {
-                _familyMembers.removeAt(i);
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${removedMember['name']} removed from family'),
-                  backgroundColor: const Color(0xFF1E2024),
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  action: SnackBarAction(
-                    label: 'UNDO',
-                    textColor: const Color(0xFFFF3B5C),
-                    onPressed: () {
-                      setState(() {
-                        _familyMembers.insert(removedIndex, removedMember);
-                      });
-                    },
+    if (_isLoadingFamily) {
+      return const Center(
+        child: CircularProgressIndicator(color: primaryColor),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadFamilyData,
+      color: primaryColor,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+        children: [
+          if (_familyData == null) ...[
+            _buildNoFamilyCard(),
+          ] else ...[
+            _buildFamilyBannerCard(),
+            mediumSpacingBox(),
+            _buildFamilyActionButtons(),
+            largeSpacingBox(),
+            _buildFamilyMembersHeader(),
+            mediumSpacingBox(),
+            if (_apiFamilyMembers.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                  child: Text(
+                    'No family members added yet.\nTap "Add member" above to invite!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13.5),
                   ),
                 ),
-              );
-            },
-            child: _buildFamilyMemberCard(
-              name: _familyMembers[i]['name'] ?? '',
-              phone: _familyMembers[i]['phone'] ?? '',
-              badgeText: _familyMembers[i]['relation'] ?? '',
-              badgeBg: _familyMembers[i]['badgeBg'] ?? const Color(0xFFFEF3C7),
-              badgeTextColor: _familyMembers[i]['badgeTextColor'] ?? const Color(0xFFD97706),
-              avatarLetter: _familyMembers[i]['avatarLetter'] ?? 'M',
-              avatarBg: _familyMembers[i]['avatarBg'] ?? const Color(0xFFFCE7F0),
-              avatarLetterColor: _familyMembers[i]['avatarLetterColor'] ?? primaryColor,
+              )
+            else
+              for (int i = 0; i < _apiFamilyMembers.length; i++) ...[
+                _buildDismissibleMemberItem(_apiFamilyMembers[i], i),
+                if (i < _apiFamilyMembers.length - 1) mediumSpacingBox(),
+              ],
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoFamilyCard() {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFCE7F0),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 42)),
             ),
           ),
-          if (i < _familyMembers.length - 1) mediumSpacingBox(),
+          const SizedBox(height: 18),
+          const Text(
+            'No Family Group Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your family group or enter a 6-character family code to connect with your partner and share your maternal journey.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13.5,
+              color: Colors.grey.shade600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => _showJoinFamilyDialog(),
+              icon: const Icon(Icons.vpn_key_rounded, size: 20),
+              label: const Text('Enter Family Code', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => _showCreateFamilyDialog(),
+              icon: Icon(Icons.add_circle_outline_rounded, size: 20, color: primaryColor),
+              label: Text('Create Family', style: TextStyle(fontWeight: FontWeight.w600, color: primaryColor)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: primaryColor, width: 1.5),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+              ),
+            ),
+          ),
         ],
-      ],
+      ),
     );
   }
 
   Widget _buildFamilyBannerCard() {
+    final familyName = _familyData?['name'] ?? "My Family";
+    final familyCode = _familyData?['code']?.toString() ?? "";
+    final membersCount = _apiFamilyMembers.length;
+
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -264,56 +342,32 @@ class _PeoplePageState extends State<PeoplePage> {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                // Background trees graphic
                 Positioned.fill(
                   child: CustomPaint(
                     painter: _FamilyTreeIllustrationPainter(),
                   ),
                 ),
-                // Avatar with camera badge
                 Positioned(
                   left: 20,
                   bottom: -15,
-                  child: Stack(
-                    children: [
-                      Container(
-                        width: 76,
-                        height: 76,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFFFCE7F0),
-                          border: Border.all(color: Colors.white, width: 3),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFCE7F0),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                        child: const Center(
-                          child: Text('👩‍🦰', style: TextStyle(fontSize: 42)),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 26,
-                          height: 26,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: const Color(0xFF00A896),
-                            border: Border.all(color: Colors.white, width: 2),
-                          ),
-                          child: const Icon(
-                            Icons.camera_alt_rounded,
-                            size: 13,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
+                    child: const Center(
+                      child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 38)),
+                    ),
                   ),
                 ),
               ],
@@ -321,37 +375,344 @@ class _PeoplePageState extends State<PeoplePage> {
           ),
           const SizedBox(height: 24),
 
-          // Title & member count
+          // Title & member count & family code
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(
               children: [
-                const Text(
-                  "Lakshmi's family",
-                  style: TextStyle(
+                Text(
+                  familyName,
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
                     color: textDark,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCFCE7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    '${_familyMembers.length + 1} members',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF15803D),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$membersCount ${membersCount == 1 ? "member" : "members"}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
                     ),
-                  ),
+                    if (familyCode.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: familyCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Family Code $familyCode copied to clipboard!'),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Code: $familyCode',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryColor,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.copy_rounded, size: 13, color: primaryColor),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDismissibleMemberItem(dynamic member, int index) {
+    if (member is! Map) return const SizedBox.shrink();
+    final name = (member['name'] ?? 'Family Member').toString();
+    final phone = (member['phone'] ?? '').toString();
+    final relation = (member['relation'] ?? 'Member').toString();
+    final userId = (member['userid'] ?? member['id'])?.toString();
+
+    Color badgeBg = const Color(0xFFEFF6FF);
+    Color badgeText = const Color(0xFF3B82F6);
+    Color avatarBg = const Color(0xFFDBEAFE);
+    Color avatarLetterColor = const Color(0xFF1E40AF);
+
+    final relLower = relation.toLowerCase();
+    if (relLower.contains('mother') || relLower.contains('wife')) {
+      badgeBg = const Color(0xFFFCE7F0);
+      badgeText = primaryColor;
+      avatarBg = const Color(0xFFFFE4E6);
+      avatarLetterColor = const Color(0xFFE11D48);
+    } else if (relLower.contains('father') || relLower.contains('husband')) {
+      badgeBg = const Color(0xFFEFF6FF);
+      badgeText = const Color(0xFF3B82F6);
+      avatarBg = const Color(0xFFDBEAFE);
+      avatarLetterColor = const Color(0xFF1E40AF);
+    } else if (relLower.contains('child')) {
+      badgeBg = const Color(0xFFDCFCE7);
+      badgeText = const Color(0xFF15803D);
+      avatarBg = const Color(0xFFD1FAE5);
+      avatarLetterColor = const Color(0xFF059669);
+    } else if (relLower.contains('caregiver')) {
+      badgeBg = const Color(0xFFF3E8FF);
+      badgeText = const Color(0xFF7C3AED);
+      avatarBg = const Color(0xFFEDE9FE);
+      avatarLetterColor = const Color(0xFF6D28D9);
+    } else {
+      badgeBg = const Color(0xFFFEF3C7);
+      badgeText = const Color(0xFFD97706);
+      avatarBg = const Color(0xFFFEF9C3);
+      avatarLetterColor = const Color(0xFFCA8A04);
+    }
+
+    final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'M';
+
+    return Dismissible(
+      key: ValueKey('fam_member_${userId}_$index'),
+      direction: DismissDirection.endToStart,
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF4E6A),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Remove',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            SizedBox(width: 8),
+            Icon(
+              Icons.delete_outline_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
+          ],
+        ),
+      ),
+      confirmDismiss: (direction) async {
+        if (userId == null) return false;
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Text('Remove Member?'),
+            content: Text('Are you sure you want to remove $name from your family?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF4E6A)),
+                child: const Text('Remove', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true) {
+          final familyId = _familyData?['id']?.toString() ?? '';
+          if (userId.isEmpty || familyId.isEmpty) {
+            return false;
+          }
+          try {
+            await FamilyDbService.instance.removeFamilyMember(
+              familyId: familyId,
+              userId: userId,
+            );
+            _loadFamilyData();
+            return true;
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Failed to remove: $e')),
+              );
+            }
+          }
+        }
+        return false;
+      },
+      child: _buildFamilyMemberCard(
+        name: name,
+        phone: phone,
+        badgeText: relation,
+        badgeBg: badgeBg,
+        badgeTextColor: badgeText,
+        avatarLetter: avatarLetter,
+        avatarBg: avatarBg,
+        avatarLetterColor: avatarLetterColor,
+      ),
+    );
+  }
+
+  void _showJoinFamilyDialog() {
+    final codeCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Join Family', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the 6-character family code provided by your partner.',
+              style: TextStyle(fontSize: 13, color: textLight),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: codeCtrl,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 6,
+              style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: 4),
+              decoration: InputDecoration(
+                hintText: 'e.g. A1B2C3',
+                counterText: '',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeCtrl.text.trim().toUpperCase();
+              if (code.length == 6) {
+                Navigator.pop(ctx);
+                final userId = UserSessionManager.instance.userId;
+                Family? joined;
+                if (userId.isNotEmpty) {
+                  joined = await FamilyDbService.instance.joinFamilyByCode(
+                    code: code,
+                    userId: userId,
+                  );
+                }
+                if (joined != null) {
+                  _loadFamilyData();
+                } else if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'No family found for that code on this device',
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+            child: const Text('Join', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreateFamilyDialog() {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text('Create Family', style: TextStyle(fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter a name for your family group.',
+              style: TextStyle(fontSize: 13, color: textLight),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: nameCtrl,
+              decoration: InputDecoration(
+                hintText: "e.g. Anand's Family",
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              Navigator.pop(ctx);
+              final userId = UserSessionManager.instance.userId;
+              if (userId.isEmpty) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sign in before creating a family'),
+                    ),
+                  );
+                }
+                return;
+              }
+              try {
+                await FamilyDbService.instance.createFamily(
+                  creatorUserId: userId,
+                  name: name.isNotEmpty ? name : null,
+                );
+                _loadFamilyData();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to create family: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+            child: const Text('Create', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -561,340 +922,14 @@ class _PeoplePageState extends State<PeoplePage> {
 
   // ─── ADD MEMBER BOTTOM SHEET ────────────────────────────────
   void _showAddMemberBottomSheet(BuildContext context) {
-    final nameController = TextEditingController();
-    final phoneController = TextEditingController();
-    String selectedRelation = 'Husband / Partner';
-
-    final relations = [
-      'Husband / Partner',
-      'Mother',
-      'Father',
-      'Mother-in-law',
-      'Father-in-law',
-      'Sister',
-      'Brother',
-      'Caregiver / Other',
-    ];
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Container(
-              padding: EdgeInsets.only(
-                top: 20,
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 28,
-              ),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top handle
-                    Center(
-                      child: Container(
-                        width: 40,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Header Row
-                    Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: primaryColor.withValues(alpha: 0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.person_add_alt_1_rounded,
-                            color: primaryColor,
-                            size: 22,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Add Family Member',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w800,
-                                  color: textDark,
-                                ),
-                              ),
-                              SizedBox(height: 2),
-                              Text(
-                                'Add support to your pregnancy care circle',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: textLight,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          icon: const Icon(Icons.close_rounded, color: textDark, size: 22),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    // 1. NAME FIELD
-                    const Text(
-                      'Full Name',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: TextField(
-                        controller: nameController,
-                        style: const TextStyle(fontSize: 14, color: textDark, fontWeight: FontWeight.w600),
-                        decoration: const InputDecoration(
-                          hintText: 'e.g. Ramesh Kumar',
-                          hintStyle: TextStyle(fontSize: 13.5, color: textMuted),
-                          prefixIcon: Icon(Icons.person_outline_rounded, color: textLight, size: 20),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // 2. RELATION TO MOTHER
-                    const Text(
-                      'Relation',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: relations.map((rel) {
-                        final isSelected = selectedRelation == rel;
-                        return GestureDetector(
-                          onTap: () {
-                            setModalState(() {
-                              selectedRelation = rel;
-                            });
-                          },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 150),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFFFFF0F4) : const Color(0xFFF9FAFB),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: isSelected ? primaryColor : const Color(0xFFE5E7EB),
-                                width: isSelected ? 1.5 : 1,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (isSelected) ...[
-                                  Icon(Icons.check_rounded, size: 14, color: primaryColor),
-                                  const SizedBox(width: 4),
-                                ],
-                                Text(
-                                  rel,
-                                  style: TextStyle(
-                                    fontSize: 12.5,
-                                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                    color: isSelected ? primaryColor : const Color(0xFF4B5563),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // 3. MOBILE NUMBER
-                    const Text(
-                      'Mobile Number',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: textDark,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFB),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE5E7EB)),
-                      ),
-                      child: TextField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        style: const TextStyle(fontSize: 14, color: textDark, fontWeight: FontWeight.w600),
-                        decoration: InputDecoration(
-                          hintText: '98765 43210',
-                          hintStyle: const TextStyle(fontSize: 13.5, color: textMuted),
-                          prefixIcon: Padding(
-                            padding: const EdgeInsets.only(left: 14, right: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.phone_outlined, color: textLight, size: 18),
-                                const SizedBox(width: 6),
-                                const Text(
-                                  '+91',
-                                  style: TextStyle(
-                                    fontSize: 13.5,
-                                    fontWeight: FontWeight.w700,
-                                    color: textDark,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  width: 1,
-                                  height: 18,
-                                  color: const Color(0xFFD1D5DB),
-                                ),
-                              ],
-                            ),
-                          ),
-                          border: InputBorder.none,
-                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // 4. SUBMIT BUTTON
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final name = nameController.text.trim();
-                          final phone = phoneController.text.trim();
-
-                          if (name.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter member name'),
-                                backgroundColor: Color(0xFFFF3B5C),
-                              ),
-                            );
-                            return;
-                          }
-                          if (phone.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Please enter mobile number'),
-                                backgroundColor: Color(0xFFFF3B5C),
-                              ),
-                            );
-                            return;
-                          }
-
-                          final colorThemes = [
-                            {'bg': const Color(0xFFF3E8FF), 'text': const Color(0xFF7C3AED), 'badgeBg': const Color(0xFFEDE9FE), 'badgeText': const Color(0xFF6D28D9)},
-                            {'bg': const Color(0xFFDCFCE7), 'text': const Color(0xFF15803D), 'badgeBg': const Color(0xFFD1FAE5), 'badgeText': const Color(0xFF059669)},
-                            {'bg': const Color(0xFFFEF3C7), 'text': const Color(0xFFD97706), 'badgeBg': const Color(0xFFFEF9C3), 'badgeText': const Color(0xFFCA8A04)},
-                            {'bg': const Color(0xFFDBEAFE), 'text': const Color(0xFF1E40AF), 'badgeBg': const Color(0xFFEFF6FF), 'badgeText': const Color(0xFF3B82F6)},
-                          ];
-                          final theme = colorThemes[_familyMembers.length % colorThemes.length];
-
-                          setState(() {
-                            _familyMembers.add({
-                              'name': name,
-                              'phone': phone.length == 10 ? '${phone.substring(0, 5)} ${phone.substring(5)}' : phone,
-                              'relation': selectedRelation,
-                              'badgeBg': theme['badgeBg'],
-                              'badgeTextColor': theme['badgeText'],
-                              'avatarLetter': name.isNotEmpty ? name[0].toUpperCase() : 'M',
-                              'avatarBg': theme['bg'],
-                              'avatarLetterColor': theme['text'],
-                            });
-                          });
-
-                          Navigator.pop(ctx);
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text('$name added as $selectedRelation')),
-                                ],
-                              ),
-                              backgroundColor: const Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryColor,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.person_add_alt_1_rounded, size: 20),
-                            SizedBox(width: 8),
-                            Text(
-                              'Add Member',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+        return AddFamilyMemberSheet(
+          familyID: _familyData?['id']?.toString(),
+          onMemberAdded: _loadFamilyData,
         );
       },
     );
@@ -902,6 +937,8 @@ class _PeoplePageState extends State<PeoplePage> {
 
   // ─── SHARE QR MODAL ─────────────────────────────────────────
   void _showShareQrModal(BuildContext context) {
+    final code = _familyData?['code']?.toString() ?? 'ALLOMOM';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -925,7 +962,7 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
             const SizedBox(height: 18),
             const Text(
-              'Family Invite QR Code',
+              'Family Invite Code',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -934,7 +971,8 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
             const SizedBox(height: 4),
             const Text(
-              'Have your partner scan this to link accounts',
+              'Share this 6-character code with your partner to join your family',
+              textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
                 color: textLight,
@@ -955,26 +993,41 @@ class _PeoplePageState extends State<PeoplePage> {
               ),
             ),
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F4),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.copy_rounded, size: 16, color: primaryColor),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'INVITE CODE: ALLOMOM-LAKSHMI-2026',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: primaryColor,
-                    ),
+            GestureDetector(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: code));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Family Code $code copied to clipboard!'),
+                    backgroundColor: const Color(0xFF10B981),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                ],
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF0F4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.copy_rounded, size: 16, color: primaryColor),
+                    const SizedBox(width: 8),
+                    Text(
+                      'INVITE CODE: $code',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        color: primaryColor,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 20),

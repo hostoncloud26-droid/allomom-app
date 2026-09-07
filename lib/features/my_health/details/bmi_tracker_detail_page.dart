@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/models/vitals_stream_model.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class BmiTrackerDetailPage extends StatefulWidget {
@@ -12,10 +16,17 @@ class BmiTrackerDetailPage extends StatefulWidget {
 class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
   String _selectedTab = 'Month';
 
+  void _openLogSheet() async {
+    final updated = await VitalLogBottomSheet.show(context, initialKey: 'weight', lockKey: true);
+    if (updated == true && mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -43,35 +54,70 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
                 color: Color(0xFF2D3142),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── BABY HERO CARD ───
-                BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
+            actions: [
+              TextButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF10B981)),
+                label: const Text(
+                  'Log',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF10B981),
+                  ),
                 ),
-                const SizedBox(height: 18),
-
-                // ─── PERIOD TABS (Day / Week / Month) ───
-                _buildPeriodTabs(const Color(0xFFE6F9F0), const Color(0xFF10B981)),
-                const SizedBox(height: 16),
-
-                // ─── MAIN CHART CARD ───
-                _buildMainChartCard(),
-                const SizedBox(height: 16),
-
-                // ─── 3 BOTTOM STAT CARDS ───
-                _buildBottomStatsRow(),
-                const SizedBox(height: 40),
-              ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openLogSheet,
+            backgroundColor: const Color(0xFF10B981),
+            elevation: 3,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Log Weight',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── FIXED TOP SECTION (Baby Hero Card & Period Tabs) ───
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 250,
+                      greetingText: "",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPeriodTabs(const Color(0xFFE6F9F0), const Color(0xFF10B981)),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // ─── SCROLLABLE BOTTOM SECTION (After the tab) ───
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMainChartCard(),
+                      const SizedBox(height: 16),
+                      _buildBottomStatsRow(),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -117,6 +163,26 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
   }
 
   Widget _buildMainChartCard() {
+    String dateRangeText;
+    List<String> xLabels;
+    final now = DateTime.now();
+
+    if (_selectedTab == 'Day') {
+      dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
+      xLabels = ['6 AM', '9 AM', '12 PM', '3 PM', '6 PM', 'Now'];
+    } else if (_selectedTab == 'Week') {
+      final start = now.subtract(const Duration(days: 6));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return i == 6 ? 'Today' : DateFormat('E').format(d);
+      });
+    } else {
+      final start = now.subtract(const Duration(days: 28));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = ['4 Wks Ago', '3 Wks Ago', '2 Wks Ago', 'Last Wk', 'Today'];
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,12 +201,12 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'PREGNANCY GAIN',
-                style: TextStyle(
+                _selectedTab == 'Day' ? 'TODAY\'S LOG' : 'PREGNANCY GAIN',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E2024),
@@ -148,8 +214,8 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
                 ),
               ),
               Text(
-                '20 Jul - Today',
-                style: TextStyle(
+                dateRangeText,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF8E95A5),
@@ -164,21 +230,27 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
             height: 180,
             width: double.infinity,
             child: CustomPaint(
-              painter: _BmiWeightChartPainter(),
+              painter: _BmiWeightChartPainter(
+                period: _selectedTab,
+                currentWeight: HealthVitalsController.instance.hasWeight
+                    ? HealthVitalsController.instance.weightValue.toStringAsFixed(1)
+                    : '--',
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
           // X-Axis Time Labels
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('20 Jul', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('30 Jul', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('10 Aug', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('20 Aug', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Today', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5), fontWeight: FontWeight.w700)),
-            ],
+            children: xLabels.map((lbl) => Text(
+              lbl,
+              style: TextStyle(
+                fontSize: 9.5,
+                color: const Color(0xFF8E95A5),
+                fontWeight: lbl == 'Today' || lbl == 'Now' ? FontWeight.w700 : FontWeight.w500,
+              ),
+            )).toList(),
           ),
         ],
       ),
@@ -186,6 +258,26 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
   }
 
   Widget _buildBottomStatsRow() {
+    final vitals = HealthVitalsController.instance;
+    final hasWeight = vitals.hasWeight;
+    final periodHistory = vitals.getHistoryForPeriod('weight', _selectedTab);
+
+    final wt = hasWeight ? vitals.weightValue.toStringAsFixed(1) : '--';
+    final bmi = hasWeight ? vitals.bmiValue.toStringAsFixed(1) : '--';
+    String gainSubtitle = hasWeight ? '+0.0 kg period' : 'No records';
+
+    if (periodHistory.length >= 2) {
+      final diff = periodHistory.last.value - periodHistory.first.value;
+      gainSubtitle = diff >= 0 ? '+${diff.toStringAsFixed(1)} kg period' : '${diff.toStringAsFixed(1)} kg period';
+    } else if (hasWeight) {
+      final allHistory = vitals.getHistory('weight');
+      if (allHistory.length >= 2) {
+        final sorted = List<VitalsStreamResponse>.from(allHistory)..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        final diff = sorted.last.value - sorted.first.value;
+        gainSubtitle = diff >= 0 ? '+${diff.toStringAsFixed(1)} kg total' : '${diff.toStringAsFixed(1)} kg total';
+      }
+    }
+
     return Row(
       children: [
         // Current Weight
@@ -195,9 +287,9 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Weight',
-            value: '66.5',
+            value: wt,
             unit: 'kg',
-            subtitle: '+3.3 kg total',
+            subtitle: gainSubtitle,
           ),
         ),
         const SizedBox(width: 10),
@@ -209,9 +301,9 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
             iconColor: const Color(0xFF3898EC),
             iconBg: const Color(0xFFEDF6FF),
             label: 'BMI',
-            value: '24.1',
+            value: bmi,
             unit: '',
-            subtitle: 'Normal (18.5-24.9)',
+            subtitle: hasWeight ? 'Normal range' : 'Not recorded',
           ),
         ),
         const SizedBox(width: 10),
@@ -329,6 +421,14 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
 }
 
 class _BmiWeightChartPainter extends CustomPainter {
+  final String currentWeight;
+  final String period;
+
+  const _BmiWeightChartPainter({
+    this.currentWeight = '66.5',
+    this.period = 'Month',
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const rightPadding = 24.0;
@@ -347,26 +447,54 @@ class _BmiWeightChartPainter extends CustomPainter {
 
     // Recommended Healthy Weight Corridor Band (Green Shaded Tunnel)
     final tunnelPath = Path();
-    tunnelPath.moveTo(0, chartHeight * 0.75);
-    tunnelPath.lineTo(chartWidth, chartHeight * 0.30);
-    tunnelPath.lineTo(chartWidth, chartHeight * 0.45);
-    tunnelPath.lineTo(0, chartHeight * 0.85);
+    if (period == 'Day') {
+      tunnelPath.moveTo(0, chartHeight * 0.30);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.30);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.45);
+      tunnelPath.lineTo(0, chartHeight * 0.45);
+    } else if (period == 'Week') {
+      tunnelPath.moveTo(0, chartHeight * 0.55);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.30);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.45);
+      tunnelPath.lineTo(0, chartHeight * 0.65);
+    } else {
+      tunnelPath.moveTo(0, chartHeight * 0.75);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.30);
+      tunnelPath.lineTo(chartWidth, chartHeight * 0.45);
+      tunnelPath.lineTo(0, chartHeight * 0.85);
+    }
     tunnelPath.close();
     canvas.drawPath(tunnelPath, Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.07));
 
-    // Weight Progression Curve (63.2 kg -> 66.5 kg)
+    // Weight Progression Curve adapts to Day / Week / Month
     final path = Path();
-    path.moveTo(0, chartHeight * 0.80);
-    path.cubicTo(
-      chartWidth * 0.25, chartHeight * 0.77,
-      chartWidth * 0.50, chartHeight * 0.65,
-      chartWidth * 0.75, chartHeight * 0.50,
-    );
-    path.cubicTo(
-      chartWidth * 0.85, chartHeight * 0.44,
-      chartWidth * 0.95, chartHeight * 0.37,
-      chartWidth, chartHeight * 0.35,
-    );
+    if (period == 'Day') {
+      path.moveTo(0, chartHeight * 0.40);
+      path.cubicTo(
+        chartWidth * 0.35, chartHeight * 0.42,
+        chartWidth * 0.70, chartHeight * 0.37,
+        chartWidth, chartHeight * 0.35,
+      );
+    } else if (period == 'Week') {
+      path.moveTo(0, chartHeight * 0.58);
+      path.cubicTo(
+        chartWidth * 0.30, chartHeight * 0.50,
+        chartWidth * 0.65, chartHeight * 0.42,
+        chartWidth, chartHeight * 0.35,
+      );
+    } else {
+      path.moveTo(0, chartHeight * 0.80);
+      path.cubicTo(
+        chartWidth * 0.25, chartHeight * 0.77,
+        chartWidth * 0.50, chartHeight * 0.65,
+        chartWidth * 0.75, chartHeight * 0.50,
+      );
+      path.cubicTo(
+        chartWidth * 0.85, chartHeight * 0.44,
+        chartWidth * 0.95, chartHeight * 0.37,
+        chartWidth, chartHeight * 0.35,
+      );
+    }
 
     // Fill Gradient
     final fillPath = Path.from(path)
@@ -423,18 +551,19 @@ class _BmiWeightChartPainter extends CustomPainter {
     tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
 
     final tVal = TextPainter(
-      text: const TextSpan(text: '66.5 kg', style: TextStyle(fontSize: 12, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
+      text: TextSpan(text: '$currentWeight kg', style: const TextStyle(fontSize: 12, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
 
     final tSub = TextPainter(
-      text: const TextSpan(text: '+3.3 kg gain', style: TextStyle(fontSize: 8, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
+      text: const TextSpan(text: 'Tracking', style: TextStyle(fontSize: 8, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tSub.paint(canvas, Offset(tooltipRect.left + (tooltipW - tSub.width) / 2, tooltipRect.top + 32));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BmiWeightChartPainter oldDelegate) =>
+      oldDelegate.currentWeight != currentWeight || oldDelegate.period != period;
 }

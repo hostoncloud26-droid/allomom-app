@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
-import 'package:allomom/services/api/prescription_api.dart';
+import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
+import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
 
 class PrescriptionReminderPage extends StatefulWidget {
   final String timingId;
@@ -37,37 +38,42 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
     _loadTimingDetails();
   }
 
+  /// Loads the dose from the local Drift database. Falls back to the
+  /// medicine name passed in by the notification when the row is gone.
   Future<void> _loadTimingDetails() async {
     setState(() {
       _isLoading = true;
     });
 
-    try {
-      final response = await PrescriptionApi.getMedicationTimingDetails(widget.timingId);
-      if (response.success && response.item != null) {
-        setState(() {
-          _timingData = Map<String, dynamic>.from(response.item as Map);
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _timingData = {
-            'medicine_name': widget.medicineName ?? 'Prescribed Medication',
-            'dosage': '1 dose',
-            'status': 'pending',
-            'date_time': DateTime.now().toIso8601String(),
-          };
-          _isLoading = false;
-        });
-      }
-    } catch (_) {
-      setState(() {
-        _timingData = {
+    Map<String, dynamic> fallback() => {
           'medicine_name': widget.medicineName ?? 'Prescribed Medication',
           'dosage': '1 dose',
           'status': 'pending',
           'date_time': DateTime.now().toIso8601String(),
         };
+
+    try {
+      final detail =
+          await PrescriptionDbService.instance.getTimingDetail(widget.timingId);
+      if (!mounted) return;
+      setState(() {
+        _timingData = detail == null
+            ? fallback()
+            : {
+                'medicine_name': detail.medicineName,
+                'dosage': detail.dosage.isEmpty ? '1 dose' : detail.dosage,
+                'meal_instruction': detail.notes,
+                'status': detail.status,
+                'date_time': detail.dateTime.toIso8601String(),
+                'prescription_id': detail.prescription?.id,
+              };
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading timing ${widget.timingId}: $e');
+      if (!mounted) return;
+      setState(() {
+        _timingData = fallback();
         _isLoading = false;
       });
     }
@@ -75,7 +81,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
 
   Future<void> _markAsTaken() async {
     try {
-      await PrescriptionApi.markMedicationTimingTaken(widget.timingId);
+      await PrescriptionDbService.instance.markTimingTaken(widget.timingId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -110,17 +116,40 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
     final String label = _snoozeIntervals[index]["label"];
 
     try {
-      await PrescriptionApi.snoozeMedicationTiming(widget.timingId, minutes);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Reminder snoozed for $label'),
-            backgroundColor: const Color(0xFF3898EC),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        Navigator.of(context).maybePop(false);
+      final rescheduled =
+          await PrescriptionDbService.instance.snoozeTiming(widget.timingId, minutes);
+      if (!mounted) return;
+
+      // Re-arm the local notification for the new time. Without this the
+      // snooze would only move the database row, never the alarm.
+      if (rescheduled) {
+        final detail = await PrescriptionDbService.instance
+            .getTimingDetail(widget.timingId);
+        if (detail != null) {
+          await LocalReminderScheduler.scheduleMedicationReminder(
+            id: widget.timingId.hashCode & 0x7fffffff,
+            medicineName: detail.medicineName,
+            dosage: detail.dosage.isEmpty ? '1 dose' : detail.dosage,
+            mealInstruction: detail.notes ?? '',
+            dateTime: detail.dateTime,
+            timingId: detail.id,
+          );
+        }
       }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(rescheduled
+              ? 'Reminder snoozed for $label'
+              : 'Could not find this dose to snooze'),
+          backgroundColor: rescheduled
+              ? const Color(0xFF3898EC)
+              : Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      if (rescheduled) Navigator.of(context).maybePop(false);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

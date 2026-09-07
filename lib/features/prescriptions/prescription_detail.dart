@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:allomom/models/prescription_timing.dart';
-import 'package:allomom/services/api/prescription_api.dart';
+import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 
 class PrescriptionDetailPage extends StatefulWidget {
   final String prescriptionId;
@@ -35,17 +35,37 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
     }
   }
 
+  /// Loads the prescription from the local Drift database.
   Future<void> _loadDetails() async {
     setState(() => _isLoading = true);
     try {
-      final res = await PrescriptionApi.getPrescriptionById(widget.prescriptionId);
-      if (res.success && res.item is Map) {
+      final row = await PrescriptionDbService.instance
+          .getPrescriptionById(widget.prescriptionId);
+      if (row != null) {
+        final meds = await PrescriptionDbService.instance
+            .getMedicinesForPrescription(row.id);
+        if (!mounted) return;
         setState(() {
-          _prescription = PrescriptionModel.fromJson(Map<String, dynamic>.from(res.item as Map));
+          _prescription = PrescriptionModel(
+            id: row.id,
+            description: row.description,
+            createdAt: row.createdAt,
+            medicines: meds
+                .map((m) => PrescriptionMedicineModel(
+                      id: m.id,
+                      name: m.medicineName,
+                      dosage: m.dosage,
+                      mealInstruction: m.notes,
+                      times: decodeMedicineTimings(m.timings),
+                    ))
+                .toList(),
+          );
         });
       }
-    } catch (_) {}
-    setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint('Error loading prescription ${widget.prescriptionId}: $e');
+    }
+    if (mounted) setState(() => _isLoading = false);
   }
 
   @override

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class HemoglobinDetailPage extends StatefulWidget {
@@ -12,10 +15,17 @@ class HemoglobinDetailPage extends StatefulWidget {
 class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
   String _selectedTab = 'Month';
 
+  void _openLogSheet() async {
+    final updated = await VitalLogBottomSheet.show(context, initialKey: 'hemoglobin', lockKey: true);
+    if (updated == true && mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -43,35 +53,70 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
                 color: Color(0xFF2D3142),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── BABY HERO CARD ───
-                BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
+            actions: [
+              TextButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFFE11D48)),
+                label: const Text(
+                  'Log',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFE11D48),
+                  ),
                 ),
-                const SizedBox(height: 18),
-
-                // ─── PERIOD TABS (Day / Week / Month) ───
-                _buildPeriodTabs(const Color(0xFFFFECEF), const Color(0xFFE11D48)),
-                const SizedBox(height: 16),
-
-                // ─── MAIN CHART CARD ───
-                _buildMainChartCard(),
-                const SizedBox(height: 16),
-
-                // ─── 3 BOTTOM STAT CARDS ───
-                _buildBottomStatsRow(),
-                const SizedBox(height: 40),
-              ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openLogSheet,
+            backgroundColor: const Color(0xFFE11D48),
+            elevation: 3,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Log Hemoglobin',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── FIXED TOP SECTION (Baby Hero Card & Period Tabs) ───
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 250,
+                      greetingText: "",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPeriodTabs(const Color(0xFFFFECEF), const Color(0xFFE11D48)),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // ─── SCROLLABLE BOTTOM SECTION (After the tab) ───
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMainChartCard(),
+                      const SizedBox(height: 16),
+                      _buildBottomStatsRow(),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -117,6 +162,32 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
   }
 
   Widget _buildMainChartCard() {
+    String headerTitle;
+    String dateRangeText;
+    List<String> xLabels;
+    final now = DateTime.now();
+
+    if (_selectedTab == 'Day') {
+      headerTitle = 'TODAY';
+      dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
+      xLabels = ['6 AM', '9 AM', '12 PM', '3 PM', 'Now'];
+    } else if (_selectedTab == 'Week') {
+      headerTitle = 'THIS WEEK';
+      final start = now.subtract(const Duration(days: 6));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return i == 6 ? 'Today' : DateFormat('E').format(d);
+      });
+    } else {
+      headerTitle = 'MONTHLY TREND';
+      final start = now.subtract(const Duration(days: 28));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
+    }
+
+    final hb = HealthVitalsController.instance.hemoglobinValue;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,12 +206,12 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'LATEST TEST',
-                style: TextStyle(
+                headerTitle,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E2024),
@@ -148,8 +219,8 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
                 ),
               ),
               Text(
-                '26 Aug 2026',
-                style: TextStyle(
+                dateRangeText,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF8E95A5),
@@ -164,21 +235,25 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             height: 180,
             width: double.infinity,
             child: CustomPaint(
-              painter: _HemoglobinChartPainter(),
+              painter: _HemoglobinChartPainter(
+                period: _selectedTab,
+                hbVal: hb,
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
           // X-Axis Time Labels
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('May', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Jun', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Jul', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Aug', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Sep', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-            ],
+            children: xLabels.map((lbl) => Text(
+              lbl,
+              style: TextStyle(
+                fontSize: 10,
+                color: const Color(0xFF8E95A5),
+                fontWeight: lbl == 'Today' || lbl == 'Now' ? FontWeight.w700 : FontWeight.w500,
+              ),
+            )).toList(),
           ),
         ],
       ),
@@ -186,6 +261,22 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
   }
 
   Widget _buildBottomStatsRow() {
+    final vitals = HealthVitalsController.instance;
+    final hasHb = vitals.hasHemoglobin;
+    final periodHistory = vitals.getHistoryForPeriod('hemoglobin', _selectedTab);
+
+    double hb = vitals.hemoglobinValue;
+    if (periodHistory.isNotEmpty) {
+      if (_selectedTab == 'Day') {
+        hb = periodHistory.last.value;
+      } else {
+        final sum = periodHistory.map((e) => e.value).reduce((a, b) => a + b);
+        hb = sum / periodHistory.length;
+      }
+    }
+
+    final isRecorded = hasHb || periodHistory.isNotEmpty;
+
     return Row(
       children: [
         // Latest
@@ -194,8 +285,8 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             icon: Icons.bloodtype_rounded,
             iconColor: const Color(0xFFE11D48),
             iconBg: const Color(0xFFFFECEF),
-            label: 'Latest',
-            value: '10.8',
+            label: 'Average',
+            value: isRecorded ? hb.toStringAsFixed(1) : '--',
             unit: 'g/dL',
             subtitle: 'Target > 10.5',
           ),
@@ -209,9 +300,9 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Status',
-            value: 'Normal',
+            value: isRecorded ? (hb >= 11.0 ? 'Normal' : 'Watch') : 'No record',
             unit: '',
-            subtitle: 'Mild watch',
+            subtitle: isRecorded ? (hb >= 11.0 ? 'Optimal range' : 'Mild watch') : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -329,6 +420,14 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
 }
 
 class _HemoglobinChartPainter extends CustomPainter {
+  final String period;
+  final double hbVal;
+
+  const _HemoglobinChartPainter({
+    this.period = 'Month',
+    this.hbVal = 11.2,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const rightPadding = 24.0;
@@ -352,19 +451,35 @@ class _HemoglobinChartPainter extends CustomPainter {
       Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.06),
     );
 
-    // Hb Trend Curve
+    // Hb Trend Curve adapts to Day / Week / Month
     final path = Path();
-    path.moveTo(0, chartHeight * 0.35);
-    path.cubicTo(
-      chartWidth * 0.25, chartHeight * 0.37,
-      chartWidth * 0.50, chartHeight * 0.45,
-      chartWidth * 0.75, chartHeight * 0.50,
-    );
-    path.cubicTo(
-      chartWidth * 0.85, chartHeight * 0.51,
-      chartWidth * 0.95, chartHeight * 0.53,
-      chartWidth, chartHeight * 0.54,
-    );
+    if (period == 'Day') {
+      path.moveTo(0, chartHeight * 0.45);
+      path.cubicTo(
+        chartWidth * 0.35, chartHeight * 0.44,
+        chartWidth * 0.70, chartHeight * 0.46,
+        chartWidth, chartHeight * 0.45,
+      );
+    } else if (period == 'Week') {
+      path.moveTo(0, chartHeight * 0.48);
+      path.cubicTo(
+        chartWidth * 0.30, chartHeight * 0.42,
+        chartWidth * 0.65, chartHeight * 0.50,
+        chartWidth, chartHeight * 0.45,
+      );
+    } else {
+      path.moveTo(0, chartHeight * 0.35);
+      path.cubicTo(
+        chartWidth * 0.25, chartHeight * 0.37,
+        chartWidth * 0.50, chartHeight * 0.45,
+        chartWidth * 0.75, chartHeight * 0.50,
+      );
+      path.cubicTo(
+        chartWidth * 0.85, chartHeight * 0.51,
+        chartWidth * 0.95, chartHeight * 0.53,
+        chartWidth, chartHeight * 0.54,
+      );
+    }
 
     // Fill Gradient
     final fillPath = Path.from(path)
@@ -391,9 +506,9 @@ class _HemoglobinChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, strokePaint);
 
-    // Dotted vertical line at Aug (x = chartWidth * 0.75)
-    final dotX = chartWidth * 0.75;
-    final dotY = chartHeight * 0.50;
+    // Dotted vertical line
+    final dotX = period == 'Day' ? chartWidth * 0.85 : (period == 'Week' ? chartWidth * 0.65 : chartWidth * 0.75);
+    final dotY = period == 'Day' ? chartHeight * 0.45 : (period == 'Week' ? chartHeight * 0.48 : chartHeight * 0.50);
 
     final verticalLinePaint = Paint()
       ..color = const Color(0xFFE11D48).withValues(alpha: 0.4)
@@ -406,7 +521,7 @@ class _HemoglobinChartPainter extends CustomPainter {
     canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
 
     // Tooltip Card
-    const tooltipW = 75.0;
+    const tooltipW = 78.0;
     const tooltipH = 48.0;
     final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 8, tooltipW, tooltipH);
 
@@ -414,25 +529,30 @@ class _HemoglobinChartPainter extends CustomPainter {
     canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
     canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
 
+    final tipTimeStr = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
     final tTime = TextPainter(
-      text: const TextSpan(text: '26 Aug', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
+      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
 
+    final valStr = hbVal > 0 ? '${hbVal.toStringAsFixed(1)} g/dL' : '11.2 g/dL';
     final tVal = TextPainter(
-      text: const TextSpan(text: '10.8 g/dL', style: TextStyle(fontSize: 11.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
+      text: TextSpan(text: valStr, style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
 
+    final statusStr = hbVal >= 11.0 ? 'Optimal' : (hbVal >= 10.0 ? 'Mild Watch' : 'Low');
+    final statusColor = hbVal >= 11.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
     final tSub = TextPainter(
-      text: const TextSpan(text: 'Normal', style: TextStyle(fontSize: 8.5, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
+      text: TextSpan(text: statusStr, style: TextStyle(fontSize: 8.5, color: statusColor, fontWeight: FontWeight.w700)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tSub.paint(canvas, Offset(tooltipRect.left + (tooltipW - tSub.width) / 2, tooltipRect.top + 32));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _HemoglobinChartPainter oldDelegate) =>
+      oldDelegate.period != period || oldDelegate.hbVal != hbVal;
 }

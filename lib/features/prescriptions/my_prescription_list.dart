@@ -2,11 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/prescription_timing.dart';
-import 'package:allomom/services/api/prescription_api.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/features/prescriptions/my_prescription_add.dart';
 import 'package:allomom/features/prescriptions/prescription_detail.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class MyPrescriptionList extends StatefulWidget {
   const MyPrescriptionList({super.key});
@@ -28,42 +27,33 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
   Future<void> _fetchPrescriptions() async {
     setState(() => _isLoading = true);
 
-    try {
-      // 1. Try fetching from server API
-      final res = await PrescriptionApi.getPrescriptions(skip: 0, limit: 30);
-      if (res.success && res.items != null && (res.items as List).isNotEmpty) {
-        final list = (res.items as List).map((e) => PrescriptionModel.fromJson(Map<String, dynamic>.from(e as Map))).toList();
-        if (mounted) {
-          setState(() {
-            _prescriptions = list;
-            _isLoading = false;
-          });
-          return;
-        }
-      }
-    } catch (_) {}
-
-    // 2. Fallback to Drift SQLite local database
+    // Local-only: prescriptions live in the Drift SQLite database.
     try {
       final session = UserSessionManager.instance;
-      final healthId = session.currentHealthData?.id ?? (session.userId.isNotEmpty ? session.userId : 'health_me');
-      final localRows = await PrescriptionDbService.instance.getPrescriptions(healthId);
+      final healthId = session.healthDataId.isNotEmpty
+          ? session.healthDataId
+          : (session.userId.isNotEmpty ? session.userId : 'health_me');
+      final localRows =
+          await PrescriptionDbService.instance.getPrescriptions(healthId);
 
       final localList = <PrescriptionModel>[];
       for (final p in localRows) {
-        final meds = await PrescriptionDbService.instance.getMedicinesForPrescription(p.id);
+        final meds = await PrescriptionDbService.instance
+            .getMedicinesForPrescription(p.id);
         localList.add(
           PrescriptionModel(
             id: p.id,
             description: p.description,
             createdAt: p.createdAt,
-            medicines: meds.map((m) => PrescriptionMedicineModel(
-              id: m.id,
-              name: m.medicineName,
-              dosage: m.dosage,
-              mealInstruction: m.notes,
-              times: m.timings.isNotEmpty ? m.timings.split(',') : const [],
-            )).toList(),
+            medicines: meds
+                .map((m) => PrescriptionMedicineModel(
+                      id: m.id,
+                      name: m.medicineName,
+                      dosage: m.dosage,
+                      mealInstruction: m.notes,
+                      times: decodeMedicineTimings(m.timings),
+                    ))
+                .toList(),
           ),
         );
       }
@@ -74,7 +64,8 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
           _isLoading = false;
         });
       }
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error loading prescriptions from local database: $e');
       if (mounted) setState(() => _isLoading = false);
     }
   }

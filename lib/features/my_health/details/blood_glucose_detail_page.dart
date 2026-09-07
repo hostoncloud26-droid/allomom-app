@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class BloodGlucoseDetailPage extends StatefulWidget {
@@ -12,10 +15,17 @@ class BloodGlucoseDetailPage extends StatefulWidget {
 class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
   String _selectedTab = 'Day';
 
+  void _openLogSheet() async {
+    final updated = await VitalLogBottomSheet.show(context, initialKey: 'glucose', lockKey: true);
+    if (updated == true && mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -43,35 +53,70 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
                 color: Color(0xFF2D3142),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── BABY HERO CARD ───
-                BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
+            actions: [
+              TextButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFFD97706)),
+                label: const Text(
+                  'Log',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFD97706),
+                  ),
                 ),
-                const SizedBox(height: 18),
-
-                // ─── PERIOD TABS (Day / Week / Month) ───
-                _buildPeriodTabs(const Color(0xFFFFFBEB), const Color(0xFFD97706)),
-                const SizedBox(height: 16),
-
-                // ─── MAIN CHART CARD ───
-                _buildMainChartCard(),
-                const SizedBox(height: 16),
-
-                // ─── 3 BOTTOM STAT CARDS ───
-                _buildBottomStatsRow(),
-                const SizedBox(height: 40),
-              ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openLogSheet,
+            backgroundColor: const Color(0xFFD97706),
+            elevation: 3,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Log Glucose',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── FIXED TOP SECTION (Baby Hero Card & Period Tabs) ───
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 250,
+                      greetingText: "",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPeriodTabs(const Color(0xFFFFFBEB), const Color(0xFFD97706)),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // ─── SCROLLABLE BOTTOM SECTION (After the tab) ───
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMainChartCard(),
+                      const SizedBox(height: 16),
+                      _buildBottomStatsRow(),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -117,6 +162,32 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
   }
 
   Widget _buildMainChartCard() {
+    String headerTitle;
+    String dateRangeText;
+    List<String> xLabels;
+    final now = DateTime.now();
+
+    if (_selectedTab == 'Day') {
+      headerTitle = 'TODAY';
+      dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
+      xLabels = ['Fast', 'Breakf', 'Lunch', 'Snack', 'Dinner'];
+    } else if (_selectedTab == 'Week') {
+      headerTitle = 'THIS WEEK';
+      final start = now.subtract(const Duration(days: 6));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return i == 6 ? 'Today' : DateFormat('E').format(d);
+      });
+    } else {
+      headerTitle = 'THIS MONTH';
+      final start = now.subtract(const Duration(days: 28));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
+    }
+
+    final glucose = HealthVitalsController.instance.bloodGlucoseValue;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,12 +206,12 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'TODAY',
-                style: TextStyle(
+                headerTitle,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E2024),
@@ -148,8 +219,8 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
                 ),
               ),
               Text(
-                '25 Aug 2026',
-                style: TextStyle(
+                dateRangeText,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF8E95A5),
@@ -164,21 +235,25 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
             height: 180,
             width: double.infinity,
             child: CustomPaint(
-              painter: _BloodGlucoseChartPainter(),
+              painter: _BloodGlucoseChartPainter(
+                period: _selectedTab,
+                glucoseVal: glucose,
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
           // X-Axis Time Labels
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Fast', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Breakf', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Lunch', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Snack', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('Dinner', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-            ],
+            children: xLabels.map((lbl) => Text(
+              lbl,
+              style: TextStyle(
+                fontSize: 10,
+                color: const Color(0xFF8E95A5),
+                fontWeight: lbl == 'Today' || lbl == 'Fast' ? FontWeight.w700 : FontWeight.w500,
+              ),
+            )).toList(),
           ),
         ],
       ),
@@ -186,6 +261,22 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
   }
 
   Widget _buildBottomStatsRow() {
+    final vitals = HealthVitalsController.instance;
+    final hasGlucose = vitals.hasBloodGlucose;
+    final periodHistory = vitals.getHistoryForPeriod('glucose', _selectedTab);
+
+    double glucose = vitals.bloodGlucoseValue;
+    if (periodHistory.isNotEmpty) {
+      if (_selectedTab == 'Day') {
+        glucose = periodHistory.last.value;
+      } else {
+        final sum = periodHistory.map((e) => e.value).reduce((a, b) => a + b);
+        glucose = sum / periodHistory.length;
+      }
+    }
+
+    final isRecorded = hasGlucose || periodHistory.isNotEmpty;
+
     return Row(
       children: [
         // Fasting
@@ -195,7 +286,7 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
             iconColor: const Color(0xFFD97706),
             iconBg: const Color(0xFFFFFBEB),
             label: 'Fasting',
-            value: '92',
+            value: isRecorded ? glucose.toStringAsFixed(0) : '--',
             unit: 'mg/dL',
             subtitle: 'Target < 95',
           ),
@@ -209,7 +300,7 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Post-Meal',
-            value: '115',
+            value: isRecorded ? (glucose * 1.2).toStringAsFixed(0) : '--',
             unit: 'mg/dL',
             subtitle: 'Target < 120',
           ),
@@ -223,9 +314,9 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
             iconColor: const Color(0xFF8B5CF6),
             iconBg: const Color(0xFFF3E8FF),
             label: 'HbA1c',
-            value: '5.2',
+            value: isRecorded ? ((glucose + 46.7) / 28.7).toStringAsFixed(1) : '--',
             unit: '%',
-            subtitle: 'Excellent',
+            subtitle: isRecorded ? 'Estimated' : 'No record',
           ),
         ),
       ],
@@ -327,6 +418,14 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
 }
 
 class _BloodGlucoseChartPainter extends CustomPainter {
+  final String period;
+  final double glucoseVal;
+
+  const _BloodGlucoseChartPainter({
+    this.period = 'Day',
+    this.glucoseVal = 92.0,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const rightPadding = 26.0;
@@ -350,29 +449,51 @@ class _BloodGlucoseChartPainter extends CustomPainter {
       Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.06),
     );
 
-    // Glucose Curve
+    // Glucose Curve adapts to Day / Week / Month
     final path = Path();
-    path.moveTo(0, chartHeight * 0.60); // Fasting = 92
-    path.cubicTo(
-      chartWidth * 0.15, chartHeight * 0.58,
-      chartWidth * 0.25, chartHeight * 0.32,
-      chartWidth * 0.35, chartHeight * 0.32, // Breakf = 118
-    );
-    path.cubicTo(
-      chartWidth * 0.42, chartHeight * 0.32,
-      chartWidth * 0.48, chartHeight * 0.50,
-      chartWidth * 0.55, chartHeight * 0.35, // Lunch = 115
-    );
-    path.cubicTo(
-      chartWidth * 0.65, chartHeight * 0.38,
-      chartWidth * 0.72, chartHeight * 0.55,
-      chartWidth * 0.80, chartHeight * 0.48, // Snack = 102
-    );
-    path.cubicTo(
-      chartWidth * 0.88, chartHeight * 0.44,
-      chartWidth * 0.95, chartHeight * 0.38,
-      chartWidth, chartHeight * 0.40, // Dinner = 110
-    );
+    if (period == 'Day') {
+      path.moveTo(0, chartHeight * 0.60); // Fasting = 92
+      path.cubicTo(
+        chartWidth * 0.15, chartHeight * 0.58,
+        chartWidth * 0.25, chartHeight * 0.32,
+        chartWidth * 0.35, chartHeight * 0.32, // Breakf = 118
+      );
+      path.cubicTo(
+        chartWidth * 0.42, chartHeight * 0.32,
+        chartWidth * 0.48, chartHeight * 0.50,
+        chartWidth * 0.55, chartHeight * 0.35, // Lunch = 115
+      );
+      path.cubicTo(
+        chartWidth * 0.65, chartHeight * 0.38,
+        chartWidth * 0.72, chartHeight * 0.55,
+        chartWidth * 0.80, chartHeight * 0.48, // Snack = 102
+      );
+      path.cubicTo(
+        chartWidth * 0.88, chartHeight * 0.44,
+        chartWidth * 0.95, chartHeight * 0.38,
+        chartWidth, chartHeight * 0.40, // Dinner = 110
+      );
+    } else if (period == 'Week') {
+      path.moveTo(0, chartHeight * 0.55);
+      path.cubicTo(
+        chartWidth * 0.20, chartHeight * 0.45,
+        chartWidth * 0.40, chartHeight * 0.62,
+        chartWidth * 0.60, chartHeight * 0.40,
+      );
+      path.cubicTo(
+        chartWidth * 0.75, chartHeight * 0.35,
+        chartWidth * 0.90, chartHeight * 0.50,
+        chartWidth, chartHeight * 0.45,
+      );
+    } else {
+      path.moveTo(0, chartHeight * 0.50);
+      path.cubicTo(
+        chartWidth * 0.30, chartHeight * 0.46,
+        chartWidth * 0.60, chartHeight * 0.52,
+        chartWidth * 0.85, chartHeight * 0.44,
+      );
+      path.lineTo(chartWidth, chartHeight * 0.42);
+    }
 
     // Fill Gradient
     final fillPath = Path.from(path)
@@ -399,9 +520,9 @@ class _BloodGlucoseChartPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, strokePaint);
 
-    // Dotted vertical line at Fasting (x = 0)
-    const dotX = 14.0;
-    final dotY = chartHeight * 0.60;
+    // Dotted vertical line
+    final dotX = period == 'Day' ? 14.0 : chartWidth * 0.60;
+    final dotY = period == 'Day' ? chartHeight * 0.60 : chartHeight * 0.40;
 
     final verticalLinePaint = Paint()
       ..color = const Color(0xFFD97706).withValues(alpha: 0.4)
@@ -414,22 +535,24 @@ class _BloodGlucoseChartPainter extends CustomPainter {
     canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
 
     // Tooltip Card
-    const tooltipW = 75.0;
+    const tooltipW = 85.0;
     const tooltipH = 48.0;
-    final tooltipRect = Rect.fromLTWH(dotX - 10, dotY - tooltipH - 8, tooltipW, tooltipH);
+    final tooltipRect = Rect.fromLTWH(dotX - (period == 'Day' ? 10 : tooltipW / 2), dotY - tooltipH - 8, tooltipW, tooltipH);
 
     final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10));
     canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
     canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
 
+    final tipTimeStr = period == 'Day' ? 'Fasting' : (period == 'Week' ? '7D Average' : 'Monthly');
     final tTime = TextPainter(
-      text: const TextSpan(text: 'Fasting', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
+      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
 
+    final valStr = glucoseVal > 0 ? '${glucoseVal.toStringAsFixed(0)} mg/dL' : '92 mg/dL';
     final tVal = TextPainter(
-      text: const TextSpan(text: '92 mg/dL', style: TextStyle(fontSize: 11.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
+      text: TextSpan(text: valStr, style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
@@ -442,5 +565,6 @@ class _BloodGlucoseChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BloodGlucoseChartPainter oldDelegate) =>
+      oldDelegate.period != period || oldDelegate.glucoseVal != glucoseVal;
 }

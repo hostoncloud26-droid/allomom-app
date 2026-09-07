@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class HrvDetailPage extends StatefulWidget {
@@ -12,10 +15,17 @@ class HrvDetailPage extends StatefulWidget {
 class _HrvDetailPageState extends State<HrvDetailPage> {
   String _selectedTab = 'Day';
 
+  void _openLogSheet() async {
+    final updated = await VitalLogBottomSheet.show(context, initialKey: 'hrv', lockKey: true);
+    if (updated == true && mounted) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
       builder: (context, child) {
         final session = UserSessionManager.instance;
         final week = session.currentGestationalWeek;
@@ -43,35 +53,70 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
                 color: Color(0xFF2D3142),
               ),
             ),
-          ),
-          body: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ─── BABY HERO CARD ───
-                BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
+            actions: [
+              TextButton.icon(
+                onPressed: _openLogSheet,
+                icon: const Icon(Icons.add_rounded, size: 18, color: Color(0xFF8B5CF6)),
+                label: const Text(
+                  'Log',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF8B5CF6),
+                  ),
                 ),
-                const SizedBox(height: 18),
-
-                // ─── PERIOD TABS (Day / Week / Month) ───
-                _buildPeriodTabs(const Color(0xFFF5F3FF), const Color(0xFF8B5CF6)),
-                const SizedBox(height: 16),
-
-                // ─── MAIN CHART CARD ───
-                _buildMainChartCard(),
-                const SizedBox(height: 16),
-
-                // ─── 3 BOTTOM STAT CARDS (Average, Lowest, Highest) ───
-                _buildBottomStatsRow(),
-                const SizedBox(height: 40),
-              ],
+              ),
+              const SizedBox(width: 8),
+            ],
+          ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: _openLogSheet,
+            backgroundColor: const Color(0xFF8B5CF6),
+            elevation: 3,
+            icon: const Icon(Icons.add_rounded, color: Colors.white),
+            label: const Text(
+              'Log HRV',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
             ),
+          ),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // ─── FIXED TOP SECTION (Baby Hero Card & Period Tabs) ───
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 250,
+                      greetingText: "",
+                    ),
+                    const SizedBox(height: 14),
+                    _buildPeriodTabs(const Color(0xFFF5F3FF), const Color(0xFF8B5CF6)),
+                    const SizedBox(height: 14),
+                  ],
+                ),
+              ),
+
+              // ─── SCROLLABLE BOTTOM SECTION (After the tab) ───
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildMainChartCard(),
+                      const SizedBox(height: 16),
+                      _buildBottomStatsRow(),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
@@ -117,6 +162,32 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
   }
 
   Widget _buildMainChartCard() {
+    String headerTitle;
+    String dateRangeText;
+    List<String> xLabels;
+    final now = DateTime.now();
+
+    if (_selectedTab == 'Day') {
+      headerTitle = 'TODAY';
+      dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
+      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
+    } else if (_selectedTab == 'Week') {
+      headerTitle = 'THIS WEEK';
+      final start = now.subtract(const Duration(days: 6));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return i == 6 ? 'Today' : DateFormat('E').format(d);
+      });
+    } else {
+      headerTitle = 'THIS MONTH';
+      final start = now.subtract(const Duration(days: 28));
+      dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
+      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
+    }
+
+    final hrv = HealthVitalsController.instance.hrvValue;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -135,12 +206,12 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header Row
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'TODAY',
-                style: TextStyle(
+                headerTitle,
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1E2024),
@@ -148,8 +219,8 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
                 ),
               ),
               Text(
-                '26 Aug 2026',
-                style: TextStyle(
+                dateRangeText,
+                style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: Color(0xFF8E95A5),
@@ -164,21 +235,25 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
             height: 180,
             width: double.infinity,
             child: CustomPaint(
-              painter: _HrvChartPainter(),
+              painter: _HrvChartPainter(
+                period: _selectedTab,
+                hrvVal: double.tryParse(hrv) ?? 52.0,
+              ),
             ),
           ),
           const SizedBox(height: 14),
 
           // X-Axis Time Labels
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('12 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('6 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('12 PM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('6 PM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-              Text('12 AM', style: TextStyle(fontSize: 10, color: Color(0xFF8E95A5))),
-            ],
+            children: xLabels.map((lbl) => Text(
+              lbl,
+              style: TextStyle(
+                fontSize: 10,
+                color: const Color(0xFF8E95A5),
+                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
+              ),
+            )).toList(),
           ),
         ],
       ),
@@ -186,6 +261,12 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
   }
 
   Widget _buildBottomStatsRow() {
+    final vitals = HealthVitalsController.instance;
+    final hasHrv = vitals.hasHrv;
+    final avg = vitals.getAverageForVitalPeriod('hrv', _selectedTab);
+    final min = vitals.getMinForVitalPeriod('hrv', _selectedTab);
+    final max = vitals.getMaxForVitalPeriod('hrv', _selectedTab);
+
     return Row(
       children: [
         // Average
@@ -195,9 +276,9 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
             iconColor: const Color(0xFF8B5CF6),
             iconBg: const Color(0xFFF3E8FF),
             label: 'Average',
-            value: '52',
+            value: (hasHrv || avg > 0) ? avg.toInt().toString() : '--',
             unit: 'ms',
-            subtitle: '',
+            subtitle: (hasHrv || avg > 0) ? '$_selectedTab avg' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -209,9 +290,9 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Lowest',
-            value: '31',
+            value: (hasHrv || min > 0) ? min.toInt().toString() : '--',
             unit: 'ms',
-            subtitle: '6:10 AM',
+            subtitle: (hasHrv || min > 0) ? '$_selectedTab min' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -223,9 +304,9 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
             iconColor: const Color(0xFFFF4E6A),
             iconBg: const Color(0xFFFFF0F4),
             label: 'Highest',
-            value: '72',
+            value: (hasHrv || max > 0) ? max.toInt().toString() : '--',
             unit: 'ms',
-            subtitle: '7:40 PM',
+            subtitle: (hasHrv || max > 0) ? '$_selectedTab max' : '',
           ),
         ),
       ],
@@ -330,6 +411,14 @@ class _HrvDetailPageState extends State<HrvDetailPage> {
 }
 
 class _HrvChartPainter extends CustomPainter {
+  final String period;
+  final double hrvVal;
+
+  const _HrvChartPainter({
+    this.period = 'Day',
+    this.hrvVal = 58.0,
+  });
+
   @override
   void paint(Canvas canvas, Size size) {
     const rightPadding = 24.0;
@@ -346,50 +435,72 @@ class _HrvChartPainter extends CustomPainter {
       textP.paint(canvas, Offset(chartWidth + 4, chartHeight * (i / (scales.length - 1)) * 0.85 + 6));
     }
 
-    // Oscillating HRV Wave Curve
+    // Oscillating HRV Wave Curve adapts to Day, Week, Month
     final path = Path();
-    path.moveTo(0, chartHeight * 0.65);
-    path.lineTo(chartWidth * 0.10, chartHeight * 0.65);
-    path.cubicTo(
-      chartWidth * 0.15, chartHeight * 0.68,
-      chartWidth * 0.20, chartHeight * 0.55,
-      chartWidth * 0.26, chartHeight * 0.55,
-    );
-    path.cubicTo(
-      chartWidth * 0.32, chartHeight * 0.55,
-      chartWidth * 0.36, chartHeight * 0.70,
-      chartWidth * 0.42, chartHeight * 0.60,
-    );
-    path.cubicTo(
-      chartWidth * 0.46, chartHeight * 0.50,
-      chartWidth * 0.49, chartHeight * 0.28,
-      chartWidth * 0.52, chartHeight * 0.30,
-    );
-    path.cubicTo(
-      chartWidth * 0.55, chartHeight * 0.32,
-      chartWidth * 0.58, chartHeight * 0.78,
-      chartWidth * 0.62, chartHeight * 0.72,
-    );
-    path.cubicTo(
-      chartWidth * 0.66, chartHeight * 0.65,
-      chartWidth * 0.70, chartHeight * 0.15,
-      chartWidth * 0.73, chartHeight * 0.18,
-    );
-    path.cubicTo(
-      chartWidth * 0.77, chartHeight * 0.22,
-      chartWidth * 0.82, chartHeight * 0.88,
-      chartWidth * 0.85, chartHeight * 0.85,
-    );
-    path.cubicTo(
-      chartWidth * 0.88, chartHeight * 0.80,
-      chartWidth * 0.90, chartHeight * 0.15,
-      chartWidth * 0.93, chartHeight * 0.20,
-    );
-    path.cubicTo(
-      chartWidth * 0.96, chartHeight * 0.25,
-      chartWidth * 0.98, chartHeight * 0.95,
-      chartWidth * 1.0, chartHeight * 0.65,
-    );
+    if (period == 'Day') {
+      path.moveTo(0, chartHeight * 0.65);
+      path.lineTo(chartWidth * 0.10, chartHeight * 0.65);
+      path.cubicTo(
+        chartWidth * 0.15, chartHeight * 0.68,
+        chartWidth * 0.20, chartHeight * 0.55,
+        chartWidth * 0.26, chartHeight * 0.55,
+      );
+      path.cubicTo(
+        chartWidth * 0.32, chartHeight * 0.55,
+        chartWidth * 0.36, chartHeight * 0.70,
+        chartWidth * 0.42, chartHeight * 0.60,
+      );
+      path.cubicTo(
+        chartWidth * 0.46, chartHeight * 0.50,
+        chartWidth * 0.49, chartHeight * 0.28,
+        chartWidth * 0.52, chartHeight * 0.30,
+      );
+      path.cubicTo(
+        chartWidth * 0.55, chartHeight * 0.32,
+        chartWidth * 0.58, chartHeight * 0.78,
+        chartWidth * 0.62, chartHeight * 0.72,
+      );
+      path.cubicTo(
+        chartWidth * 0.66, chartHeight * 0.65,
+        chartWidth * 0.70, chartHeight * 0.15,
+        chartWidth * 0.73, chartHeight * 0.18,
+      );
+      path.cubicTo(
+        chartWidth * 0.77, chartHeight * 0.22,
+        chartWidth * 0.82, chartHeight * 0.88,
+        chartWidth * 0.85, chartHeight * 0.85,
+      );
+      path.cubicTo(
+        chartWidth * 0.88, chartHeight * 0.80,
+        chartWidth * 0.90, chartHeight * 0.15,
+        chartWidth * 0.93, chartHeight * 0.20,
+      );
+      path.cubicTo(
+        chartWidth * 0.96, chartHeight * 0.25,
+        chartWidth * 0.98, chartHeight * 0.95,
+        chartWidth * 1.0, chartHeight * 0.65,
+      );
+    } else if (period == 'Week') {
+      path.moveTo(0, chartHeight * 0.50);
+      path.cubicTo(
+        chartWidth * 0.18, chartHeight * 0.30,
+        chartWidth * 0.35, chartHeight * 0.65,
+        chartWidth * 0.52, chartHeight * 0.35,
+      );
+      path.cubicTo(
+        chartWidth * 0.70, chartHeight * 0.70,
+        chartWidth * 0.85, chartHeight * 0.38,
+        chartWidth, chartHeight * 0.45,
+      );
+    } else {
+      path.moveTo(0, chartHeight * 0.45);
+      path.cubicTo(
+        chartWidth * 0.28, chartHeight * 0.42,
+        chartWidth * 0.55, chartHeight * 0.48,
+        chartWidth * 0.80, chartHeight * 0.40,
+      );
+      path.lineTo(chartWidth, chartHeight * 0.44);
+    }
 
     // Gradient Fill Underneath
     final fillPath = Path.from(path)
@@ -417,9 +528,9 @@ class _HrvChartPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(path, strokePaint);
 
-    // Dotted vertical line at 12:30 PM (x = chartWidth * 0.52)
+    // Dotted vertical line
     final dotX = chartWidth * 0.52;
-    final dotY = chartHeight * 0.30;
+    final dotY = period == 'Day' ? chartHeight * 0.30 : (period == 'Week' ? chartHeight * 0.35 : chartHeight * 0.45);
 
     final verticalLinePaint = Paint()
       ..color = const Color(0xFF8B5CF6)
@@ -437,7 +548,7 @@ class _HrvChartPainter extends CustomPainter {
     canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
 
     // Tooltip Card above point
-    const tooltipW = 70.0;
+    const tooltipW = 75.0;
     const tooltipH = 48.0;
     final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 8, tooltipW, tooltipH);
 
@@ -445,14 +556,16 @@ class _HrvChartPainter extends CustomPainter {
     canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
     canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
 
+    final tipTimeStr = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
     final tTime = TextPainter(
-      text: const TextSpan(text: '12:30 PM', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
+      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
 
+    final valStr = hrvVal > 0 ? hrvVal.toInt().toString() : '58';
     final tVal = TextPainter(
-      text: const TextSpan(text: '58', style: TextStyle(fontSize: 14, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
+      text: TextSpan(text: valStr, style: const TextStyle(fontSize: 14, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: tooltipW);
     tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
@@ -465,5 +578,6 @@ class _HrvChartPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _HrvChartPainter oldDelegate) =>
+      oldDelegate.period != period || oldDelegate.hrvVal != hrvVal;
 }

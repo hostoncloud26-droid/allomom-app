@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/features/my_health/widgets/health_info_editor_sheet.dart';
+import 'package:allomom/repositories/user_session_manager.dart';
 
 class MyHealthProfileCard extends StatelessWidget {
   const MyHealthProfileCard({super.key});

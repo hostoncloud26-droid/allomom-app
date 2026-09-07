@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
+import 'package:allomom/features/auth/register_flow/family_details_page.dart';
 
 class RegisterEddDueDatePage extends StatelessWidget {
   final String userName;
@@ -10,6 +11,10 @@ class RegisterEddDueDatePage extends StatelessWidget {
   final DateTime eddDate;
   final String phone;
   final String countryCode;
+  final String selectedRole;
+  final String? partnerName;
+  final String? partnerPhone;
+  final bool registerPregnancyForPartner;
 
   const RegisterEddDueDatePage({
     super.key,
@@ -19,6 +24,10 @@ class RegisterEddDueDatePage extends StatelessWidget {
     required this.eddDate,
     this.phone = '',
     this.countryCode = '+91',
+    this.selectedRole = 'Mom',
+    this.partnerName,
+    this.partnerPhone,
+    this.registerPregnancyForPartner = false,
   });
 
   String _formatEddDate(DateTime date) {
@@ -219,19 +228,40 @@ class RegisterEddDueDatePage extends StatelessWidget {
                     height: 54,
                     child: ElevatedButton(
                       onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => RegisterPartnerDetailsPage(
-                              userName: userName,
-                              status: status,
-                              eddDate: eddDate,
-                              lmpDate: lmpDate,
-                              phone: phone,
-                              countryCode: countryCode,
+                        if (selectedRole.trim().toLowerCase() == 'dad') {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => FamilyDetailsPage(
+                                userName: userName,
+                                status: 'pregnant',
+                                eddDate: eddDate,
+                                lmpDate: lmpDate,
+                                phone: phone,
+                                countryCode: countryCode,
+                                selectedRole: 'Dad',
+                                partnerName: partnerName,
+                                partnerPhone: partnerPhone,
+                                registerPregnancyForPartner: true,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        } else {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => RegisterPartnerDetailsPage(
+                                userName: userName,
+                                status: status,
+                                eddDate: eddDate,
+                                lmpDate: lmpDate,
+                                phone: phone,
+                                countryCode: countryCode,
+                                selectedRole: selectedRole,
+                              ),
+                            ),
+                          );
+                        }
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFFFF5277),
