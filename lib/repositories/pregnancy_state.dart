@@ -42,3 +42,31 @@ bool resolveIsPregnant({
 /// pregnant).
 bool resolveIsNewMom(String status) =>
     postpartumStatuses.contains(normalizePregnancyStatus(status));
+
+/// Maps a registration status label ("Pregnant", "Pre Pregnancy", "New Mom")
+/// onto the value stored in `pregnancyStatus`.
+///
+/// Only "Pregnant" is actually pregnant. "Pre Pregnancy" contains the substring
+/// "pregnan" too, which is why a plain `contains` check is not enough. "New
+/// Mom" keeps its own `new_mom` value: it is not pregnant either, but the app
+/// still needs to tell postpartum apart from never-pregnant.
+String pregnancyStatusForRegistration(
+  String label, {
+  bool isDad = false,
+  bool registeringForPartner = false,
+}) {
+  if (isDad) return registeringForPartner ? 'pregnant' : 'notpregnant';
+
+  final normalized = label.toLowerCase().trim();
+  if (normalized.contains('new')) return 'new_mom';
+  if (normalized.startsWith('pre ') ||
+      normalized.startsWith('pre-') ||
+      normalized.startsWith('prepregnan')) {
+    return 'notpregnant';
+  }
+  return normalized.contains('pregnan') ? 'pregnant' : 'notpregnant';
+}
+
+/// Whether a registration status label means she is currently pregnant.
+bool isPregnantRegistrationLabel(String label) =>
+    pregnancyStatusForRegistration(label) == 'pregnant';

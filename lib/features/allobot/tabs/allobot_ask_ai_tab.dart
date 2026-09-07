@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/allobot/allobot_feature_previews.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/reports/reports_page.dart';
@@ -42,15 +43,23 @@ class AlloBotAskAiTab extends StatefulWidget {
   State<AlloBotAskAiTab> createState() => AlloBotAskAiTabState();
 }
 
-class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _waveController;
+// No ticker mixin any more: the listening animation moved onto the mic button,
+// which drives its own controller. Keeping one here meant an AnimationController
+// repeating every frame with nothing listening to it.
+class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   final TtsService _ttsService = TtsService();
   final stt.SpeechToText _speechToText = stt.SpeechToText();
 
   AlloBotScreenState _screenState = AlloBotScreenState.listening;
   bool _speechEnabled = false;
   bool _isListening = false;
+
+  /// Whether the "+" topic list is open.
+  ///
+  /// Shown inline above the mic rather than in a modal sheet: a bottom sheet
+  /// covers the mic and the transcript, so choosing a topic meant losing sight
+  /// of the thing you were talking to.
+  bool _showTopicsPanel = false;
   String _liveTranscript = '';
   String _matchedFeatureName = '';
   String _matchedFeatureDesc = '';
@@ -77,10 +86,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
 
     _initSpeechAndStartListening();
   }
@@ -97,7 +102,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
               _isListening = false;
             });
             widget.onListeningChanged?.call(false);
-            _waveController.stop();
           }
         },
         onStatus: (String status) {
@@ -108,16 +112,12 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
                 _isListening = true;
               });
               widget.onListeningChanged?.call(true);
-              if (!_waveController.isAnimating) {
-                _waveController.repeat(reverse: true);
-              }
             } else if (status == 'notListening' || status == 'done') {
               setState(() {
                 _isListening = false;
               });
               widget.onListeningChanged?.call(false);
-              _waveController.stop();
-            }
+              }
           }
         },
       );
@@ -138,11 +138,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
       _screenState = AlloBotScreenState.listening;
       _liveTranscript = '';
       _isListening = true;
+      // The transcript appears where the topic list is, so close it.
+      _showTopicsPanel = false;
     });
     widget.onListeningChanged?.call(true);
-    if (!_waveController.isAnimating) {
-      _waveController.repeat(reverse: true);
-    }
 
     if (_speechEnabled) {
       try {
@@ -207,7 +206,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
   void stopListening() async {
     _stateTransitionTimer?.cancel();
     _voiceDebounceTimer?.cancel();
-    _waveController.stop();
     if (_speechEnabled) {
       try {
         await _speechToText.stop();
@@ -234,7 +232,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
   void dispose() {
     _stateTransitionTimer?.cancel();
     _voiceDebounceTimer?.cancel();
-    _waveController.dispose();
     try {
       _speechToText.stop();
     } catch (_) {}
@@ -531,6 +528,24 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
     _ttsService.speak(speechText);
   }
 
+  /// Drives the screen straight to the Open-button state.
+  ///
+  /// The preview plus its button is the tallest thing this screen renders and
+  /// the one layout that overflowed, but reaching it normally needs live speech
+  /// recognition. This lets a widget test put the screen in that state and
+  /// check it fits.
+  @visibleForTesting
+  void showOpenButtonForTesting(String featureName, String featureType) {
+    _stateTransitionTimer?.cancel();
+    setState(() {
+      _screenState = AlloBotScreenState.showOpenButton;
+      _matchedFeatureName = featureName;
+      _matchedFeatureType = featureType;
+      _isListening = false;
+      _showTopicsPanel = false;
+    });
+  }
+
   void _navigateToMatchedFeature() {
     _ttsService.stop();
     Widget? targetPage;
@@ -579,121 +594,98 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
     }
   }
 
-  void _showSuggestionsModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          constraints: BoxConstraints(
-            maxHeight: MediaQuery.of(context).size.height * 0.7,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+  void _toggleTopicsPanel() {
+    setState(() => _showTopicsPanel = !_showTopicsPanel);
+  }
+
+  /// The "+" topic list, scrollable, sitting above the mic.
+  ///
+  /// Twelve topics do not fit a phone screen, so the list scrolls inside the
+  /// card while the header and the mic stay put.
+  Widget _buildTopicsPanel() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Text(
+              'Voice Assistant Topics',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E2024),
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF0F3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                'Tap to ask',
+                style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFFF4E6A),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Expanded(
+          child: ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 8),
+            itemCount: _quickSuggestions.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final item = _quickSuggestions[index];
+              return GestureDetector(
+                onTap: () {
+                  // Close first, so the answer appears where the list was.
+                  setState(() => _showTopicsPanel = false);
+                  _processVoiceQuery(item['query']!);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Text(
-                      'Voice Assistant Topics',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F3),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'Tap to speak',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFFF4E6A),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Expanded(
-                  child: ListView.builder(
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: _quickSuggestions.length,
-                    itemBuilder: (context, index) {
-                      final item = _quickSuggestions[index];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _processVoiceQuery(item['query']!);
-                          },
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF5F7),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFFFD2DC)),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    item['title']!,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF1E2024),
-                                    ),
-                                  ),
-                                ),
-                                const Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  color: Color(0xFFFF8A9E),
-                                  size: 14,
-                                ),
-                              ],
-                            ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF5F7),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFFFFD2DC)),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item['title']!,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                            color: const Color(0xFF1E2024),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                      const Icon(
+                        Icons.arrow_forward_ios_rounded,
+                        color: Color(0xFFFF8A9E),
+                        size: 13,
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -830,11 +822,32 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
             ),
           ),
 
-          // Dynamic Middle Content Area (Centered)
+          // Middle area: the topic list when it is open, otherwise whatever
+          // the voice flow is showing. Both sit above the docked mic.
+          //
+          // Scrollable rather than a bare Center. A feature preview plus its
+          // Open button is taller than this area on a short screen, and a
+          // Center simply overflows — the content spilled 73px into the
+          // controls row and ended up underneath the mic. The minHeight keeps
+          // short content (the listening prompt, a one-line answer) centred
+          // exactly as before; only tall content scrolls.
           Expanded(
-            child: Center(
-              child: _buildDynamicVoiceContent(),
-            ),
+            child: _showTopicsPanel
+                ? _buildTopicsPanel()
+                : LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      // Clears the docked mic, which overlaps the bottom of
+                      // the card.
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight - 8,
+                        ),
+                        child: Center(child: _buildDynamicVoiceContent()),
+                      ),
+                    ),
+                  ),
           ),
 
           // In-Card Bottom Controls (Plus, Keyboard)
@@ -849,21 +862,33 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // 1. Left "+" Suggestions Button
+        // 1. Left "+" Topics Button — toggles the inline list above the mic.
         GestureDetector(
-          onTap: _showSuggestionsModal,
-          child: Container(
+          onTap: _toggleTopicsPanel,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: const Color(0xFFFFF0F3),
+              color: _showTopicsPanel
+                  ? const Color(0xFFFF4E6A)
+                  : const Color(0xFFFFF0F3),
               shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFFFD2DC)),
+              border: Border.all(
+                color: _showTopicsPanel
+                    ? const Color(0xFFFF4E6A)
+                    : const Color(0xFFFFD2DC),
+              ),
             ),
-            child: const Icon(
-              Icons.add_rounded,
-              color: Color(0xFFFF4E6A),
-              size: 24,
+            child: AnimatedRotation(
+              duration: const Duration(milliseconds: 180),
+              turns: _showTopicsPanel ? 0.125 : 0,
+              child: Icon(
+                Icons.add_rounded,
+                color:
+                    _showTopicsPanel ? Colors.white : const Color(0xFFFF4E6A),
+                size: 24,
+              ),
             ),
           ),
         ),
@@ -941,21 +966,24 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
           ],
         );
 
-      // 2. Open Button State: "Open [Feature Name]"
+      // 2. Open Button State: the preview, then "Open [Feature Name]"
       case AlloBotScreenState.showOpenButton:
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // What the screen is for, before asking her to open it.
+            _buildFeaturePreview(),
+            const SizedBox(height: 16),
             GestureDetector(
               onTap: _navigateToMatchedFeature,
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 32,
-                  vertical: 16,
+                  horizontal: 28,
+                  vertical: 13,
                 ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFF4E6A),
-                  borderRadius: BorderRadius.circular(22),
+                  borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
                       color: const Color(0xFFFF4E6A).withValues(alpha: 0.35),
@@ -967,7 +995,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
                 child: Text(
                   'Open $_matchedFeatureName',
                   style: GoogleFonts.outfit(
-                    fontSize: 20,
+                    fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
                     letterSpacing: 0.3,
@@ -996,19 +1024,26 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
           ],
         );
 
-      // 4. Default Listening State: Animated Waveform + Transcript
+      // 4. Default Listening State: transcript, or a prompt to speak.
+      //
+      // No waveform here any more — the listening animation belongs on the mic
+      // button, which is the control that starts it. A row of bars sitting
+      // idle in the middle of the card just read as decoration.
       case AlloBotScreenState.listening:
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Smooth Animated Waveform Bars
-            _buildAnimatedWaveform(),
-            const SizedBox(height: 18),
-
-            // Live recognized speech text: e.g. "My Baby is kicking"
             if (_liveTranscript.isNotEmpty)
               _buildHighlightedTranscript()
-            else
+            else ...[
+              Icon(
+                _isListening ? Icons.graphic_eq_rounded : Icons.mic_none_rounded,
+                size: 34,
+                color: _isListening
+                    ? const Color(0xFFFF4E6A)
+                    : const Color(0xFFFFC0CE),
+              ),
+              const SizedBox(height: 12),
               Text(
                 _isListening ? 'Listening...' : 'Tap the mic to speak',
                 style: GoogleFonts.poppins(
@@ -1019,9 +1054,105 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
                       : const Color(0xFF9CA3AF),
                 ),
               ),
+            ],
           ],
         );
     }
+  }
+
+  /// The preview shown with the `Open <feature>` button: what the screen is,
+  /// and the few things she can do there.
+  ///
+  /// Deliberately unboxed — no card background or border. It already sits
+  /// inside the white voice card, so a second panel around it was a box inside
+  /// a box, and the padding it added was part of what pushed the Open button
+  /// off the screen.
+  Widget _buildFeaturePreview() {
+    final preview = featurePreviewFor(_matchedFeatureType);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              preview?.icon ?? Icons.auto_awesome_rounded,
+              color: const Color(0xFFFF4E6A),
+              size: 24,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    preview?.name ?? _matchedFeatureName,
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1E2024),
+                    ),
+                  ),
+                  const SizedBox(height: 1),
+                  Text(
+                    preview?.description ?? _matchedFeatureDesc,
+                    style: GoogleFonts.poppins(
+                      fontSize: 11.5,
+                      color: const Color(0xFF8E95A5),
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (preview != null && preview.uses.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Text(
+            'WHAT YOU CAN DO HERE',
+            style: GoogleFonts.poppins(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFFC98A99),
+              letterSpacing: 0.8,
+            ),
+          ),
+          const SizedBox(height: 7),
+          ...preview.uses.map(
+            (use) => Padding(
+              padding: const EdgeInsets.only(bottom: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      size: 13,
+                      color: Color(0xFFFF8A9E),
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      use,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: const Color(0xFF4B5563),
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
   }
 
   // Highlighted Transcript with active keyword styling
@@ -1062,51 +1193,4 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab>
     );
   }
 
-  // Animated Waveform Bars
-  Widget _buildAnimatedWaveform() {
-    return AnimatedBuilder(
-      animation: _waveController,
-      builder: (context, child) {
-        final val = _isListening ? _waveController.value : 0.0;
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            _buildSingleWaveBar(12 + (val * 14)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(18 + (val * 16)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(28 + (val * 18)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(38 + (val * 14)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(22 + (val * 20)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(32 + (val * 16)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(42 + (val * 12)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(26 + (val * 18)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(36 + (val * 14)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(20 + (val * 16)),
-            const SizedBox(width: 4),
-            _buildSingleWaveBar(14 + (val * 12)),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildSingleWaveBar(double height) {
-    return Container(
-      width: 5,
-      height: _isListening ? height.clamp(8.0, 52.0) : 8.0,
-      decoration: BoxDecoration(
-        color: _isListening ? const Color(0xFFFF6584) : const Color(0xFFFFC0CE),
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
 }

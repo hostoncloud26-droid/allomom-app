@@ -1,7 +1,7 @@
 // ignore_for_file: unused_import, unused_local_variable, unused_field
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/verify_otp_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/google_auth_service.dart';
@@ -9,7 +9,6 @@ import 'package:allomom/services/api/otp_api.dart';
 import 'package:allomom/services/api/auth_api.dart';
 import 'package:allomom/services/api/api_base.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
-
 
 class ContactNumberPage extends StatefulWidget {
   final String selectedLanguage;
@@ -47,10 +46,15 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
   }
 
   Future<void> _handleSendOtp() async {
-    final phone = _phoneController.text.trim().replaceAll(' ', '').replaceAll('-', '');
+    final phone = _phoneController.text
+        .trim()
+        .replaceAll(' ', '')
+        .replaceAll('-', '');
     if (phone.length < 10) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a valid 10-digit mobile number')),
+        const SnackBar(
+          content: Text('Please enter a valid 10-digit mobile number'),
+        ),
       );
       return;
     }
@@ -70,7 +74,9 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
           content: Text(
             isTest
                 ? 'OTP sent to $_countryCode $phone! (Test number OTP: 999777)'
-                : (res.detail.isNotEmpty ? res.detail : 'OTP sent successfully to $_countryCode $phone'),
+                : (res.detail.isNotEmpty
+                      ? res.detail
+                      : 'OTP sent successfully to $_countryCode $phone'),
           ),
           backgroundColor: const Color(0xFFFF4E6A),
           duration: const Duration(seconds: 2),
@@ -131,281 +137,314 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
       body: SafeArea(
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
-                  child: IntrinsicHeight(
-                    child: Column(
-                      children: [
-                        // ─── TOP APP BAR ───
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: () => Navigator.maybePop(context),
-                                child: Container(
-                                  width: 40,
-                                  height: 40,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black12,
-                                        blurRadius: 8,
-                                        offset: Offset(0, 2),
+          behavior: HitTestBehavior.opaque,
+          child: CustomScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            slivers: [
+              // Fills the viewport so the Spacer below can push the form card
+              // to the bottom, yet still scrolls when the keyboard leaves less
+              // room than the content needs. `IntrinsicHeight` cannot do this:
+              // it does not support flex children, which is why the card used
+              // to stretch and leave a large blank area.
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Column(
+                  children: [
+                    // ─── TOP APP BAR ───
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      child: Row(
+                        children: [
+                          GestureDetector(
+                            onTap: () => Navigator.maybePop(context),
+                            child: Container(
+                              width: 40,
+                              height: 40,
+                              decoration: const BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black12,
+                                    blurRadius: 8,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.chevron_left_rounded,
+                                color: Color(0xFF1E2024),
+                                size: 24,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'Set Your Contact Number',
+                              textAlign: TextAlign.center,
+                              style: GoogleFonts.outfit(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF1E2024),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 40),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: isKeyboardOpen ? 4 : 12),
+
+                    // ─── BABY SPEECH AVATAR ───
+                    BabyHeroBanner(
+                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      height: isKeyboardOpen ? 150 : 260,
+                      speechText:
+                          "$roleName, what's your mobile number\nso I can stay close? 📱",
+                      onSpeakerTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Playing voice prompt...'),
+                            duration: Duration(milliseconds: 1000),
+                          ),
+                        );
+                      },
+                    ),
+
+                    if (!isKeyboardOpen)
+                      const Spacer()
+                    else
+                      const SizedBox(height: 12),
+
+                    // ─── BOTTOM INPUT CONTAINER ───
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: isKeyboardOpen ? 16 : 24,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(32),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black12,
+                            blurRadius: 20,
+                            offset: Offset(0, -4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Your Contact Number:',
+                            style: GoogleFonts.outfit(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                          SizedBox(height: isKeyboardOpen ? 8 : 14),
+
+                          // Phone Input Field Box
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: const Color(0xFFE5E7EB),
+                                width: 1.5,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                // Country code badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 8,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF9FAFB),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text(
+                                        '🇮🇳',
+                                        style: TextStyle(fontSize: 18),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        _countryCode,
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF1E2024),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        size: 18,
+                                        color: Color(0xFF6B7280),
                                       ),
                                     ],
                                   ),
-                                  child: const Icon(
-                                    Icons.chevron_left_rounded,
-                                    color: Color(0xFF1E2024),
-                                    size: 24,
+                                ),
+                                const SizedBox(width: 12),
+                                Container(
+                                  width: 1,
+                                  height: 28,
+                                  color: const Color(0xFFE5E7EB),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Phone Number TextField
+                                Expanded(
+                                  child: TextField(
+                                    controller: _phoneController,
+                                    keyboardType: TextInputType.phone,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF1E2024),
+                                      letterSpacing: 0.5,
+                                    ),
+                                    decoration: InputDecoration(
+                                      hintText: '1234567890',
+                                      hintStyle: GoogleFonts.poppins(
+                                        color: const Color(0xFF9CA3AF),
+                                        fontSize: 15,
+                                      ),
+                                      border: InputBorder.none,
+                                      contentPadding: EdgeInsets.zero,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  'Set Your Contact Number',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 22,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF1E2024),
-                                  ),
+
+                                // Phone icon
+                                const Icon(
+                                  Icons.phone_outlined,
+                                  color: Color(0xFFFF7E95),
+                                  size: 22,
                                 ),
-                              ),
-                              const SizedBox(width: 40),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                        SizedBox(height: isKeyboardOpen ? 4 : 12),
 
-                        // ─── BABY SPEECH AVATAR ───
-                        BabySpeechAvatar(
-                          avatarSize: isKeyboardOpen ? 100 : 190,
-                          speechText: "$roleName, what's your mobile number\nso I can stay close? 📱",
-                          onSpeakerTap: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Playing voice prompt...'),
-                                duration: Duration(milliseconds: 1000),
-                              ),
-                            );
-                          },
-                        ),
+                          SizedBox(height: isKeyboardOpen ? 14 : 20),
 
-                        if (!isKeyboardOpen)
-                          const Spacer()
-                        else
-                          const SizedBox(height: 12),
-
-                        // ─── BOTTOM INPUT CONTAINER ───
-                        Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: isKeyboardOpen ? 16 : 24,
-                          ),
-                          decoration: const BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black12,
-                                blurRadius: 20,
-                                offset: Offset(0, -4),
-                              ),
-                            ],
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Your Contact Number:',
-                                style: GoogleFonts.outfit(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1E2024),
+                          // ─── SEND OTP BUTTON ───
+                          SizedBox(
+                            width: double.infinity,
+                            height: 54,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _handleSendOtp,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFFF5277),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(25),
                                 ),
+                                elevation: 0,
                               ),
-                              SizedBox(height: isKeyboardOpen ? 8 : 14),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.5,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : Text(
+                                      'Send OTP Code',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
 
-                              // Phone Input Field Box
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          SizedBox(height: isKeyboardOpen ? 10 : 14),
+
+                          // ─── OR GOOGLE SIGN IN ───
+                          Center(
+                            child: GestureDetector(
+                              onTap: () => _handleGoogleSignIn(context),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: Colors.white,
+                                  color: const Color(0xFFF3F4F6),
                                   borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E7EB),
+                                  ),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Country code badge
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF9FAFB),
-                                        borderRadius: BorderRadius.circular(12),
+                                      width: 20,
+                                      height: 20,
+                                      decoration: const BoxDecoration(
+                                        shape: BoxShape.circle,
                                       ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Text('🇮🇳', style: TextStyle(fontSize: 18)),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            _countryCode,
-                                            style: GoogleFonts.poppins(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
-                                              color: const Color(0xFF1E2024),
-                                            ),
+                                      child: Center(
+                                        child: Text(
+                                          'G',
+                                          style: GoogleFonts.outfit(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w900,
+                                            color: const Color(0xFF4285F4),
                                           ),
-                                          const SizedBox(width: 4),
-                                          const Icon(
-                                            Icons.keyboard_arrow_down_rounded,
-                                            size: 18,
-                                            color: Color(0xFF6B7280),
-                                          ),
-                                        ],
+                                        ),
                                       ),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Container(
-                                      width: 1,
-                                      height: 28,
-                                      color: const Color(0xFFE5E7EB),
-                                    ),
-                                    const SizedBox(width: 12),
-
-                                    // Phone Number TextField
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _phoneController,
-                                        keyboardType: TextInputType.phone,
+                                    const SizedBox(width: 8),
+                                    // Flexible so a narrow screen or a wide
+                                    // font fallback ellipsises instead of
+                                    // overflowing the pill.
+                                    Flexible(
+                                      child: Text(
+                                        'Continue with Google',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.poppins(
-                                          fontSize: 15.5,
+                                          fontSize: 13.5,
                                           fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF1E2024),
-                                          letterSpacing: 0.5,
-                                        ),
-                                        decoration: InputDecoration(
-                                          hintText: '1234567890',
-                                          hintStyle: GoogleFonts.poppins(
-                                            color: const Color(0xFF9CA3AF),
-                                            fontSize: 15,
-                                          ),
-                                          border: InputBorder.none,
-                                          contentPadding: EdgeInsets.zero,
+                                          color: const Color(0xFF374151),
                                         ),
                                       ),
-                                    ),
-
-                                    // Phone icon
-                                    const Icon(
-                                      Icons.phone_outlined,
-                                      color: Color(0xFFFF7E95),
-                                      size: 22,
                                     ),
                                   ],
                                 ),
                               ),
-
-                              SizedBox(height: isKeyboardOpen ? 14 : 20),
-
-                              // ─── SEND OTP BUTTON ───
-                              SizedBox(
-                                width: double.infinity,
-                                height: 54,
-                                child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _handleSendOtp,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF5277),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(25),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          width: 22,
-                                          height: 22,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : Text(
-                                          'Send OTP Code',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w600,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                ),
-                              ),
-
-                              SizedBox(height: isKeyboardOpen ? 10 : 14),
-
-                              // ─── OR GOOGLE SIGN IN ───
-                              Center(
-                                child: GestureDetector(
-                                  onTap: () => _handleGoogleSignIn(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFF3F4F6),
-                                      borderRadius: BorderRadius.circular(20),
-                                      border: Border.all(color: const Color(0xFFE5E7EB)),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 20,
-                                          height: 20,
-                                          decoration: const BoxDecoration(shape: BoxShape.circle),
-                                          child: Center(
-                                            child: Text(
-                                              'G',
-                                              style: GoogleFonts.outfit(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w900,
-                                                color: const Color(0xFF4285F4),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Continue with Google',
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 13.5,
-                                            fontWeight: FontWeight.w600,
-                                            color: const Color(0xFF374151),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              );
-            },
+              ),
+            ],
           ),
         ),
       ),
@@ -435,7 +474,9 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome, ${account.displayName ?? account.email}!'),
+              content: Text(
+                'Welcome, ${account.displayName ?? account.email}!',
+              ),
               backgroundColor: const Color(0xFFFF4E6A),
             ),
           );

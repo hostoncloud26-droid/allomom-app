@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 
 class RoleSelectionPage extends StatefulWidget {
   final String selectedLanguage;
 
-  const RoleSelectionPage({
-    super.key,
-    this.selectedLanguage = 'en',
-  });
+  const RoleSelectionPage({super.key, this.selectedLanguage = 'en'});
 
   @override
   State<RoleSelectionPage> createState() => _RoleSelectionPageState();
@@ -71,7 +68,8 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
             const SizedBox(height: 12),
 
             // ─── BABY SPEECH AVATAR ───
-            BabySpeechAvatar(
+            BabyHeroBanner(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
               speechText: 'Yay! Are you my Mommy or my\nDaddy? 👶✨',
               onSpeakerTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -83,105 +81,121 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
               },
             ),
 
-            const Spacer(),
+            const SizedBox(height: 12),
 
             // ─── BOTTOM SELECTION CONTAINER ───
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'I am a:',
-                    style: GoogleFonts.outfit(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E2024),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -4),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // 2 Large Role Cards
-                  Row(
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Mom Card
-                      Expanded(
-                        child: _buildRoleCard(
-                          role: 'Mom',
-                          iconBg: const Color(0xFFFFE4E9),
-                          avatarColor: const Color(0xFFFF4E6A),
-                          isFemale: true,
+                      Text(
+                        'I am a:',
+                        style: GoogleFonts.outfit(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E2024),
                         ),
                       ),
-                      const SizedBox(width: 14),
+                      const SizedBox(height: 16),
 
-                      // Dad Card
-                      Expanded(
-                        child: _buildRoleCard(
-                          role: 'Dad',
-                          iconBg: const Color(0xFFDBEAFE),
-                          avatarColor: const Color(0xFF2563EB),
-                          isFemale: false,
+                      // 2 Large Role Cards
+                      Row(
+                        children: [
+                          // Mom Card
+                          Expanded(
+                            child: _buildRoleCard(
+                              role: 'Mom',
+                              iconBg: const Color(0xFFFFE4E9),
+                              avatarColor: const Color(0xFFFF4E6A),
+                              isFemale: true,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+
+                          // Dad Card
+                          Expanded(
+                            child: _buildRoleCard(
+                              role: 'Dad',
+                              iconBg: const Color(0xFFDBEAFE),
+                              avatarColor: const Color(0xFF2563EB),
+                              isFemale: false,
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ─── PROCEED BUTTON ───
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ContactNumberPage(
+                                  selectedLanguage: widget.selectedLanguage,
+                                  selectedRole: _selectedRole,
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF5277),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  'Proceed',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(
+                                Icons.arrow_forward_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: 24),
-
-                  // ─── PROCEED BUTTON ───
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ContactNumberPage(
-                              selectedLanguage: widget.selectedLanguage,
-                              selectedRole: _selectedRole,
-                            ),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF5277),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Proceed',
-                            style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
           ],
@@ -211,7 +225,9 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
           color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+            color: isSelected
+                ? const Color(0xFFFF4E6A)
+                : const Color(0xFFE5E7EB),
             width: isSelected ? 2 : 1.2,
           ),
           boxShadow: [
@@ -230,10 +246,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
             Container(
               width: 58,
               height: 58,
-              decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
               child: Center(
                 child: Icon(
                   isFemale ? Icons.face_3_rounded : Icons.face_6_rounded,
@@ -248,7 +261,9 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
               style: GoogleFonts.outfit(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
+                color: isSelected
+                    ? const Color(0xFFFF4E6A)
+                    : const Color(0xFF1E2024),
               ),
             ),
           ],

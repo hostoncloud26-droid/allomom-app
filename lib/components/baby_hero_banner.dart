@@ -10,6 +10,15 @@ class BabyHeroBanner extends StatelessWidget {
   final double? babyHeight;
   final VoidCallback? onTap;
 
+  /// When set, a speaker button is shown inside the speech bubble and tapping
+  /// it calls this instead of [onTap]. Used by the onboarding screens, which
+  /// read their prompt aloud.
+  final VoidCallback? onSpeakerTap;
+
+  /// Outer margin. The onboarding screens place the card inside a full-width
+  /// column, so they inset it the same 20px the home page does.
+  final EdgeInsetsGeometry? margin;
+
   const BabyHeroBanner({
     super.key,
     required this.speechText,
@@ -18,6 +27,8 @@ class BabyHeroBanner extends StatelessWidget {
     this.height = 270,
     this.babyHeight,
     this.onTap,
+    this.onSpeakerTap,
+    this.margin,
   });
 
   @override
@@ -25,6 +36,7 @@ class BabyHeroBanner extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
+        margin: margin,
         height: height,
         width: double.infinity,
         decoration: BoxDecoration(
@@ -87,36 +99,33 @@ class BabyHeroBanner extends StatelessWidget {
               ),
 
               // Speech Bubble - Top Center positioned (Chat bubble with tail pointing down)
-              if (bubblePosition == SpeechBubblePosition.topCenter && speechText.isNotEmpty)
+              if (bubblePosition == SpeechBubblePosition.topCenter &&
+                  speechText.isNotEmpty)
                 Positioned(
                   top: 22,
                   left: 16,
                   right: 16,
-                  child: Center(
-                    child: _buildSpeechBubble(context, speechText),
-                  ),
+                  child: Center(child: _buildSpeechBubble(context, speechText)),
                 ),
 
               // Speech Bubble - Left positioned
-              if (bubblePosition == SpeechBubblePosition.left && speechText.isNotEmpty)
+              if (bubblePosition == SpeechBubblePosition.left &&
+                  speechText.isNotEmpty)
                 Positioned(
                   top: 22,
                   left: 16,
                   right: 16,
-                  child: Center(
-                    child: _buildSpeechBubble(context, speechText),
-                  ),
+                  child: Center(child: _buildSpeechBubble(context, speechText)),
                 ),
 
               // Speech Bubble - Right positioned
-              if (bubblePosition == SpeechBubblePosition.right && speechText.isNotEmpty)
+              if (bubblePosition == SpeechBubblePosition.right &&
+                  speechText.isNotEmpty)
                 Positioned(
                   top: 22,
                   left: 16,
                   right: 16,
-                  child: Center(
-                    child: _buildSpeechBubble(context, speechText),
-                  ),
+                  child: Center(child: _buildSpeechBubble(context, speechText)),
                 ),
 
               // Optional Bottom Greeting text (only shown if non-empty)
@@ -143,6 +152,18 @@ class BabyHeroBanner extends StatelessWidget {
   }
 
   Widget _buildSpeechBubble(BuildContext context, String text) {
+    final label = Text(
+      text,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        fontSize: 13.5,
+        fontWeight: FontWeight.w500,
+        color: Color(0xFF2D3142),
+        height: 1.45,
+        letterSpacing: 0.1,
+      ),
+    );
+
     return Container(
       constraints: const BoxConstraints(maxWidth: 320),
       child: CustomPaint(
@@ -151,18 +172,36 @@ class BabyHeroBanner extends StatelessWidget {
           shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
         ),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF2D3142),
-              height: 1.45,
-              letterSpacing: 0.1,
-            ),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            14,
+            onSpeakerTap == null ? 22 : 12,
+            22,
           ),
+          child: onSpeakerTap == null
+              ? label
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(child: label),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: onSpeakerTap,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFFF0F3),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.volume_up_rounded,
+                          color: Color(0xFFFF4E6A),
+                          size: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -173,10 +212,7 @@ class _ChatBubbleTailPainter extends CustomPainter {
   final Color color;
   final Color shadowColor;
 
-  _ChatBubbleTailPainter({
-    required this.color,
-    required this.shadowColor,
-  });
+  _ChatBubbleTailPainter({required this.color, required this.shadowColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -185,8 +221,15 @@ class _ChatBubbleTailPainter extends CustomPainter {
     const double tailHeight = 8.0;
 
     final Path path = Path();
-    final bubbleRect = Rect.fromLTWH(0, 0, size.width, size.height - tailHeight);
-    path.addRRect(RRect.fromRectAndRadius(bubbleRect, const Radius.circular(radius)));
+    final bubbleRect = Rect.fromLTWH(
+      0,
+      0,
+      size.width,
+      size.height - tailHeight,
+    );
+    path.addRRect(
+      RRect.fromRectAndRadius(bubbleRect, const Radius.circular(radius)),
+    );
 
     // Tail pointing downwards in the center
     final centerX = size.width / 2;

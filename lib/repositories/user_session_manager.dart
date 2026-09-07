@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/user_db_service.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
@@ -26,6 +27,7 @@ class UserSessionManager extends GetxController {
   HealthDataTableData? _currentHealthData;
   Pregnancy? _currentPregnancy;
   int _completedPregnancyCount = 0;
+  int? _averageCycleLength;
   DateTime? _lastDeliveryDate;
   bool _isLoading = true;
 
@@ -81,6 +83,20 @@ class UserSessionManager extends GetxController {
 
   /// Delivered recently — postpartum rather than simply not pregnant.
   bool get isNewMom => resolveIsNewMom(pregnancyStatus);
+
+  /// Her average cycle length, used to predict periods when not pregnant.
+  int get averageCycleLength =>
+      _averageCycleLength ??
+      _currentHealthData?.averageCycle?.round() ??
+      defaultCycleLength;
+
+  /// Next expected period, or null while pregnant / with no LMP on record.
+  CyclePrediction? get cyclePrediction {
+    if (isPregnant) return null;
+    final lmp = lmpDate;
+    if (lmp == null) return null;
+    return predictCycle(lastPeriodStart: lmp, cycleLength: averageCycleLength);
+  }
 
   /// Completed pregnancies on record. Lets the UI tell "never registered"
   /// apart from "this journey is finished".
@@ -238,9 +254,11 @@ class UserSessionManager extends GetxController {
 
       final hasStoredLogin = prefs.getBool('is_logged_in') == true;
       final hasJwt = jwt != null && jwt.isNotEmpty;
-      final hasActiveUser = active != null;
 
-      _isLoggedIn = hasStoredLogin || hasJwt || hasActiveUser;
+      // A stored profile row is NOT a session — logging out leaves it behind
+      // on purpose. Only the explicit login flag or a token counts, otherwise
+      // the previous user is signed back in on the next launch.
+      _isLoggedIn = hasStoredLogin || hasJwt;
 
       if (_isLoggedIn) {
         _userName = prefs.getString('user_name');
@@ -349,6 +367,7 @@ class UserSessionManager extends GetxController {
     }
 
     if (health != null) {
+      _averageCycleLength ??= health.averageCycle?.round();
       _bloodGroup ??= health.bloodGroup;
       _pregnancyStatus ??= health.pregnancyStatus;
       _lmpDate ??= health.lmpDate;
@@ -377,6 +396,7 @@ class UserSessionManager extends GetxController {
     String? partnerPhone,
     bool hasKids = false,
     int kidsCount = 0,
+    int? averageCycleLength,
     String? userId,
     String? jwt,
     String? refresh,
@@ -420,8 +440,14 @@ class UserSessionManager extends GetxController {
     final resolvedHealthId =
         healthDataId ?? "hd_${DateTime.now().millisecondsSinceEpoch}";
 
+    if (averageCycleLength != null) {
+      await prefs.setInt('average_cycle_length', averageCycleLength);
+      _averageCycleLength = averageCycleLength;
+    }
+
     await setAuthenticatedSession(
       userId: resolvedUserId,
+      averageCycleLength: averageCycleLength,
       jwt: jwt ?? "local_jwt_token",
       refresh: refresh ?? "local_refresh_token",
       name: name,
@@ -447,6 +473,7 @@ class UserSessionManager extends GetxController {
     String? pregnancyStatus,
     DateTime? eddDate,
     DateTime? lmpDate,
+    int? averageCycleLength,
   }) async {
     await ApiBase.setJwt(jwt);
     if (refresh != null) {
@@ -495,6 +522,7 @@ class UserSessionManager extends GetxController {
           pregnancyStatus: drift.Value(pregnancyStatus ?? "pregnant"),
           edDate: drift.Value(eddDate),
           lmpDate: drift.Value(lmpDate),
+          averageCycle: drift.Value(averageCycleLength?.toDouble()),
           synced: const drift.Value(0),
         ),
       );
@@ -1005,6 +1033,10 @@ class UserSessionManager extends GetxController {
     }
     try {
       final prefs = await SharedPreferences.getInstance();
+      // Clear the login flag first and on its own: if the bulk clear throws
+      // part-way through, the session must still read as signed out.
+      await prefs.setBool('is_logged_in', false);
+      await prefs.remove('is_logged_in');
       await prefs.clear();
     } catch (e) {
       debugPrint('Error clearing SharedPreferences on logout: $e');
@@ -1016,8 +1048,12 @@ class UserSessionManager extends GetxController {
     _currentUser = null;
     _currentHealthData = null;
     _currentPregnancy = null;
+    _completedPregnancyCount = 0;
+    _lastDeliveryDate = null;
+    _averageCycleLength = null;
     _userName = null;
     _userPhone = null;
+    _userEmail = null;
     _countryCode = null;
     _pregnancyStatus = null;
     _lmpDate = null;
@@ -1026,6 +1062,18 @@ class UserSessionManager extends GetxController {
     _partnerPhone = null;
     _hasKids = false;
     _kidsCount = 0;
+    _gender = null;
+    _dob = null;
+    _bio = null;
+    _city = null;
+    _pincode = null;
+    _adline1 = null;
+    _adline2 = null;
+    _bloodGroup = null;
+    _image = null;
+    _coverPic = null;
+    _allowearMacAddress = null;
+    _riskStatus = null;
 
     update();
   }

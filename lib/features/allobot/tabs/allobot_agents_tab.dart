@@ -4,10 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 class AlloBotAgentsTab extends StatefulWidget {
   final VoidCallback onAskTap;
 
-  const AlloBotAgentsTab({
-    super.key,
-    required this.onAskTap,
-  });
+  const AlloBotAgentsTab({super.key, required this.onAskTap});
 
   @override
   State<AlloBotAgentsTab> createState() => _AlloBotAgentsTabState();
@@ -114,83 +111,6 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
             ),
           ),
           const SizedBox(height: 18),
-
-          // ─── DUTY STATUS BANNER ───
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFF0F3),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFFFD2DC)),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFFFF4E6A).withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFE4E9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text('👶', style: TextStyle(fontSize: 20)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AlloBOT is on duty',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E2024),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '6 agents working right now',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: const Color(0xFFFF4E6A),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: widget.onAskTap,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF5277),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Ask',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
           // ─── SEARCH INPUT ───
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),

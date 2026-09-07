@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/tabs/allobot_ask_ai_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_agents_tab.dart';
+import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_settings_tab.dart';
 
@@ -228,46 +229,30 @@ class _AlloBotPageState extends State<AlloBotPage> {
 
       // ─── EXACT SAME FLOATING DOCKED CENTER MIC BUTTON AS HOME PAGE ───
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        onPressed: () {
-          if (_currentIndex != 0) {
-            setState(() {
-              _currentIndex = 0;
-            });
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _askAiKey.currentState?.startListening();
-            });
-          } else {
-            _askAiKey.currentState?.toggleListening();
-          }
-        },
-        child: Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
+      // The listening animation lives on the mic itself — see
+      // [AlloBotMicButton]. A bare FloatingActionButton would clip the pulse
+      // rings to its own bounds, so the button is hosted directly.
+      floatingActionButton: ValueListenableBuilder<bool>(
+        valueListenable: _isListeningNotifier,
+        builder: (context, isListening, child) {
+          return AlloBotMicButton(
+            isListening: isListening,
             gradient: primaryGradient,
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: ValueListenableBuilder<bool>(
-            valueListenable: _isListeningNotifier,
-            builder: (context, isListening, child) {
-              return Icon(
-                isListening ? Icons.pause : Icons.mic,
-                color: Colors.white,
-                size: 28,
-              );
+            color: primaryColor,
+            onTap: () {
+              if (_currentIndex != 0) {
+                setState(() {
+                  _currentIndex = 0;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _askAiKey.currentState?.startListening();
+                });
+              } else {
+                _askAiKey.currentState?.toggleListening();
+              }
             },
-          ),
-        ),
+          );
+        },
       ),
     );
   }

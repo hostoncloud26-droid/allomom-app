@@ -10,48 +10,54 @@ class UserDbService {
   UserDbService._internal();
 
   /// Retrieve the currently active logged-in user
+  /// The user the `active_user_id` setting points at, or null when nobody is
+  /// signed in.
+  ///
+  /// Deliberately has **no** "fall back to the first user" behaviour. That
+  /// fallback also called [setActiveUser], so after logging out the leftover
+  /// profile row silently re-established the session and the old user was
+  /// signed straight back in on the next launch.
   Future<User?> getActiveUser() async {
     final database = await SqLiteService().database;
-    final setting = await (database.select(database.initialSetup)
-          ..where((tbl) => tbl.key.equals(_activeUserIdKey)))
-        .getSingleOrNull();
+    final setting = await (database.select(
+      database.initialSetup,
+    )..where((tbl) => tbl.key.equals(_activeUserIdKey))).getSingleOrNull();
 
-    if (setting != null && setting.value.isNotEmpty) {
-      final user = await (database.select(database.users)
-            ..where((tbl) => tbl.id.equals(setting.value)))
-          .getSingleOrNull();
-      if (user != null) return user;
-    }
+    if (setting == null || setting.value.isEmpty) return null;
 
-    // Fallback: Return first active user if available
-    final firstUser = await (database.select(database.users)
+    return (database.select(
+      database.users,
+    )..where((tbl) => tbl.id.equals(setting.value))).getSingleOrNull();
+  }
+
+  /// First profile still stored on the device, ignoring the active session.
+  ///
+  /// Only for flows that explicitly want "any local profile" (seeding, user
+  /// switching) — never for deciding whether someone is signed in.
+  Future<User?> getFirstStoredUser() async {
+    final database = await SqLiteService().database;
+    return (database.select(database.users)
           ..where((tbl) => tbl.isDeleted.equals(false))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)])
           ..limit(1))
         .getSingleOrNull();
-
-    if (firstUser != null) {
-      await setActiveUser(firstUser.id);
-      return firstUser;
-    }
-
-    return null;
   }
 
   /// Set the active user ID in local configuration
   Future<void> setActiveUser(String userId) async {
     final database = await SqLiteService().database;
-    final existing = await (database.select(database.initialSetup)
-          ..where((tbl) => tbl.key.equals(_activeUserIdKey)))
-        .getSingleOrNull();
+    final existing = await (database.select(
+      database.initialSetup,
+    )..where((tbl) => tbl.key.equals(_activeUserIdKey))).getSingleOrNull();
 
     if (existing != null) {
       await (database.update(database.initialSetup)
             ..where((tbl) => tbl.id.equals(existing.id)))
-          .write(InitialSetupCompanion(
-            value: Value(userId),
-          ));
+          .write(InitialSetupCompanion(value: Value(userId)));
     } else {
-      await database.into(database.initialSetup).insert(
+      await database
+          .into(database.initialSetup)
+          .insert(
             InitialSetupCompanion(
               key: const Value(_activeUserIdKey),
               value: Value(userId),
@@ -64,16 +70,17 @@ class UserDbService {
   /// Get user by UUID
   Future<User?> getUserById(String id) async {
     final database = await SqLiteService().database;
-    return (database.select(database.users)..where((tbl) => tbl.id.equals(id)))
-        .getSingleOrNull();
+    return (database.select(
+      database.users,
+    )..where((tbl) => tbl.id.equals(id))).getSingleOrNull();
   }
 
   /// Get user by phone number
   Future<User?> getUserByPhone(String phone) async {
     final database = await SqLiteService().database;
-    return (database.select(database.users)
-          ..where((tbl) => tbl.phone.equals(phone)))
-        .getSingleOrNull();
+    return (database.select(
+      database.users,
+    )..where((tbl) => tbl.phone.equals(phone))).getSingleOrNull();
   }
 
   /// Get all active users
@@ -100,13 +107,20 @@ class UserDbService {
         .write(const UsersCompanion(isDeleted: Value(true)));
   }
 
-  /// Logout (clear active user session)
+  /// Logout — clears the active user session.
+  ///
+  /// The profile rows are left in place so signing back in does not have to
+  /// re-download everything; [getActiveUser] returning null is what makes the
+  /// session gone.
   Future<void> logout() async {
     final database = await SqLiteService().database;
-    await (database.delete(database.initialSetup)
-          ..where((tbl) => tbl.key.equals(_activeUserIdKey)))
-        .go();
+    await (database.delete(
+      database.initialSetup,
+    )..where((tbl) => tbl.key.equals(_activeUserIdKey))).go();
   }
+
+  /// True when a session is currently active.
+  Future<bool> hasActiveSession() async => (await getActiveUser()) != null;
 
   /// Seed initial default profile if database is fresh
   Future<User> seedInitialDefaultUserIfEmpty() async {
@@ -114,7 +128,7 @@ class UserDbService {
     final existing = await (database.select(database.users)..limit(1)).get();
     if (existing.isNotEmpty) {
       final active = await getActiveUser();
-      return active ?? existing.first;
+      return active ?? await getFirstStoredUser() ?? existing.first;
     }
 
     const defaultUserId = 'usr_meera_001';
@@ -153,7 +167,9 @@ class UserDbService {
       medicalConditions: Value(jsonEncode(['Mild Gestational Anemia'])),
       rchId: const Value('RCH-2026-BLR-8842'),
       pregnancyStatus: const Value('pregnant'),
-      lmpDate: Value(DateTime.now().subtract(const Duration(days: 168))), // ~24 weeks
+      lmpDate: Value(
+        DateTime.now().subtract(const Duration(days: 168)),
+      ), // ~24 weeks
       edDate: Value(DateTime.now().add(const Duration(days: 112))),
       allowFamilyAccess: const Value(true),
       createdAt: Value(DateTime.now()),

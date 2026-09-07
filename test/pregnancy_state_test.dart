@@ -83,6 +83,70 @@ void main() {
     });
   });
 
+  group('pregnancyStatusForRegistration', () {
+    test('only "Pregnant" stores a pregnant status', () {
+      expect(pregnancyStatusForRegistration('Pregnant'), 'pregnant');
+    });
+
+    test('"Pre Pregnancy" is not pregnant, despite containing "pregnan"', () {
+      for (final label in [
+        'Pre Pregnancy',
+        'pre pregnancy',
+        'Pre-Pregnancy',
+        'PrePregnancy',
+      ]) {
+        expect(
+          pregnancyStatusForRegistration(label),
+          'notpregnant',
+          reason: label,
+        );
+        expect(isPregnantRegistrationLabel(label), isFalse, reason: label);
+      }
+    });
+
+    test('"New Mom" stores new_mom, which still reads as not pregnant', () {
+      expect(pregnancyStatusForRegistration('New Mom'), 'new_mom');
+      expect(isPregnantRegistrationLabel('New Mom'), isFalse);
+
+      // The whole point: postpartum is distinguishable, but not pregnant.
+      expect(
+        resolveIsPregnant(status: 'new_mom', hasPregnancyDates: true),
+        isFalse,
+      );
+      expect(resolveIsNewMom('new_mom'), isTrue);
+    });
+
+    test('a dad is pregnant only when registering for his partner', () {
+      expect(
+        pregnancyStatusForRegistration(
+          'Pregnant',
+          isDad: true,
+          registeringForPartner: true,
+        ),
+        'pregnant',
+      );
+      expect(
+        pregnancyStatusForRegistration(
+          'Pregnant',
+          isDad: true,
+          registeringForPartner: false,
+        ),
+        'notpregnant',
+      );
+    });
+
+    test('every label maps to a status the resolvers understand', () {
+      for (final label in ['Pregnant', 'Pre Pregnancy', 'New Mom']) {
+        final stored = pregnancyStatusForRegistration(label);
+        expect(
+          resolveIsPregnant(status: stored, hasPregnancyDates: false),
+          isPregnantRegistrationLabel(label),
+          reason: label,
+        );
+      }
+    });
+  });
+
   test('a completed pregnancy is never both pregnant and a new mom', () {
     for (final status in postpartumStatuses) {
       expect(

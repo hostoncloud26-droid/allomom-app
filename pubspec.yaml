@@ -81,6 +81,9 @@ flutter:
   assets:
     - assets/animations/
     - assets/allobaby/
+    # AlloBot's curated maternal Q&A corpus. Bundled from lib/ rather than
+    # copied into assets/ so the sheets stay in one place for editing.
+    - lib/seeds/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

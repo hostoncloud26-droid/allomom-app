@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 
+import 'package:allomom/services/app_language.dart';
+
 class TtsService {
   static final TtsService _instance = TtsService._internal();
   factory TtsService() => _instance;
@@ -57,7 +59,60 @@ class TtsService {
     }
   }
 
-  Future<void> speak(String text, {VoidCallback? onComplete}) async {
+  /// Strips markdown and emoji while keeping the letters of every script.
+  ///
+  /// The previous cleaning used `[^\w\s,.!?'-]`, and Dart's `\w` is ASCII
+  /// only — so a Tamil, Hindi, Marathi or Gujarati answer was reduced to
+  /// punctuation and the engine was handed an empty string. Unicode letter and
+  /// number classes keep those scripts intact; the explicit emoji ranges are
+  /// what actually needs removing, because a speech engine reads a heart emoji
+  /// aloud as "red heart".
+  static String cleanForSpeech(String text) => text
+      .replaceAll(RegExp(r'[*_`#~]'), ' ')
+      .replaceAll(
+        RegExp(
+          r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}'
+          r'\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}\u{20E3}]',
+          unicode: true,
+        ),
+        '',
+      )
+      .replaceAll(
+        RegExp(r"[^\p{L}\p{N}\s,.!?'-]", unicode: true),
+        ' ',
+      )
+      .replaceAll(RegExp(r'\s{2,}'), ' ')
+      .trim();
+
+  /// Points the engine at [language] (an app picker code).
+  ///
+  /// A device with no voice for that locale throws or silently refuses, so a
+  /// failure falls back to English rather than leaving the engine unset.
+  Future<void> setLanguage(String language) async {
+    final locale = AppLanguage.ttsLocale(language);
+    try {
+      final available = await _flutterTts.isLanguageAvailable(locale);
+      await _flutterTts.setLanguage(available == true ? locale : 'en-IN');
+    } catch (e) {
+      debugPrint('TtsService: could not set language $locale: $e');
+      try {
+        await _flutterTts.setLanguage('en-IN');
+      } catch (_) {
+        // Leave whatever the engine already had.
+      }
+    }
+  }
+
+  /// Speaks [text], optionally in a specific app language code ('ta', 'hi'…).
+  ///
+  /// [language] is a picker code, not a BCP-47 tag; [AppLanguage.ttsLocale]
+  /// maps it. The engine keeps whatever language was last set, so this is
+  /// reapplied on every call rather than once at init.
+  Future<void> speak(
+    String text, {
+    VoidCallback? onComplete,
+    String? language,
+  }) async {
     try {
       if (!_isInitialized) {
         await init();
@@ -77,10 +132,9 @@ class TtsService {
 
       await stop();
 
-      final cleanText = text
-          .replaceAll(RegExp(r'[*_`#~]'), ' ')
-          .replaceAll(RegExp(r"[^\w\s,.!?'-]"), '')
-          .trim();
+      if (language != null) await setLanguage(language);
+
+      final cleanText = cleanForSpeech(text);
 
       if (cleanText.isEmpty) {
         onComplete?.call();

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/services/allobot/home_voice_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
@@ -69,9 +70,66 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
         ),
       );
       await _load();
+
+      // Marking a visit complete is the moment the post-visit questions are
+      // worth asking — what the doctor said, the next date, the vaccine, any
+      // report. AlloBot runs them on the home screen, so this hands her back
+      // there rather than opening a sheet on top of the calendar.
+      if (!wasDone && mounted) await _offerAncFollowUp();
     } catch (e) {
       debugPrint('Error updating ANC visit ${visit.id}: $e');
     }
+  }
+
+  /// Asks whether she wants to run through the post-visit questions.
+  ///
+  /// Offered rather than forced: she may be ticking off a visit weeks later, in
+  /// which case the questions are noise.
+  Future<void> _offerAncFollowUp() async {
+    final wanted = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+        ),
+        title: Text(
+          'Visit marked done',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          'Shall AlloBot take a minute to record what the doctor said, your '
+          'next date, and anything else from this visit?',
+          style: GoogleFonts.poppins(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Not now',
+              style: GoogleFonts.poppins(color: const Color(0xFF6B7280)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Yes, let us do it',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFFFF4E6A),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (wanted != true || !mounted) return;
+
+    // The controller the home screen listens to, so the flow appears on the
+    // card there.
+    await HomeVoiceLauncher.instance.requestAncFollowUp();
+    if (mounted) Navigator.pop(context);
   }
 
   List<PregnancyAncScheduleData> get _filtered => _trimesterFilter == 0

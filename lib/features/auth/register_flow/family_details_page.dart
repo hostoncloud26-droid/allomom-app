@@ -1,18 +1,22 @@
 // ignore_for_file: unused_import, unused_local_variable, unused_field
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/features/auth/widgets/baby_speech_avatar.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/api/auth_api.dart';
 import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class FamilyDetailsPage extends StatefulWidget {
   final String userName;
   final String status;
-  final DateTime eddDate;
+
+  /// Null when the mother is not pregnant — there is no due date to carry.
+  final DateTime? eddDate;
   final DateTime? lmpDate;
+  final int? averageCycleLength;
   final String? partnerName;
   final String? partnerPhone;
   final String phone;
@@ -27,6 +31,7 @@ class FamilyDetailsPage extends StatefulWidget {
     required this.status,
     required this.eddDate,
     this.lmpDate,
+    this.averageCycleLength,
     this.partnerName,
     this.partnerPhone,
     this.phone = '',
@@ -53,6 +58,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             userName: widget.userName,
             status: widget.status,
             eddDate: widget.eddDate,
+            averageCycleLength: widget.averageCycleLength,
             lmpDate: widget.lmpDate,
             partnerName: widget.partnerName,
             partnerPhone: widget.partnerPhone,
@@ -71,9 +77,12 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
 
       try {
         final isDad = widget.selectedRole.trim().toLowerCase() == 'dad';
-        final isPregnant = !isDad &&
-            widget.status.toLowerCase().contains("pregnant") &&
-            !widget.status.toLowerCase().contains("pre");
+        final storedStatus = pregnancyStatusForRegistration(
+          widget.status,
+          isDad: isDad,
+          registeringForPartner: widget.registerPregnancyForPartner,
+        );
+        final isPregnant = storedStatus == 'pregnant';
 
         final payload = {
           "name": widget.userName.trim(),
@@ -82,14 +91,15 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           "userRole": widget.selectedRole,
           "gender": isDad ? "male" : "female",
           "userType": isDad ? "dad" : "patient",
-          "pregnancyStatus": isDad
-              ? (widget.registerPregnancyForPartner ? "pregnant" : "notpregnant")
-              : (isPregnant ? "pregnant" : "notpregnant"),
-          "edDate": widget.eddDate.toIso8601String(),
+          "pregnancyStatus": storedStatus,
+          if (widget.eddDate != null)
+            "edDate": widget.eddDate!.toIso8601String(),
           "lmpDate": widget.lmpDate?.toIso8601String(),
-          if (widget.partnerName != null && widget.partnerName!.trim().isNotEmpty)
+          if (widget.partnerName != null &&
+              widget.partnerName!.trim().isNotEmpty)
             "partnerName": widget.partnerName!.trim(),
-          if (widget.partnerPhone != null && widget.partnerPhone!.trim().isNotEmpty)
+          if (widget.partnerPhone != null &&
+              widget.partnerPhone!.trim().isNotEmpty)
             "partnerPhone": widget.partnerPhone!.trim(),
           if (widget.familyCode != null && widget.familyCode!.trim().isNotEmpty)
             "familyCode": widget.familyCode!.trim(),
@@ -103,7 +113,11 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
 
         final res = await AuthApi.registerMother(payload);
         if (!res.success) {
-          throw Exception(res.detail.isNotEmpty ? res.detail : "Registration failed. Please try again.");
+          throw Exception(
+            res.detail.isNotEmpty
+                ? res.detail
+                : "Registration failed. Please try again.",
+          );
         }
 
         if (res.item is Map) {
@@ -120,8 +134,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           name: widget.userName,
           phone: widget.phone,
           countryCode: widget.countryCode,
-          pregnancyStatus: isPregnant ? "pregnant" : "notpregnant",
+          pregnancyStatus: storedStatus,
           eddDate: widget.eddDate,
+          averageCycleLength: widget.averageCycleLength,
           lmpDate: widget.lmpDate,
           partnerName: widget.partnerName,
           partnerPhone: widget.partnerPhone,
@@ -219,7 +234,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             const SizedBox(height: 12),
 
             // ─── BABY SPEECH AVATAR ───
-            BabySpeechAvatar(
+            BabyHeroBanner(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
               speechText:
                   'Do you already have sweet little\nbrothers or sisters for me? 👶',
               onSpeakerTap: () {
@@ -232,93 +248,101 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
               },
             ),
 
-            const Spacer(),
+            const SizedBox(height: 12),
 
             // ─── BOTTOM CARD CONTAINER ───
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black12,
-                    blurRadius: 20,
-                    offset: Offset(0, -4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'DO YOU HAVE KIDS?',
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF8E95A5),
-                      letterSpacing: 0.8,
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 20,
+                      offset: Offset(0, -4),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Option 1: Yes
-                  _buildKidOption(
-                    title: 'Yes',
-                    subtitle: 'I have other children',
-                    isSelected: _hasKids,
-                    icon: Icons.child_care_rounded,
-                    onTap: () => setState(() => _hasKids = true),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Option 2: No
-                  _buildKidOption(
-                    title: 'No',
-                    subtitle: 'This is my first baby 💕',
-                    isSelected: !_hasKids,
-                    icon: Icons.favorite_rounded,
-                    onTap: () => setState(() => _hasKids = false),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ─── NEXT BUTTON ───
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleNext,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF5277),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'DO YOU HAVE KIDS?',
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF8E95A5),
+                          letterSpacing: 0.8,
                         ),
-                        elevation: 0,
                       ),
-                      child: _isLoading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Text(
-                              _hasKids
-                                  ? 'Next (Add Kids Details)'
-                                  : 'Finish Setup',
-                              style: GoogleFonts.poppins(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                      const SizedBox(height: 16),
+
+                      // Option 1: Yes
+                      _buildKidOption(
+                        title: 'Yes',
+                        subtitle: 'I have other children',
+                        isSelected: _hasKids,
+                        icon: Icons.child_care_rounded,
+                        onTap: () => setState(() => _hasKids = true),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // Option 2: No
+                      _buildKidOption(
+                        title: 'No',
+                        subtitle: 'This is my first baby 💕',
+                        isSelected: !_hasKids,
+                        icon: Icons.favorite_rounded,
+                        onTap: () => setState(() => _hasKids = false),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ─── NEXT BUTTON ───
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: ElevatedButton(
+                          onPressed: _isLoading ? null : _handleNext,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF5277),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
                             ),
-                    ),
+                            elevation: 0,
+                          ),
+                          child: _isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : Text(
+                                  _hasKids
+                                      ? 'Next (Add Kids Details)'
+                                      : 'Finish Setup',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ],

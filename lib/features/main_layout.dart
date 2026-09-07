@@ -63,11 +63,7 @@ class _MainLayoutState extends State<MainLayout> {
               ),
             ],
           ),
-          child: const Icon(
-            Icons.mic,
-            color: Colors.white,
-            size: 28,
-          ),
+          child: const Icon(Icons.mic, color: Colors.white, size: 28),
         ),
       ),
     );

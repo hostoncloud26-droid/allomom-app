@@ -13,7 +13,10 @@ import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
+import 'package:allomom/features/home/widgets/allo_voice_prompt_card.dart';
+import 'package:allomom/features/my_health/my_health_page.dart' as health;
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/services/allobot/home_voice_controller.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,6 +28,13 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final PageController _carouselController;
   int _currentCarouselPage = 0;
+
+  /// AlloBot's proactive companion: greets her on open and works through the
+  /// day's questions. Owned here so it lives as long as the screen.
+  final HomeVoiceController _voice = HomeVoiceController();
+
+  /// Whether the carousel has already slid off AlloBot onto the summary.
+  bool _hasAdvancedToDailySummary = false;
 
   static const List<String> _shortMonths = [
     'Jan',
@@ -45,7 +55,13 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _carouselController = PageController();
+    _voice.addListener(_onVoiceChanged);
+    HomeVoiceLauncher.instance.ancFollowUpRequests
+        .addListener(_onAncFollowUpRequested);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Greets and asks the first question. Deliberately not awaited: the
+      // screen renders immediately and the card appears when it is ready.
+      _voice.start();
       final currentUserId = UserSessionManager.instance.userId;
       if (currentUserId.isNotEmpty &&
           HealthVitalsController.instance.userId != currentUserId) {
@@ -59,7 +75,143 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _carouselController.dispose();
+    _voice.removeListener(_onVoiceChanged);
+    HomeVoiceLauncher.instance.ancFollowUpRequests
+        .removeListener(_onAncFollowUpRequested);
+    _voice.dispose();
     super.dispose();
+  }
+
+  /// Runs the post-visit questions when the ANC calendar asks for them.
+  void _onAncFollowUpRequested() {
+    if (!mounted) return;
+    _voice.startAncFollowUp();
+  }
+
+  /// Rebuilds for the card, moves the carousel on when AlloBot is finished,
+  /// and performs any navigation an answer asked for.
+  void _onVoiceChanged() {
+    if (!mounted) return;
+    setState(() {});
+
+    _syncCarouselWithVoice();
+
+    final destination = _voice.consumeDestination();
+    if (destination == null) return;
+
+    // Deferred to after the frame: this fires from inside the controller's
+    // notify, which can land mid-build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _goTo(destination);
+    });
+  }
+
+  /// Keeps the carousel in step with the conversation.
+  ///
+  /// A new question brings her back to AlloBot — which is what makes the ANC
+  /// calendar's hand-off work, since that pops back here and the questions
+  /// need to be in front of her. When the questions run out it slides on to
+  /// the Daily Summary instead: a visible card with nothing left to ask means
+  /// AlloBot has said its last word, and parking her there would hide the
+  /// summary behind a finished conversation.
+  void _syncCarouselWithVoice() {
+    if (!_voice.isVisible) return;
+
+    if (_voice.prompt != null) {
+      _hasAdvancedToDailySummary = false;
+      // Only when she is not already looking at it, so answering a question
+      // does not animate the page she is on.
+      if (_currentCarouselPage != _alloBotPageIndex) {
+        _animateCarouselTo(_alloBotPageIndex);
+      }
+      return;
+    }
+
+    // Once only: otherwise every later rebuild would drag her off whatever
+    // page she had swiped to.
+    if (_hasAdvancedToDailySummary) return;
+    _hasAdvancedToDailySummary = true;
+
+    // The delay lets the last line be read, and spoken, before the page moves.
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (!mounted) return;
+      // Nothing to move on from if she dismissed the card meanwhile.
+      if (!_voice.isVisible) return;
+      _animateCarouselTo(_dailySummaryPageIndex);
+    });
+  }
+
+  /// AlloBot's page, which leads the carousel while it is visible.
+  int get _alloBotPageIndex => 0;
+
+  /// The Daily Summary's page, which shifts by one when AlloBot is showing.
+  int get _dailySummaryPageIndex => _voice.isVisible ? 1 : 0;
+
+  void _animateCarouselTo(int page) {
+    if (!_carouselController.hasClients) return;
+    _carouselController.animateToPage(
+      page,
+      duration: const Duration(milliseconds: 420),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  void _goTo(HomeVoiceDestination destination) {
+    final Widget page = switch (destination) {
+      HomeVoiceDestination.kickCounter => const KickCounterPage(),
+      HomeVoiceDestination.reportUpload => const ReportsPage(),
+      // Sleep and symptoms are both logged from My Health.
+      HomeVoiceDestination.sleepLog => const health.MyHealthPage(),
+      HomeVoiceDestination.symptomLog => const health.MyHealthPage(),
+    };
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+  }
+
+  /// What the baby card's bubble says.
+  ///
+  /// AlloBot's current line while it is talking, and the plain greeting
+  /// otherwise. Long lines are trimmed: the bubble is a fixed shape over the
+  /// illustration, and the full text is on the card below it anyway.
+  String _babyBubbleText(
+    UserSessionManager session,
+    bool isPregnant,
+    String name,
+  ) {
+    if (_voice.isVisible) {
+      final spoken = _voice.prompt?.question ?? _voice.message;
+      return spoken.length > 90 ? '${spoken.substring(0, 88)}…' : spoken;
+    }
+
+    if (isPregnant) return "Good Morning, $name ❤️";
+    if (session.isNewMom) {
+      return "Hello, $name 💕\nHow are you and baby doing?";
+    }
+    return "Welcome, $name 💕\nReady to start your care journey?";
+  }
+
+  /// The AlloBot page of the carousel.
+  ///
+  /// Inline rather than a dialog: a mother opening the app should see her
+  /// screen, not a stack of modals, and every one of these questions is about
+  /// something the page behind it displays.
+  ///
+  /// `fillHeight` makes it the same size as the Daily Summary card next to it,
+  /// rather than shrinking to its content and leaving a gap above the dots.
+  /// The message inside scrolls if it is long, so the answer buttons stay put.
+  Widget _buildVoicePromptCard() {
+    return AlloVoicePromptCard(
+      fillHeight: true,
+      message: _voice.message,
+      prompt: _voice.prompt,
+      isSpeaking: _voice.isSpeaking,
+      onYes: () => _voice.answerYesNo(true),
+      onNo: () => _voice.answerYesNo(false),
+      onPickDate: _voice.answerDate,
+      onSubmitText: _voice.answerText,
+      onDismiss: _voice.dismiss,
+      onSpeakerTap: _voice.toggleSpeech,
+    );
   }
 
   @override
@@ -104,14 +256,15 @@ class _HomePageState extends State<HomePage> {
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 20),
                         child: BabyHeroBanner(
-                          speechText: isPregnant
-                              ? "Good Morning, $name ❤️"
-                              : session.isNewMom
-                              ? "Hello, $name 💕\nHow are you and baby doing?"
-                              : "Welcome, $name 💕\nReady to start your care journey?",
+                          // The bubble carries whatever AlloBot is saying, so
+                          // the words come from the baby that is speaking them
+                          // rather than from a card elsewhere on the page.
+                          speechText: _babyBubbleText(session, isPregnant, name),
                           greetingText: "",
                           bubblePosition: SpeechBubblePosition.topCenter,
                           height: 270,
+                          onSpeakerTap:
+                              _voice.isVisible ? _voice.toggleSpeech : null,
                           onTap: () {
                             Navigator.push(
                               context,
@@ -124,7 +277,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // ─── SWIPEABLE CAROUSEL (DAILY SUMMARY & QUICK ACTIONS) ───
+                      // ─── SWIPEABLE CAROUSEL (ALLOBOT, DAILY SUMMARY, QUICK ACTIONS) ───
                       _buildSummaryCarousel(context),
                       const SizedBox(height: 20),
 
@@ -334,6 +487,15 @@ class _HomePageState extends State<HomePage> {
 
   // ─── SWIPEABLE SUMMARY CAROUSEL ────────────────────────────
   Widget _buildSummaryCarousel(BuildContext context) {
+    // AlloBot leads the carousel while it has something to say, so the first
+    // thing she swipes through is the conversation about her day; the summary
+    // and the shortcuts sit behind it.
+    final pages = <Widget>[
+      if (_voice.isVisible) _buildVoicePromptCard(),
+      _buildDailySummaryCard(),
+      _buildQuickActionsCard(context),
+    ];
+
     return Column(
       children: [
         SizedBox(
@@ -346,10 +508,7 @@ class _HomePageState extends State<HomePage> {
                 _currentCarouselPage = index;
               });
             },
-            children: [
-              _buildDailySummaryCard(),
-              _buildQuickActionsCard(context),
-            ],
+            children: pages,
           ),
         ),
         const SizedBox(height: 16),
@@ -357,7 +516,7 @@ class _HomePageState extends State<HomePage> {
         // Carousel Dot Indicators
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(2, (index) {
+          children: List.generate(pages.length, (index) {
             final isActive = _currentCarouselPage == index;
             return GestureDetector(
               onTap: () {
