@@ -196,6 +196,7 @@ class AlloBotContext {
     this.labReports = const [],
     this.latestVitals = const {},
     this.todayTotals = const {},
+    this.todayMealNotes = const {},
     this.todayCare = const [],
     this.kidsCount = 0,
     this.completedPregnancyCount = 0,
@@ -243,6 +244,14 @@ class AlloBotContext {
   /// has to be summed over the day. Reading the latest row instead would
   /// report the last sip as the whole day's intake.
   final Map<String, double> todayTotals;
+
+  /// What she said she ate today, per meal vital key, read off the `items`
+  /// note on the meal's row in the vitals stream.
+  ///
+  /// This is what stops AlloBot asking "what did you have for lunch?" twice:
+  /// the answer lives in the vitals stream, so it survives a restart in a way
+  /// a per-session "already asked" flag never could.
+  final Map<String, String> todayMealNotes;
 
   final List<TodayCareContext> todayCare;
 
@@ -422,6 +431,18 @@ class AlloBotContext {
     final total = todayTotals[key];
     if (total == null || total <= 0) return null;
     return total;
+  }
+
+  /// What she ate for [key] today, or null when nothing was recorded.
+  ///
+  /// Checks the legacy breakfast key too, for the same reason the totals do:
+  /// a note written under `break_fast` is still a note.
+  String? mealNoteToday(String key) {
+    for (final candidate in [key, if (key == 'breakfast') 'break_fast']) {
+      final note = todayMealNotes[candidate]?.trim();
+      if (note != null && note.isNotEmpty) return note;
+    }
+    return null;
   }
 
   bool get isHighRisk {

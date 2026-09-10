@@ -8,8 +8,9 @@ import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/user_db_service.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
-import 'package:allomom/services/api/api_base.dart';
-import 'package:allomom/services/api/auth_api.dart';
+import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
+import 'package:allomom/api/api_base.dart';
+import 'package:allomom/api/auth_api.dart';
 
 class UserSessionManager extends GetxController {
   static UserSessionManager get instance =>
@@ -570,21 +571,37 @@ class UserSessionManager extends GetxController {
     update();
   }
 
+  /// Guards [refresh] against re-entering itself.
+  ///
+  /// GetX's `update()` calls `refresh()`, and this override ends by calling
+  /// `update()` — so without the guard a single `update()` starts an
+  /// unbounded async loop that re-reads the user, health data and pregnancy
+  /// from SQLite on every cycle.
+  bool _isRefreshing = false;
+
   @override
   Future<void> refresh() async {
-    if (_currentUser != null) {
-      _currentUser = await UserDbService.instance.getUserById(_currentUser!.id);
+    if (_isRefreshing) return;
+    _isRefreshing = true;
+    try {
       if (_currentUser != null) {
-        await _loadHealthAndPregnancy(_currentUser!);
+        _currentUser = await UserDbService.instance.getUserById(
+          _currentUser!.id,
+        );
+        if (_currentUser != null) {
+          await _loadHealthAndPregnancy(_currentUser!);
+        }
+      } else {
+        final active = await UserDbService.instance.getActiveUser();
+        if (active != null) {
+          _currentUser = active;
+          await _loadHealthAndPregnancy(_currentUser!);
+        }
       }
-    } else {
-      final active = await UserDbService.instance.getActiveUser();
-      if (active != null) {
-        _currentUser = active;
-        await _loadHealthAndPregnancy(_currentUser!);
-      }
+      update();
+    } finally {
+      _isRefreshing = false;
     }
-    update();
   }
 
   /// Update profile details in memory, SharedPreferences, SQLite, and remotely via API
@@ -988,6 +1005,23 @@ class UserSessionManager extends GetxController {
 
     update();
     return true;
+  }
+
+  /// Re-derives `hasKids` / `kidsCount` from the birth records table.
+  ///
+  /// Once babies are stored as birth records that table is the source of
+  /// truth; the SharedPreferences pair is only a cache for the UI, and it
+  /// drifts as soon as a baby is added or deleted outside registration.
+  Future<void> refreshKidsFromBirthRecords() async {
+    final babies = await BabyDbService.instance.getBirthRecords();
+    _kidsCount = babies.length;
+    _hasKids = babies.isNotEmpty;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('has_kids', _hasKids);
+    await prefs.setInt('kids_count', _kidsCount);
+
+    update();
   }
 
   /// Delete active pregnancy record

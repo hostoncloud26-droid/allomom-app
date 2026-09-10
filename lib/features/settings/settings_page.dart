@@ -8,6 +8,7 @@ import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
+import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/features/pregnancy/test_pregnancy_page.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
@@ -144,6 +145,25 @@ class _SettingsPageState extends State<SettingsPage> {
                           builder: (_) => const PregnancyConfirmationPage(),
                         ),
                       );
+                    },
+                  ),
+                  _buildItemDivider(),
+
+                  // 2b. My Babies
+                  _buildListTile(
+                    icon: Icons.child_care_outlined,
+                    title: 'My Babies',
+                    subtitle: session.hasKids
+                        ? '${session.kidsCount} '
+                              '${session.kidsCount == 1 ? 'baby' : 'babies'} '
+                              '· Vaccines & milestones'
+                        : 'Add your newborn or older child',
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const MyBabiesPage()),
+                      );
+                      if (mounted) setState(() {});
                     },
                   ),
                   _buildItemDivider(),

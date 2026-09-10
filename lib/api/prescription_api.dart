@@ -1,5 +1,5 @@
-import 'package:allomom/services/api/api_base.dart';
-import 'package:allomom/services/api/response.dart';
+import 'package:allomom/api/api_base.dart';
+import 'package:allomom/api/response.dart';
 
 class PrescriptionApi {
   static Future<APIResponse> getPrescriptions({int skip = 0, int limit = 20}) async {

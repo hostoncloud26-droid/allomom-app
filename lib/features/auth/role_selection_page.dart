@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/auth/contact_number_page.dart';
+import 'package:allomom/features/auth/register_flow/register_name_page.dart';
 
+/// Asked only of someone the backend did not recognise after OTP
+/// verification — an existing user is signed straight in and never sees this.
+/// The verified [phone] is carried through so registration does not have to
+/// ask for it a second time.
 class RoleSelectionPage extends StatefulWidget {
   final String selectedLanguage;
+  final String phone;
+  final String countryCode;
 
-  const RoleSelectionPage({super.key, this.selectedLanguage = 'en'});
+  const RoleSelectionPage({
+    super.key,
+    this.selectedLanguage = 'en',
+    this.phone = '',
+    this.countryCode = '+91',
+  });
 
   @override
   State<RoleSelectionPage> createState() => _RoleSelectionPageState();
@@ -154,7 +165,9 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => ContactNumberPage(
+                                builder: (_) => RegisterNamePage(
+                                  phone: widget.phone,
+                                  countryCode: widget.countryCode,
                                   selectedLanguage: widget.selectedLanguage,
                                   selectedRole: _selectedRole,
                                 ),

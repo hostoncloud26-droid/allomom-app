@@ -20,6 +20,12 @@ enum HomePromptKind {
   breakfast,
   lunch,
   dinner,
+
+  /// What she actually ate, asked once a meal is down as eaten.
+  breakfastDetail,
+  lunchDetail,
+  dinnerDetail,
+
   water,
   sleep,
   symptoms,
@@ -54,6 +60,9 @@ enum HomeFlowAction {
   /// Log the named meal as eaten.
   logMeal,
 
+  /// Store what she ate against that meal in the vitals stream.
+  logMealDetail,
+
   /// Open the Kick Counter.
   openKickCounter,
 
@@ -83,6 +92,8 @@ class HomePrompt {
     required this.question,
     required this.answerKind,
     this.mealKey,
+    this.answerHint,
+    this.submitLabel,
   });
 
   final HomePromptKind kind;
@@ -94,6 +105,13 @@ class HomePrompt {
 
   /// For the meal prompts, the vital key the meal is stored under.
   final String? mealKey;
+
+  /// Placeholder for a [HomeAnswerKind.text] answer — an example of the sort
+  /// of thing she would type.
+  final String? answerHint;
+
+  /// Label on the button that saves a [HomeAnswerKind.text] answer.
+  final String? submitLabel;
 }
 
 /// What AlloBot says back, and what should happen as a result.
@@ -193,6 +211,12 @@ class HomeVoiceFlow {
 
   final Set<HomePromptKind> _asked = <HomePromptKind>{};
 
+  /// Questions that belong immediately after the answer that raised them —
+  /// today only what she ate, asked the moment a meal goes down as eaten.
+  /// Held apart from the candidate list so the follow-up lands next rather
+  /// than wherever the day's ordering would drop it.
+  final List<HomePrompt> _followUps = <HomePrompt>[];
+
   /// The antenatal questions, once that sequence has been started.
   List<HomePrompt> _ancQueue = const [];
   int _ancIndex = 0;
@@ -222,6 +246,9 @@ class HomeVoiceFlow {
         kind: HomePromptKind.ancSummary,
         question: 'What did the doctor say today?',
         answerKind: HomeAnswerKind.text,
+        answerHint:
+            'e.g. BP normal, iron tablets to continue, scan next month',
+        submitLabel: 'Save to this visit',
       ),
       HomePrompt(
         kind: HomePromptKind.ancVaccination,
@@ -251,6 +278,12 @@ class HomeVoiceFlow {
   HomePrompt? nextPrompt() {
     if (isInAncFlow) return _ancQueue[_ancIndex];
 
+    while (_followUps.isNotEmpty) {
+      final pending = _followUps.first;
+      if (!_asked.contains(pending.kind)) return pending;
+      _followUps.removeAt(0);
+    }
+
     for (final prompt in _candidates()) {
       if (!_asked.contains(prompt.kind)) return prompt;
     }
@@ -269,12 +302,18 @@ class HomeVoiceFlow {
   }) {
     _asked.add(prompt.kind);
     if (isInAncFlow && _ancQueue[_ancIndex].kind == prompt.kind) _ancIndex++;
+    _followUps.removeWhere((pending) => pending.kind == prompt.kind);
 
     switch (prompt.kind) {
       case HomePromptKind.breakfast:
       case HomePromptKind.lunch:
       case HomePromptKind.dinner:
         return _mealResponse(prompt, affirmed ?? false);
+
+      case HomePromptKind.breakfastDetail:
+      case HomePromptKind.lunchDetail:
+      case HomePromptKind.dinnerDetail:
+        return _mealDetailResponse(prompt, text);
 
       case HomePromptKind.water:
         return _waterResponse(affirmed ?? false);
@@ -363,21 +402,14 @@ class HomeVoiceFlow {
   }
 
   HomeFlowResponse _mealResponse(HomePrompt prompt, bool affirmed) {
-    final label = prompt.mealKey == null
-        ? 'that meal'
-        : mealWindows
-            .firstWhere(
-              (meal) => meal.key == prompt.mealKey,
-              orElse: () => (
-                key: prompt.mealKey!,
-                label: prompt.mealKey!,
-                dueFrom: 0,
-                dueBy: 24,
-              ),
-            )
-            .label;
+    final label = _mealLabel(prompt.mealKey);
 
     if (affirmed) {
+      final key = prompt.mealKey;
+      // Ask what it was, unless it is already on the record for today.
+      if (key != null && _context.mealNoteToday(key) == null) {
+        _followUps.add(mealDetailPrompt(key, label));
+      }
       return HomeFlowResponse(
         reply: 'Good, I have logged your $label.',
         action: HomeFlowAction.logMeal,
@@ -389,6 +421,26 @@ class HomeVoiceFlow {
       reply: 'Please do not skip $label, mommy. Your baby draws everything '
           'from what you eat, and going long without food makes the tiredness '
           'and the nausea worse. Even something small helps.',
+    );
+  }
+
+  HomeFlowResponse _mealDetailResponse(HomePrompt prompt, String? text) {
+    final label = _mealLabel(prompt.mealKey);
+    final items = text?.trim() ?? '';
+
+    if (items.isEmpty) {
+      return HomeFlowResponse(
+        reply: 'That is alright — I have kept your $label logged without the '
+            'details.',
+      );
+    }
+
+    return HomeFlowResponse(
+      reply: 'Saved with your $label, mommy — $items. Keeping it written down '
+          'means we can see what your week actually looks like.',
+      action: HomeFlowAction.logMealDetail,
+      mealKey: prompt.mealKey,
+      text: items,
     );
   }
 
@@ -502,7 +554,20 @@ class HomeVoiceFlow {
       );
     }
 
-    // 6. Symptoms, last: it is the broadest question and the least urgent
+    // 6. What she ate, for a meal that is down as eaten but not described —
+    //    one logged from Today's Care, or from an earlier session. Late in the
+    //    queue because it records rather than nudges: the same question comes
+    //    straight after a "yes" here, where it belongs, through the follow-up
+    //    queue. Skipped the moment a note exists, so it is asked once and
+    //    never again.
+    for (final meal in mealWindows) {
+      if (hour < meal.dueFrom) continue;
+      if (!_isMealLogged(meal.key)) continue;
+      if (_hasMealNote(meal.key)) continue;
+      prompts.add(mealDetailPrompt(meal.key, meal.label));
+    }
+
+    // 7. Symptoms, last: it is the broadest question and the least urgent
     //    unless she raises something.
     prompts.add(
       const HomePrompt(
@@ -523,9 +588,47 @@ class HomeVoiceFlow {
     return false;
   }
 
+  /// Whether what she ate is already on today's record for [key], whichever
+  /// screen wrote it.
+  bool _hasMealNote(String key) => _context.mealNoteToday(key) != null;
+
+  static String _mealLabel(String? key) {
+    if (key == null) return 'that meal';
+    for (final meal in mealWindows) {
+      if (meal.key == key) return meal.label;
+    }
+    return key;
+  }
+
   static HomePromptKind _mealKind(String key) => switch (key) {
         'breakfast' => HomePromptKind.breakfast,
         'lunch' => HomePromptKind.lunch,
         _ => HomePromptKind.dinner,
       };
+
+  static HomePromptKind _mealDetailKind(String key) => switch (key) {
+        'breakfast' => HomePromptKind.breakfastDetail,
+        'lunch' => HomePromptKind.lunchDetail,
+        _ => HomePromptKind.dinnerDetail,
+      };
+}
+
+/// The "what did you have?" question for one meal.
+///
+/// Free text rather than a list of dishes: what she eats is regional, and a
+/// picker of guesses would collect worse data than her own words.
+HomePrompt mealDetailPrompt(String key, [String? label]) {
+  final name = label ?? HomeVoiceFlow._mealLabel(key);
+  return HomePrompt(
+    kind: HomeVoiceFlow._mealDetailKind(key),
+    question: 'What did you have for $name?',
+    answerKind: HomeAnswerKind.text,
+    mealKey: key,
+    answerHint: switch (key) {
+      'breakfast' => 'e.g. 2 idli, sambar and a glass of milk',
+      'lunch' => 'e.g. rice, dal, spinach curry and curd',
+      _ => 'e.g. 2 rotis, mixed vegetable and dal',
+    },
+    submitLabel: 'Save',
+  );
 }

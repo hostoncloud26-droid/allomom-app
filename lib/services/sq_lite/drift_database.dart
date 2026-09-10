@@ -25,6 +25,9 @@ part 'tables/pregnancy_anc_schedule_table.dart';
 part 'tables/vaccination_table.dart';
 part 'tables/report_checklist_table.dart';
 part 'tables/report_attachment_table.dart';
+part 'tables/birth_record_table.dart';
+part 'tables/baby_immunization_record_table.dart';
+part 'tables/baby_milestone_table.dart';
 part 'tables/reminder_table.dart';
 
 part 'drift_database.g.dart';
@@ -59,6 +62,9 @@ LazyDatabase _openConnection() {
     ReportChecklists,
     ReportAttachments,
     Reminders,
+    BirthRecords,
+    BabyImmunizationRecords,
+    BabyMilestones,
   ],
 )
 class AppDriftDatabase extends _$AppDriftDatabase {

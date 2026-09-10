@@ -228,6 +228,11 @@ class AlloVoicePromptCard extends StatelessWidget {
 
       case HomeAnswerKind.text:
         return _AnswerField(
+          // The hint and the button label come from the prompt: the same field
+          // takes the doctor's notes and what she ate for lunch, and a shared
+          // "Save to this visit" would be wrong for one of them.
+          hintText: prompt!.answerHint ?? 'Type your answer',
+          submitLabel: prompt!.submitLabel ?? 'Save',
           onSubmit: onSubmitText,
           onSkip: onNo,
         );
@@ -290,10 +295,17 @@ class AlloVoicePromptCard extends StatelessWidget {
   }
 }
 
-/// The free-text answer, used for what the doctor said.
+/// The free-text answer: what the doctor said, or what she ate.
 class _AnswerField extends StatefulWidget {
-  const _AnswerField({this.onSubmit, this.onSkip});
+  const _AnswerField({
+    required this.hintText,
+    required this.submitLabel,
+    this.onSubmit,
+    this.onSkip,
+  });
 
+  final String hintText;
+  final String submitLabel;
   final ValueChanged<String>? onSubmit;
   final VoidCallback? onSkip;
 
@@ -340,7 +352,7 @@ class _AnswerFieldState extends State<_AnswerField> {
               color: const Color(0xFF1E2024),
             ),
             decoration: InputDecoration(
-              hintText: 'e.g. BP normal, iron tablets to continue, scan next month',
+              hintText: widget.hintText,
               hintStyle: GoogleFonts.poppins(
                 fontSize: 12,
                 color: const Color(0xFF9CA3AF),
@@ -364,7 +376,7 @@ class _AnswerFieldState extends State<_AnswerField> {
                   ),
                   child: Center(
                     child: Text(
-                      'Save to this visit',
+                      widget.submitLabel,
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w700,

@@ -2,10 +2,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/auth/register_flow/register_name_page.dart';
+import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/services/api/otp_api.dart';
-import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/api/otp_api.dart';
+import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
 class VerifyOtpPage extends StatefulWidget {
@@ -14,7 +14,6 @@ class VerifyOtpPage extends StatefulWidget {
   final String countryCode;
   final dynamic otpId;
   final String selectedLanguage;
-  final String selectedRole;
 
   const VerifyOtpPage({
     super.key,
@@ -23,7 +22,6 @@ class VerifyOtpPage extends StatefulWidget {
     this.countryCode = '+91',
     this.otpId,
     this.selectedLanguage = 'en',
-    this.selectedRole = 'Mom',
   });
 
   @override
@@ -121,11 +119,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => RegisterNamePage(
+              builder: (_) => RoleSelectionPage(
                 phone: widget.rawPhone,
                 countryCode: widget.countryCode,
                 selectedLanguage: widget.selectedLanguage,
-                selectedRole: widget.selectedRole,
               ),
             ),
           );
@@ -186,11 +183,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => RegisterNamePage(
+            builder: (_) => RoleSelectionPage(
               phone: widget.rawPhone,
               countryCode: widget.countryCode,
               selectedLanguage: widget.selectedLanguage,
-              selectedRole: widget.selectedRole,
             ),
           ),
         );
@@ -255,7 +251,6 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
   @override
   Widget build(BuildContext context) {
-    final roleName = widget.selectedRole == 'Mom' ? 'Mommy' : 'Daddy';
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
@@ -326,11 +321,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                     SizedBox(height: isKeyboardOpen ? 4 : 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyHeroBanner(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      height: isKeyboardOpen ? 150 : 260,
-                      speechText:
-                          'I just sent a secret 6-digit code to\nyour phone, $roleName! 🔑',
+                    BabyPrompt(
+                      compact: isKeyboardOpen,
+                      text:
+                          'I just sent a secret 6-digit code to\nyour phone! 🔑',
                       onSpeakerTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -341,10 +335,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                       },
                     ),
 
-                    if (!isKeyboardOpen)
-                      const Spacer()
-                    else
-                      const SizedBox(height: 12),
+                    const Spacer(),
 
                     // ─── BOTTOM OTP INPUT CONTAINER ───
                     Container(

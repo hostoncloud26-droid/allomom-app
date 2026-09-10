@@ -1092,6 +1092,31 @@ class _HomePageState extends State<HomePage> {
 
   // ─── QUICK ACTIONS CARD (GRID OF ALL FEATURES) ─────────────
   Widget _buildQuickActionsCard(BuildContext context) {
+    final session = UserSessionManager.instance;
+    final isPregnant = session.isPregnant;
+
+    // Kick counting is a pregnancy tool: there is nothing to count once the
+    // baby is born, so its slot goes to the journey — which is the only place
+    // a mother who is not pregnant can reach it from home, the summary card
+    // beside this one having turned into a "Register Pregnancy" prompt.
+    final journeyOrKicks = isPregnant
+        ? {
+            'title': 'Kick Count',
+            'subtitle': 'Fetal Tracker',
+            'icon': Icons.pets_rounded,
+            'color': const Color(0xFFFF4E6A),
+            'bg': const Color(0xFFFFF0F4),
+            'page': const KickCounterPage(),
+          }
+        : {
+            'title': session.hasKids ? 'Baby Journey' : 'My Journey',
+            'subtitle': session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
+            'icon': Icons.child_care_rounded,
+            'color': const Color(0xFFFF4E6A),
+            'bg': const Color(0xFFFFF0F4),
+            'page': const PregnancyJourneyPage(),
+          };
+
     final features = [
       {
         'title': 'AlloCry',
@@ -1101,14 +1126,7 @@ class _HomePageState extends State<HomePage> {
         'bg': const Color(0xFFF7F4FF),
         'page': const AlloCryPage(),
       },
-      {
-        'title': 'Kick Count',
-        'subtitle': 'Fetal Tracker',
-        'icon': Icons.pets_rounded,
-        'color': const Color(0xFFFF4E6A),
-        'bg': const Color(0xFFFFF0F4),
-        'page': const KickCounterPage(),
-      },
+      journeyOrKicks,
       {
         'title': 'Prescription',
         'subtitle': 'Medications',

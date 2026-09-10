@@ -6,7 +6,7 @@ typedef MigrationStep =
     Future<void> Function(Migrator migrator, AppDriftDatabase db);
 
 class AppMigrations {
-  static const int currentSchemaVersion = 5;
+  static const int currentSchemaVersion = 6;
 
   static final Map<int, MigrationStep> _steps = {
     2: (Migrator migrator, AppDriftDatabase db) async {
@@ -58,6 +58,21 @@ class AppMigrations {
         }
       }
     },
+    // v6: baby records — birth record, immunizations and milestones.
+    // All brand-new tables, so there is no existing data to migrate.
+    6: (Migrator migrator, AppDriftDatabase db) async {
+      for (final table in <TableInfo>[
+        db.birthRecords,
+        db.babyImmunizationRecords,
+        db.babyMilestones,
+      ]) {
+        try {
+          await migrator.createTable(table);
+        } catch (e) {
+          debugPrint('⚠️ Migration step v6 table creation warning: $e');
+        }
+      }
+    },
   };
 
   static MigrationStrategy build(AppDriftDatabase db) {
@@ -106,6 +121,10 @@ class AppMigrations {
       'CREATE INDEX IF NOT EXISTS idx_report_checklists_user ON report_checklists(user_id);',
       'CREATE INDEX IF NOT EXISTS idx_report_checklists_pregnancy ON report_checklists(pregnancy_id);',
       'CREATE INDEX IF NOT EXISTS idx_report_attachments_report ON report_attachments(report_id);',
+      'CREATE INDEX IF NOT EXISTS idx_birth_records_pregnancy ON birth_records(pregnancy_id);',
+      'CREATE INDEX IF NOT EXISTS idx_birth_records_health ON birth_records(health_id);',
+      'CREATE INDEX IF NOT EXISTS idx_baby_immunizations_birth ON baby_immunization_records(birth_record_id);',
+      'CREATE INDEX IF NOT EXISTS idx_baby_milestones_birth ON baby_milestones(birth_record_id);',
       'CREATE INDEX IF NOT EXISTS idx_reminders_user ON reminders(user_id);',
       'CREATE INDEX IF NOT EXISTS idx_prescription_medicine_timings_medicine ON prescription_medicine_timings(prescriptionMedicineId);',
       'CREATE INDEX IF NOT EXISTS idx_prescription_medicine_timings_datetime ON prescription_medicine_timings(dateTime);',

@@ -3,10 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/services/api/auth_api.dart';
-import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/api/auth_api.dart';
+import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/repositories/baby_repository.dart';
+import 'package:intl/intl.dart';
+import 'package:allomom/features/baby/baby_options.dart';
 
 class KidsDetailsPage extends StatefulWidget {
   final String userName;
@@ -45,18 +48,34 @@ class KidsDetailsPage extends StatefulWidget {
 }
 
 class _KidsDetailsPageState extends State<KidsDetailsPage> {
-  final List<Map<String, String>> _kidsList = [];
+  /// Previous children entered here. Each one becomes a `birth_records` row
+  /// once registration succeeds, so their vaccination schedule and milestone
+  /// checklist can be built from the date of birth.
+  final List<_KidEntry> _kidsList = [];
+
+  static final _dateFmt = DateFormat('dd MMM yyyy');
 
   bool _isAddingKid = false;
   bool _isLoading = false;
   final TextEditingController _kidNameController = TextEditingController();
-  final TextEditingController _kidAgeController = TextEditingController();
+  DateTime? _kidDob;
 
   @override
   void dispose() {
     _kidNameController.dispose();
-    _kidAgeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickKidDob() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _kidDob ?? DateTime(now.year - 2, now.month, now.day),
+      firstDate: DateTime(now.year - 18),
+      lastDate: now,
+      helpText: "Child's date of birth",
+    );
+    if (picked != null) setState(() => _kidDob = picked);
   }
 
   Future<void> _finishSetup() async {
@@ -133,6 +152,8 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
         healthDataId: healthDataId,
       );
 
+      await _saveKidsAsBirthRecords();
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -168,17 +189,38 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
 
   void _addNewKid() {
     final name = _kidNameController.text.trim();
-    final age = _kidAgeController.text.trim();
-    if (name.isNotEmpty && age.isNotEmpty) {
-      setState(() {
-        _kidsList.add({
-          'name': name,
-          'age': age.contains('yr') ? age : '$age yrs',
-        });
-        _kidNameController.clear();
-        _kidAgeController.clear();
-        _isAddingKid = false;
-      });
+    final dob = _kidDob;
+    if (dob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please pick your child's date of birth"),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    setState(() {
+      _kidsList.add(_KidEntry(name: name.isEmpty ? null : name, dob: dob));
+      _kidNameController.clear();
+      _kidDob = null;
+      _isAddingKid = false;
+    });
+  }
+
+  /// Writes the children entered above as birth records.
+  ///
+  /// They carry no `pregnancyId` — these births predate the app, so there is
+  /// no pregnancy row to link them to. Failures are swallowed deliberately:
+  /// registration has already succeeded at this point and must not be rolled
+  /// back because a child record could not be written locally.
+  Future<void> _saveKidsAsBirthRecords() async {
+    for (final kid in _kidsList) {
+      try {
+        await BabyRepository.instance.addBaby(dob: kid.dob, babyName: kid.name);
+      } catch (e) {
+        debugPrint('Could not save child ${kid.name ?? ''}: $e');
+      }
     }
   }
 
@@ -354,7 +396,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
-                                      kid['name'] ?? '',
+                                      kid.name ?? 'Child ${index + 1}',
                                       style: GoogleFonts.poppins(
                                         fontSize: 14.5,
                                         fontWeight: FontWeight.bold,
@@ -362,7 +404,8 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                                       ),
                                     ),
                                     Text(
-                                      'Age: ${kid['age']}',
+                                      '${_dateFmt.format(kid.dob)}  ·  '
+                                      '${babyAgeLabel(kid.dob)}',
                                       style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         color: const Color(0xFF6B7280),
@@ -419,21 +462,43 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                                 ),
                               ),
                               const Divider(color: Color(0xFFFFD8E0)),
-                              TextField(
-                                controller: _kidAgeController,
-                                keyboardType: TextInputType.number,
-                                decoration: InputDecoration(
-                                  hintText: 'Age (e.g. 2)',
-                                  hintStyle: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: const Color(0xFF9CA3AF),
+                              InkWell(
+                                onTap: _pickKidDob,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 10,
                                   ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.cake_rounded,
+                                        size: 16,
+                                        color: Color(0xFFFF4E6A),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        _kidDob == null
+                                            ? 'Date of birth'
+                                            : _dateFmt.format(_kidDob!),
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: _kidDob == null
+                                              ? const Color(0xFF9CA3AF)
+                                              : const Color(0xFF1E2024),
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      if (_kidDob != null)
+                                        Text(
+                                          babyAgeLabel(_kidDob),
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 12,
+                                            color: const Color(0xFF6B7280),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -506,4 +571,13 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
       ),
     );
   }
+}
+
+/// One child entered on the registration kids question, before it becomes a
+/// birth record.
+class _KidEntry {
+  const _KidEntry({required this.dob, this.name});
+
+  final String? name;
+  final DateTime dob;
 }

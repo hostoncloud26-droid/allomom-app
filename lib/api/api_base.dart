@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:allomom/services/api/api_routes.dart';
-import 'package:allomom/services/api/response.dart';
+import 'package:allomom/api/api_routes.dart';
+import 'package:allomom/api/response.dart';
 
 const String _kJwtTokenKey = 'allomom_jwt_token';
 const String _kRefreshTokenKey = 'allomom_refresh_token';
@@ -82,7 +82,7 @@ class ApiBase {
   static Future<Map<String, String>> getHeaders() async {
     final headers = <String, String>{
       "Content-Type": "application/json",
-      "app-version": ApiRoutes.instance.version,
+      "app-version": ApiRoutes.instance.version.toString(),
     };
     try {
       final jwt = await getJwt();
@@ -103,12 +103,16 @@ class ApiBase {
       final baseUrl = ApiRoutes.instance.baseUrl;
       Uri uri = Uri.parse("$baseUrl$endpoint");
       if (queryParams != null && queryParams.isNotEmpty) {
-        final stringParams = queryParams.map((key, value) => MapEntry(key, value.toString()));
+        final stringParams = queryParams.map(
+          (key, value) => MapEntry(key, value.toString()),
+        );
         uri = uri.replace(queryParameters: stringParams);
       }
 
       final headers = await getHeaders();
-      final response = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+      final response = await http
+          .get(uri, headers: headers)
+          .timeout(const Duration(seconds: 15));
 
       return _handleResponse(response);
     } catch (e) {
@@ -203,7 +207,11 @@ class ApiBase {
       final headers = await getHeaders();
 
       final response = await http
-          .delete(uri, headers: headers, body: body != null ? jsonEncode(body) : null)
+          .delete(
+            uri,
+            headers: headers,
+            body: body != null ? jsonEncode(body) : null,
+          )
           .timeout(const Duration(seconds: 15));
 
       return _handleResponse(response);
@@ -222,10 +230,7 @@ class ApiBase {
       final decoded = jsonDecode(response.body);
       final isSuccess = response.statusCode >= 200 && response.statusCode < 300;
       if (decoded is Map) {
-        return APIResponse(
-          success: isSuccess,
-          map: decoded,
-        );
+        return APIResponse(success: isSuccess, map: decoded);
       }
       return APIResponse(
         success: isSuccess,
@@ -239,4 +244,3 @@ class ApiBase {
     }
   }
 }
-

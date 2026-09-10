@@ -103,6 +103,7 @@ void main() {
               kind: HomePromptKind.ancSummary,
               question: 'What did the doctor say today?',
               answerKind: HomeAnswerKind.text,
+              submitLabel: 'Save to this visit',
             ),
             onSubmitText: (text) => saved = text,
             onNo: () {},
@@ -126,6 +127,7 @@ void main() {
               kind: HomePromptKind.ancSummary,
               question: 'What did the doctor say today?',
               answerKind: HomeAnswerKind.text,
+              submitLabel: 'Save to this visit',
             ),
             onSubmitText: (text) => saved = text,
             onNo: () => skipped = true,
@@ -136,6 +138,28 @@ void main() {
       await tester.tap(find.text('Save to this visit'));
       expect(saved, isNull);
       expect(skipped, isTrue);
+    });
+
+    testWidgets('takes free text for what she ate', (tester) async {
+      String? saved;
+      await tester.pumpWidget(
+        wrap(
+          AlloVoicePromptCard(
+            message: 'Good, I have logged your lunch.',
+            prompt: mealDetailPrompt('lunch'),
+            onSubmitText: (text) => saved = text,
+            onNo: () {},
+          ),
+        ),
+      );
+
+      expect(find.text('What did you have for lunch?'), findsOneWidget);
+      // The meal turn gets its own field hint and button, not the ANC one.
+      expect(find.text('Save to this visit'), findsNothing);
+
+      await tester.enterText(find.byType(TextField), 'rice, dal and spinach');
+      await tester.tap(find.text('Save'));
+      expect(saved, 'rice, dal and spinach');
     });
 
     testWidgets('the speaker and close controls fire', (tester) async {
@@ -190,6 +214,7 @@ void main() {
                     kind: HomePromptKind.ancSummary,
                     question: 'What did the doctor say today?',
                     answerKind: HomeAnswerKind.text,
+                    submitLabel: 'Save to this visit',
                   ),
                   onSubmitText: (_) {},
                   onNo: () {},
@@ -304,6 +329,7 @@ void main() {
               kind: HomePromptKind.ancSummary,
               question: 'What did the doctor say today?',
               answerKind: HomeAnswerKind.text,
+              submitLabel: 'Save to this visit',
             ),
             onSubmitText: (_) {},
             onNo: () {},

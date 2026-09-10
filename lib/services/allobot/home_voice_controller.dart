@@ -243,6 +243,9 @@ class HomeVoiceController extends ChangeNotifier {
       case HomeFlowAction.logMeal:
         await _logMeal(response.mealKey);
 
+      case HomeFlowAction.logMealDetail:
+        await _logMealDetail(response.mealKey, response.text);
+
       case HomeFlowAction.openKickCounter:
         _destination = HomeVoiceDestination.kickCounter;
 
@@ -298,6 +301,53 @@ class HomeVoiceController extends ChangeNotifier {
       (meal?.typicalCalories ?? 400).toDouble(),
       'kcal',
       data: {'source': 'allobot_home', 'logged_by': 'voice'},
+    );
+  }
+
+  /// Stores what she ate against today's row for that meal.
+  ///
+  /// Written onto the meal's own vital rather than as a row of its own: the
+  /// calorie tracker and Today's Care both sum these rows over the day, so a
+  /// second row would show as a second meal. Under the same `items` key the
+  /// Today's Care meal sheet uses, which is also what stops the question
+  /// being asked again — the note is read back out of the vitals stream.
+  ///
+  /// If nothing is logged for the meal yet (she described it before it was
+  /// recorded, or the log failed) the meal is written now, note and all.
+  Future<void> _logMealDetail(String? mealKey, String? items) async {
+    final note = items?.trim() ?? '';
+    if (mealKey == null || note.isEmpty) return;
+
+    final meal = CareMeal.values.where((m) => m.vitalKey == mealKey).firstOrNull;
+    final data = <String, dynamic>{
+      'items': note,
+      'details': note,
+      if (meal != null) 'meal': meal.label,
+      'meal_type': mealKey,
+      'type': mealKey,
+      'source': 'allobot_home',
+      'logged_by': 'voice',
+    };
+
+    final userId = UserSessionManager.instance.userId;
+    if (userId.isEmpty) return;
+
+    try {
+      final merged = await VitalsSqLiteService().mergeDataIntoLatest(
+        key: mealKey,
+        data: data,
+        userId: userId,
+      );
+      if (merged) return;
+    } catch (e) {
+      debugPrint('HomeVoiceController: could not attach the meal note: $e');
+    }
+
+    await _logVital(
+      mealKey,
+      (meal?.typicalCalories ?? 400).toDouble(),
+      'kcal',
+      data: data,
     );
   }
 

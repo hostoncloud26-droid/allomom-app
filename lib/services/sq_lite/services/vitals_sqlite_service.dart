@@ -117,6 +117,66 @@ class VitalsSqLiteService {
     });
   }
 
+  /// Merges [data] into the newest row for [key] recorded on [on] (today by
+  /// default), and reports whether there was a row to merge into.
+  ///
+  /// Used to attach a detail to a reading that is already logged — what she
+  /// ate against the meal's own row — rather than writing a second row that
+  /// every sum over the day would then count twice. The value is left alone;
+  /// only `data` changes, and the row goes back to unsynced so the note
+  /// reaches the server.
+  Future<bool> mergeDataIntoLatest({
+    required String key,
+    required Map<String, dynamic> data,
+    String? userId,
+    DateTime? on,
+  }) async {
+    final db = await SqLiteService().database;
+    final String targetUserId = userId?.trim().isNotEmpty == true
+        ? userId!.trim()
+        : UserSessionManager.instance.userId;
+    if (targetUserId.isEmpty) return false;
+
+    final day = on ?? DateTime.now();
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+
+    final row = await (db.select(db.vitals)
+          ..where((tbl) =>
+              tbl.userId.equals(targetUserId) &
+              tbl.vitalKey.equals(key) &
+              tbl.createdAt.isBiggerOrEqualValue(start) &
+              tbl.createdAt.isSmallerThanValue(end))
+          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+          ..limit(1))
+        .getSingleOrNull();
+    if (row == null) return false;
+
+    final merged = <String, dynamic>{..._decodeData(row.data), ...data};
+
+    await (db.update(db.vitals)..where((tbl) => tbl.id.equals(row.id))).write(
+      VitalsCompanion(
+        data: Value(jsonEncode(merged)),
+        synced: const Value(0),
+      ),
+    );
+
+    return true;
+  }
+
+  Map<String, dynamic> _decodeData(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
+    try {
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic>
+          ? decoded
+          : <String, dynamic>{};
+    } catch (_) {
+      // A row whose data is not JSON is replaced rather than lost to a throw.
+      return <String, dynamic>{};
+    }
+  }
+
   /// Retrieves all unsynced vital records.
   Future<List<Map<String, dynamic>>> getUnsyncedVitals() async {
     final db = await SqLiteService().database;

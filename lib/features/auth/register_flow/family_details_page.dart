@@ -4,8 +4,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/services/api/auth_api.dart';
-import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/api/auth_api.dart';
+import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 

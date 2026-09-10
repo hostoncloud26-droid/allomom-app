@@ -1,9 +1,12 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
-import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/api/api_base.dart';
+import 'package:allomom/api/api_routes.dart';
 
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
@@ -16,8 +19,20 @@ import 'package:allomom/repositories/user_session_manager.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
+class DevHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (kDebugMode) {
+    HttpOverrides.global = DevHttpOverrides();
+  }
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -25,6 +40,7 @@ void main() async {
     ),
   );
 
+  Get.put(Apiroutes());
   await ApiBase.init();
   await SqLiteService.init();
   await UserSessionManager.instance.init();

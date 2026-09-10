@@ -37,6 +37,14 @@ const Set<String> measurementVitalKeys = {
   'heart_rate',
 };
 
+/// Every key a main meal is stored under, the legacy breakfast spelling
+/// included.
+final Set<String> mealVitalKeys = {
+  for (final meal in CareMeal.values) meal.vitalKey,
+  for (final meal in CareMeal.values)
+    if (meal.legacyVitalKey != null) meal.legacyVitalKey!,
+};
+
 /// Vital keys summed over the day, because their rows hold increments.
 const Set<String> cumulativeVitalKeys = {
   'water',
@@ -76,6 +84,7 @@ class AlloBotContextLoader {
     );
 
     final todayTotals = await _todayTotals(userId, careItems);
+    final todayMealNotes = await _todayMealNotes(userId);
     final latestVitals = await _latestVitals(userId);
 
     return AlloBotContext(
@@ -104,6 +113,7 @@ class AlloBotContextLoader {
       labReports: labReports,
       latestVitals: latestVitals,
       todayTotals: todayTotals,
+      todayMealNotes: todayMealNotes,
       todayCare: _careContexts(careItems, part, todayTotals),
       kidsCount: session.kidsCount,
       completedPregnancyCount: session.completedPregnancyCount,
@@ -232,6 +242,10 @@ class AlloBotContextLoader {
     };
     final keys = <String>{
       ...cumulativeVitalKeys,
+      // Every meal, not just the one this window logs: the flow chases a
+      // breakfast that was never logged well into the afternoon, and without
+      // its total here a meal she has already eaten looks missing.
+      ...mealVitalKeys,
       for (final item in careItems)
         if (item.countVitalKey != null) item.countVitalKey!,
       for (final item in careItems)
@@ -266,6 +280,40 @@ class AlloBotContextLoader {
     }
 
     return totals;
+  }
+
+  /// What she ate today, per meal key, off the meal row's `items` note.
+  ///
+  /// Both the Today's Care meal sheet and AlloBot write the description under
+  /// `items` (with `details` kept as an alias), so either route counts as the
+  /// meal being described and neither has to ask her again. The newest row
+  /// carrying a note wins.
+  static Future<Map<String, String>> _todayMealNotes(String userId) async {
+    if (userId.isEmpty) return const {};
+
+    final startOfToday = _startOfToday();
+    final notes = <String, String>{};
+
+    for (final key in mealVitalKeys) {
+      try {
+        final rows = await VitalsSqLiteService()
+            .getVitalsHistory(userId, key, fromDate: startOfToday);
+        for (final row in rows) {
+          final data = _decodeData(row);
+          final note = (data['items'] ?? data['details'] ?? data['note'])
+                  ?.toString()
+                  .trim() ??
+              '';
+          if (note.isEmpty) continue;
+          notes[key] = note;
+          break;
+        }
+      } catch (e) {
+        debugPrint('AlloBotContextLoader: could not read "$key" notes: $e');
+      }
+    }
+
+    return notes;
   }
 
   static Future<Map<String, VitalContext>> _latestVitals(String userId) async {

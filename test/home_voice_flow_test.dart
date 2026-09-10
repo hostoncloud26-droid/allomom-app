@@ -11,6 +11,7 @@ AlloBotContext contextAt({
   bool isPregnant = true,
   bool isNewMom = false,
   Map<String, double> todayTotals = const {},
+  Map<String, String> todayMealNotes = const {},
   List<AncVisitContext> ancVisits = const [],
   List<VaccineContext> vaccines = const [],
   List<TodayCareContext> todayCare = const [],
@@ -36,6 +37,7 @@ AlloBotContext contextAt({
     dayPartHeadline: part.headline,
     formattedEdd: '28 Feb',
     todayTotals: todayTotals,
+    todayMealNotes: todayMealNotes,
     ancVisits: ancVisits,
     vaccines: vaccines,
     todayCare: todayCare,
@@ -47,6 +49,7 @@ HomeVoiceFlow flowAt({
   int week = 24,
   bool isPregnant = true,
   Map<String, double> todayTotals = const {},
+  Map<String, String> todayMealNotes = const {},
   List<AncVisitContext> ancVisits = const [],
   List<VaccineContext> vaccines = const [],
 }) =>
@@ -56,6 +59,7 @@ HomeVoiceFlow flowAt({
         week: week,
         isPregnant: isPregnant,
         todayTotals: todayTotals,
+        todayMealNotes: todayMealNotes,
         ancVisits: ancVisits,
         vaccines: vaccines,
       ),
@@ -169,6 +173,153 @@ void main() {
       final response = flow.answer(flow.nextPrompt()!, affirmed: false);
       expect(response.action, HomeFlowAction.none);
       expect(response.reply, contains('do not skip breakfast'));
+    });
+  });
+
+  group('what she ate', () {
+    test('a yes to lunch is followed by what she had', () {
+      final flow = flowAt(hour: 13);
+      final lunch = flow.nextPrompt()!;
+      expect(lunch.kind, HomePromptKind.lunch);
+
+      flow.answer(lunch, affirmed: true);
+
+      final detail = flow.nextPrompt()!;
+      expect(detail.kind, HomePromptKind.lunchDetail);
+      expect(detail.question, 'What did you have for lunch?');
+      expect(detail.answerKind, HomeAnswerKind.text);
+      expect(detail.mealKey, 'lunch');
+    });
+
+    test('a no is not followed by what she had', () {
+      final flow = flowAt(hour: 13);
+      flow.answer(flow.nextPrompt()!, affirmed: false);
+      expect(flow.nextPrompt()!.kind, isNot(HomePromptKind.lunchDetail));
+    });
+
+    test('what she typed goes to the vitals stream', () {
+      final flow = flowAt(hour: 13);
+      flow.answer(flow.nextPrompt()!, affirmed: true);
+
+      final response = flow.answer(
+        flow.nextPrompt()!,
+        text: '  rice, dal and spinach ',
+      );
+      expect(response.action, HomeFlowAction.logMealDetail);
+      expect(response.mealKey, 'lunch');
+      expect(response.text, 'rice, dal and spinach');
+      expect(response.reply, contains('rice, dal and spinach'));
+    });
+
+    test('an empty answer keeps the meal but stores no note', () {
+      final flow = flowAt(hour: 13);
+      flow.answer(flow.nextPrompt()!, affirmed: true);
+
+      final response = flow.answer(flow.nextPrompt()!, text: '   ');
+      expect(response.action, HomeFlowAction.none);
+      expect(response.text, isNull);
+      expect(response.reply, contains('without the details'));
+    });
+
+    test('is asked for a meal logged elsewhere with no note', () {
+      // Logged from Today's Care without a description: the meal question is
+      // skipped, but what she ate is still worth having — after the nudges,
+      // since this only records.
+      final flow = flowAt(hour: 13, todayTotals: {'lunch': 600});
+
+      final kinds = <HomePromptKind>[];
+      var prompt = flow.nextPrompt();
+      var guard = 0;
+      while (prompt != null && guard++ < 20) {
+        kinds.add(prompt.kind);
+        flow.answer(prompt, affirmed: true, text: '');
+        prompt = flow.nextPrompt();
+      }
+
+      expect(kinds, isNot(contains(HomePromptKind.lunch)));
+      expect(kinds, contains(HomePromptKind.lunchDetail));
+      expect(
+        kinds.indexOf(HomePromptKind.water),
+        lessThan(kinds.indexOf(HomePromptKind.lunchDetail)),
+      );
+    });
+
+    test('is never asked when the note is already stored', () {
+      final flow = flowAt(
+        hour: 13,
+        todayTotals: {'lunch': 600},
+        todayMealNotes: {'lunch': 'rice, dal and spinach'},
+      );
+
+      final kinds = <HomePromptKind>[];
+      var prompt = flow.nextPrompt();
+      var guard = 0;
+      while (prompt != null && guard++ < 20) {
+        kinds.add(prompt.kind);
+        flow.answer(prompt, affirmed: true, text: 'anything');
+        prompt = flow.nextPrompt();
+      }
+
+      expect(kinds, isNot(contains(HomePromptKind.lunch)));
+      expect(kinds, isNot(contains(HomePromptKind.lunchDetail)));
+    });
+
+    test('a stored note also settles the question raised by a yes', () {
+      // She said yes to lunch having already described it in Today's Care.
+      final flow = flowAt(
+        hour: 13,
+        todayMealNotes: {'lunch': 'rice, dal and spinach'},
+      );
+      final lunch = flow.nextPrompt()!;
+      expect(lunch.kind, HomePromptKind.lunch);
+
+      flow.answer(lunch, affirmed: true);
+      expect(flow.nextPrompt()!.kind, isNot(HomePromptKind.lunchDetail));
+    });
+
+    test('the legacy breakfast note counts as stored', () {
+      final flow = flowAt(
+        hour: 8,
+        todayTotals: {'break_fast': 380},
+        todayMealNotes: {'break_fast': 'idli and sambar'},
+      );
+
+      final kinds = <HomePromptKind>[];
+      var prompt = flow.nextPrompt();
+      var guard = 0;
+      while (prompt != null && guard++ < 20) {
+        kinds.add(prompt.kind);
+        flow.answer(prompt, affirmed: true, text: 'anything');
+        prompt = flow.nextPrompt();
+      }
+      expect(kinds, isNot(contains(HomePromptKind.breakfastDetail)));
+    });
+
+    test('is asked once and not again in the same session', () {
+      final flow = flowAt(hour: 13);
+      flow.answer(flow.nextPrompt()!, affirmed: true);
+
+      final detail = flow.nextPrompt()!;
+      expect(detail.kind, HomePromptKind.lunchDetail);
+      flow.answer(detail, text: 'rice and dal');
+
+      // The context is only refreshed by the controller, so the note is not
+      // in `todayMealNotes` here — the asked set has to hold the line.
+      final kinds = <HomePromptKind>[];
+      var prompt = flow.nextPrompt();
+      var guard = 0;
+      while (prompt != null && guard++ < 20) {
+        kinds.add(prompt.kind);
+        flow.answer(prompt, affirmed: true, text: 'anything');
+        prompt = flow.nextPrompt();
+      }
+      expect(kinds, isNot(contains(HomePromptKind.lunchDetail)));
+    });
+
+    test('the detail question carries a field hint and a save label', () {
+      final prompt = mealDetailPrompt('lunch');
+      expect(prompt.answerHint, isNotNull);
+      expect(prompt.submitLabel, 'Save');
     });
   });
 

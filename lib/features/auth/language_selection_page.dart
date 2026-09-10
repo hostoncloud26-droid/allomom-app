@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/auth/role_selection_page.dart';
+import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/services/app_language.dart';
 
 class LanguageSelectionPage extends StatefulWidget {
@@ -141,7 +141,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => RoleSelectionPage(
+                                  builder: (_) => ContactNumberPage(
                                     selectedLanguage: _selectedLanguageCode,
                                   ),
                                 ),

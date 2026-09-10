@@ -101,10 +101,9 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                     const SizedBox(height: 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyHeroBanner(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      height: isKeyboardOpen ? 150 : 260,
-                      speechText: 'You have such a lovely name! 💕',
+                    BabyPrompt(
+                      compact: isKeyboardOpen,
+                      text: 'You have such a lovely name! 💕',
                       onSpeakerTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(

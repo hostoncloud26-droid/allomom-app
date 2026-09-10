@@ -70,6 +70,9 @@ lib/services/sq_lite/
 | **`Vaccinations`** | `vaccinations` | Vaccine schedule & administration records | `id` (UUID), `user_id`, `pregnancy_id` (nullable), `vaccine_name`, `dose_number`, `scheduled_date`, `administered_date`, `status`, `batch_number`, `administered_by`, `synced` |
 | **`ReportChecklists`** | `report_checklists` | Lab tests / scans still due | `id` (UUID), `user_id`, `pregnancy_id` (nullable), `report_name`, `category`, `due_date`, `completed_date`, `status`, `file_path`, `result_summary`, `synced` |
 | **`ReportAttachments`** | `report_attachments` | Files belonging to a report | `id` (UUID), `report_id`, `local_path`, `cloud_url` (nullable until uploaded), `file_name`, `mime_type`, `file_size_bytes`, `synced` |
+| **`BirthRecords`** | `birth_records` | A baby's birth details | `id` (UUID), `pregnancy_id` (nullable), `baby_name`, `dob`, `delivery_type`, `gender`, `weight`, `blood_group`, `photo`, `video`, `health_id`, `infant_id`, `complications` (JSON), `deceased_at`, `cause_of_death`, `synced` |
+| **`BabyImmunizationRecords`** | `baby_immunization_records` | A baby's vaccine schedule & doses given | `id` (UUID), `birth_record_id`, `vaccine_name`, `expected_date`, `required`, `vaccination_date`, `vaccinated_by`, `immunization_schedule_id`, `report_id`, `synced` |
+| **`BabyMilestones`** | `baby_milestones` | Developmental milestone checklist | `id` (UUID), `birth_record_id`, `milestone`, `description`, `expected_date`, `achieved`, `completed`, `synced` |
 | **`Reminders`** | `reminders` | User-configured custom health reminders | `id` (UUID), `user_id`, `title`, `reminder_type`, `frequency`, `hour`, `minute`, `channels` (JSON), `enabled`, `configurable`, `start_date`, `end_date`, `synced` |
 
 ---
@@ -140,3 +143,38 @@ points the singleton at it so the domain services can be exercised directly.
 A debug-only CRUD harness for these tables lives at
 `lib/features/pregnancy/test_pregnancy_page.dart`, reachable from
 Settings → Developer → "Test Pregnancy · Local DB" in debug builds.
+
+---
+
+## Baby Records
+
+```
+Pregnancies (1) ── (N) BirthRecords          [pregnancy_id null for a previous child]
+BirthRecords (1) ── (1) HealthDataTable      [health_id — the baby's own health record]
+BirthRecords (1) ── (N) BabyImmunizationRecords
+BirthRecords (1) ── (N) BabyMilestones
+```
+
+A birth record is created from two places:
+
+1. **Completing a pregnancy** (`pregnancy_journey_page.dart`) — `pregnancy_id`
+   is set, `dob` is the delivery date, and the mother's `pregnancyStatus`
+   becomes `new_mom` (a non-pregnant, postpartum status). Twins produce two
+   birth records, since each baby needs its own schedule.
+2. **A previous child** — the registration flow's kids question
+   (`kids_details_page.dart`) or the Babies screen. `pregnancy_id` stays null
+   because the birth predates the app.
+
+Either way `BabyDbService.createBirthRecord` also mints the baby's own
+`health_data_table` row and links it through `health_id`, so the baby's
+vitals and reports have somewhere to live, and `BabyCareScheduler` seeds the
+immunisation and milestone rows from the date of birth
+(`lib/services/baby_care_plan.dart` holds the plan data).
+`BabyRepository` is the one place that whole sequence lives.
+
+Deleting a birth record clears its immunisations, milestones and health
+record — foreign keys are not enforced by SQLite here, so cascades are
+explicit.
+
+The feature lives in `lib/features/baby/`, reachable from Pregnancy Journey →
+"My Babies" and Settings → "My Babies".

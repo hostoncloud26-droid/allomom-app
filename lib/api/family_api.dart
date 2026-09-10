@@ -1,5 +1,5 @@
-import 'package:allomom/services/api/api_base.dart';
-import 'package:allomom/services/api/response.dart';
+import 'package:allomom/api/api_base.dart';
+import 'package:allomom/api/response.dart';
 
 class FamilyApi {
   static Future<APIResponse> getMyFamily() async {

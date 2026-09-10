@@ -5,20 +5,20 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/verify_otp_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/google_auth_service.dart';
-import 'package:allomom/services/api/otp_api.dart';
-import 'package:allomom/services/api/auth_api.dart';
-import 'package:allomom/services/api/api_base.dart';
+import 'package:allomom/api/otp_api.dart';
+import 'package:allomom/api/auth_api.dart';
+import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
 
+/// Step 2 of onboarding, straight after the language choice.
+///
+/// The role is deliberately not asked for here: an existing user signs
+/// straight in after the OTP, so only someone the backend does not recognise
+/// is ever asked whether she is Mom or Dad.
 class ContactNumberPage extends StatefulWidget {
   final String selectedLanguage;
-  final String selectedRole;
 
-  const ContactNumberPage({
-    super.key,
-    this.selectedLanguage = 'en',
-    this.selectedRole = 'Mom',
-  });
+  const ContactNumberPage({super.key, this.selectedLanguage = 'en'});
 
   @override
   State<ContactNumberPage> createState() => _ContactNumberPageState();
@@ -91,7 +91,6 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
             countryCode: _countryCode,
             otpId: otpId,
             selectedLanguage: widget.selectedLanguage,
-            selectedRole: widget.selectedRole,
           ),
         ),
       );
@@ -112,7 +111,6 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
               countryCode: _countryCode,
               otpId: null,
               selectedLanguage: widget.selectedLanguage,
-              selectedRole: widget.selectedRole,
             ),
           ),
         );
@@ -128,7 +126,6 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
 
   @override
   Widget build(BuildContext context) {
-    final roleName = widget.selectedRole == 'Mom' ? 'Mommy' : 'Daddy';
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
@@ -199,11 +196,10 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                     SizedBox(height: isKeyboardOpen ? 4 : 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyHeroBanner(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      height: isKeyboardOpen ? 150 : 260,
-                      speechText:
-                          "$roleName, what's your mobile number\nso I can stay close? 📱",
+                    BabyPrompt(
+                      compact: isKeyboardOpen,
+                      text:
+                          "What's your mobile number\nso I can stay close? 📱",
                       onSpeakerTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -214,10 +210,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                       },
                     ),
 
-                    if (!isKeyboardOpen)
-                      const Spacer()
-                    else
-                      const SizedBox(height: 12),
+                    const Spacer(),
 
                     // ─── BOTTOM INPUT CONTAINER ───
                     Container(

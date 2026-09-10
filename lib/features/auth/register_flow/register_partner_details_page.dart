@@ -301,10 +301,9 @@ class _RegisterPartnerDetailsPageState
                     const SizedBox(height: 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyHeroBanner(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
-                      height: isKeyboardOpen ? 150 : 260,
-                      speechText: speechText,
+                    BabyPrompt(
+                      compact: isKeyboardOpen,
+                      text: speechText,
                       onSpeakerTap: () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
