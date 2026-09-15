@@ -1,8 +1,24 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/allocry/controller/cry_controller.dart';
+import 'package:allomom/features/allocry/data/cry_data.dart';
+import 'package:allomom/features/allocry/data/cry_record.dart';
+import 'package:allomom/features/allocry/screens/cry_history_page.dart';
+import 'package:allomom/features/allocry/screens/cry_listening_page.dart';
+import 'package:allomom/features/allocry/screens/cry_result_page.dart';
+import 'package:allomom/features/allocry/screens/cry_type_detail_page.dart';
+
+/// AlloCry's home: listen to the baby, and learn what each cry means.
+///
+/// The recent list is the `cry` vitals stream, so it is the same data the rest
+/// of AlloMom's health history is built from — there is no separate store to
+/// fall out of step with it.
 class AlloCryPage extends StatefulWidget {
   const AlloCryPage({super.key});
 
@@ -10,47 +26,13 @@ class AlloCryPage extends StatefulWidget {
   State<AlloCryPage> createState() => _AlloCryPageState();
 }
 
-class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStateMixin {
-  bool _isListening = false;
-  int _listenCountdown = 5;
-  Timer? _timer;
-  late AnimationController _pulseController;
+class _AlloCryPageState extends State<AlloCryPage>
+    with SingleTickerProviderStateMixin {
+  static const Color _pink = Color(0xFFFF4E6A);
 
-  final List<Map<String, dynamic>> _recentChecks = [
-    {
-      'reason': 'Hungry',
-      'time': 'Today, 2:10 PM',
-      'badge': 'High',
-      'badgeColor': const Color(0xFFFF4E6A),
-      'badgeBg': const Color(0xFFFFEBF0),
-      'icon': Icons.push_pin_outlined,
-      'iconColor': const Color(0xFFFF4E6A),
-      'confidence': '92%',
-      'tip': 'Offer feed. Baby shows hunger cue signs.',
-    },
-    {
-      'reason': 'Sleepy',
-      'time': 'Today, 11:40 AM',
-      'badge': 'Medium',
-      'badgeColor': const Color(0xFFFF9800),
-      'badgeBg': const Color(0xFFFFF3E0),
-      'icon': Icons.nightlight_round_outlined,
-      'iconColor': const Color(0xFF7E57C2),
-      'confidence': '84%',
-      'tip': 'Dim lights and swaddle for comfort.',
-    },
-    {
-      'reason': 'Needs comfort',
-      'time': 'Yesterday, 8:15 PM',
-      'badge': 'Low',
-      'badgeColor': const Color(0xFF2E7D32),
-      'badgeBg': const Color(0xFFE8F5E9),
-      'icon': Icons.favorite_border_rounded,
-      'iconColor': const Color(0xFF26A69A),
-      'confidence': '68%',
-      'tip': 'Gentle rocking and skin-to-skin touch.',
-    },
-  ];
+  final CryController _controller = CryController.instance;
+
+  late final AnimationController _pulseController;
 
   @override
   void initState() {
@@ -59,143 +41,50 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+
+    // Loading the 15MB graph up front means the mic button responds instantly
+    // when she taps it, rather than stalling on a crying baby.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadModel();
+      _controller.refreshHistory();
+    });
   }
 
   @override
   void dispose() {
     _pulseController.dispose();
-    _timer?.cancel();
+    // She has left AlloCry: give back the 15MB of interpreter memory rather
+    // than holding it for a feature that is no longer on screen.
+    _controller.releaseModel();
     super.dispose();
   }
 
-  void _toggleListening() {
-    if (_isListening) {
-      _stopListening(detected: false);
-    } else {
-      setState(() {
-        _isListening = true;
-        _listenCountdown = 4;
-      });
+  /// Asks for the microphone, then opens the listening screen.
+  Future<void> _startListening() async {
+    final status = await Permission.microphone.request();
+    if (!mounted) return;
 
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_listenCountdown <= 1) {
-          timer.cancel();
-          _stopListening(detected: true);
-        } else {
-          setState(() {
-            _listenCountdown--;
-          });
-        }
-      });
-    }
-  }
-
-  void _stopListening({required bool detected}) {
-    _timer?.cancel();
-    setState(() {
-      _isListening = false;
-    });
-
-    if (detected) {
-      final newCheck = {
-        'reason': 'Hungry',
-        'time': 'Just now',
-        'badge': 'High',
-        'badgeColor': const Color(0xFFFF4E6A),
-        'badgeBg': const Color(0xFFFFEBF0),
-        'icon': Icons.restaurant_outlined,
-        'iconColor': const Color(0xFFFF4E6A),
-        'confidence': '94%',
-        'tip': 'Rhythmic crying pattern matched hunger cries.',
-      };
-
-      setState(() {
-        _recentChecks.insert(0, newCheck);
-      });
-
-      _showCryAnalysisResultDialog(newCheck);
-    }
-  }
-
-  void _showCryAnalysisResultDialog(Map<String, dynamic> check) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    if (!status.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: _pink,
+          content: const Text(
+            'AlloCry needs microphone access to listen to your baby.',
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFEBF0),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.check_circle_rounded, color: Color(0xFFFF4E6A), size: 36),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Cry Identified: ${check['reason']}',
-                style: GoogleFonts.outfit(fontSize: 22, fontWeight: FontWeight.bold, color: const Color(0xFF1E2022)),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Confidence: ${check['confidence']} match',
-                style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFC),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Text(
-                  check['tip'] as String,
-                  style: GoogleFonts.poppins(fontSize: 13, color: const Color(0xFF4A4E5A), height: 1.4),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF4E6A),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                    elevation: 0,
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: Text(
-                    'Got it, thanks!',
-                    style: GoogleFonts.poppins(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+          action: status.isPermanentlyDenied
+              ? SnackBarAction(
+                  label: 'Settings',
+                  textColor: Colors.white,
+                  onPressed: openAppSettings,
+                )
+              : null,
+        ),
+      );
+      return;
+    }
+
+    await Get.to(() => const CryListeningPage());
+    await _controller.refreshHistory();
   }
 
   @override
@@ -203,68 +92,47 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 8),
-
-              // Baby Hero Card
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: BabyHeroBanner(
-                  speechText: "I'm listening,\nAmma. ❤️",
-                  bubblePosition: SpeechBubblePosition.right,
-                  height: 270,
-                ),
+        child: GetBuilder<HealthVitalsController>(
+          init: HealthVitalsController.instance,
+          builder: (_) {
+            final records = _controller.history();
+            return SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 8),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: BabyHeroBanner(
+                      speechText: records.isEmpty
+                          ? "I'm listening,\nAmma. ❤️"
+                          : 'Last time I was\n${records.first.type.heading.toLowerCase()}.',
+                      bubblePosition: SpeechBubblePosition.right,
+                      height: 270,
+                    ),
+                  ),
+                  const SizedBox(height: 26),
+                  _buildTitle(),
+                  const SizedBox(height: 22),
+                  _buildMicButton(),
+                  const SizedBox(height: 14),
+                  _buildOfflineNote(),
+                  const SizedBox(height: 28),
+                  _buildRecentChecks(records),
+                  const SizedBox(height: 18),
+                  _buildCryTypesSection(),
+                  const SizedBox(height: 36),
+                ],
               ),
-
-              const SizedBox(height: 28),
-
-              // Title Section
-              Text(
-                'Understand the cry',
-                style: GoogleFonts.outfit(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E2229),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                _isListening ? 'Listening to baby ($_listenCountdown s)...' : 'Tap the mic to listen to your baby',
-                style: GoogleFonts.poppins(
-                  fontSize: 13.5,
-                  color: const Color(0xFF8B92A2),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Big Pulsating Glowing Mic Button
-              _buildGlowingMicButton(),
-
-              const SizedBox(height: 32),
-
-              // Recent Checks Section Card
-              _buildRecentChecksCard(),
-
-              const SizedBox(height: 16),
-
-              // Bottom Learn More Card
-              _buildWhyDoBabiesCryBanner(),
-
-              const SizedBox(height: 36),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
   }
 
-  // ─── APP BAR HEADER ───────────────────────────────────────
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
@@ -278,7 +146,8 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFFFF4E6A)),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded,
+                size: 18, color: _pink),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -289,7 +158,7 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFFFF4E6A),
+                    color: _pink,
                   ),
                 ),
                 Text(
@@ -303,13 +172,10 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
             ),
           ),
           IconButton(
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('AlloCry AI is calibrated for 0-12 months babies.'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+            tooltip: 'Cry history',
+            onPressed: () async {
+              await Get.to(() => const CryHistoryPage());
+              await _controller.refreshHistory();
             },
             style: IconButton.styleFrom(
               backgroundColor: Colors.white,
@@ -318,75 +184,97 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
-            icon: const Icon(Icons.more_horiz_rounded, size: 20, color: Color(0xFF8C93A3)),
+            icon: const Icon(Icons.history_rounded, size: 20, color: _pink),
           ),
         ],
       ),
     );
   }
 
-  // ─── GLOWING MIC BUTTON ────────────────────────────────────
-  Widget _buildGlowingMicButton() {
+  Widget _buildTitle() {
+    return Column(
+      children: [
+        Text(
+          'Understand the cry',
+          style: GoogleFonts.outfit(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFF1E2229),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Obx(() {
+          final loading =
+              _controller.state.value == CryListeningState.loadingModel;
+          final failed = _controller.modelError.value.isNotEmpty;
+          return Text(
+            failed
+                ? _controller.modelError.value
+                : loading
+                    ? 'Preparing the listening model…'
+                    : 'Tap the mic to listen to your baby',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 13.5,
+              color: failed ? _pink : const Color(0xFF8B92A2),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _buildMicButton() {
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
-        final glowScale = _isListening ? 1.0 + (_pulseController.value * 0.15) : 1.0;
-        final glowOpacity = _isListening ? (0.2 + (_pulseController.value * 0.2)) : 0.15;
+        final glowOpacity = 0.14 + (_pulseController.value * 0.1);
 
         return GestureDetector(
-          onTap: _toggleListening,
-          child: Transform.scale(
-            scale: glowScale,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFFFF4E6A).withValues(alpha: glowOpacity),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF4E6A).withValues(alpha: _isListening ? 0.4 : 0.2),
-                    blurRadius: _isListening ? 36 : 24,
-                    spreadRadius: _isListening ? 8 : 4,
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Container(
-                  width: 90,
-                  height: 90,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: const Color(0xFFFF4E6A).withValues(alpha: 0.25),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 72,
-                      height: 72,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: [
-                            Color(0xFFFF627C),
-                            Color(0xFFFF3B5C),
-                          ],
+          onTap: _startListening,
+          child: Container(
+            width: 130,
+            height: 130,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _pink.withValues(alpha: glowOpacity),
+              boxShadow: [
+                BoxShadow(
+                  color: _pink.withValues(alpha: 0.22),
+                  blurRadius: 28,
+                  spreadRadius: 4 + (_pulseController.value * 4),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _pink.withValues(alpha: 0.25),
+                ),
+                child: Center(
+                  child: Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFFFF627C), Color(0xFFFF3B5C)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF3B5C).withValues(alpha: 0.4),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFFFF3B5C).withValues(alpha: 0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        _isListening ? Icons.stop_rounded : Icons.mic_rounded,
-                        color: Colors.white,
-                        size: 36,
-                      ),
+                      ],
                     ),
+                    child: const Icon(Icons.mic_rounded,
+                        color: Colors.white, size: 36),
                   ),
                 ),
               ),
@@ -397,8 +285,25 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
     );
   }
 
-  // ─── RECENT CHECKS CARD ────────────────────────────────────
-  Widget _buildRecentChecksCard() {
+  Widget _buildOfflineNote() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.offline_bolt_rounded, size: 14, color: Color(0xFF10B981)),
+        const SizedBox(width: 6),
+        Text(
+          'Works offline · nothing leaves your phone',
+          style: GoogleFonts.poppins(
+            fontSize: 11.5,
+            color: const Color(0xFF10B981),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentChecks(List<CryRecord> records) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
@@ -406,14 +311,14 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
         decoration: BoxDecoration(
           color: const Color(0xFFFFF6F7),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFFFE3E8), width: 1),
+          border: Border.all(color: const Color(0xFFFFE3E8)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFFFF4E6A)),
+                const Icon(Icons.access_time_rounded, size: 16, color: _pink),
                 const SizedBox(width: 8),
                 Text(
                   'Recent checks',
@@ -423,19 +328,54 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
                     color: const Color(0xFF2C2F38),
                   ),
                 ),
+                const Spacer(),
+                if (records.length > 3)
+                  GestureDetector(
+                    onTap: () async {
+                      await Get.to(() => const CryHistoryPage());
+                      await _controller.refreshHistory();
+                    },
+                    child: Text(
+                      'See all',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _pink,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 14),
-            ..._recentChecks.map((check) => _buildCheckItem(check)),
+            if (records.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  'No readings yet. Tap the mic while your baby is crying and '
+                  'AlloCry will tell you what it hears.',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12.5,
+                    height: 1.55,
+                    color: const Color(0xFF8C93A3),
+                  ),
+                ),
+              )
+            else
+              ...records.take(3).map(_buildCheckItem),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCheckItem(Map<String, dynamic> check) {
+  Widget _buildCheckItem(CryRecord record) {
+    final type = record.type;
+
     return GestureDetector(
-      onTap: () => _showCryAnalysisResultDialog(check),
+      onTap: () async {
+        await Get.to(() => CryResultPage(record: record));
+        await _controller.refreshHistory();
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -456,14 +396,10 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-                color: (check['iconColor'] as Color).withValues(alpha: 0.1),
+                color: type.color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                check['icon'] as IconData,
-                color: check['iconColor'] as Color,
-                size: 20,
-              ),
+              child: Icon(type.icon, color: type.color, size: 20),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -471,7 +407,7 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    check['reason'] as String,
+                    type.heading,
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -479,7 +415,7 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
                     ),
                   ),
                   Text(
-                    check['time'] as String,
+                    _relativeTime(record.recordedAt),
                     style: GoogleFonts.poppins(
                       fontSize: 11,
                       color: const Color(0xFF9EA3B0),
@@ -491,63 +427,130 @@ class _AlloCryPageState extends State<AlloCryPage> with SingleTickerProviderStat
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: check['badgeBg'] as Color,
+                color: type.color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                check['badge'] as String,
+                record.confidenceBand,
                 style: GoogleFonts.poppins(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: check['badgeColor'] as Color,
+                  color: type.color,
                 ),
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD0DC), size: 20),
+            const Icon(Icons.chevron_right_rounded,
+                color: Color(0xFFCBD0DC), size: 20),
           ],
         ),
       ),
     );
   }
 
-  // ─── BOTTOM BANNER ─────────────────────────────────────────
-  Widget _buildWhyDoBabiesCryBanner() {
+  String _relativeTime(DateTime date) {
+    final now = DateTime.now();
+    final day = DateTime(date.year, date.month, date.day);
+    final today = DateTime(now.year, now.month, now.day);
+    final difference = today.difference(day).inDays;
+    final time = DateFormat('h:mm a').format(date);
+
+    if (difference == 0) return 'Today, $time';
+    if (difference == 1) return 'Yesterday, $time';
+    return '${DateFormat('d MMM').format(date)}, $time';
+  }
+
+  Widget _buildCryTypesSection() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF0F3),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFDCE4),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFFF4E6A), size: 18),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.menu_book_rounded, size: 16, color: _pink),
+              const SizedBox(width: 8),
+              Text(
                 'Why do babies cry?',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+                style: GoogleFonts.outfit(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
                   color: const Color(0xFF2C2F38),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          GridView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 0.86,
             ),
+            itemCount: CryTypes.gridOrder.length,
+            itemBuilder: (context, index) {
+              final type = CryTypes.all[CryTypes.gridOrder[index]]!;
+              return _buildCryTypeCard(type);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCryTypeCard(CryType type) {
+    return GestureDetector(
+      onTap: () => Get.to(() => CryTypeDetailPage(type: type)),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFEEF0F4)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Center(
+                child: Image.asset(
+                  type.image,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                      Text(type.emoji, style: const TextStyle(fontSize: 34)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             Text(
-              'Learn more >',
+              type.heading,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: GoogleFonts.poppins(
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFFF4E6A),
+                color: const Color(0xFF1E2229),
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              type.shortDescription,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.poppins(
+                fontSize: 10.5,
+                height: 1.4,
+                color: const Color(0xFF9EA3B0),
               ),
             ),
           ],

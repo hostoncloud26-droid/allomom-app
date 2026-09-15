@@ -58,9 +58,16 @@ dependencies:
   syncfusion_flutter_pdf: ^33.2.13
   connectivity_plus: ^7.1.1
   get: ^4.7.2
+  # AlloCry — on-device baby cry detection + classification.
+  tflite_flutter: ^0.12.1
+  record: ^6.0.0
+  audioplayers: ^6.5.0
+  permission_handler: ^12.0.0+1
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
   flutter_lints: ^5.0.0
@@ -81,6 +88,11 @@ flutter:
   assets:
     - assets/animations/
     - assets/allobaby/
+    - assets/babyicons/
+    - assets/cry_samples/
+    # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"
+    # and ml1 for which of the five cry types it is. Both run fully offline.
+    - assets/ml/
     # AlloBot's curated maternal Q&A corpus. Bundled from lib/ rather than
     # copied into assets/ so the sheets stay in one place for editing.
     - lib/seeds/

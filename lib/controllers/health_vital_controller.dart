@@ -52,6 +52,7 @@ class HealthVitalsController extends GetxController {
   VitalsStreamResponse? _bloodGroupVital;
   VitalsStreamResponse? _kickCountVital;
   VitalsStreamResponse? _feedingVital;
+  VitalsStreamResponse? _cryVital;
 
   // Formatted / Derived scalar values for quick rendering
   String _heartRate = '--';
@@ -86,6 +87,9 @@ class HealthVitalsController extends GetxController {
   String _feedingDate = '';
   String _feedingType = 'Breastfeeding';
 
+  String _cryType = '';
+  String _cryDate = '';
+
   // Getters
   bool get isLoading => _isLoading;
   String get error => _error;
@@ -118,6 +122,8 @@ class HealthVitalsController extends GetxController {
   bool get hasFeeding =>
       _feedingVital != null ||
       _vitals.any((v) => v.key.toLowerCase() == 'feeding');
+  bool get hasCry =>
+      _cryVital != null || _vitals.any((v) => v.key.toLowerCase() == 'cry');
 
   // Typed getters
   VitalsStreamResponse? get stepsVital => _stepsVital;
@@ -173,6 +179,11 @@ class HealthVitalsController extends GetxController {
   String get feedingDate =>
       _feedingDate.isNotEmpty ? _feedingDate : 'No record';
   String get feedingType => _feedingType;
+
+  /// Latest AlloCry reading, e.g. 'Hunger Cry'. Empty until she records one.
+  String get cryType => _cryType;
+  String get cryDate => _cryDate.isNotEmpty ? _cryDate : 'No record';
+  VitalsStreamResponse? get latestCryVital => _cryVital;
 
   List<VitalsStreamResponse> getHistory(String key) =>
       List.unmodifiable(_historyByKey[key.toLowerCase()] ?? []);
@@ -317,6 +328,7 @@ class HealthVitalsController extends GetxController {
     _bloodGroupVital = null;
     _kickCountVital = null;
     _feedingVital = null;
+    _cryVital = null;
     _userId = '';
     _error = '';
     _isLoading = false;
@@ -709,6 +721,18 @@ class HealthVitalsController extends GetxController {
       _feedingDate = '';
       _feedingType = 'Breastfeeding';
     }
+
+    // AlloCry readings (key: cry)
+    final cryEntry =
+        sortedVitals.where((v) => v.key.toLowerCase() == 'cry').firstOrNull;
+    _cryVital = cryEntry;
+    if (cryEntry != null) {
+      _cryType = cryEntry.data?['cryType']?.toString() ?? '';
+      _cryDate = _formatDate(cryEntry.createdAt);
+    } else {
+      _cryType = '';
+      _cryDate = '';
+    }
   }
 
   String _formatDate(DateTime date) {
@@ -1035,6 +1059,29 @@ class HealthVitalsController extends GetxController {
     );
   }
 
+  /// Records one AlloCry reading into the `cry` vitals stream.
+  ///
+  /// [cryType] is the class the on-device model named and [data] the map
+  /// `CryRecord.toVitalData` builds — the type's name, the confidence, and the
+  /// file name of the recording it was heard in. The stream's numeric `value`
+  /// carries the type as a code so the row still means something to anything
+  /// reading values alone.
+  Future<VitalsStreamResponse?> addCryEntry({
+    required int cryCode,
+    required Map<String, dynamic> data,
+    DateTime? createdAt,
+    String? userId,
+  }) async {
+    return addVitalEntry(
+      key: 'cry',
+      value: cryCode.toDouble(),
+      unit: 'cry',
+      createdAt: createdAt,
+      userId: userId,
+      data: data,
+    );
+  }
+
   Future<VitalsStreamResponse?> addVitalDailyData({
     required String key,
     required double value,
@@ -1148,6 +1195,10 @@ class HealthVitalsController extends GetxController {
       case 'kicks':
         _kickCount = value.toInt();
         _kickCountDate = _formatDate(time);
+        break;
+      case 'cry':
+        _cryType = data?['cryType']?.toString() ?? '';
+        _cryDate = _formatDate(time);
         break;
     }
   }

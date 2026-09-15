@@ -25,10 +25,18 @@ android {
         applicationId = "com.savemom.allomom"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // AlloCry's recorder (record_android) needs 23+, and the TFLite
+        // interpreter it feeds needs 26. Raised to the higher of the two.
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    androidResources {
+        // The .tflite graphs must stay uncompressed or the interpreter cannot
+        // memory-map them out of the APK.
+        noCompress += "tflite"
     }
 
     buildTypes {
