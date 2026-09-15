@@ -2,9 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allomom/repositories/pregnancy_state.dart';
 
-/// The bug being guarded: LMP / EDD survive a delivery, so if dates are
-/// trusted ahead of the status the whole app stays in pregnancy mode after a
-/// pregnancy is completed or deleted.
+/// The bugs being guarded:
+///
+/// * An LMP is collected from every mother so her next period can be
+///   predicted, so treating it as evidence of pregnancy registered every
+///   "Pre Pregnancy" and "New Mom" sign-up as pregnant.
+/// * LMP / EDD survive a delivery, so trusting dates ahead of the status left
+///   the app in pregnancy mode after a pregnancy was completed or deleted.
 void main() {
   group('resolveIsPregnant', () {
     test('an explicit pregnant status wins even with no dates', () {
@@ -14,64 +18,97 @@ void main() {
       );
     });
 
-    test(
-      'a completed pregnancy is not pregnant, even with dates still stored',
-      () {
-        for (final status in [
-          'new_mom',
-          'newMom',
-          'new mom',
-          'postpartum',
-          'delivered',
-          'completed',
-        ]) {
-          expect(
-            resolveIsPregnant(status: status, hasPregnancyDates: true),
-            isFalse,
-            reason: '"$status" with dates should not read as pregnant',
-          );
-        }
-      },
-    );
-
-    test('a deleted pregnancy is not pregnant', () {
+    test('only "pregnant" is pregnant, whatever dates are stored', () {
       for (final status in [
         'notpregnant',
         'not_pregnant',
         'not pregnant',
         'notPregnant',
         'NOTPREGNANT',
+        // Values a previous build may have left in the column.
+        'new_mom',
+        'newMom',
+        'postpartum',
+        'delivered',
+        'completed',
+        'withbaby',
       ]) {
         expect(
           resolveIsPregnant(status: status, hasPregnancyDates: true),
           isFalse,
-          reason: '"$status" should not read as pregnant',
+          reason: '"$status" with dates should not read as pregnant',
         );
       }
     });
 
-    test('an unknown or empty status falls back to whether dates exist', () {
+    test('an empty status is the only case that falls back to the dates', () {
       expect(resolveIsPregnant(status: '', hasPregnancyDates: true), isTrue);
       expect(resolveIsPregnant(status: '', hasPregnancyDates: false), isFalse);
-      expect(
-        resolveIsPregnant(status: 'something-else', hasPregnancyDates: true),
-        isTrue,
-      );
-      expect(
-        resolveIsPregnant(status: 'something-else', hasPregnancyDates: false),
-        isFalse,
-      );
+      expect(resolveIsPregnant(status: '  ', hasPregnancyDates: true), isTrue);
     });
   });
 
   group('resolveIsNewMom', () {
-    test('true only for the postpartum statuses', () {
-      for (final status in ['new_mom', 'newMom', 'postpartum', 'delivered']) {
-        expect(resolveIsNewMom(status), isTrue, reason: status);
-      }
-      for (final status in ['pregnant', 'notpregnant', 'completed', '']) {
-        expect(resolveIsNewMom(status), isFalse, reason: status);
-      }
+    final now = DateTime(2026, 9, 15);
+
+    test('a recent birth makes her a new mom', () {
+      expect(
+        resolveIsNewMom(
+          isPregnant: false,
+          lastBirthDate: now.subtract(const Duration(days: 30)),
+          now: now,
+        ),
+        isTrue,
+      );
+    });
+
+    test('an older child does not', () {
+      // The reason postpartum is derived rather than stored: a "Pre
+      // Pregnancy" mother who registered a five-year-old is not a new mom.
+      expect(
+        resolveIsNewMom(
+          isPregnant: false,
+          lastBirthDate: now.subtract(const Duration(days: 5 * 365)),
+          now: now,
+        ),
+        isFalse,
+      );
+    });
+
+    test('the window ends exactly a year after the birth', () {
+      expect(
+        resolveIsNewMom(
+          isPregnant: false,
+          lastBirthDate: now.subtract(const Duration(days: newMomWindowDays)),
+          now: now,
+        ),
+        isTrue,
+      );
+      expect(
+        resolveIsNewMom(
+          isPregnant: false,
+          lastBirthDate: now.subtract(
+            const Duration(days: newMomWindowDays + 1),
+          ),
+          now: now,
+        ),
+        isFalse,
+      );
+    });
+
+    test('never a new mom while pregnant, or with no birth on record', () {
+      expect(
+        resolveIsNewMom(
+          isPregnant: true,
+          lastBirthDate: now.subtract(const Duration(days: 30)),
+          now: now,
+        ),
+        isFalse,
+      );
+      expect(
+        resolveIsNewMom(isPregnant: false, lastBirthDate: null, now: now),
+        isFalse,
+      );
     });
   });
 
@@ -79,13 +116,14 @@ void main() {
     test('strips spaces, dashes and underscores and lowercases', () {
       expect(normalizePregnancyStatus('Not Pregnant'), 'notpregnant');
       expect(normalizePregnancyStatus('not_pregnant'), 'notpregnant');
-      expect(normalizePregnancyStatus('NEW-MOM'), 'newmom');
+      expect(normalizePregnancyStatus('PREGNANT'), 'pregnant');
     });
   });
 
   group('pregnancyStatusForRegistration', () {
     test('only "Pregnant" stores a pregnant status', () {
-      expect(pregnancyStatusForRegistration('Pregnant'), 'pregnant');
+      expect(pregnancyStatusForRegistration('Pregnant'), pregnantStatus);
+      expect(isPregnantRegistrationLabel('Pregnant'), isTrue);
     });
 
     test('"Pre Pregnancy" is not pregnant, despite containing "pregnan"', () {
@@ -97,23 +135,21 @@ void main() {
       ]) {
         expect(
           pregnancyStatusForRegistration(label),
-          'notpregnant',
+          notPregnantStatus,
           reason: label,
         );
         expect(isPregnantRegistrationLabel(label), isFalse, reason: label);
       }
     });
 
-    test('"New Mom" stores new_mom, which still reads as not pregnant', () {
-      expect(pregnancyStatusForRegistration('New Mom'), 'new_mom');
+    test('"New Mom" stores notpregnant and routes her to her baby', () {
+      expect(pregnancyStatusForRegistration('New Mom'), notPregnantStatus);
       expect(isPregnantRegistrationLabel('New Mom'), isFalse);
-
-      // The whole point: postpartum is distinguishable, but not pregnant.
-      expect(
-        resolveIsPregnant(status: 'new_mom', hasPregnancyDates: true),
-        isFalse,
-      );
-      expect(resolveIsNewMom('new_mom'), isTrue);
+      // She is not pregnant; the baby she registers is what makes her a new
+      // mom, so the label only decides where registration sends her.
+      expect(isNewMomRegistrationLabel('New Mom'), isTrue);
+      expect(isNewMomRegistrationLabel('Pre Pregnancy'), isFalse);
+      expect(isNewMomRegistrationLabel('Pregnant'), isFalse);
     });
 
     test('a dad is pregnant only when registering for his partner', () {
@@ -123,7 +159,7 @@ void main() {
           isDad: true,
           registeringForPartner: true,
         ),
-        'pregnant',
+        pregnantStatus,
       );
       expect(
         pregnancyStatusForRegistration(
@@ -131,29 +167,20 @@ void main() {
           isDad: true,
           registeringForPartner: false,
         ),
-        'notpregnant',
+        notPregnantStatus,
       );
     });
 
-    test('every label maps to a status the resolvers understand', () {
+    test('every label stores one of the two allowed statuses', () {
       for (final label in ['Pregnant', 'Pre Pregnancy', 'New Mom']) {
         final stored = pregnancyStatusForRegistration(label);
+        expect(pregnancyStatuses, contains(stored), reason: label);
         expect(
-          resolveIsPregnant(status: stored, hasPregnancyDates: false),
+          resolveIsPregnant(status: stored, hasPregnancyDates: true),
           isPregnantRegistrationLabel(label),
-          reason: label,
+          reason: '$label stored as $stored',
         );
       }
     });
-  });
-
-  test('a completed pregnancy is never both pregnant and a new mom', () {
-    for (final status in postpartumStatuses) {
-      expect(
-        resolveIsPregnant(status: status, hasPregnancyDates: true),
-        isFalse,
-      );
-      expect(resolveIsNewMom(status), isTrue);
-    }
   });
 }

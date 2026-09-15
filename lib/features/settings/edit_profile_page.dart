@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -26,7 +27,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // Selected State
   String _gender = 'Female';
   DateTime? _dob;
-  String _pregnancyStatus = 'pregnant';
+  String _pregnancyStatus = notPregnantStatus;
   DateTime? _lmpDate;
   DateTime? _eddDate;
   String? _bloodGroup;
@@ -118,14 +119,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   /// Maps any stored spelling onto one of the three chip values.
-  static String _normalizeStatus(String raw) {
-    final s = raw.toLowerCase().replaceAll(RegExp(r'[\s_-]'), '');
-    if (s == 'pregnant') return 'pregnant';
-    if (s == 'newmom' || s == 'postpartum' || s == 'delivered') {
-      return 'new_mom';
-    }
-    return 'notpregnant';
-  }
+  /// The status only has two values, so anything else — including a stored
+  /// 'new_mom' from an older build — reads as not pregnant.
+  static String _normalizeStatus(String raw) =>
+      normalizePregnancyStatus(raw) == pregnantStatus
+      ? pregnantStatus
+      : notPregnantStatus;
 
   Future<void> _handleSave() async {
     if (_nameController.text.trim().isEmpty) {
@@ -176,12 +175,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
 
     // Local-only: the pregnancy row is created/removed in SQLite.
-    if (_pregnancyStatus == 'pregnant' && _lmpDate != null) {
+    if (_pregnancyStatus == pregnantStatus && _lmpDate != null) {
       await UserSessionManager.instance.saveOrUpdatePregnancy(
         lmpDate: _lmpDate!,
         eddDate: _eddDate,
       );
-    } else if (_pregnancyStatus == 'notpregnant') {
+    } else if (_pregnancyStatus == notPregnantStatus) {
       await UserSessionManager.instance.deleteActivePregnancy();
     }
 
@@ -322,9 +321,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             runSpacing: 8,
                             children: [
                               for (final option in const [
-                                ('pregnant', 'Pregnant'),
-                                ('new_mom', 'New Mom'),
-                                ('notpregnant', 'Not Pregnant'),
+                                (pregnantStatus, 'Pregnant'),
+                                (notPregnantStatus, 'Not Pregnant'),
                               ])
                                 ChoiceChip(
                                   label: Text(
@@ -354,7 +352,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ),
                           const SizedBox(height: 16),
 
-                          if (_pregnancyStatus == 'pregnant') ...[
+                          if (_pregnancyStatus == pregnantStatus) ...[
                             Row(
                               children: [
                                 Expanded(

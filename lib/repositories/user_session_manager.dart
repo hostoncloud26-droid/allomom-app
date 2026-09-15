@@ -29,6 +29,7 @@ class UserSessionManager extends GetxController {
   Pregnancy? _currentPregnancy;
   int _completedPregnancyCount = 0;
   int? _averageCycleLength;
+  int? _averagePeriodDuration;
   DateTime? _lastDeliveryDate;
   bool _isLoading = true;
 
@@ -44,6 +45,7 @@ class UserSessionManager extends GetxController {
   String? _partnerPhone;
   bool _hasKids = false;
   int _kidsCount = 0;
+  DateTime? _youngestBabyDob;
   String? _gender;
   DateTime? _dob;
   String? _bio;
@@ -69,8 +71,11 @@ class UserSessionManager extends GetxController {
   String get userPhone => _userPhone ?? _currentUser?.phone ?? '';
   String get userEmail => _userEmail ?? _currentUser?.email ?? '';
   String get countryCode => _countryCode ?? _currentUser?.countryCode ?? '+91';
+  /// Her stored status, or '' when nothing has been recorded yet. Defaulting
+  /// to 'pregnant' here made every user pregnant before her status loaded;
+  /// '' lets [resolveIsPregnant] decide from the dates instead.
   String get pregnancyStatus =>
-      _pregnancyStatus ?? _currentHealthData?.pregnancyStatus ?? 'pregnant';
+      _pregnancyStatus ?? _currentHealthData?.pregnancyStatus ?? '';
 
   /// Whether the mother is currently pregnant.
   ///
@@ -83,7 +88,22 @@ class UserSessionManager extends GetxController {
   );
 
   /// Delivered recently — postpartum rather than simply not pregnant.
-  bool get isNewMom => resolveIsNewMom(pregnancyStatus);
+  ///
+  /// The status only says whether a pregnancy is in progress, so this comes
+  /// from the birth on record: a completed pregnancy's delivery date, or the
+  /// date of birth of the baby she registered as a "New Mom".
+  bool get isNewMom =>
+      resolveIsNewMom(isPregnant: isPregnant, lastBirthDate: lastBirthDate);
+
+  /// The most recent birth on record, from either a completed pregnancy or a
+  /// registered baby, whichever is later.
+  DateTime? get lastBirthDate {
+    final delivered = lastDeliveryDate;
+    final dob = _youngestBabyDob;
+    if (delivered == null) return dob;
+    if (dob == null) return delivered;
+    return dob.isAfter(delivered) ? dob : delivered;
+  }
 
   /// Her average cycle length, used to predict periods when not pregnant.
   int get averageCycleLength =>
@@ -91,12 +111,26 @@ class UserSessionManager extends GetxController {
       _currentHealthData?.averageCycle?.round() ??
       defaultCycleLength;
 
+  /// How many days her period lasts, used to mark the menstrual phase.
+  int get averagePeriodDuration =>
+      _averagePeriodDuration ??
+      _currentHealthData?.averagePeriodDuration?.round() ??
+      defaultPeriodDuration;
+
+  /// Whether she has ever told us when her last period started, which is what
+  /// every cycle prediction keys off.
+  bool get hasCycleTracking => lmpDate != null;
+
   /// Next expected period, or null while pregnant / with no LMP on record.
   CyclePrediction? get cyclePrediction {
     if (isPregnant) return null;
     final lmp = lmpDate;
     if (lmp == null) return null;
-    return predictCycle(lastPeriodStart: lmp, cycleLength: averageCycleLength);
+    return predictCycle(
+      lastPeriodStart: lmp,
+      cycleLength: averageCycleLength,
+      periodDuration: averagePeriodDuration,
+    );
   }
 
   /// Completed pregnancies on record. Lets the UI tell "never registered"
@@ -266,7 +300,7 @@ class UserSessionManager extends GetxController {
         _userPhone = prefs.getString('user_phone');
         _userEmail = prefs.getString('user_email');
         _countryCode = prefs.getString('country_code');
-        _pregnancyStatus = prefs.getString('pregnancy_status') ?? 'pregnant';
+        _pregnancyStatus = prefs.getString('pregnancy_status');
         final lmpStr = prefs.getString('lmp_date');
         final eddStr = prefs.getString('edd_date');
         if (lmpStr != null && lmpStr.isNotEmpty) {
@@ -278,6 +312,10 @@ class UserSessionManager extends GetxController {
         _partnerName = prefs.getString('partner_name');
         _partnerPhone = prefs.getString('partner_phone');
         _hasKids = prefs.getBool('has_kids') ?? false;
+        final babyDobStr = prefs.getString('youngest_baby_dob');
+        if (babyDobStr != null && babyDobStr.isNotEmpty) {
+          _youngestBabyDob = DateTime.tryParse(babyDobStr);
+        }
         _kidsCount = prefs.getInt('kids_count') ?? 0;
         _gender = prefs.getString('user_gender');
         final dobStr = prefs.getString('user_dob');
@@ -290,6 +328,8 @@ class UserSessionManager extends GetxController {
         _adline1 = prefs.getString('user_adline1');
         _adline2 = prefs.getString('user_adline2');
         _bloodGroup = prefs.getString('user_blood_group');
+        _averageCycleLength = prefs.getInt('average_cycle_length');
+        _averagePeriodDuration = prefs.getInt('average_period_duration');
         _image = prefs.getString('user_image');
         _coverPic = prefs.getString('user_cover_pic');
         _allowearMacAddress = prefs.getString('allowear_mac_address');
@@ -369,6 +409,7 @@ class UserSessionManager extends GetxController {
 
     if (health != null) {
       _averageCycleLength ??= health.averageCycle?.round();
+      _averagePeriodDuration ??= health.averagePeriodDuration?.round();
       _bloodGroup ??= health.bloodGroup;
       _pregnancyStatus ??= health.pregnancyStatus;
       _lmpDate ??= health.lmpDate;
@@ -390,7 +431,7 @@ class UserSessionManager extends GetxController {
     required String name,
     required String phone,
     String countryCode = '+91',
-    String pregnancyStatus = 'pregnant',
+    String pregnancyStatus = 'notpregnant',
     DateTime? lmpDate,
     DateTime? eddDate,
     String? partnerName,
@@ -516,19 +557,32 @@ class UserSessionManager extends GetxController {
     );
 
     if (healthDataId != null && healthDataId.isNotEmpty) {
+      // Signing in again must not blank what is already on record: a null
+      // argument here means "not supplied", so the column is left alone
+      // rather than written as NULL. Passing Value(null) wiped her LMP, EDD
+      // and cycle length on every re-login.
       await HealthDbService.instance.saveHealthData(
         HealthDataTableCompanion(
           id: drift.Value(healthDataId),
           userId: drift.Value(userId),
-          pregnancyStatus: drift.Value(pregnancyStatus ?? "pregnant"),
-          edDate: drift.Value(eddDate),
-          lmpDate: drift.Value(lmpDate),
-          averageCycle: drift.Value(averageCycleLength?.toDouble()),
+          pregnancyStatus: drift.Value(pregnancyStatus ?? "notpregnant"),
+          edDate: eddDate == null
+              ? const drift.Value.absent()
+              : drift.Value(eddDate),
+          lmpDate: lmpDate == null
+              ? const drift.Value.absent()
+              : drift.Value(lmpDate),
+          averageCycle: averageCycleLength == null
+              ? const drift.Value.absent()
+              : drift.Value(averageCycleLength.toDouble()),
           synced: const drift.Value(0),
         ),
       );
 
-      if (pregnancyStatus == "pregnant" || eddDate != null) {
+      if (resolveIsPregnant(
+        status: pregnancyStatus ?? '',
+        hasPregnancyDates: eddDate != null,
+      )) {
         // Reuse the existing active pregnancy on re-login so a second row is
         // not created for the same journey.
         final existing = await HealthDbService.instance.getActivePregnancy(
@@ -728,7 +782,7 @@ class UserSessionManager extends GetxController {
             id: drift.Value(hid),
             userId: drift.Value(_currentUser!.id),
             bloodGroup: drift.Value(_bloodGroup),
-            pregnancyStatus: drift.Value(_pregnancyStatus ?? "pregnant"),
+            pregnancyStatus: drift.Value(_pregnancyStatus ?? "notpregnant"),
             edDate: drift.Value(_eddDate),
             lmpDate: drift.Value(_lmpDate),
             synced: const drift.Value(0),
@@ -746,6 +800,62 @@ class UserSessionManager extends GetxController {
 
   Future<bool> updateBloodGroup(String bg) => updateProfile(bloodGroup: bg);
   Future<bool> updateLmpDate(DateTime lmp) => updateProfile(lmpDate: lmp);
+
+  /// Records what her cycle looks like: when the last period started and how
+  /// long her bleed and cycle usually run.
+  ///
+  /// [updateProfile] only carries the LMP, so the two averages are written to
+  /// the health row here. Omitted values are left as they are, which is what
+  /// lets "log a period" update only the date.
+  Future<bool> updateCycleSetup({
+    DateTime? lastPeriodStart,
+    int? cycleLength,
+    int? periodDuration,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (lastPeriodStart != null) {
+      _lmpDate = lastPeriodStart;
+      await prefs.setString('lmp_date', lastPeriodStart.toIso8601String());
+    }
+    if (cycleLength != null) {
+      final clamped = cycleLength.clamp(minCycleLength, maxCycleLength);
+      _averageCycleLength = clamped;
+      await prefs.setInt('average_cycle_length', clamped);
+    }
+    if (periodDuration != null) {
+      final clamped = periodDuration.clamp(
+        minPeriodDuration,
+        maxPeriodDuration,
+      );
+      _averagePeriodDuration = clamped;
+      await prefs.setInt('average_period_duration', clamped);
+    }
+
+    final hid = healthDataId;
+    if (hid.isNotEmpty && userId.isNotEmpty) {
+      await HealthDbService.instance.saveHealthData(
+        HealthDataTableCompanion(
+          id: drift.Value(hid),
+          userId: drift.Value(userId),
+          lmpDate: drift.Value(_lmpDate),
+          averageCycle: drift.Value(_averageCycleLength?.toDouble()),
+          averagePeriodDuration: drift.Value(
+            _averagePeriodDuration?.toDouble(),
+          ),
+          synced: const drift.Value(0),
+        ),
+      );
+      // Keep the cached row in step so the getters do not serve the values
+      // that were just replaced.
+      _currentHealthData = await HealthDbService.instance.getHealthDataById(
+        hid,
+      );
+    }
+
+    update();
+    return true;
+  }
   Future<bool> updateEddDate(DateTime edd) => updateProfile(eddDate: edd);
 
   /// Pulls the profile from `GET /me` and writes it into local storage.
@@ -809,9 +919,7 @@ class UserSessionManager extends GetxController {
           DateTime.tryParse(preg['edDate']?.toString() ?? '') ?? _eddDate;
       _riskStatus = preg['riskStatus']?.toString() ?? _riskStatus;
       final pregStatus = preg['status']?.toString().toLowerCase();
-      if (pregStatus != null && pregStatus != 'notpregnant') {
-        _pregnancyStatus = 'pregnant';
-      }
+      if (pregStatus == 'active') _pregnancyStatus = 'pregnant';
     }
 
     // Mirror into SharedPreferences
@@ -869,7 +977,7 @@ class UserSessionManager extends GetxController {
             id: drift.Value(healthDataId),
             userId: drift.Value(userId),
             bloodGroup: drift.Value(_bloodGroup),
-            pregnancyStatus: drift.Value(_pregnancyStatus ?? 'pregnant'),
+            pregnancyStatus: drift.Value(_pregnancyStatus ?? 'notpregnant'),
             lmpDate: drift.Value(_lmpDate),
             edDate: drift.Value(_eddDate),
             synced: const drift.Value(0),
@@ -1016,10 +1124,25 @@ class UserSessionManager extends GetxController {
     final babies = await BabyDbService.instance.getBirthRecords();
     _kidsCount = babies.length;
     _hasKids = babies.isNotEmpty;
+    _youngestBabyDob = babies
+        .map((b) => b.dob)
+        .whereType<DateTime>()
+        .fold<DateTime?>(
+          null,
+          (latest, dob) => latest == null || dob.isAfter(latest) ? dob : latest,
+        );
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('has_kids', _hasKids);
     await prefs.setInt('kids_count', _kidsCount);
+    if (_youngestBabyDob == null) {
+      await prefs.remove('youngest_baby_dob');
+    } else {
+      await prefs.setString(
+        'youngest_baby_dob',
+        _youngestBabyDob!.toIso8601String(),
+      );
+    }
 
     update();
   }
@@ -1085,6 +1208,7 @@ class UserSessionManager extends GetxController {
     _completedPregnancyCount = 0;
     _lastDeliveryDate = null;
     _averageCycleLength = null;
+    _averagePeriodDuration = null;
     _userName = null;
     _userPhone = null;
     _userEmail = null;
@@ -1096,6 +1220,7 @@ class UserSessionManager extends GetxController {
     _partnerPhone = null;
     _hasKids = false;
     _kidsCount = 0;
+    _youngestBabyDob = null;
     _gender = null;
     _dob = null;
     _bio = null;

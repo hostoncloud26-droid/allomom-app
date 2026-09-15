@@ -6,6 +6,7 @@ import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/services/cycle_predictor.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
 
 const _accent = Color(0xFFFF4E6A);
 const _ink = Color(0xFF1E2024);
@@ -54,7 +55,7 @@ class _RegisterCyclePredictionPageState
 
   int _cycleLength = defaultCycleLength;
 
-  bool get _isNewMom => widget.status.toLowerCase().contains('new');
+  bool get _isNewMom => isNewMomRegistrationLabel(widget.status);
 
   CyclePrediction get _prediction =>
       predictCycle(lastPeriodStart: widget.lmpDate, cycleLength: _cycleLength);

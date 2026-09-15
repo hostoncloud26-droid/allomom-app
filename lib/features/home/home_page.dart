@@ -14,6 +14,8 @@ import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_conf
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 import 'package:allomom/features/home/widgets/allo_voice_prompt_card.dart';
+import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
+import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart' as health;
 import 'package:allomom/repositories/user_session_manager.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
@@ -618,7 +620,7 @@ class _HomePageState extends State<HomePage> {
                 Expanded(
                   child: _buildGeneralAction(
                     icon: Icons.monitor_heart_rounded,
-                    label: 'My health',
+                    label: 'Health',
                     color: const Color(0xFF3898EC),
                     onTap: () => Navigator.push(
                       context,
@@ -627,10 +629,29 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ),
                 const SizedBox(width: 10),
+                // Periods return after delivery, so postpartum is exactly when
+                // she starts wondering about her cycle again.
+                Expanded(
+                  child: _buildGeneralAction(
+                    icon: Icons.water_drop_rounded,
+                    label: 'Cycle',
+                    color: const Color(0xFFFF4E6A),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CycleTrackerPage(),
+                        ),
+                      );
+                      if (mounted) setState(() {});
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: _buildGeneralAction(
                     icon: Icons.add_circle_outline_rounded,
-                    label: isNewMom ? 'New pregnancy' : 'Register',
+                    label: isNewMom ? 'Pregnancy' : 'Register',
                     color: const Color(0xFFFF3B5C),
                     onTap: () async {
                       final created = await Navigator.push<bool>(
@@ -670,13 +691,17 @@ class _HomePageState extends State<HomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 16),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: color,
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
             ),
           ],
@@ -696,158 +721,29 @@ class _HomePageState extends State<HomePage> {
     final eddFormattedFull = session.formattedEddDateFull;
 
     // Three distinct states: pregnant, a finished journey (general summary),
-    // and never registered (the invitation to register).
+    // and not pregnant (her cycle).
     if (!isPregnant && session.hasPregnancyHistory) {
       return _buildGeneralSummaryCard(session);
     }
 
     if (!isPregnant) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          padding: const EdgeInsets.all(22),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFF0F4), Colors.white],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
+      // There is no pregnancy to count down, so the slot goes to the thing
+      // that does move week to week for her — her cycle. Registering a
+      // pregnancy stays one tap away inside the card.
+      return CycleSummaryCard(
+        prediction: session.cyclePrediction,
+        onChanged: () {
+          if (mounted) setState(() {});
+        },
+        onRegisterPregnancy: () async {
+          final created = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const PregnancyConfirmationPage(),
             ),
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFFFDCE4), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF3B5C).withValues(alpha: 0.05),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: const [
-                      Icon(
-                        Icons.favorite_rounded,
-                        color: Color(0xFFFF3B5C),
-                        size: 16,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'PREGNANCY JOURNEY',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFF3B5C),
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    "Start your care journey",
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    "Register your pregnancy to track weekly baby development, doctor visits, and vaccination schedules.",
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF6B7280),
-                      height: 1.4,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF0F4),
-                          icon: Icons.child_care_rounded,
-                          iconColor: const Color(0xFFFF4E6A),
-                          value: '40 Weeks',
-                          label: 'Timeline',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFEDF6FF),
-                          icon: Icons.calendar_month_rounded,
-                          iconColor: const Color(0xFF3898EC),
-                          value: 'ANC Visits',
-                          label: 'Schedules',
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFECFDF5),
-                          icon: Icons.vaccines_rounded,
-                          iconColor: const Color(0xFF10B981),
-                          value: 'Vaccines',
-                          label: 'Alerts',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PregnancyConfirmationPage(),
-                    ),
-                  );
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFF3B5C),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
-                      Icon(
-                        Icons.add_circle_outline_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Register Pregnancy',
-                        style: TextStyle(
-                          fontSize: 14.5,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                      SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+          );
+          if (created == true && mounted) setState(() {});
+        },
       );
     }
 
@@ -1098,7 +994,7 @@ class _HomePageState extends State<HomePage> {
     // Kick counting is a pregnancy tool: there is nothing to count once the
     // baby is born, so its slot goes to the journey — which is the only place
     // a mother who is not pregnant can reach it from home, the summary card
-    // beside this one having turned into a "Register Pregnancy" prompt.
+    // beside this one having turned into her cycle.
     final journeyOrKicks = isPregnant
         ? {
             'title': 'Kick Count',
