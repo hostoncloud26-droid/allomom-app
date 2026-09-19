@@ -244,6 +244,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
 
             return AlloBotMicButton(
               isListening: isListening || isSpeaking,
+              isSpeaking: isSpeaking,
               gradient: isSpeaking ? _speakingGradient : primaryGradient,
               color: isSpeaking ? _speakingColor : primaryColor,
               enabled: !isFetchingVoice,
@@ -251,6 +252,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
                   ? _speech.downloadProgress.value
                   : null,
               onTap: () {
+                if (isSpeaking) {
+                  _chatbot.stopCurrentTurn();
+                  return;
+                }
                 if (_currentIndex != 0) {
                   setState(() {
                     _currentIndex = 0;

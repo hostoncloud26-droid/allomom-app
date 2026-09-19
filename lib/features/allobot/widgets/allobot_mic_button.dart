@@ -13,6 +13,7 @@ class AlloBotMicButton extends StatefulWidget {
   const AlloBotMicButton({
     super.key,
     required this.isListening,
+    this.isSpeaking = false,
     required this.onTap,
     this.gradient,
     this.color = const Color(0xFFFF4E6A),
@@ -22,6 +23,7 @@ class AlloBotMicButton extends StatefulWidget {
   });
 
   final bool isListening;
+  final bool isSpeaking;
   final VoidCallback onTap;
   final Gradient? gradient;
 
@@ -156,9 +158,11 @@ class _AlloBotMicButtonState extends State<AlloBotMicButton>
                 child: Icon(
                   !widget.enabled
                       ? Icons.mic_off_rounded
-                      : (widget.isListening
-                            ? Icons.pause_rounded
-                            : Icons.mic_rounded),
+                      : (widget.isSpeaking
+                            ? Icons.stop_rounded
+                            : (widget.isListening
+                                ? Icons.pause_rounded
+                                : Icons.mic_rounded)),
                   color: Colors.white,
                   size: 28,
                 ),
