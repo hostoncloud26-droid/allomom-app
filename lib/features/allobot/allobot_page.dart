@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/tabs/allobot_ask_ai_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_agents_tab.dart';
 import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_settings_tab.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 
 class AlloBotPage extends StatefulWidget {
   final int initialTab;
@@ -25,6 +27,18 @@ class _AlloBotPageState extends State<AlloBotPage> {
   final GlobalKey<AlloBotAskAiTabState> _askAiKey =
       GlobalKey<AlloBotAskAiTabState>();
   final ValueNotifier<bool> _isListeningNotifier = ValueNotifier<bool>(false);
+
+  /// The conversation the whole page shares, so the mic can show when the baby
+  /// is talking without the Ask Allo tab having to tell it.
+  final OfflineChatbotController _chatbot = OfflineChatbotController.instance;
+
+  /// What the docked mic wears while a reply is being read out.
+  static const Color _speakingColor = Color(0xFF10B981);
+  static const LinearGradient _speakingGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF10B981), Color(0xFF059669)],
+  );
 
   @override
   void initState() {
@@ -62,6 +76,11 @@ class _AlloBotPageState extends State<AlloBotPage> {
 
   @override
   Widget build(BuildContext context) {
+    // The docked mic and the nav bar both step aside for the keyboard, the way
+    // AlloKonnect's shell does, so the composer is the only thing at the
+    // bottom of the screen while she is typing.
+    final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
@@ -178,7 +197,9 @@ class _AlloBotPageState extends State<AlloBotPage> {
       ),
 
       // ─── EXACT SAME NOTCHED BOTTOM BAR AS HOME PAGE ───
-      bottomNavigationBar: BottomAppBar(
+      bottomNavigationBar: isKeyboardOpen
+          ? null
+          : BottomAppBar(
         color: Colors.white,
         elevation: 8,
         shape: const CircularNotchedRectangle(),
@@ -232,13 +253,24 @@ class _AlloBotPageState extends State<AlloBotPage> {
       // The listening animation lives on the mic itself — see
       // [AlloBotMicButton]. A bare FloatingActionButton would clip the pulse
       // rings to its own bounds, so the button is hosted directly.
-      floatingActionButton: ValueListenableBuilder<bool>(
+      //
+      // Hidden while the keyboard is up, with the nav bar: the composer is
+      // already at the bottom of the screen, and a docked mic over it would sit
+      // on the send button.
+      floatingActionButton: isKeyboardOpen
+          ? null
+          : ValueListenableBuilder<bool>(
         valueListenable: _isListeningNotifier,
         builder: (context, isListening, child) {
-          return AlloBotMicButton(
-            isListening: isListening,
-            gradient: primaryGradient,
-            color: primaryColor,
+          return Obx(() {
+            // Speaking turns the mic green, so the control that stops her is
+            // also what shows she is talking.
+            final isSpeaking = _chatbot.isSpeaking.value;
+
+            return AlloBotMicButton(
+            isListening: isListening || isSpeaking,
+            gradient: isSpeaking ? _speakingGradient : primaryGradient,
+            color: isSpeaking ? _speakingColor : primaryColor,
             onTap: () {
               if (_currentIndex != 0) {
                 setState(() {
@@ -251,7 +283,8 @@ class _AlloBotPageState extends State<AlloBotPage> {
                 _askAiKey.currentState?.toggleListening();
               }
             },
-          );
+            );
+          });
         },
       ),
     );

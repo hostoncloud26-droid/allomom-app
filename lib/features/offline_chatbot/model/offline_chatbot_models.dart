@@ -1,0 +1,440 @@
+/// The bot definition, as it arrives from `/chatbot/sync` and is cached on device.
+///
+/// Rows are keyed by their natural keys and steps reference each other through
+/// per-flow `ref` labels rather than ids, so a downloaded catalogue is self
+/// contained — nothing here needs a second call to resolve.
+library;
+
+class BotBundle {
+  final int version;
+  final String? langCode;
+  final DateTime? downloadedAt;
+  final List<BotLanguage> languages;
+  final List<BotIntent> intents;
+  final List<BotAudio> audios;
+
+  const BotBundle({
+    this.version = 1,
+    this.langCode,
+    this.downloadedAt,
+    this.languages = const [],
+    this.intents = const [],
+    this.audios = const [],
+  });
+
+  bool get isEmpty => intents.isEmpty;
+
+  factory BotBundle.fromJson(Map<String, dynamic> json) {
+    return BotBundle(
+      version: json['version'] is int ? json['version'] as int : 1,
+      langCode: json['lang_code'] as String?,
+      downloadedAt: json['downloaded_at'] != null
+          ? DateTime.tryParse(json['downloaded_at'].toString())
+          : null,
+      languages: ((json['languages'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => BotLanguage.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      intents: ((json['intents'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => BotIntent.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      audios: ((json['audios'] as List?) ?? const [])
+          .whereType<Map>()
+          .map((e) => BotAudio.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'version': version,
+        'lang_code': langCode,
+        'downloaded_at': (downloadedAt ?? DateTime.now()).toIso8601String(),
+        'languages': languages.map((e) => e.toJson()).toList(),
+        'intents': intents.map((e) => e.toJson()).toList(),
+        'audios': audios.map((e) => e.toJson()).toList(),
+      };
+
+  /// The intent that answers a message matching no trigger phrase.
+  ///
+  /// Language-strict, like the server: a fallback only answers users of its own
+  /// language, since replying in a language the user does not read is worse
+  /// than saying nothing sensible.
+  BotIntent? fallbackFor(String? langCode) {
+    for (final intent in intents) {
+      if (!intent.isFallback) continue;
+      if (langCode != null && intent.langCode != langCode) continue;
+      return intent;
+    }
+    for (final intent in intents) {
+      if (intent.key == 'fallback' &&
+          (langCode == null || intent.langCode == langCode)) {
+        return intent;
+      }
+    }
+    return null;
+  }
+
+  List<BotIntent> forLanguage(String? langCode) {
+    if (langCode == null || langCode.isEmpty || langCode == 'all') {
+      return intents;
+    }
+    return intents.where((i) => i.langCode == langCode).toList();
+  }
+
+  BotIntent? intentByRef(String key, String langCode) {
+    for (final intent in intents) {
+      if (intent.key == key && intent.langCode == langCode) return intent;
+    }
+    for (final intent in intents) {
+      if (intent.key == key) return intent;
+    }
+    return null;
+  }
+}
+
+class BotLanguage {
+  final String code;
+  final String name;
+
+  const BotLanguage({required this.code, required this.name});
+
+  factory BotLanguage.fromJson(Map<String, dynamic> json) => BotLanguage(
+        code: (json['code'] ?? '').toString(),
+        name: (json['name'] ?? '').toString(),
+      );
+
+  Map<String, dynamic> toJson() => {'code': code, 'name': name};
+}
+
+class BotIntent {
+  final String key;
+  final String name;
+  final List<String> examples;
+
+  /// "response" (one reply) or "flow" (a multi-step graph).
+  final String type;
+  final String langCode;
+  final bool isFallback;
+  final BotResponse? response;
+  final BotFlow? flow;
+
+  const BotIntent({
+    required this.key,
+    required this.name,
+    this.examples = const [],
+    this.type = 'response',
+    this.langCode = 'en',
+    this.isFallback = false,
+    this.response,
+    this.flow,
+  });
+
+  factory BotIntent.fromJson(Map<String, dynamic> json) => BotIntent(
+        key: (json['key'] ?? '').toString(),
+        name: (json['name'] ?? '').toString(),
+        examples: ((json['examples'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        type: (json['type'] ?? 'response').toString(),
+        langCode: (json['lang_code'] ?? 'en').toString(),
+        isFallback: json['is_fallback'] == true,
+        response: json['response'] is Map
+            ? BotResponse.fromJson(Map<String, dynamic>.from(json['response']))
+            : null,
+        flow: json['flow'] is Map
+            ? BotFlow.fromJson(Map<String, dynamic>.from(json['flow']))
+            : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'name': name,
+        'examples': examples,
+        'type': type,
+        'lang_code': langCode,
+        'is_fallback': isFallback,
+        'response': response?.toJson(),
+        'flow': flow?.toJson(),
+      };
+}
+
+class BotResponse {
+  final String message;
+  final String? audioUrl;
+
+  const BotResponse({required this.message, this.audioUrl});
+
+  factory BotResponse.fromJson(Map<String, dynamic> json) => BotResponse(
+        message: (json['message'] ?? '').toString(),
+        audioUrl: json['audio_url'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {'message': message, 'audio_url': audioUrl};
+}
+
+class BotFlow {
+  final String name;
+  final String completionMessage;
+  final String? action;
+  final List<BotStep> steps;
+  final List<BotConnector> connectors;
+
+  const BotFlow({
+    required this.name,
+    this.completionMessage = '',
+    this.action,
+    this.steps = const [],
+    this.connectors = const [],
+  });
+
+  factory BotFlow.fromJson(Map<String, dynamic> json) => BotFlow(
+        name: (json['name'] ?? '').toString(),
+        completionMessage: (json['completion_message'] ?? '').toString(),
+        action: json['action'] as String?,
+        steps: ((json['steps'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((e) => BotStep.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        connectors: ((json['connectors'] as List?) ?? const [])
+            .whereType<Map>()
+            .map((e) => BotConnector.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'completion_message': completionMessage,
+        'action': action,
+        'steps': steps.map((e) => e.toJson()).toList(),
+        'connectors': connectors.map((e) => e.toJson()).toList(),
+      };
+
+  BotStep? stepByRef(String? ref) {
+    if (ref == null) return null;
+    for (final step in steps) {
+      if (step.ref == ref) return step;
+    }
+    return null;
+  }
+
+  /// Connectors leaving a step, in the order they were drawn.
+  List<BotConnector> outgoing(String ref) =>
+      connectors.where((c) => c.fromRef == ref).toList();
+
+  /// Connectors drawn from the canvas START node — they name the entry step.
+  List<BotConnector> get startConnectors =>
+      connectors.where((c) => c.fromRef == null && c.toRef != null).toList();
+}
+
+class BotStep {
+  final String ref;
+
+  /// "text", "delay", "question", "http", "image", "ai", "action", "intent".
+  final String type;
+  final String question;
+  final String? saveKey;
+  final String? questionDataType;
+  final String? audioUrl;
+  final String? httpMethod;
+  final String? httpUrl;
+  final dynamic httpHeaders;
+  final String? httpBody;
+  final String? imageUrl;
+  final String? aiPrompt;
+  final String? aiSystem;
+  final String? aiModel;
+  final String? actionName;
+  final dynamic actionData;
+  final List<String> options;
+
+  /// An "intent" step hands the conversation to another intent.
+  final String? nextIntentKey;
+  final String? nextIntentLang;
+
+  const BotStep({
+    required this.ref,
+    this.type = 'question',
+    this.question = '',
+    this.saveKey,
+    this.questionDataType,
+    this.audioUrl,
+    this.httpMethod,
+    this.httpUrl,
+    this.httpHeaders,
+    this.httpBody,
+    this.imageUrl,
+    this.aiPrompt,
+    this.aiSystem,
+    this.aiModel,
+    this.actionName,
+    this.actionData,
+    this.options = const [],
+    this.nextIntentKey,
+    this.nextIntentLang,
+  });
+
+  factory BotStep.fromJson(Map<String, dynamic> json) {
+    final nextIntent = json['next_intent_ref'];
+    return BotStep(
+      ref: (json['ref'] ?? '').toString(),
+      type: (json['type'] ?? 'question').toString(),
+      question: (json['question'] ?? '').toString(),
+      saveKey: json['save_key'] as String?,
+      questionDataType: json['question_data_type'] as String?,
+      audioUrl: json['audio_url'] as String?,
+      httpMethod: json['http_method'] as String?,
+      httpUrl: json['http_url'] as String?,
+      httpHeaders: json['http_headers'],
+      httpBody: json['http_body'] as String?,
+      imageUrl: json['image_url'] as String?,
+      aiPrompt: json['ai_prompt'] as String?,
+      aiSystem: json['ai_system'] as String?,
+      aiModel: json['ai_model'] as String?,
+      actionName: json['action_name'] as String?,
+      actionData: json['action_data'],
+      options: ((json['options'] as List?) ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.trim().isNotEmpty)
+          .toList(),
+      nextIntentKey:
+          nextIntent is Map ? nextIntent['key']?.toString() : null,
+      nextIntentLang:
+          nextIntent is Map ? (nextIntent['lang_code']?.toString() ?? 'en') : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'ref': ref,
+        'type': type,
+        'question': question,
+        'save_key': saveKey,
+        'question_data_type': questionDataType,
+        'audio_url': audioUrl,
+        'http_method': httpMethod,
+        'http_url': httpUrl,
+        'http_headers': httpHeaders,
+        'http_body': httpBody,
+        'image_url': imageUrl,
+        'ai_prompt': aiPrompt,
+        'ai_system': aiSystem,
+        'ai_model': aiModel,
+        'action_name': actionName,
+        'action_data': actionData,
+        'options': options,
+        'next_intent_ref': nextIntentKey == null
+            ? null
+            : {'key': nextIntentKey, 'lang_code': nextIntentLang ?? 'en'},
+      };
+
+  /// An ai step opts into the conversation transcript by carrying this tag in
+  /// its [options]. That column is unused on an ai step — options are a
+  /// question's quick-reply buttons — so the flag rides along there rather than
+  /// costing a schema change.
+  static const String historyOption = 'use_entire_history';
+
+  /// Whether this ai step was authored to see the conversation so far.
+  bool get usesEntireHistory =>
+      type == 'ai' &&
+      options.any((o) => o.trim().toLowerCase() == historyOption);
+
+  /// Steps that run on their own and hand straight over to the next one.
+  bool get isAutomatic => const [
+        'text',
+        'delay',
+        'http',
+        'image',
+        'ai',
+        'action',
+        'intent',
+      ].contains(type);
+}
+
+class BotConnector {
+  final String ref;
+
+  /// Null when the connector is drawn from the canvas START node.
+  final String? fromRef;
+  final String? toRef;
+  final Map<String, dynamic> logic;
+
+  const BotConnector({
+    required this.ref,
+    this.fromRef,
+    this.toRef,
+    this.logic = const {},
+  });
+
+  factory BotConnector.fromJson(Map<String, dynamic> json) => BotConnector(
+        ref: (json['ref'] ?? '').toString(),
+        fromRef: json['from_ref'] as String?,
+        toRef: json['to_ref'] as String?,
+        logic: json['logic'] is Map
+            ? Map<String, dynamic>.from(json['logic'])
+            : const {},
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ref': ref,
+        'from_ref': fromRef,
+        'to_ref': toRef,
+        'logic': logic,
+      };
+
+  /// The clauses this connector is gated on, tolerating the pre-list format.
+  /// An empty list means unconditional.
+  List<Map<String, dynamic>> get conditions {
+    final raw = logic['conditions'];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .where((c) =>
+              c['operator'] != null && c['operator'].toString() != 'always')
+          .toList();
+    }
+    final op = logic['operator'];
+    if (op == null || op.toString() == 'always') return const [];
+    return [
+      {
+        'variable': logic['variable'],
+        'operator': op,
+        'value': logic['value'] ?? '',
+      }
+    ];
+  }
+
+  bool get matchAny => (logic['match']?.toString().toLowerCase() ?? 'all') == 'any';
+}
+
+class BotAudio {
+  final String key;
+  final String langCode;
+  final String filename;
+  final String url;
+  final String? transcription;
+
+  const BotAudio({
+    required this.key,
+    required this.langCode,
+    required this.filename,
+    required this.url,
+    this.transcription,
+  });
+
+  factory BotAudio.fromJson(Map<String, dynamic> json) => BotAudio(
+        key: (json['key'] ?? '').toString(),
+        langCode: (json['lang_code'] ?? 'en').toString(),
+        filename: (json['filename'] ?? '').toString(),
+        url: (json['url'] ?? '').toString(),
+        transcription: json['transcription'] as String?,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'lang_code': langCode,
+        'filename': filename,
+        'url': url,
+        'transcription': transcription,
+      };
+}

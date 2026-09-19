@@ -1,40 +1,34 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
-import 'package:speech_to_text/speech_recognition_error.dart';
-import 'package:allomom/services/tts_service.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/allobot/allobot_feature_previews.dart';
-import 'package:allomom/features/kick_counter/kick_counter_page.dart';
-import 'package:allomom/features/allocry/allocry_page.dart';
-import 'package:allomom/features/reports/reports_page.dart';
-import 'package:allomom/features/my_health/my_health_page.dart';
-import 'package:allomom/features/prescriptions/prescriptions_page.dart';
-import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
-import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
-import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
-import 'package:allomom/features/people/people_page.dart';
-import 'package:allomom/features/settings/settings_page.dart';
-import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
+/// Ask Allo — every turn answered by the intent catalogue on this device.
+///
+/// A port of AlloKonnect's "Ask AI" page: the downloaded bot definition is
+/// matched and its flow graph walked locally, so a conversation costs no
+/// network at all. The two views are AlloKonnect's — a voice landing view and
+/// the full transcript — with one substitution: where AlloKonnect shows a round
+/// AlloBot avatar, AlloMom shows the baby, who mouths the words while the reply
+/// is being read out.
+library;
 
-enum AlloBotScreenState {
-  listening,
-  featureMatched,
-  showOpenButton,
-  generalResponse,
-}
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/colors.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
+import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.dart';
 
 class AlloBotAskAiTab extends StatefulWidget {
   final VoidCallback onOpenChat;
-  final VoidCallback? onOpenMenu;
   final bool initialListening;
   final ValueChanged<bool>? onListeningChanged;
 
   const AlloBotAskAiTab({
     super.key,
     required this.onOpenChat,
-    this.onOpenMenu,
     this.initialListening = false,
     this.onListeningChanged,
   });
@@ -43,651 +37,148 @@ class AlloBotAskAiTab extends StatefulWidget {
   State<AlloBotAskAiTab> createState() => AlloBotAskAiTabState();
 }
 
-// No ticker mixin any more: the listening animation moved onto the mic button,
-// which drives its own controller. Keeping one here meant an AnimationController
-// repeating every frame with nothing listening to it.
 class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
-  final TtsService _ttsService = TtsService();
-  final stt.SpeechToText _speechToText = stt.SpeechToText();
+  final OfflineChatbotController controller = OfflineChatbotController.instance;
+  final TextEditingController _input = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  final FocusNode _inputFocus = FocusNode();
 
-  AlloBotScreenState _screenState = AlloBotScreenState.listening;
-  bool _speechEnabled = false;
+  /// Voice landing view, or the full transcript. AlloKonnect's own toggle.
+  bool _showListView = false;
+
+  /// Whether the voice popup is open, so the page's mic can show that the
+  /// phone is listening.
   bool _isListening = false;
 
-  /// Whether the "+" topic list is open.
-  ///
-  /// Shown inline above the mic rather than in a modal sheet: a bottom sheet
-  /// covers the mic and the transcript, so choosing a topic meant losing sight
-  /// of the thing you were talking to.
-  bool _showTopicsPanel = false;
-  String _liveTranscript = '';
-  String _matchedFeatureName = '';
-  String _matchedFeatureDesc = '';
-  String _matchedFeatureType = '';
-  String _generalResponseText = '';
-  Timer? _stateTransitionTimer;
-  Timer? _voiceDebounceTimer;
-
-  final List<Map<String, String>> _quickSuggestions = [
-    {'title': '👶 My baby is kicking', 'query': 'baby is kicking'},
-    {'title': '😭 My baby is crying', 'query': 'baby is crying'},
-    {'title': '📄 View my lab reports', 'query': 'lab reports'},
-    {'title': '🩺 Check my health vitals', 'query': 'my health vitals'},
-    {'title': '💊 Pregnancy prescriptions', 'query': 'prescriptions'},
-    {'title': '🏥 Doctor ANC schedule', 'query': 'anc schedule'},
-    {'title': '💉 Vaccination schedule', 'query': 'vaccination schedule'},
-    {'title': '🌟 Pregnancy journey', 'query': 'pregnancy journey'},
-    {'title': '👨‍👩‍👧 My family & contacts', 'query': 'my family'},
-    {'title': '⚙️ App settings & language', 'query': 'settings'},
-    {'title': '🍼 Baby feeding tracker', 'query': 'feeding tracker'},
-    {'title': '🥗 Healthy pregnancy diet', 'query': 'healthy diet for week 24'},
-  ];
+  /// The chips shown before she has said anything. Drawn once from the
+  /// catalogue so they do not reshuffle on every rebuild.
+  List<String> _openingSuggestions = const [];
 
   @override
   void initState() {
     super.initState();
+    _openingSuggestions = _drawOpeningSuggestions();
 
-    _initSpeechAndStartListening();
-  }
-
-  Future<void> _initSpeechAndStartListening() async {
-    await _ttsService.init();
-
-    try {
-      _speechEnabled = await _speechToText.initialize(
-        onError: (SpeechRecognitionError error) {
-          debugPrint('STT Error: ${error.errorMsg}');
-          if (mounted) {
-            setState(() {
-              _isListening = false;
-            });
-            widget.onListeningChanged?.call(false);
-          }
-        },
-        onStatus: (String status) {
-          debugPrint('STT Status: $status');
-          if (mounted) {
-            if (status == 'listening') {
-              setState(() {
-                _isListening = true;
-              });
-              widget.onListeningChanged?.call(true);
-            } else if (status == 'notListening' || status == 'done') {
-              setState(() {
-                _isListening = false;
-              });
-              widget.onListeningChanged?.call(false);
-              }
-          }
-        },
-      );
-    } catch (e) {
-      debugPrint('Error initializing STT: $e');
-      _speechEnabled = false;
-    }
-
-    if (mounted) {
-      startListening();
-    }
-  }
-
-  void startListening() async {
-    _stateTransitionTimer?.cancel();
-    _voiceDebounceTimer?.cancel();
-    setState(() {
-      _screenState = AlloBotScreenState.listening;
-      _liveTranscript = '';
-      _isListening = true;
-      // The transcript appears where the topic list is, so close it.
-      _showTopicsPanel = false;
-    });
-    widget.onListeningChanged?.call(true);
-
-    if (_speechEnabled) {
-      try {
-        await _speechToText.listen(
-          onResult: (result) {
-            if (mounted) {
-              setState(() {
-                _liveTranscript = result.recognizedWords;
-              });
-
-              final words = result.recognizedWords.toLowerCase().trim();
-              final hasKeyword = words.contains('kick') ||
-                  words.contains('kicking') ||
-                  words.contains('cry') ||
-                  words.contains('crying') ||
-                  words.contains('report') ||
-                  words.contains('health') ||
-                  words.contains('vitals') ||
-                  words.contains('prescription') ||
-                  words.contains('medicine') ||
-                  words.contains('anc') ||
-                  words.contains('checkup') ||
-                  words.contains('vaccin') ||
-                  words.contains('injection') ||
-                  words.contains('journey') ||
-                  words.contains('family') ||
-                  words.contains('people') ||
-                  words.contains('setting') ||
-                  words.contains('language') ||
-                  words.contains('profile') ||
-                  words.contains('feed') ||
-                  words.contains('eat') ||
-                  words.contains('diet') ||
-                  words.contains('water');
-
-              if (hasKeyword) {
-                _voiceDebounceTimer?.cancel();
-                _voiceDebounceTimer =
-                    Timer(const Duration(milliseconds: 700), () {
-                  if (mounted &&
-                      _screenState == AlloBotScreenState.listening) {
-                    _processVoiceQuery(result.recognizedWords);
-                  }
-                });
-              } else if (result.finalResult) {
-                _processVoiceQuery(result.recognizedWords);
-              }
-            }
-          },
-          listenOptions: stt.SpeechListenOptions(
-            listenMode: stt.ListenMode.dictation,
-            partialResults: true,
-            cancelOnError: false,
-          ),
-        );
-      } catch (e) {
-        debugPrint('Error in STT listen: $e');
-      }
-    }
-  }
-
-  void stopListening() async {
-    _stateTransitionTimer?.cancel();
-    _voiceDebounceTimer?.cancel();
-    if (_speechEnabled) {
-      try {
-        await _speechToText.stop();
-      } catch (_) {}
-    }
-    if (mounted) {
-      setState(() {
-        _isListening = false;
-      });
-      widget.onListeningChanged?.call(false);
-    }
-  }
-
-  void toggleListening() {
-    if (_isListening) {
-      stopListening();
-      _ttsService.stop();
-    } else {
-      startListening();
+    if (widget.initialListening) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => startListening());
     }
   }
 
   @override
   void dispose() {
-    _stateTransitionTimer?.cancel();
-    _voiceDebounceTimer?.cancel();
-    try {
-      _speechToText.stop();
-    } catch (_) {}
-    _ttsService.stop();
+    _input.dispose();
+    _scroll.dispose();
+    _inputFocus.dispose();
     super.dispose();
   }
 
-  void _processVoiceQuery(String text) {
-    final lower = text.toLowerCase().trim();
-    if (lower.isEmpty) return;
+  // ── Sending ──────────────────────────────────────────────────────────────
 
-    // 1. Kick Counter
-    if (lower.contains('kick') ||
-        lower.contains('kicking') ||
-        lower.contains('baby is moving') ||
-        lower.contains('baby move') ||
-        lower.contains('count kick')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Kick Counter',
-        featureDesc: "Count and track your baby's kicks",
-        featureType: 'kick',
-        promptSpeech: "I noticed your baby is kicking! Would you like to record kicks in the Kick Counter?",
-        confirmSpeech: "Okay mom, use this Kick Counter feature",
-      );
-      return;
-    }
-
-    // 2. AlloCry
-    if (lower.contains('cry') ||
-        lower.contains('crying') ||
-        lower.contains('tears') ||
-        lower.contains('weeping')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'AlloCry',
-        featureDesc: "Identify why your baby is crying with AI",
-        featureType: 'cry',
-        promptSpeech: "AlloCry can help you Amma. We'll find out why baby is crying.",
-        confirmSpeech: "Opening AlloCry for you, Amma",
-      );
-      return;
-    }
-
-    // 3. Lab / Medical Reports
-    if (lower.contains('report') ||
-        lower.contains('reports') ||
-        lower.contains('lab') ||
-        lower.contains('blood test') ||
-        lower.contains('scan') ||
-        lower.contains('ultrasound')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Medical Reports',
-        featureDesc: "View all your lab tests and medical scan reports",
-        featureType: 'report',
-        promptSpeech: "I found your medical and lab reports, Amma. Would you like to view them?",
-        confirmSpeech: "Opening your medical reports, Amma",
-      );
-      return;
-    }
-
-    // 4. My Health & Vitals
-    if (lower.contains('my health') ||
-        lower.contains('vitals') ||
-        lower.contains('blood pressure') ||
-        lower.contains('heart rate') ||
-        lower.contains('sleep') ||
-        lower.contains('steps') ||
-        lower.contains('hrv') ||
-        lower.contains('oxygen') ||
-        lower.contains('bmi') ||
-        lower == 'health') {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'My Health Vitals',
-        featureDesc: "Track your blood pressure, sleep, heart rate, and vitals",
-        featureType: 'health',
-        promptSpeech: "Here is your Health Overview with all vitals and metrics, Amma.",
-        confirmSpeech: "Opening your Health Vitals dashboard, Amma",
-      );
-      return;
-    }
-
-    // 5. Prescriptions & Medicines
-    if (lower.contains('prescription') ||
-        lower.contains('medicine') ||
-        lower.contains('tablet') ||
-        lower.contains('pill') ||
-        lower.contains('medication') ||
-        lower.contains('dosage') ||
-        lower.contains('iron') ||
-        lower.contains('folic acid')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Prescriptions',
-        featureDesc: "View your daily pregnancy medicines and dosages",
-        featureType: 'prescription',
-        promptSpeech: "I found your doctor's prescriptions and pregnancy medicines, Amma.",
-        confirmSpeech: "Opening your Prescriptions page, Amma",
-      );
-      return;
-    }
-
-    // 6. ANC Care / Doctor Checkups
-    if (lower.contains('anc') ||
-        lower.contains('checkup') ||
-        lower.contains('antenatal') ||
-        lower.contains('doctor visit') ||
-        lower.contains('clinic visit') ||
-        lower.contains('appointment')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'ANC Care Schedule',
-        featureDesc: "View your upcoming doctor checkups and ANC clinic visits",
-        featureType: 'anc',
-        promptSpeech: "Here is your Antenatal Care checkup schedule, Amma.",
-        confirmSpeech: "Opening your ANC Care Schedule, Amma",
-      );
-      return;
-    }
-
-    // 7. Vaccination Schedule
-    if (lower.contains('vaccin') ||
-        lower.contains('immuniz') ||
-        lower.contains('injection') ||
-        lower.contains('shots') ||
-        lower.contains('tetanus') ||
-        lower.contains('tt injection')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Vaccination Schedule',
-        featureDesc: "Track all pregnancy vaccines and immunization dates",
-        featureType: 'vaccine',
-        promptSpeech: "Here is your vaccination and immunization schedule, Amma.",
-        confirmSpeech: "Opening your Vaccination Schedule, Amma",
-      );
-      return;
-    }
-
-    // 8. My Pregnancy Journey
-    if (lower.contains('journey') ||
-        lower.contains('pregnancy journey') ||
-        lower.contains('my pregnancy') ||
-        lower.contains('progress') ||
-        lower.contains('trimester') ||
-        lower.contains('milestone') ||
-        lower.contains('baby growth')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Pregnancy Journey',
-        featureDesc: "Track your week-by-week baby development and milestones",
-        featureType: 'journey',
-        promptSpeech: "Here is your complete Pregnancy Journey and baby milestones, Amma.",
-        confirmSpeech: "Opening your Pregnancy Journey, Amma",
-      );
-      return;
-    }
-
-    // 9. My Family & People Section
-    if (lower.contains('family') ||
-        lower.contains('people') ||
-        lower.contains('husband') ||
-        lower.contains('partner') ||
-        lower.contains('doctor contact') ||
-        lower.contains('nurse contact') ||
-        lower.contains('emergency contact') ||
-        lower.contains('caregiver')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'My Family & People',
-        featureDesc: "Manage your care circle, partner details, and emergency contacts",
-        featureType: 'family',
-        promptSpeech: "Here are your family members, doctor contacts, and caregivers, Amma.",
-        confirmSpeech: "Opening My Family and People section, Amma",
-      );
-      return;
-    }
-
-    // 10. Settings / Edit Profile / Language
-    if (lower.contains('setting') ||
-        lower.contains('profile') ||
-        lower.contains('edit profile') ||
-        lower.contains('language') ||
-        lower.contains('change language') ||
-        lower.contains('preference') ||
-        lower.contains('account')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Settings & Profile',
-        featureDesc: "Manage your profile, change language, and configure app settings",
-        featureType: 'settings',
-        promptSpeech: "Here are your App Settings where you can edit profile and change language, Amma.",
-        confirmSpeech: "Opening Settings for you, Amma",
-      );
-      return;
-    }
-
-    // 11. Feeding Tracker
-    if (lower.contains('feed') ||
-        lower.contains('feeding') ||
-        lower.contains('breastfeed') ||
-        lower.contains('bottle feed') ||
-        lower.contains('formula') ||
-        lower.contains('nursing')) {
-      _handleFeatureMatch(
-        transcript: text,
-        featureName: 'Feeding Tracker',
-        featureDesc: "Track breastfeeding and bottle feeds for your baby",
-        featureType: 'feed',
-        promptSpeech: "Would you like to record baby feeding in the Feeding Tracker, Amma?",
-        confirmSpeech: "Opening Feeding Tracker for you, Amma",
-      );
-      return;
-    }
-
-    // 12. General Health, Diet & Nutrition Advice
-    if (lower.contains('eat') ||
-        lower.contains('food') ||
-        lower.contains('diet') ||
-        lower.contains('meal') ||
-        lower.contains('water') ||
-        lower.contains('swelling') ||
-        lower.length > 6) {
-      stopListening();
-      String reply =
-          "That's completely normal for week 24, Amma! Stay hydrated with 8-10 glasses of water and rest well.";
-      if (lower.contains('eat') || lower.contains('food') || lower.contains('diet')) {
-        reply =
-            "For week 24, focus on iron & calcium rich foods: fresh spinach, lentils, ragi, curd, and citrus fruits!";
-      } else if (lower.contains('water') || lower.contains('hydrat')) {
-        reply =
-            "Aim for 8 to 10 glasses of water daily, Amma! Hydration supports healthy amniotic fluid levels.";
-      }
-
-      setState(() {
-        _screenState = AlloBotScreenState.generalResponse;
-        _liveTranscript = text;
-        _generalResponseText = reply;
-      });
-
-      _ttsService.speak(reply);
-    }
+  void _send([String? text]) {
+    final message = (text ?? _input.text).trim();
+    if (message.isEmpty) return;
+    _input.clear();
+    controller.send(message);
+    _scrollToBottom();
   }
 
-  void _handleFeatureMatch({
-    required String transcript,
-    required String featureName,
-    required String featureDesc,
-    required String featureType,
-    required String promptSpeech,
-    required String confirmSpeech,
-  }) {
-    stopListening();
-    setState(() {
-      _screenState = AlloBotScreenState.featureMatched;
-      _liveTranscript = transcript;
-      _matchedFeatureName = featureName;
-      _matchedFeatureDesc = featureDesc;
-      _matchedFeatureType = featureType;
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+      );
     });
+  }
 
-    _ttsService.speak(
-      promptSpeech,
-      onComplete: () {
-        if (mounted && _screenState == AlloBotScreenState.featureMatched) {
-          _showOpenButtonForFeature(
-            featureName,
-            featureType,
-            confirmSpeech,
-          );
-        }
+  // ── Voice ────────────────────────────────────────────────────────────────
+  //
+  // Every turn spoken goes through the popup, the way AlloKonnect does it: the
+  // page's mic opens the sheet, the sheet owns the recogniser, and it closes
+  // itself once it has something to send. [startListening] and
+  // [toggleListening] stay public because the docked mic drives them.
+
+  Future<void> startListening() async {
+    if (_isListening) return;
+    // Whatever the baby is still saying belongs to the previous turn.
+    await controller.stopCurrentTurn();
+    if (!mounted) return;
+
+    _setListening(true);
+    await AlloBotVoicePopup.show(
+      context,
+      controller: controller,
+      onTopicsRequested: _showTopicsSheet,
+      onEnableKeyboardMode: () {
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _inputFocus.requestFocus(),
+        );
       },
     );
-
-    // Auto transition to button after short delay if TTS is skipped or finished
-    _stateTransitionTimer = Timer(const Duration(milliseconds: 2400), () {
-      if (mounted && _screenState == AlloBotScreenState.featureMatched) {
-        _showOpenButtonForFeature(
-          featureName,
-          featureType,
-          confirmSpeech,
-        );
-      }
-    });
+    // `show` completes when the sheet closes, however it was closed.
+    _setListening(false);
   }
 
-  void _showOpenButtonForFeature(String featureName, String featureType, String speechText) {
-    setState(() {
-      _screenState = AlloBotScreenState.showOpenButton;
-      _matchedFeatureName = featureName;
-      _matchedFeatureType = featureType;
-    });
-    _ttsService.speak(speechText);
+  Future<void> stopListening() async {
+    if (!_isListening) return;
+    if (mounted && Navigator.of(context).canPop()) Navigator.of(context).pop();
+    _setListening(false);
   }
 
-  /// Drives the screen straight to the Open-button state.
-  ///
-  /// The preview plus its button is the tallest thing this screen renders and
-  /// the one layout that overflowed, but reaching it normally needs live speech
-  /// recognition. This lets a widget test put the screen in that state and
-  /// check it fits.
-  @visibleForTesting
-  void showOpenButtonForTesting(String featureName, String featureType) {
-    _stateTransitionTimer?.cancel();
-    setState(() {
-      _screenState = AlloBotScreenState.showOpenButton;
-      _matchedFeatureName = featureName;
-      _matchedFeatureType = featureType;
-      _isListening = false;
-      _showTopicsPanel = false;
-    });
-  }
-
-  void _navigateToMatchedFeature() {
-    _ttsService.stop();
-    Widget? targetPage;
-
-    switch (_matchedFeatureType) {
-      case 'kick':
-        targetPage = const KickCounterPage();
-        break;
-      case 'cry':
-        targetPage = const AlloCryPage();
-        break;
-      case 'report':
-        targetPage = const ReportsPage();
-        break;
-      case 'health':
-        targetPage = const MyHealthPage();
-        break;
-      case 'prescription':
-        targetPage = const PrescriptionsPage();
-        break;
-      case 'anc':
-        targetPage = const AncSchedulePage();
-        break;
-      case 'vaccine':
-        targetPage = const VaccinationSchedulePage();
-        break;
-      case 'journey':
-        targetPage = const PregnancyJourneyPage();
-        break;
-      case 'family':
-        targetPage = const PeoplePage();
-        break;
-      case 'settings':
-        targetPage = const SettingsPage();
-        break;
-      case 'feed':
-        targetPage = const FeedingTrackerPage();
-        break;
-    }
-
-    if (targetPage != null) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => targetPage!),
-      );
+  void toggleListening() {
+    if (_isListening) {
+      stopListening();
+    } else {
+      startListening();
     }
   }
 
-  void _toggleTopicsPanel() {
-    setState(() => _showTopicsPanel = !_showTopicsPanel);
+  void _setListening(bool value) {
+    if (_isListening != value && mounted) {
+      setState(() => _isListening = value);
+    } else {
+      _isListening = value;
+    }
+    widget.onListeningChanged?.call(value);
   }
 
-  /// The "+" topic list, scrollable, sitting above the mic.
-  ///
-  /// Twelve topics do not fit a phone screen, so the list scrolls inside the
-  /// card while the header and the mic stay put.
-  Widget _buildTopicsPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Text(
-              'Voice Assistant Topics',
-              style: GoogleFonts.outfit(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
-              ),
-            ),
-            const Spacer(),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFFF0F3),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                'Tap to ask',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFFFF4E6A),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: ListView.separated(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 8),
-            itemCount: _quickSuggestions.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final item = _quickSuggestions[index];
-              return GestureDetector(
-                onTap: () {
-                  // Close first, so the answer appears where the list was.
-                  setState(() => _showTopicsPanel = false);
-                  _processVoiceQuery(item['query']!);
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF5F7),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFFFD2DC)),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item['title']!,
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF1E2024),
-                          ),
-                        ),
-                      ),
-                      const Icon(
-                        Icons.arrow_forward_ios_rounded,
-                        color: Color(0xFFFF8A9E),
-                        size: 13,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
+  // ── Suggestions ──────────────────────────────────────────────────────────
+
+  /// Trigger phrases from the downloaded catalogue, falling back to a curated
+  /// pool while nothing has been downloaded yet.
+  List<String> _drawOpeningSuggestions() {
+    final triggers = controller.sampleTriggers(limit: 6, randomize: true);
+    if (triggers.length >= 3) return triggers;
+
+    final pool = <String>[
+      'How is my baby this week?',
+      'What should I eat today?',
+      'Show my health vitals',
+      'When is my next checkup?',
+      'Open my reports',
+      'My baby is kicking',
+      'My baby is crying',
+      'What can you do?',
+    ]..shuffle();
+    return pool.take(6).toList();
   }
+
+  /// What to offer right now: the live quick replies of the step a flow is
+  /// waiting on, or the opening suggestions while nothing is in progress.
+  List<String> _currentSuggestions() {
+    if (controller.activeOptions.isNotEmpty) {
+      return controller.activeOptions.toList();
+    }
+    if (_openingSuggestions.isEmpty) {
+      _openingSuggestions = _drawOpeningSuggestions();
+    }
+    return _openingSuggestions;
+  }
+
+  // ── Build ────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -697,23 +188,9 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         bottom: false,
         child: Column(
           children: [
-            // ─── TOP APP BAR ───
             _buildTopAppBar(),
-            const SizedBox(height: 2),
-
-            // ─── 1. TOP BABY HERO CARD (Standard 270px matching Home Page) ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildBabyHeroCard(),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── 2. IN-PLACE INTERACTIVE VOICE CONTAINER (Fills space to bottom) ───
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                child: _buildVoiceInteractiveCard(),
-              ),
+              child: _showListView ? _buildTranscriptView() : _buildVoiceView(),
             ),
           ],
         ),
@@ -727,10 +204,9 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
       child: Row(
         children: [
-          // Back Button
           GestureDetector(
             onTap: () {
-              _ttsService.stop();
+              controller.stopCurrentTurn();
               Navigator.maybePop(context);
             },
             child: Container(
@@ -754,8 +230,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               ),
             ),
           ),
-
-          // Center Title & Subtitle
           Expanded(
             child: Column(
               children: [
@@ -777,415 +251,453 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               ],
             ),
           ),
-
-          const SizedBox(width: 40), // Balancer
+          _circleButton(
+            icon: _showListView
+                ? Icons.graphic_eq_rounded
+                : Icons.format_list_bulleted_rounded,
+            tooltip: _showListView ? 'Voice view' : 'Full conversation',
+            onTap: () => setState(() => _showListView = !_showListView),
+          ),
+          const SizedBox(width: 8),
+          Obx(
+            () => _circleButton(
+              icon: Icons.more_vert_rounded,
+              tooltip: 'More',
+              busy: controller.isSyncing.value,
+              onTap: _showMenu,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  // ─── 1. TOP BABY HERO CARD (Standard 270px) ───
-  Widget _buildBabyHeroCard() {
-    return const BabyHeroBanner(
-      speechText: "Good Morning, Amma ❤️",
-      bubblePosition: SpeechBubblePosition.topCenter,
-      height: 270,
+  Widget _circleButton({
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+    bool busy = false,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: busy ? null : onTap,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: busy
+              ? const Padding(
+                  padding: EdgeInsets.all(11),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: primaryColor,
+                  ),
+                )
+              : Icon(icon, color: const Color(0xFFFF4E6A), size: 20),
+        ),
+      ),
     );
   }
 
-  // ─── 2. IN-PLACE INTERACTIVE VOICE CONTAINER ───
-  Widget _buildVoiceInteractiveCard() {
+  void _showMenu() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.add_comment_outlined,
+                  color: primaryColor),
+              title: const Text('New conversation'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                controller.createNewChat();
+                setState(() => _openingSuggestions = _drawOpeningSuggestions());
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.cloud_download_outlined,
+                  color: primaryColor),
+              title: const Text('Sync AlloBot'),
+              subtitle: const Text('Download the latest topics and flows'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                controller.sync().then((_) {
+                  if (mounted) {
+                    setState(
+                      () => _openingSuggestions = _drawOpeningSuggestions(),
+                    );
+                  }
+                });
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.forum_outlined, color: primaryColor),
+              title: const Text('Open chat'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                widget.onOpenChat();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline, color: dangerRed),
+              title: const Text(
+                'Clear downloaded topics',
+                style: TextStyle(color: dangerRed),
+              ),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                controller.clearCache();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── VOICE VIEW ───
+
+  Widget _buildVoiceView() {
+    return Obx(() {
+      final isTyping = controller.isTyping.value;
+      final isSpeaking = controller.isSpeaking.value;
+
+      // The latest thing the bot said, which is what the card below the baby
+      // shows. A fresh conversation falls back to the greeting, so the card is
+      // never blank.
+      OfflineChatMessage? latest;
+      for (var i = controller.messages.length - 1; i >= 0; i--) {
+        final message = controller.messages[i];
+        if (!message.fromUser && !message.isSystem && message.text.isNotEmpty) {
+          latest = message;
+          break;
+        }
+      }
+
+      final suggestions = _currentSuggestions();
+
+      return Column(
+        children: [
+          // ── 1. The baby, mouthing the reply while it is read out ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: BabyHeroBanner(
+              height: 240,
+              speechText: _bubbleText(),
+              speakingOverride: isSpeaking,
+              bubblePosition: SpeechBubblePosition.topCenter,
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // ── 2. The latest reply, and the chips that follow from it ──
+          Expanded(
+            child: Column(
+              children: [
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: _buildReplyCard(latest, isTyping),
+                  ),
+                ),
+                if (suggestions.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  _buildSuggestionStrip(suggestions),
+                ],
+                const SizedBox(height: 8),
+
+                // ── 3. Keyboard composer, or the voice bar's two controls ──
+                // Keyboard mode swaps in the composer; otherwise nothing but
+                // room for the docked mic, which is where voice lives.
+                if (controller.isKeyboardMode.value)
+                  OfflineChatbotComposer(
+                    input: _input,
+                    focusNode: _inputFocus,
+                    onSend: _send,
+                    controller: controller,
+                    onMicTap: () {
+                      HapticFeedback.mediumImpact();
+                      controller.isKeyboardMode.value = false;
+                      _inputFocus.unfocus();
+                      startListening();
+                    },
+                  )
+                else
+                  const SizedBox(height: 24),
+              ],
+            ),
+          ),
+        ],
+      );
+    });
+  }
+
+  /// What the baby's bubble says.
+  ///
+  /// Her greeting, or that she is listening — the words being recognised show
+  /// inside the voice popup, which is over this card while it is open. The
+  /// reply itself belongs in the card below: the bubble is a fixed shape over
+  /// the illustration.
+  String _bubbleText() {
+    if (_isListening) return 'I am listening, Amma…';
+    return controller.greetingLine().split('\n').first;
+  }
+
+  Widget _buildReplyCard(OfflineChatMessage? message, bool isTyping) {
+    final text = (message?.text ?? '').trim().isEmpty
+        ? controller.greetingLine()
+        : message!.text;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 14),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFF2E4E7)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // "How can I support you and your baby today?"
-          Text(
-            'How can I support you and your baby today?',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.poppins(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w400,
-              color: const Color(0xFF6B7280),
-            ),
-          ),
-
-          // Middle area: the topic list when it is open, otherwise whatever
-          // the voice flow is showing. Both sit above the docked mic.
-          //
-          // Scrollable rather than a bare Center. A feature preview plus its
-          // Open button is taller than this area on a short screen, and a
-          // Center simply overflows — the content spilled 73px into the
-          // controls row and ended up underneath the mic. The minHeight keeps
-          // short content (the listening prompt, a one-line answer) centred
-          // exactly as before; only tall content scrolls.
-          Expanded(
-            child: _showTopicsPanel
-                ? _buildTopicsPanel()
-                : LayoutBuilder(
-                    builder: (context, constraints) => SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      // Clears the docked mic, which overlaps the bottom of
-                      // the card.
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          minHeight: constraints.maxHeight - 8,
-                        ),
-                        child: Center(child: _buildDynamicVoiceContent()),
-                      ),
-                    ),
+      child: isTyping
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const OfflineChatbotTypingBubble(),
+                const SizedBox(width: 10),
+                Text(
+                  'Thinking…',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontStyle: FontStyle.italic,
+                    color: const Color(0xFF8E95A5),
                   ),
-          ),
-
-          // In-Card Bottom Controls (Plus, Keyboard)
-          _buildInCardBottomControls(),
-        ],
-      ),
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: MarkdownBody(
+                data: text,
+                styleSheet: MarkdownStyleSheet(
+                  p: GoogleFonts.poppins(
+                    fontSize: 14.5,
+                    height: 1.45,
+                    color: const Color(0xFF1E2024),
+                  ),
+                  strong: GoogleFonts.poppins(
+                    fontSize: 14.5,
+                    height: 1.45,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+              ),
+            ),
     );
   }
 
-  // ─── IN-CARD BOTTOM CONTROLS (+, Keyboard) ───
-  Widget _buildInCardBottomControls() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // 1. Left "+" Topics Button — toggles the inline list above the mic.
-        GestureDetector(
-          onTap: _toggleTopicsPanel,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: _showTopicsPanel
-                  ? const Color(0xFFFF4E6A)
-                  : const Color(0xFFFFF0F3),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: _showTopicsPanel
-                    ? const Color(0xFFFF4E6A)
-                    : const Color(0xFFFFD2DC),
-              ),
-            ),
-            child: AnimatedRotation(
-              duration: const Duration(milliseconds: 180),
-              turns: _showTopicsPanel ? 0.125 : 0,
-              child: Icon(
-                Icons.add_rounded,
-                color:
-                    _showTopicsPanel ? Colors.white : const Color(0xFFFF4E6A),
-                size: 24,
-              ),
-            ),
-          ),
-        ),
-
-        // 2. Right Keyboard Button (Type instead -> Open Chat Tab)
-        GestureDetector(
-          onTap: () {
-            _ttsService.stop();
-            widget.onOpenChat();
-          },
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              shape: BoxShape.circle,
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: const Icon(
-              Icons.keyboard_alt_outlined,
-              color: Color(0xFF374151),
-              size: 20,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─── DYNAMIC VOICE CONTENT (Listening -> Matched -> Open Button) ───
-  Widget _buildDynamicVoiceContent() {
-    switch (_screenState) {
-      // 1. Matched State: "[Feature Name] can help you Amma ❤️"
-      case AlloBotScreenState.featureMatched:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            RichText(
-              textAlign: TextAlign.center,
-              text: TextSpan(
-                style: GoogleFonts.outfit(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
-                  height: 1.25,
-                ),
-                children: [
-                  TextSpan(
-                    text: '$_matchedFeatureName ',
-                    style: const TextStyle(color: Color(0xFFFF4E6A)),
-                  ),
-                  const TextSpan(text: 'can\nhelp you Amma ❤️'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              _matchedFeatureDesc,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 12.5,
-                color: const Color(0xFF8E95A5),
-              ),
-            ),
-            const SizedBox(height: 12),
-            if (_liveTranscript.isNotEmpty)
-              Text(
-                _liveTranscript,
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  color: const Color(0xFFFF8A9E),
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-          ],
-        );
-
-      // 2. Open Button State: the preview, then "Open [Feature Name]"
-      case AlloBotScreenState.showOpenButton:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // What the screen is for, before asking her to open it.
-            _buildFeaturePreview(),
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: _navigateToMatchedFeature,
+  Widget _buildSuggestionStrip(List<String> suggestions) {
+    return SizedBox(
+      height: 38,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        itemCount: suggestions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final prompt = suggestions[index];
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                _send(prompt);
+              },
+              borderRadius: BorderRadius.circular(20),
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 28,
-                  vertical: 13,
+                  horizontal: 13,
+                  vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFF4E6A),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFF4E6A).withValues(alpha: 0.35),
-                      blurRadius: 18,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  border: Border.all(color: const Color(0xFFFFD2DC)),
                 ),
-                child: Text(
-                  'Open $_matchedFeatureName',
-                  style: GoogleFonts.outfit(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-
-      // 3. General AI Response State
-      case AlloBotScreenState.generalResponse:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              _generalResponseText,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w500,
-                color: const Color(0xFF1E2024),
-                height: 1.45,
-              ),
-            ),
-          ],
-        );
-
-      // 4. Default Listening State: transcript, or a prompt to speak.
-      //
-      // No waveform here any more — the listening animation belongs on the mic
-      // button, which is the control that starts it. A row of bars sitting
-      // idle in the middle of the card just read as decoration.
-      case AlloBotScreenState.listening:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (_liveTranscript.isNotEmpty)
-              _buildHighlightedTranscript()
-            else ...[
-              Icon(
-                _isListening ? Icons.graphic_eq_rounded : Icons.mic_none_rounded,
-                size: 34,
-                color: _isListening
-                    ? const Color(0xFFFF4E6A)
-                    : const Color(0xFFFFC0CE),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                _isListening ? 'Listening...' : 'Tap the mic to speak',
-                style: GoogleFonts.poppins(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w500,
-                  color: _isListening
-                      ? const Color(0xFF6B7280)
-                      : const Color(0xFF9CA3AF),
-                ),
-              ),
-            ],
-          ],
-        );
-    }
-  }
-
-  /// The preview shown with the `Open <feature>` button: what the screen is,
-  /// and the few things she can do there.
-  ///
-  /// Deliberately unboxed — no card background or border. It already sits
-  /// inside the white voice card, so a second panel around it was a box inside
-  /// a box, and the padding it added was part of what pushed the Open button
-  /// off the screen.
-  Widget _buildFeaturePreview() {
-    final preview = featurePreviewFor(_matchedFeatureType);
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(
-              preview?.icon ?? Icons.auto_awesome_rounded,
-              color: const Color(0xFFFF4E6A),
-              size: 24,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    preview?.name ?? _matchedFeatureName,
-                    style: GoogleFonts.outfit(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    preview?.description ?? _matchedFeatureDesc,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11.5,
-                      color: const Color(0xFF8E95A5),
-                      height: 1.3,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        if (preview != null && preview.uses.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            'WHAT YOU CAN DO HERE',
-            style: GoogleFonts.poppins(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFFC98A99),
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 7),
-          ...preview.uses.map(
-            (use) => Padding(
-              padding: const EdgeInsets.only(bottom: 5),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(
-                    padding: EdgeInsets.only(top: 2),
-                    child: Icon(
-                      Icons.check_circle_rounded,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.chat_bubble_outline_rounded,
                       size: 13,
-                      color: Color(0xFFFF8A9E),
+                      color: primaryColor,
                     ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      use,
+                    const SizedBox(width: 6),
+                    Text(
+                      prompt,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF4B5563),
-                        height: 1.3,
+                        color: const Color(0xFF474A57),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  /// Everything the downloaded catalogue can answer, as a tappable list.
+  void _showTopicsSheet() {
+    final triggers = controller.sampleTriggers(limit: 24);
+    final prompts = triggers.isNotEmpty ? triggers : _openingSuggestions;
+
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.55,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Column(
+          children: [
+            const SizedBox(height: 10),
+            Container(
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: dividerColor,
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+              child: Row(
+                children: [
+                  Text(
+                    'What I can help with',
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E2024),
+                    ),
+                  ),
+                  const Spacer(),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFF0F3),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Tap to ask',
+                      style: GoogleFonts.poppins(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFFF4E6A),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  // Highlighted Transcript with active keyword styling
-  Widget _buildHighlightedTranscript() {
-    final words = _liveTranscript.trim().split(RegExp(r'\s+'));
-    final lastWord = words.isNotEmpty ? words.last : '';
-    final previousWords = words.length > 1
-        ? words.sublist(0, words.length - 1).join(' ')
-        : '';
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFFD2DC)),
-      ),
-      child: RichText(
-        textAlign: TextAlign.center,
-        text: TextSpan(
-          style: GoogleFonts.poppins(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-            color: const Color(0xFF4B5563),
-          ),
-          children: [
-            if (previousWords.isNotEmpty) TextSpan(text: '$previousWords '),
-            TextSpan(
-              text: lastWord,
-              style: const TextStyle(
-                color: Color(0xFFFF4E6A),
-                fontWeight: FontWeight.w700,
-              ),
+            Expanded(
+              child: prompts.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(28),
+                        child: Text(
+                          'Nothing downloaded yet. Sync AlloBot to load the '
+                          'topics she can answer offline.',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            color: const Color(0xFF8E95A5),
+                          ),
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
+                      itemCount: prompts.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final prompt = prompts[index];
+                        return GestureDetector(
+                          onTap: () {
+                            Navigator.pop(sheetContext);
+                            _send(prompt);
+                          },
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF5F7),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFFFD2DC),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    prompt,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF1E2024),
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  color: Color(0xFFFF8A9E),
+                                  size: 13,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),
@@ -1193,4 +705,48 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     );
   }
 
+  // ─── TRANSCRIPT VIEW ───
+
+  Widget _buildTranscriptView() {
+    return Column(
+      children: [
+        OfflineChatbotStatusBar(controller: controller),
+        Expanded(
+          child: Obx(() {
+            final messages = controller.messages;
+            _scrollToBottom();
+
+            return ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              itemCount: messages.length + (controller.isTyping.value ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (index >= messages.length) {
+                  return const OfflineChatbotTypingBubble(showAvatar: true);
+                }
+                return OfflineChatMessageBubble(
+                  message: messages[index],
+                  onOptionSelected: _send,
+                );
+              },
+            );
+          }),
+        ),
+        Obx(() {
+          if (controller.activeOptions.isEmpty) return const SizedBox.shrink();
+          return OfflineChatbotActiveOptionsBar(
+            options: controller.activeOptions.toList(),
+            onOptionSelected: _send,
+          );
+        }),
+        OfflineChatbotComposer(
+          input: _input,
+          focusNode: _inputFocus,
+          onSend: _send,
+          controller: controller,
+          onMicTap: toggleListening,
+        ),
+      ],
+    );
+  }
 }

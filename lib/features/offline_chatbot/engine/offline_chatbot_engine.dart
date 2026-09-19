@@ -1,0 +1,875 @@
+/// The flow engine, running on device.
+///
+/// A port of the server's runtime: it renders {variable} templates, evaluates
+/// connector conditions, walks the graph and produces a turn as ordered
+/// segments, each carrying the pause that precedes it. Nothing here touches the
+/// network — the bot definition was downloaded once, and every turn after that
+/// is local.
+library;
+
+import 'dart:convert';
+
+import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_actions.dart';
+import 'package:allomom/features/offline_chatbot/engine/offline_matching.dart';
+import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
+
+/// Runner that executes client-side actions during flow graph traversal.
+typedef ActionRunner = Future<ActionResult> Function(String? name, dynamic data);
+
+/// Templates read the caller-supplied user facts under this reserved key, e.g.
+/// {profile.due_date}.
+const String profileKey = 'profile';
+
+/// What the user actually typed. `message` is the current turn's text and
+/// changes every turn; `trigger_message` is the text that opened the active
+/// flow and stays fixed for its duration.
+const String messageKey = 'message';
+const String triggerMessageKey = 'trigger_message';
+
+/// Shown when the active step offers options but the user said something that
+/// matches none of them (and is not an intent trigger either).
+const String optionMismatchMessage =
+    'Sorry, I could not understand that. Can you repeat?';
+
+/// Seeded placeholders — scaffolding, not something to show a user. A flow
+/// still carrying one of these ends silently instead.
+const Set<String> placeholderCompletionMessages = {
+  'flow completed successfully.',
+  'flow completed successfully',
+  'flow completed.',
+  'flow completed',
+  'completed.',
+  'completed',
+  'done.',
+  'done',
+};
+
+/// Saved for an `ai` step whose inference could not be reached, so a template
+/// reading its save key says something honest instead of leaving the
+/// placeholder on screen.
+const String aiUnavailableMessage =
+    'I could not reach the assistant just now — please try again in a moment.';
+
+/// A delay holds a reply back, so a mistyped step must not be able to stall the
+/// conversation indefinitely.
+const double maxDelaySeconds = 30.0;
+
+final RegExp _singleBraceVar =
+    RegExp(r'\{\s*([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\}');
+final RegExp _doubleBraceVar = RegExp(r'\{\{\s*([^}]+?)\s*\}\}');
+
+/// Replaces {{variable}} placeholders with values from session data.
+///
+/// Supports `{{name}}`, dotted paths (`{{my_http.status_code}}`), and the
+/// single-brace form so variables captured from a trigger phrase like
+/// "can i eat {food}" can be reused verbatim in step text. Only keys that
+/// actually exist are substituted, so JSON bodies and other literal braces are
+/// left untouched, and unknown keys stay as they are.
+String renderTemplate(String? text, Map<String, dynamic>? data) {
+  if (text == null || text.isEmpty || data == null || data.isEmpty) {
+    return text ?? '';
+  }
+
+  dynamic resolve(String path) {
+    dynamic current = data;
+    for (final part in path.split('.')) {
+      if (current is Map && current.containsKey(part)) {
+        current = current[part];
+      } else {
+        return null;
+      }
+    }
+    return current;
+  }
+
+  String replace(Match match) {
+    final value = resolve(match.group(1)!.trim());
+    if (value == null) return match.group(0)!;
+    return value.toString();
+  }
+
+  return text.replaceAllMapped(_doubleBraceVar, replace).replaceAllMapped(
+        _singleBraceVar,
+        replace,
+      );
+}
+
+/// Reads a dotted variable path out of session data, e.g. `profile.due_date`.
+dynamic resolveConditionPath(String? path, Map<String, dynamic>? sessionData) {
+  if (path == null || path.trim().isEmpty || sessionData == null) return null;
+  dynamic current = sessionData;
+  for (final part in path.trim().split('.')) {
+    if (current is Map && current.containsKey(part)) {
+      current = current[part];
+    } else {
+      return null;
+    }
+  }
+  return current;
+}
+
+bool _evaluateClause(
+  Map<String, dynamic> clause,
+  BotStep? currentStep,
+  String? userMessage,
+  Map<String, dynamic>? sessionData,
+) {
+  final op = (clause['operator'] ?? 'equals').toString();
+
+  // An explicit `variable` on the connector wins, which is what lets a start
+  // connector (no current step) branch on a trigger-captured value; otherwise
+  // fall back to the current step's answer, then the message.
+  dynamic valToTest;
+  final variable = (clause['variable'] ?? '').toString().trim();
+  final saveKey = currentStep?.saveKey;
+
+  if (variable.isNotEmpty) {
+    valToTest = resolveConditionPath(variable, sessionData);
+  } else if (saveKey != null &&
+      saveKey.isNotEmpty &&
+      sessionData != null &&
+      sessionData.containsKey(saveKey)) {
+    valToTest = sessionData[saveKey];
+  } else if (userMessage != null) {
+    valToTest = userMessage;
+  } else if (sessionData != null) {
+    valToTest = sessionData[messageKey];
+  }
+
+  // "Did we capture anything?" has to be answerable before the null guard,
+  // since a missing variable is exactly what these two operators test for.
+  final hasValue = valToTest != null && valToTest.toString().trim().isNotEmpty;
+  if (op == 'is_set') return hasValue;
+  if (op == 'is_empty') return !hasValue;
+  if (valToTest == null) return false;
+
+  final target = clause['value'] ?? '';
+
+  // Compare as numbers whenever both sides parse as such — a start connector
+  // has no step to declare `question_data_type: number`, so relying on that
+  // alone would make `>=` fall through to a string compare.
+  final numTest = double.tryParse(valToTest.toString().trim());
+  final numTarget = double.tryParse(target.toString().trim());
+  if (numTest != null && numTarget != null) {
+    switch (op) {
+      case 'equals':
+        return numTest == numTarget;
+      case 'not_equals':
+        return numTest != numTarget;
+      case 'greater_than':
+        return numTest > numTarget;
+      case 'less_than':
+        return numTest < numTarget;
+      case 'greater_than_or_equal':
+        return numTest >= numTarget;
+      case 'less_than_or_equal':
+        return numTest <= numTarget;
+    }
+  }
+
+  final strTest = valToTest.toString().trim().toLowerCase();
+  final strTarget = target.toString().trim().toLowerCase();
+
+  switch (op) {
+    case 'equals':
+      return strTest == strTarget;
+    case 'not_equals':
+      return strTest != strTarget;
+    case 'contains':
+      return strTest.contains(strTarget);
+    case 'not_contains':
+      return !strTest.contains(strTarget);
+    case 'greater_than':
+      return strTest.compareTo(strTarget) > 0;
+    case 'less_than':
+      return strTest.compareTo(strTarget) < 0;
+    case 'greater_than_or_equal':
+      return strTest.compareTo(strTarget) >= 0;
+    case 'less_than_or_equal':
+      return strTest.compareTo(strTarget) <= 0;
+  }
+  return false;
+}
+
+/// True when every clause (`match: all`) or any clause (`match: any`) holds.
+bool evaluateConnector(
+  BotConnector connector,
+  BotStep? currentStep,
+  String? userMessage,
+  Map<String, dynamic>? sessionData,
+) {
+  final clauses = connector.conditions;
+  if (clauses.isEmpty) return true; // unconditional connector
+
+  final results = clauses
+      .map((c) => _evaluateClause(c, currentStep, userMessage, sessionData));
+  return connector.matchAny ? results.any((r) => r) : results.every((r) => r);
+}
+
+/// How long a delay step waits. Its duration lives in `question` and may be a
+/// template, so a flow can pause for a value it collected earlier.
+double delaySeconds(BotStep step, Map<String, dynamic>? sessionData) {
+  final raw = renderTemplate(step.question, sessionData).trim();
+  final seconds = double.tryParse(raw);
+  if (seconds == null) return 0.0;
+  return seconds.clamp(0.0, maxDelaySeconds).toDouble();
+}
+
+List<String> stepOptions(BotStep? step, Map<String, dynamic>? sessionData) {
+  if (step == null || step.options.isEmpty) return const [];
+  return step.options.map((o) => renderTemplate(o, sessionData)).toList();
+}
+
+/// Validates an answer against the step's declared data type.
+({bool valid, String? error}) validateInput(String value, String? dataType) {
+  if (dataType == null || dataType.isEmpty || dataType == 'text') {
+    return (valid: true, error: null);
+  }
+
+  final clean = value.trim();
+  if (clean.isEmpty) return (valid: false, error: 'Input cannot be empty.');
+
+  switch (dataType) {
+    case 'number':
+      return double.tryParse(clean) != null
+          ? (valid: true, error: null)
+          : (valid: false, error: 'Please enter a valid number.');
+    case 'email':
+      return RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(clean)
+          ? (valid: true, error: null)
+          : (
+              valid: false,
+              error: 'Please enter a valid email address (e.g. name@domain.com).'
+            );
+    case 'date':
+      return clean.length >= 2
+          ? (valid: true, error: null)
+          : (
+              valid: false,
+              error: "Please enter a valid date (e.g. 2026-06-25 or 'tomorrow')."
+            );
+  }
+  return (valid: true, error: null);
+}
+
+/// What an `ai` step needs answered.
+///
+/// The prompt and system instruction arrive already rendered — the engine
+/// resolved their {variables} against the session, which is the part that does
+/// not need a server.
+class AiStepRequest {
+  final String prompt;
+  final String? system;
+  final String? model;
+
+  /// Whether the step asked to see the conversation so far. The transcript is
+  /// sent either way — the resolver cannot know which steps want it — and this
+  /// is what decides whether it is actually used.
+  final bool useEntireHistory;
+
+  /// What is known about the person asking — the same facts every `{profile.*}`
+  /// placeholder resolves against.
+  ///
+  /// Travels with every request so an authored prompt does not have to name
+  /// each fact it wants: a step can just ask a question and still get an answer
+  /// that knows whose vitals and whose week it is talking about.
+  final Map<String, dynamic> profile;
+
+  const AiStepRequest({
+    required this.prompt,
+    this.system,
+    this.model,
+    this.useEntireHistory = false,
+    this.profile = const {},
+  });
+}
+
+/// Answers an `ai` step. Returns null when the model could not be reached, so
+/// the flow can say so rather than printing a broken placeholder.
+///
+/// Keeping this a callback is what stops the engine from owning an HTTP client:
+/// it stays pure and testable, and the app decides where inference comes from.
+typedef AiResolver = Future<String?> Function(AiStepRequest request);
+
+/// One message of a turn, and the pause that precedes it.
+class BotSegment {
+  String text;
+  double delay;
+  final List<String> audioUrls;
+  final List<String> imageUrls;
+
+  /// Side effects this part of the turn asks the app to perform, in the order
+  /// the flow ran them — so a `toggle_theme` before a text step takes effect
+  /// before the message announcing it appears.
+  final List<Map<String, dynamic>> actions;
+  List<String> options;
+
+  BotSegment({
+    this.text = '',
+    this.delay = 0,
+    List<String>? audioUrls,
+    List<String>? imageUrls,
+    List<Map<String, dynamic>>? actions,
+    List<String>? options,
+  })  : audioUrls = audioUrls ?? [],
+        imageUrls = imageUrls ?? [],
+        actions = actions ?? [],
+        options = options ?? [];
+}
+
+/// A turn's answer, as the ordered parts the UI should deliver.
+///
+/// Text steps and the question a flow lands on become segments. A delay step
+/// says nothing — it sets the pause the *next* segment carries, which is what
+/// turns "message, wait, message" into distinct bubbles rather than one blob
+/// with a stall in front of it. Consecutive messages with no delay between
+/// them merge, so a flow without delays reads as a single reply.
+class BotReply {
+  final List<BotSegment> segments = [];
+  final List<Map<String, dynamic>> actions = [];
+  double _pendingDelay = 0;
+
+  void wait(double seconds) => _pendingDelay += seconds;
+
+  BotSegment _current() {
+    if (segments.isEmpty || _pendingDelay > 0) {
+      segments.add(BotSegment(delay: _pendingDelay));
+      _pendingDelay = 0;
+    }
+    return segments.last;
+  }
+
+  void say(String? text) {
+    if (text == null || text.isEmpty) return;
+    final current = _current();
+    current.text =
+        current.text.isEmpty ? text : '${current.text}\n\n$text';
+  }
+
+  void addAudio(String? url) {
+    if (url != null && url.isNotEmpty) _current().audioUrls.add(url);
+  }
+
+  void addImage(String? url) {
+    if (url != null && url.isNotEmpty) _current().imageUrls.add(url);
+  }
+
+  void setOptions(List<String> options) => _current().options = options;
+
+  void addAction(Map<String, dynamic> action) {
+    _current().actions.add(action);
+    actions.add(action);
+  }
+
+  String get text =>
+      segments.where((s) => s.text.isNotEmpty).map((s) => s.text).join('\n\n');
+
+  List<String> get options => segments.isEmpty ? const [] : segments.last.options;
+}
+
+/// Where a conversation currently stands. Purely in memory — a fresh app run
+/// starts a fresh conversation, exactly as the server's session manager does.
+class BotSession {
+  String? intentKey;
+  String? flowName;
+  String? currentStepRef;
+  BotFlow? flow;
+  Map<String, dynamic> data = {};
+
+  bool get isActive => flow != null && currentStepRef != null;
+
+  void clear() {
+    intentKey = null;
+    flowName = null;
+    currentStepRef = null;
+    flow = null;
+    data = {};
+  }
+}
+
+/// Runs a flow graph and matches triggers, entirely on device.
+class OfflineChatbotEngine {
+  OfflineChatbotEngine({
+    required this.bundle,
+    this.langCode,
+    this.aiResolver,
+    this.actionRunner,
+  });
+
+  final BotBundle bundle;
+  final String? langCode;
+
+  /// Where `ai` steps get their answers. Null leaves them unanswered, which is
+  /// what a build with no inference available should do.
+  final AiResolver? aiResolver;
+
+  /// Executes client-side actions during flow graph traversal so their results
+  /// can populate session variables for subsequent steps.
+  final ActionRunner? actionRunner;
+
+  /// Steps that need the network are skipped offline; their save key gets this
+  /// marker so a template referencing it renders something honest rather than
+  /// leaving `{api_res}` on screen.
+  static const Map<String, dynamic> _offlineSkipped = {
+    'offline': true,
+    'status_code': 0,
+    'data': null,
+  };
+
+  BotStep? _startStep(
+    BotFlow flow,
+    String? userMessage,
+    Map<String, dynamic>? sessionData,
+  ) {
+    if (flow.steps.isEmpty) return null;
+
+    // Start connectors name the entry step outright. Conditional ones are tried
+    // in the order they were drawn against the trigger message and captured
+    // variables; an unconditional one is the else branch.
+    final starts = flow.startConnectors
+        .where((c) => flow.stepByRef(c.toRef) != null)
+        .toList();
+    final conditional = starts.where((c) => c.conditions.isNotEmpty).toList();
+    final defaults = starts.where((c) => c.conditions.isEmpty).toList();
+
+    for (final conn in conditional) {
+      if (evaluateConnector(conn, null, userMessage, sessionData)) {
+        return flow.stepByRef(conn.toRef);
+      }
+    }
+    if (defaults.isNotEmpty) return flow.stepByRef(defaults.first.toRef);
+    // Every start connector was conditional and none matched: the first is a
+    // better guess than inferring, since the author did point at an entry.
+    if (conditional.isNotEmpty) return flow.stepByRef(conditional.first.toRef);
+
+    // Otherwise infer it: the step nothing points at.
+    final incoming = flow.connectors
+        .where((c) => c.toRef != null)
+        .map((c) => c.toRef)
+        .toSet();
+    final candidates =
+        flow.steps.where((s) => !incoming.contains(s.ref)).toList();
+    if (candidates.isNotEmpty) return candidates.first;
+
+    // Circular flow fallback.
+    return flow.steps.first;
+  }
+
+  BotStep? _nextStep(
+    BotFlow flow,
+    BotStep current,
+    String? userMessage,
+    Map<String, dynamic>? sessionData,
+  ) {
+    final outgoing =
+        flow.outgoing(current.ref).where((c) => c.toRef != null).toList();
+    final conditional = outgoing.where((c) => c.conditions.isNotEmpty).toList();
+    final defaults = outgoing.where((c) => c.conditions.isEmpty).toList();
+
+    for (final conn in conditional) {
+      if (evaluateConnector(conn, current, userMessage, sessionData)) {
+        return flow.stepByRef(conn.toRef);
+      }
+    }
+    if (defaults.isNotEmpty) return flow.stepByRef(defaults.first.toRef);
+    return null;
+  }
+
+  Map<String, dynamic> _actionPayload(
+      BotStep step, Map<String, dynamic>? sessionData) {
+    final name = renderTemplate(step.actionName ?? '', sessionData);
+    dynamic data = <String, dynamic>{};
+    final raw = step.actionData;
+
+    if (raw is String && raw.trim().isNotEmpty) {
+      final interpolated = renderTemplate(raw, sessionData);
+      try {
+        data = jsonDecode(interpolated);
+      } catch (_) {
+        final match = RegExp(r'''["']?mode["']?\s*:\s*["']?(\w+)["']?''',
+                caseSensitive: false)
+            .firstMatch(interpolated);
+        data = match != null
+            ? {'mode': match.group(1)!.toLowerCase()}
+            : interpolated;
+      }
+    } else if (raw is Map) {
+      final out = <String, dynamic>{};
+      raw.forEach((key, value) {
+        if (value is String) {
+          final interpolated = renderTemplate(value, sessionData);
+          try {
+            out[key.toString()] = jsonDecode(interpolated);
+          } catch (_) {
+            out[key.toString()] = interpolated;
+          }
+        } else {
+          out[key.toString()] = value;
+        }
+      });
+      data = out;
+    } else if (raw != null) {
+      data = raw;
+    }
+
+    return {'name': name, 'data': data};
+  }
+
+  /// Runs an `ai` step's inference, or reports that it could not.
+  Future<String> _runAi(BotStep step, BotSession session) async {
+    final prompt = renderTemplate(step.aiPrompt ?? '', session.data).trim();
+    if (prompt.isEmpty) return '';
+
+    final resolver = aiResolver;
+    if (resolver == null) return aiUnavailableMessage;
+
+    final system = renderTemplate(step.aiSystem ?? '', session.data).trim();
+
+    try {
+      final raw = session.data[profileKey];
+
+      final answer = await resolver(AiStepRequest(
+        prompt: prompt,
+        system: system.isEmpty ? null : system,
+        model: step.aiModel,
+        useEntireHistory: step.usesEntireHistory,
+        profile: raw is Map
+            ? Map<String, dynamic>.from(raw)
+            : const <String, dynamic>{},
+      ));
+      final text = answer?.trim() ?? '';
+      return text.isEmpty ? aiUnavailableMessage : text;
+    } catch (_) {
+      return aiUnavailableMessage;
+    }
+  }
+
+  void _save(BotSession session, String? key, dynamic value) {
+    if (key != null && key.isNotEmpty) session.data[key] = value;
+  }
+
+  /// Runs every self-driving step, filling [reply], until one needs the user.
+  /// Returns the step the flow is now waiting on, or null when it ran to the end.
+  Future<BotStep?> _traverse(
+    BotSession session,
+    BotStep? start,
+    BotReply reply,
+  ) async {
+    final visited = <String>{};
+    var curr = start;
+
+    while (curr != null && curr.isAutomatic) {
+      if (visited.contains(curr.ref)) break;
+      visited.add(curr.ref);
+
+      // A step offering options waits for a selection instead of running on.
+      // An ai step is exempt: its options carry the history flag, not choices.
+      if (curr.options.isNotEmpty &&
+          curr.type != 'intent' &&
+          curr.type != 'ai') {
+        break;
+      }
+
+      switch (curr.type) {
+        case 'text':
+          reply.say(renderTemplate(curr.question, session.data));
+          break;
+        case 'delay':
+          // A delay is a pause, not a message: it holds back whatever the flow
+          // says next and contributes nothing of its own.
+          reply.wait(delaySeconds(curr, session.data));
+          break;
+        case 'image':
+          reply.addImage(renderTemplate(curr.imageUrl ?? '', session.data));
+          break;
+        case 'action':
+          final payload = _actionPayload(curr, session.data);
+          final runner = actionRunner ?? OfflineChatbotActions.run;
+          Map<String, dynamic> resultData = const {};
+
+          try {
+            final res = await runner(payload['name']?.toString(), payload['data']);
+            resultData = res.data;
+            payload['executed'] = true;
+            payload['result'] = res;
+          } catch (_) {}
+
+          final savedValue = <String, dynamic>{
+            ...payload,
+            if (resultData.isNotEmpty) ...resultData,
+            if (resultData.isNotEmpty)
+              'data': {
+                if (payload['data'] is Map)
+                  ...payload['data'] as Map<String, dynamic>,
+                ...resultData,
+              },
+            'result': resultData,
+          };
+
+          _save(session, curr.saveKey, savedValue);
+          if (curr.saveKey != null && curr.saveKey!.isNotEmpty) {
+            final key = curr.saveKey!;
+            // Also support aliases (e.g. check_in <=> checkin)
+            if (key.contains('_')) {
+              _save(session, key.replaceAll('_', ''), savedValue);
+            } else if (key == 'checkin') {
+              _save(session, 'check_in', savedValue);
+            } else if (key == 'checkout') {
+              _save(session, 'check_out', savedValue);
+            }
+          }
+          if (resultData.isNotEmpty) {
+            session.data.addAll(resultData);
+          }
+          reply.addAction(payload);
+          break;
+        case 'ai':
+          _save(session, curr.saveKey, await _runAi(curr, session));
+          break;
+        case 'http':
+          // The one step this engine cannot do: it has no HTTP client, by
+          // design. The flow carries on rather than stalling, and the save key
+          // gets a response-shaped marker so `{api_res.status_code}` still
+          // resolves to something a condition can read.
+          _save(session, curr.saveKey, _offlineSkipped);
+          break;
+        case 'intent':
+          final target = curr.nextIntentKey == null
+              ? null
+              : bundle.intentByRef(
+                  curr.nextIntentKey!, curr.nextIntentLang ?? 'en');
+          if (target != null) {
+            if (target.type == 'response') {
+              reply.say(renderTemplate(target.response?.message, session.data));
+              reply.addAudio(target.response?.audioUrl);
+              session.clear();
+              return null;
+            }
+            if (target.type == 'flow' && target.flow != null) {
+              final first = _startStep(
+                  target.flow!, session.data[messageKey]?.toString(), session.data);
+              if (first != null) {
+                session.intentKey = target.key;
+                session.flow = target.flow;
+                session.flowName = target.flow!.name;
+                session.currentStepRef = first.ref;
+                curr = first;
+                continue;
+              }
+              session.clear();
+              return null;
+            }
+          }
+          break;
+      }
+
+      if (curr.type != 'delay') reply.addAudio(curr.audioUrl);
+
+      final flow = session.flow;
+      if (flow == null) return null;
+      curr = _nextStep(flow, curr, null, session.data);
+    }
+
+    return curr;
+  }
+
+  void _appendCompletion(BotReply reply, BotFlow? flow, BotSession session) {
+    if (flow == null) return;
+    final completion = renderTemplate(flow.completionMessage, session.data);
+    if (completion.isNotEmpty &&
+        !placeholderCompletionMessages.contains(completion.trim().toLowerCase())) {
+      reply.say(completion);
+    }
+    if (flow.action != null && flow.action!.isNotEmpty) {
+      reply.say('⚙️ *Backend Action Executed:* `${flow.action}`');
+    }
+  }
+
+  Future<BotReply> _runIntent(
+    BotIntent intent,
+    Map<String, String> triggerVars,
+    Map<String, dynamic> turnContext,
+    BotSession session,
+  ) async {
+    final reply = BotReply();
+
+    if (intent.type == 'response') {
+      session.clear();
+      final context = {...triggerVars, ...turnContext};
+      if (intent.response != null) {
+        reply.say(renderTemplate(intent.response!.message, context));
+        reply.addAudio(intent.response!.audioUrl);
+      } else {
+        reply.say(
+            "Matched intent '${intent.name}', but no reply is configured yet.");
+      }
+      return reply;
+    }
+
+    final flow = intent.flow;
+    if (flow == null || flow.steps.isEmpty) {
+      session.clear();
+      reply.say(
+          "Matched '${intent.name}', but its flow has no steps configured yet.");
+      return reply;
+    }
+
+    // Conditional start connectors read the trigger's captured variables, so
+    // seed the session before choosing an entry step.
+    session.clear();
+    session.intentKey = intent.key;
+    session.flow = flow;
+    session.flowName = flow.name;
+    session.data = {...triggerVars, ...turnContext};
+
+    final first = _startStep(
+        flow, turnContext[messageKey]?.toString(), session.data);
+    session.currentStepRef = first?.ref;
+
+    final landed = await _traverse(session, first, reply);
+
+    if (landed == null) {
+      // The flow finished on the turn it started (only self-driving steps).
+      _appendCompletion(reply, flow, session);
+      session.clear();
+      return reply;
+    }
+
+    session.currentStepRef = landed.ref;
+    reply.say(renderTemplate(landed.question, session.data));
+    reply.addAudio(landed.audioUrl);
+    reply.setOptions(stepOptions(landed, session.data));
+    return reply;
+  }
+
+  /// Answers one message. Mutates [session] to reflect where the flow now is.
+  Future<BotReply> respond({
+    required String message,
+    required BotSession session,
+    Map<String, dynamic> profile = const {},
+  }) async {
+    final trimmed = message.trim();
+    final turnContext = <String, dynamic>{
+      ...profile,
+      profileKey: profile,
+      messageKey: trimmed,
+      triggerMessageKey: trimmed,
+    };
+
+    final catalogue = bundle.forLanguage(langCode);
+
+    if (trimmed.isEmpty) {
+      return BotReply()..say('Please say something to begin!');
+    }
+
+    // An active flow: the message is first read as an answer to the step the
+    // flow is waiting on.
+    if (session.isActive) {
+      final flow = session.flow!;
+      final current = flow.stepByRef(session.currentStepRef);
+      if (current == null) {
+        session.clear();
+      } else {
+        final opts = stepOptions(current, session.data);
+        final selected = opts.isEmpty ? null : matchOption(opts, trimmed);
+
+        if (selected == null) {
+          // While a step waits on one of its options, only a confident intent
+          // match may interrupt it — a loose substring hit would let "hi" fire
+          // on the word "thing".
+          final maxTier = opts.isEmpty ? null : tierTemplateFull;
+          final match = findBestIntent(catalogue, trimmed, maxTier: maxTier) ??
+              findBestIntent(bundle.intents, trimmed, maxTier: maxTier);
+
+          if (match != null) {
+            return await _runIntent(
+                match.intent, match.variables, turnContext, session);
+          }
+
+          // Neither an option nor an intent — the step is waiting on a choice,
+          // so ask again instead of storing the stray utterance.
+          if (opts.isNotEmpty) {
+            final reply = BotReply()
+              ..say(optionMismatchMessage)
+              ..say(renderTemplate(current.question, session.data))
+              ..addAudio(current.audioUrl)
+              ..setOptions(opts);
+            return reply;
+          }
+        }
+
+        // From here the answer is the canonical option text when one was
+        // selected, so saved values and conditions see "Not Good" rather than
+        // "i am not good".
+        final answer = selected ?? trimmed;
+
+        session.data[profileKey] = profile;
+        for (final entry in profile.entries) {
+          session.data[entry.key] = entry.value;
+        }
+        session.data[messageKey] = answer;
+        session.data.putIfAbsent(triggerMessageKey, () => answer);
+
+        final validation = validateInput(answer, current.questionDataType);
+        if (!validation.valid) {
+          final reply = BotReply()
+            ..say('⚠️ ${validation.error}')
+            ..say(renderTemplate(current.question, session.data))
+            ..setOptions(stepOptions(current, session.data));
+          return reply;
+        }
+
+        _save(session, current.saveKey, answer);
+
+        final reply = BotReply();
+        final next = _nextStep(flow, current, answer, session.data);
+        final landed = await _traverse(session, next, reply);
+
+        if (landed != null) {
+          session.currentStepRef = landed.ref;
+          reply.say(renderTemplate(landed.question, session.data));
+          reply.addAudio(landed.audioUrl);
+          reply.setOptions(stepOptions(landed, session.data));
+          return reply;
+        }
+
+        _appendCompletion(reply, flow, session);
+        session.clear();
+
+        if (reply.text.isEmpty) {
+          // The flow ran out with nothing to say, and it was the user's own
+          // words that ended it — give them a second life as a trigger rather
+          // than replying with a dead end. No fallback here: the message was
+          // already understood as an answer, so "I didn't catch that" would be
+          // a lie.
+          final match = findBestIntent(catalogue, trimmed) ??
+              findBestIntent(bundle.intents, trimmed);
+          if (match != null) {
+            final followup = await _runIntent(
+                match.intent, match.variables, turnContext, session);
+            reply.segments.addAll(followup.segments);
+            reply.actions.addAll(followup.actions);
+          }
+        }
+
+        return reply;
+      }
+    }
+
+    // No active flow — intent detection.
+    final match = findBestIntent(catalogue, trimmed) ??
+        findBestIntent(bundle.intents, trimmed);
+    if (match != null) {
+      return await _runIntent(match.intent, match.variables, turnContext, session);
+    }
+
+    final fallback = bundle.fallbackFor(langCode);
+    if (fallback != null) {
+      return await _runIntent(fallback, const {}, turnContext, session);
+    }
+
+    return BotReply()
+      ..say(
+          "I'm sorry, I didn't catch that. Could you please rephrase, or try saying 'hi'?");
+  }
+}

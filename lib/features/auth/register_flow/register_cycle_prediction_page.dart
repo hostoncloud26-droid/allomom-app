@@ -7,10 +7,8 @@ import 'package:allomom/features/auth/register_flow/register_partner_details_pag
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
-import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
-import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 const _accent = Color(0xFFFF4E6A);
 const _ink = Color(0xFF1E2024);
@@ -55,23 +53,13 @@ class RegisterCyclePredictionPage extends StatefulWidget {
 class _RegisterCyclePredictionPageState
     extends State<RegisterCyclePredictionPage> {
   static final _longFmt = DateFormat('MMMM d, yyyy');
-  static final _shortFmt = DateFormat('d MMM');
 
-  int _cycleLength = defaultCycleLength;
+  final int _cycleLength = defaultCycleLength;
 
-  /// The line on the baby head card. Opens on the cycle-length question, since
-  /// the period date itself was answered on the screen before this one.
-  String _narrationKey = NarrationKeys.preCycleLength;
+  /// The line on the baby head card.
+  final String _narrationKey = NarrationKeys.preCycleLength;
 
   bool get _isNewMom => isNewMomRegistrationLabel(widget.status);
-
-  void _say(String key) {
-    if (!mounted) return;
-    setState(() => _narrationKey = key);
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(key, force: true);
-    }
-  }
 
   CyclePrediction get _prediction =>
       predictCycle(lastPeriodStart: widget.lmpDate, cycleLength: _cycleLength);
@@ -290,110 +278,7 @@ class _RegisterCyclePredictionPageState
                               ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-
-                          // ─── CYCLE LENGTH ───
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Average cycle length',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                        color: _ink,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Adjust if your cycle is longer or shorter',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 11,
-                                        color: _muted,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              _StepButton(
-                                icon: Icons.remove_rounded,
-                                enabled: _cycleLength > minCycleLength,
-                                onTap: () => setState(() => _cycleLength--),
-                              ),
-                              SizedBox(
-                                width: 54,
-                                child: Text(
-                                  '$_cycleLength',
-                                  textAlign: TextAlign.center,
-                                  style: GoogleFonts.outfit(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: _accent,
-                                  ),
-                                ),
-                              ),
-                              _StepButton(
-                                icon: Icons.add_rounded,
-                                enabled: _cycleLength < maxCycleLength,
-                                onTap: () => setState(() => _cycleLength++),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          // ─── FERTILE WINDOW (planning only) ───
-                          if (!_isNewMom)
-                            _InfoTile(
-                              icon: Icons.favorite_rounded,
-                              iconColor: const Color(0xFF8B5CF6),
-                              background: const Color(0xFFF3E8FF),
-                              title: 'Fertile window',
-                              value:
-                                  '${_shortFmt.format(prediction.fertileWindowStart)} '
-                                  '– ${_shortFmt.format(prediction.fertileWindowEnd)}',
-                              note:
-                                  'Ovulation around '
-                                  '${_shortFmt.format(prediction.ovulationDate)} — '
-                                  'your most likely days to conceive.',
-                            )
-                          else
-                            _InfoTile(
-                              icon: Icons.info_outline_rounded,
-                              iconColor: const Color(0xFF3898EC),
-                              background: const Color(0xFFEDF6FF),
-                              title: 'Cycles after delivery',
-                              value: 'Often irregular at first',
-                              note:
-                                  'Breastfeeding can delay your periods. We will '
-                                  'refine this prediction as you log each cycle.',
-                            ),
-                          const SizedBox(height: 16),
-
-                          NarrationHintChips(
-                            selectedKey: _narrationKey,
-                            onSelected: _say,
-                            padding: const EdgeInsets.only(bottom: 16),
-                            hints: [
-                              const NarrationHint(
-                                'My cycle is irregular',
-                                NarrationKeys.preCycleIrregular,
-                              ),
-                              // Only for someone planning: the advice is about
-                              // getting ready, not about recovering.
-                              if (!_isNewMom) ...[
-                                const NarrationHint(
-                                  'Folic acid?',
-                                  NarrationKeys.preFolicAcid,
-                                ),
-                                const NarrationHint(
-                                  'How should I prepare?',
-                                  NarrationKeys.preHabits,
-                                ),
-                              ],
-                            ],
-                          ),
+                          const SizedBox(height: 20),
 
                           SizedBox(
                             width: double.infinity,
@@ -441,116 +326,6 @@ class _RegisterCyclePredictionPageState
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _StepButton extends StatelessWidget {
-  const _StepButton({
-    required this.icon,
-    required this.enabled,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final bool enabled;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: enabled
-          ? _accent.withValues(alpha: 0.12)
-          : const Color(0xFFF1F5F9),
-      shape: const CircleBorder(),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: enabled ? onTap : null,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Icon(
-            icon,
-            size: 20,
-            color: enabled ? _accent : const Color(0xFFCBD5E1),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoTile extends StatelessWidget {
-  const _InfoTile({
-    required this.icon,
-    required this.iconColor,
-    required this.background,
-    required this.title,
-    required this.value,
-    required this.note,
-  });
-
-  final IconData icon;
-  final Color iconColor;
-  final Color background;
-  final String title;
-  final String value;
-  final String note;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: _muted,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-                Text(
-                  value,
-                  style: GoogleFonts.outfit(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  note,
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    color: const Color(0xFF6B707B),
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
