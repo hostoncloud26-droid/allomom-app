@@ -19,6 +19,8 @@ import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -85,6 +87,16 @@ void main() async {
   } catch (e) {
     debugPrint('Local notifications init notice: $e');
   }
+
+  // AlloBot's two on-device pieces, started here rather than when the screen
+  // is first opened: the intent catalogue refreshes itself and the Whisper
+  // model loads — or downloads, once — so the microphone is ready the first
+  // time it is tapped instead of after a wait she did not expect.
+  //
+  // Neither is awaited. A 75MB model download must never hold up the first
+  // frame, and both work from what is already on the phone until they finish.
+  AlloBotSpeechController.instance;
+  OfflineChatbotController.instance;
 
   runApp(const AllomomApp());
 }

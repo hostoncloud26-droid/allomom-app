@@ -2,10 +2,10 @@
 ///
 /// A port of AlloKonnect's "Ask AI" page: the downloaded bot definition is
 /// matched and its flow graph walked locally, so a conversation costs no
-/// network at all. The two views are AlloKonnect's — a voice landing view and
-/// the full transcript — with one substitution: where AlloKonnect shows a round
-/// AlloBot avatar, AlloMom shows the baby, who mouths the words while the reply
-/// is being read out.
+/// network at all. AlloKonnect toggles between a voice view and the transcript;
+/// here the transcript is its own tab, so this screen is only the voice view —
+/// and where AlloKonnect shows a round AlloBot avatar, AlloMom shows the baby,
+/// who mouths the words while the reply is being read out.
 library;
 
 import 'dart:async';
@@ -43,8 +43,22 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   final ScrollController _scroll = ScrollController();
   final FocusNode _inputFocus = FocusNode();
 
-  /// Voice landing view, or the full transcript. AlloKonnect's own toggle.
-  bool _showListView = false;
+  /// How tall the baby's card is allowed to grow. She takes the middle of the
+  /// screen up to this; past it she is already as big as she reads well at, and
+  /// the rest is better left as air than as a slab of pink.
+  static const double _maxBabyHeight = 430;
+
+  /// The floor she is never squeezed below.
+  ///
+  /// [BabyHeroBanner] drops the illustration and shows the bubble alone under
+  /// 200px, and on this screen she is the point — so on a short phone the reply
+  /// card gives up some of its room rather than costing us the baby entirely.
+  static const double _minBabyHeight = 210;
+
+  /// How tall the reply card may get: a share of the screen, so a small phone
+  /// does not hand a third of itself to two lines of text.
+  static double _replyCardCap(BuildContext context) =>
+      (MediaQuery.sizeOf(context).height * 0.145).clamp(88.0, 118.0);
 
   /// Whether the voice popup is open, so the page's mic can show that the
   /// phone is listening.
@@ -189,9 +203,8 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         child: Column(
           children: [
             _buildTopAppBar(),
-            Expanded(
-              child: _showListView ? _buildTranscriptView() : _buildVoiceView(),
-            ),
+            const SizedBox(height: 16),
+            Expanded(child: _buildVoiceView()),
           ],
         ),
       ),
@@ -230,11 +243,13 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               ),
             ),
           ),
+          SizedBox(width: 16),
           Expanded(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AlloBot',
+                  'AlloBaby',
                   style: GoogleFonts.outfit(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -244,7 +259,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                 Text(
                   'Your empathetic pregnancy companion',
                   style: GoogleFonts.poppins(
-                    fontSize: 11.5,
+                    fontSize: 10,
                     color: const Color(0xFF8E95A5),
                   ),
                 ),
@@ -252,21 +267,11 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             ),
           ),
           _circleButton(
-            icon: _showListView
-                ? Icons.graphic_eq_rounded
-                : Icons.format_list_bulleted_rounded,
-            tooltip: _showListView ? 'Voice view' : 'Full conversation',
-            onTap: () => setState(() => _showListView = !_showListView),
+            icon: Icons.forum_outlined,
+            tooltip: 'Open the conversation',
+            onTap: widget.onOpenChat,
           ),
-          const SizedBox(width: 8),
-          Obx(
-            () => _circleButton(
-              icon: Icons.more_vert_rounded,
-              tooltip: 'More',
-              busy: controller.isSyncing.value,
-              onTap: _showMenu,
-            ),
-          ),
+          // const SizedBox(width: 8),
         ],
       ),
     );
@@ -310,68 +315,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     );
   }
 
-  void _showMenu() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-      ),
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.add_comment_outlined,
-                  color: primaryColor),
-              title: const Text('New conversation'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                controller.createNewChat();
-                setState(() => _openingSuggestions = _drawOpeningSuggestions());
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.cloud_download_outlined,
-                  color: primaryColor),
-              title: const Text('Sync AlloBot'),
-              subtitle: const Text('Download the latest topics and flows'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                controller.sync().then((_) {
-                  if (mounted) {
-                    setState(
-                      () => _openingSuggestions = _drawOpeningSuggestions(),
-                    );
-                  }
-                });
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.forum_outlined, color: primaryColor),
-              title: const Text('Open chat'),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                widget.onOpenChat();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: dangerRed),
-              title: const Text(
-                'Clear downloaded topics',
-                style: TextStyle(color: dangerRed),
-              ),
-              onTap: () {
-                Navigator.pop(sheetContext);
-                controller.clearCache();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ─── VOICE VIEW ───
 
   Widget _buildVoiceView() {
@@ -393,57 +336,94 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
       final suggestions = _currentSuggestions();
 
+      // Resolved here, not inside the LayoutBuilder below: that builder runs
+      // during layout, outside this Obx's tracking window, so an observable
+      // read there would never rebuild the bubble when it changed.
+      final bubbleText = _bubbleText();
+
       return Column(
         children: [
           // ── 1. The baby, mouthing the reply while it is read out ──
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: BabyHeroBanner(
-              height: 240,
-              speechText: _bubbleText(),
-              speakingOverride: isSpeaking,
-              bubblePosition: SpeechBubblePosition.topCenter,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // ── 2. The latest reply, and the chips that follow from it ──
+          //
+          // She takes whatever the rest of the screen does not, so she is as
+          // big as the phone allows; everything below her is sized to its
+          // content. On a short screen the card shrinks first and the banner
+          // drops to its own compact layout rather than squashing her.
+          // ── 2. The latest reply, capped so it never stretches ──
+          //
+          // The two share the flexible middle of the screen, and the split is
+          // deliberate: the baby is given it first, up to her ceiling, and the
+          // card takes what is left. So a one-line answer reads as one line
+          // rather than a line stranded at the top of a tall white box, a
+          // longer one scrolls inside its cap, and the whole of it is always in
+          // the transcript view.
           Expanded(
-            child: Column(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildReplyCard(latest, isTyping),
-                  ),
-                ),
-                if (suggestions.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  _buildSuggestionStrip(suggestions),
-                ],
-                const SizedBox(height: 8),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                // The card's full allowance is reserved before she is
+                // measured, not just its minimum — reserving the minimum gave
+                // her every spare pixel and left the answer a two-line slot on
+                // a mid-sized phone.
+                final babyHeight =
+                    (constraints.maxHeight - _replyCardCap(context) - 10).clamp(
+                      _minBabyHeight,
+                      _maxBabyHeight,
+                    );
 
-                // ── 3. Keyboard composer, or the voice bar's two controls ──
-                // Keyboard mode swaps in the composer; otherwise nothing but
-                // room for the docked mic, which is where voice lives.
-                if (controller.isKeyboardMode.value)
-                  OfflineChatbotComposer(
-                    input: _input,
-                    focusNode: _inputFocus,
-                    onSend: _send,
-                    controller: controller,
-                    onMicTap: () {
-                      HapticFeedback.mediumImpact();
-                      controller.isKeyboardMode.value = false;
-                      _inputFocus.unfocus();
-                      startListening();
-                    },
-                  )
-                else
-                  const SizedBox(height: 24),
-              ],
+                return Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: BabyHeroBanner(
+                        height: babyHeight,
+                        speechText: bubbleText,
+                        speakingOverride: isSpeaking,
+                        bubblePosition: SpeechBubblePosition.topCenter,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    // Flexible, not Expanded: it sizes to its answer, and only
+                    // shrinks when a short screen has given the baby her floor.
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: _replyCardCap(context),
+                          ),
+                          child: _buildReplyCard(latest, isTyping),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
+          if (suggestions.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _buildSuggestionStrip(suggestions),
+          ],
+
+          // ── 3. Keyboard composer, or room for the docked mic ──
+          // Keyboard mode swaps in the composer; otherwise voice lives in the
+          // popup the docked mic opens, so there is nothing to put here.
+          if (controller.isKeyboardMode.value) ...[
+            const SizedBox(height: 8),
+            OfflineChatbotComposer(
+              input: _input,
+              focusNode: _inputFocus,
+              onSend: _send,
+              controller: controller,
+              onMicTap: () {
+                HapticFeedback.mediumImpact();
+                controller.isKeyboardMode.value = false;
+                _inputFocus.unfocus();
+                startListening();
+              },
+            ),
+          ],
+          const SizedBox(height: 50),
         ],
       );
     });
@@ -451,11 +431,14 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   /// What the baby's bubble says.
   ///
-  /// Her greeting, or that she is listening — the words being recognised show
-  /// inside the voice popup, which is over this card while it is open. The
-  /// reply itself belongs in the card below: the bubble is a fixed shape over
-  /// the illustration.
+  /// Anything the voice input needs to tell her comes first — that is what the
+  /// bubble is for, rather than a bar sliding over the bottom of the screen.
+  /// Otherwise: that she is listening, or her greeting. The words being
+  /// recognised show inside the voice popup, and the reply itself belongs in
+  /// the card below — the bubble is a fixed shape over the illustration.
   String _bubbleText() {
+    final notice = controller.voiceNotice.value;
+    if (notice.isNotEmpty) return notice;
     if (_isListening) return 'I am listening, Amma…';
     return controller.greetingLine().split('\n').first;
   }
@@ -702,51 +685,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
           ],
         ),
       ),
-    );
-  }
-
-  // ─── TRANSCRIPT VIEW ───
-
-  Widget _buildTranscriptView() {
-    return Column(
-      children: [
-        OfflineChatbotStatusBar(controller: controller),
-        Expanded(
-          child: Obx(() {
-            final messages = controller.messages;
-            _scrollToBottom();
-
-            return ListView.builder(
-              controller: _scroll,
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              itemCount: messages.length + (controller.isTyping.value ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index >= messages.length) {
-                  return const OfflineChatbotTypingBubble(showAvatar: true);
-                }
-                return OfflineChatMessageBubble(
-                  message: messages[index],
-                  onOptionSelected: _send,
-                );
-              },
-            );
-          }),
-        ),
-        Obx(() {
-          if (controller.activeOptions.isEmpty) return const SizedBox.shrink();
-          return OfflineChatbotActiveOptionsBar(
-            options: controller.activeOptions.toList(),
-            onOptionSelected: _send,
-          );
-        }),
-        OfflineChatbotComposer(
-          input: _input,
-          focusNode: _inputFocus,
-          onSend: _send,
-          controller: controller,
-          onMicTap: toggleListening,
-        ),
-      ],
     );
   }
 }

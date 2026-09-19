@@ -1,6 +1,37 @@
+/// AlloBot settings — two things, both of them real.
+///
+/// The persona cards, model pickers and creativity sliders that used to live
+/// here configured nothing: AlloBot answers from a downloaded intent catalogue
+/// and a Whisper model on the phone. So this screen is the language that
+/// catalogue is in, and the voice model she listens with.
+///
+/// Fetching the catalogue is not a control here — picking a language already
+/// downloads it, and the explicit sync lives in Ask Allo's own menu.
+library;
+
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/components/language_selector.dart';
+
+import 'package:allomom/config/colors.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
+import 'package:allomom/services/app_language.dart';
+
+const Color _ink = Color(0xFF1E2024);
+const Color _muted = Color(0xFF8E95A5);
+const Color _cardBorder = Color(0xFFF2E4E7);
+
+/// What a language code is called, for codes the server ships without a name.
+const Map<String, String> _languageNames = {
+  'en': 'English',
+  'hi': 'हिन्दी · Hindi',
+  'ta': 'தமிழ் · Tamil',
+  'kn': 'ಕನ್ನಡ · Kannada',
+  'te': 'తెలుగు · Telugu',
+  'mr': 'मराठी · Marathi',
+  'gu': 'ગુજરાતી · Gujarati',
+};
 
 class AlloBotSettingsTab extends StatefulWidget {
   const AlloBotSettingsTab({super.key});
@@ -10,725 +41,394 @@ class AlloBotSettingsTab extends StatefulWidget {
 }
 
 class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
-  String _selectedModel = 'Gemini 1.5 Flash';
-  double _creativityValue = 0.75;
-  bool _maternalMemoryEnabled = true;
+  final OfflineChatbotController chatbot = OfflineChatbotController.instance;
+  final AlloBotSpeechController speech = AlloBotSpeechController.instance;
 
-  String _selectedVoice = 'High-Pitch Baby';
-  double _pitchValue = 1.8;
-  double _speedValue = 1.1;
-  bool _autoSpeakReplies = true;
+  @override
+  void initState() {
+    super.initState();
+    // Only reaches the network when the phone has no catalogue to read the
+    // list from.
+    chatbot.loadLanguages();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      color: const Color(0xFFFAF6F7),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
-          const SizedBox(height: 12),
-
-          // ─── HEADER ───
           Text(
-            'AlloBot Settings',
-            style: GoogleFonts.outfit(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1E2024),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Configure agent persona, AI intelligence models, speech engines and languages.',
+            'Configure the voice AlloBot listens with, and the language she '
+            'answers in.',
             style: GoogleFonts.poppins(
-              fontSize: 12.5,
-              color: const Color(0xFF6B7280),
+              fontSize: 13,
+              height: 1.5,
+              color: _muted,
             ),
           ),
           const SizedBox(height: 18),
-
-          // ─── PERSONA CARD ───
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFE4E9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text('👶', style: TextStyle(fontSize: 24)),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'AlloBot',
-                            style: GoogleFonts.poppins(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF0F3),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Text(
-                              'Primary AI',
-                              style: GoogleFonts.poppins(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFFFF4E6A),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        'Empathetic Maternal Companion',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          color: const Color(0xFF6B7280),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      RichText(
-                        text: TextSpan(
-                          style: GoogleFonts.poppins(
-                            fontSize: 11.5,
-                            color: const Color(0xFF8E95A5),
-                          ),
-                          children: const [
-                            TextSpan(text: 'Tone: '),
-                            TextSpan(
-                              text: 'Nurturing',
-                              style: TextStyle(
-                                color: Color(0xFFFF4E6A),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(
-                    Icons.edit_outlined,
-                    color: Color(0xFF6B7280),
-                    size: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // ─── SECTION 1: MODEL CONFIG ───
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.memory_rounded,
-                      color: Color(0xFF6366F1),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'MODEL CONFIG',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E2024),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          Text(
-                            'Select intelligence engine and latency mode',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Model 1: Gemini 1.5 Flash
-                _buildModelOption(
-                  name: 'Gemini 1.5 Flash',
-                  badge: 'Realtime',
-                  badgeBg: const Color(0xFFE0F2FE),
-                  badgeColor: const Color(0xFF0284C7),
-                  desc: 'High speed, real-time voice latency (Recommended)',
-                ),
-                const SizedBox(height: 10),
-
-                // Model 2: Gemini 1.5 Pro
-                _buildModelOption(
-                  name: 'Gemini 1.5 Pro',
-                  badge: 'Clinical',
-                  badgeBg: const Color(0xFFF3E8FF),
-                  badgeColor: const Color(0xFF9333EA),
-                  desc: 'Deep clinical reasoning & detailed pregnancy analysis',
-                ),
-                const SizedBox(height: 10),
-
-                // Model 3: Edge Nano Model
-                _buildModelOption(
-                  name: 'Edge Nano Model',
-                  badge: 'Offline',
-                  badgeBg: const Color(0xFFE0F2FE),
-                  badgeColor: const Color(0xFF0284C7),
-                  desc: '100% on-device offline execution, zero cellular data',
-                ),
-
-                const SizedBox(height: 16),
-                const Divider(color: Color(0xFFF3F4F6), height: 1),
-                const SizedBox(height: 14),
-
-                // Creativity & Tone Slider
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Creativity & Tone',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    Text(
-                      'Warm & Conversational',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF6366F1),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                SliderTheme(
-                  data: SliderThemeData(
-                    activeTrackColor: const Color(0xFF6366F1),
-                    inactiveTrackColor: const Color(0xFFE5E7EB),
-                    thumbColor: const Color(0xFF6366F1),
-                    trackHeight: 5,
-                  ),
-                  child: Slider(
-                    value: _creativityValue,
-                    onChanged: (v) => setState(() => _creativityValue = v),
-                  ),
-                ),
-
-                // Maternal Memory Checkbox
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Maternal Memory',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          Text(
-                            'Feed week 24 vitals & symptoms into prompts',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Checkbox(
-                      value: _maternalMemoryEnabled,
-                      activeColor: const Color(0xFFFF4E6A),
-                      checkColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      onChanged: (val) =>
-                          setState(() => _maternalMemoryEnabled = val ?? false),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // ─── SECTION 2: SPEECH ENGINE (FIXED OVERFLOW) ───
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFE4E9),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.volume_up_rounded,
-                        color: Color(0xFFFF4E6A),
-                        size: 16,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'SPEECH ENGINE',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E2024),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          Text(
-                            'Text-to-speech voice tone',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Testing voice sample...'),
-                            duration: Duration(milliseconds: 900),
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0F3),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFFFD2DC)),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Color(0xFFFF4E6A),
-                              size: 14,
-                            ),
-                            const SizedBox(width: 3),
-                            Text(
-                              'Test Voice',
-                              style: GoogleFonts.poppins(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFFFF4E6A),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // 2x2 Voice Grid
-                GridView.count(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                  childAspectRatio: 2.2,
-                  children: [
-                    _buildVoiceCard(
-                      name: 'High-Pitch Baby',
-                      sub: 'Lottie Animated Sync',
-                    ),
-                    _buildVoiceCard(
-                      name: 'Google WaveNet',
-                      sub: 'Natural & Warm',
-                    ),
-                    _buildVoiceCard(
-                      name: 'ElevenLabs HD',
-                      sub: 'Ultra Real Studio',
-                    ),
-                    _buildVoiceCard(
-                      name: 'Device Native',
-                      sub: 'Zero Battery Drain',
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 16),
-
-                // Pitch & Speed Sliders Row
-                Row(
-                  children: [
-                    // Pitch
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Pitch',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: const Color(0xFF8E95A5),
-                                ),
-                              ),
-                              Text(
-                                '${_pitchValue.toStringAsFixed(1)}x',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFFFF4E6A),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SliderTheme(
-                            data: SliderThemeData(
-                              activeTrackColor: const Color(0xFFFF4E6A),
-                              inactiveTrackColor: const Color(0xFFE5E7EB),
-                              thumbColor: const Color(0xFFFF4E6A),
-                              trackHeight: 4,
-                            ),
-                            child: Slider(
-                              value: _pitchValue,
-                              min: 0.5,
-                              max: 2.5,
-                              onChanged: (v) =>
-                                  setState(() => _pitchValue = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-
-                    // Speed
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Speed',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: const Color(0xFF8E95A5),
-                                ),
-                              ),
-                              Text(
-                                '${_speedValue.toStringAsFixed(1)}x',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: const Color(0xFFFF4E6A),
-                                ),
-                              ),
-                            ],
-                          ),
-                          SliderTheme(
-                            data: SliderThemeData(
-                              activeTrackColor: const Color(0xFFFF4E6A),
-                              inactiveTrackColor: const Color(0xFFE5E7EB),
-                              thumbColor: const Color(0xFFFF4E6A),
-                              trackHeight: 4,
-                            ),
-                            child: Slider(
-                              value: _speedValue,
-                              min: 0.5,
-                              max: 2.0,
-                              onChanged: (v) =>
-                                  setState(() => _speedValue = v),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                // Auto-Speak Replies Checkbox
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Auto-Speak Replies',
-                            style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          Text(
-                            'Read assistant responses aloud automatically',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Checkbox(
-                      value: _autoSpeakReplies,
-                      activeColor: const Color(0xFFFF4E6A),
-                      checkColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      onChanged: (val) =>
-                          setState(() => _autoSpeakReplies = val ?? false),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 18),
-
-          // ─── SECTION 3: REUSABLE LANGUAGE SELECTOR ───
-          const LanguageSelector(),
-
-          const SizedBox(height: 100), // Bottom space for bar
+          _buildLanguageCard(),
+          const SizedBox(height: 16),
+          _buildVoiceModelCard(),
+          const SizedBox(height: 20),
+          _buildFootnote(),
         ],
       ),
     );
   }
 
-  Widget _buildModelOption({
-    required String name,
-    required String badge,
-    required Color badgeBg,
-    required Color badgeColor,
-    required String desc,
-  }) {
-    final isSelected = _selectedModel == name;
+  // ── Language ─────────────────────────────────────────────────────────────
 
-    return GestureDetector(
-      onTap: () => setState(() => _selectedModel = name),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
-        child: Row(
+  Widget _buildLanguageCard() {
+    return _card(
+      icon: Icons.translate_rounded,
+      title: 'LANGUAGE',
+      subtitle: 'The language her answers are written in',
+      child: Obx(() {
+        final languages = chatbot.availableLanguages;
+        final current = chatbot.langCode.value.isEmpty
+            ? AppLanguage.cachedOrFallback
+            : chatbot.langCode.value;
+        final syncing = chatbot.isSyncing.value;
+
+        if (languages.isEmpty) {
+          return _notice(
+            'Sync the intents once and the languages AlloBot has been taught '
+            'will appear here.',
+          );
+        }
+
+        return Column(
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            for (final language in languages)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _selectableRow(
+                  title: language.name.isNotEmpty
+                      ? language.name
+                      : (_languageNames[language.code] ?? language.code),
+                  subtitle: language.code.toUpperCase(),
+                  selected: language.code == current,
+                  // Switching re-downloads the catalogue, so it waits for the
+                  // one in flight rather than racing it.
+                  onTap: syncing
+                      ? null
+                      : () => chatbot.setLanguage(language.code),
+                ),
+              ),
+            const SizedBox(height: 2),
+            Text(
+              'Changing the language downloads that catalogue and starts a '
+              'fresh conversation.',
+              style: GoogleFonts.poppins(fontSize: 11.5, color: _muted),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  // ── Voice model ──────────────────────────────────────────────────────────
+
+  Widget _buildVoiceModelCard() {
+    return _card(
+      icon: Icons.graphic_eq_rounded,
+      title: 'VOICE MODEL',
+      subtitle: 'Runs on this phone — what you say is never uploaded',
+      child: Obx(() {
+        final downloading = speech.isDownloading.value;
+        final progress = speech.downloadProgress.value;
+        final activeId = speech.activeModelId.value;
+        final ready = speech.isReady.value;
+        final error = speech.errorMessage.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (downloading) ...[
+              _buildDownloadProgress(progress),
+              const SizedBox(height: 12),
+            ] else if (ready) ...[
+              _notice(
+                'Ready — ${speech.activeModel?.name ?? 'the voice model'} is on '
+                'this phone.',
+                isGood: true,
+              ),
+              const SizedBox(height: 12),
+            ],
+            for (final model in speech.supportedModels)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _selectableRow(
+                  title: model.name,
+                  subtitle: '${model.intelligence} · ${model.downloadSize}',
+                  selected: model.id == activeId,
+                  // One download at a time: starting a second would leave two
+                  // writing into the same folder.
+                  onTap: downloading ? null : () => speech.selectModel(model.id),
+                ),
+              ),
+            if (error.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _notice(error, isError: true),
+            ],
+            if (!downloading && !ready && error.isEmpty) ...[
+              const SizedBox(height: 4),
+              _notice(
+                'The voice model downloads by itself the first time it is '
+                'needed. Until it is here, you can type to AlloBot.',
+              ),
+            ],
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _buildDownloadProgress(double progress) {
+    final percent = (progress.clamp(0.0, 1.0) * 100).round();
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accentLight,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFFD2DC)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: primaryColor,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Downloading ${speech.activeModel?.name ?? 'the voice model'}…',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _ink,
+                  ),
+                ),
+              ),
+              Text(
+                '$percent%',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress <= 0 ? null : progress,
+              minHeight: 6,
+              backgroundColor: Colors.white,
+              valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'The microphone waits until this finishes.',
+            style: GoogleFonts.poppins(fontSize: 11.5, color: _muted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFootnote() {
+    return Text(
+      'AlloBot answers from the topics on this phone and listens with a model '
+      'that also lives on it, so a conversation works with no connection at '
+      'all.',
+      style: GoogleFonts.poppins(fontSize: 11.5, height: 1.5, color: _muted),
+    );
+  }
+
+  // ── Pieces ───────────────────────────────────────────────────────────────
+
+  Widget _card({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Widget child,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _cardBorder),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: accentLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: primaryColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.6,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: GoogleFonts.poppins(
+                        fontSize: 11.5,
+                        color: _muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _selectableRow({
+    required String title,
+    required String subtitle,
+    required bool selected,
+    required VoidCallback? onTap,
+  }) {
+    final disabled = onTap == null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Opacity(
+          opacity: disabled && !selected ? 0.5 : 1,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: selected ? accentLight : Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: selected ? primaryColor : dividerColor,
+                width: selected ? 1.4 : 1,
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        title,
                         style: GoogleFonts.poppins(
                           fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: isSelected
-                              ? const Color(0xFFFF4E6A)
-                              : const Color(0xFF1E2024),
+                          fontWeight: FontWeight.w600,
+                          color: selected ? primaryColor : _ink,
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: badgeBg,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          badge,
-                          style: GoogleFonts.poppins(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                            color: badgeColor,
-                          ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: GoogleFonts.poppins(
+                          fontSize: 11.5,
+                          color: _muted,
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    desc,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: const Color(0xFF8E95A5),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? const Color(0xFFFF4E6A) : Colors.transparent,
-                border: Border.all(
-                  color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFD1D5DB),
-                  width: 2,
                 ),
-              ),
-              child: isSelected
-                  ? const Center(
-                      child: Icon(Icons.check, size: 12, color: Colors.white),
-                    )
-                  : null,
+                Icon(
+                  selected
+                      ? Icons.check_circle_rounded
+                      : Icons.circle_outlined,
+                  size: 20,
+                  color: selected ? primaryColor : const Color(0xFFCFD3DC),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildVoiceCard({required String name, required String sub}) {
-    final isSelected = _selectedVoice == name;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedVoice = name),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
-            width: isSelected ? 1.5 : 1,
+  Widget _notice(String text, {bool isError = false, bool isGood = false}) {
+    final color = isError
+        ? dangerRed
+        : (isGood ? successGreen : _muted);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isError
+                ? Icons.error_outline_rounded
+                : (isGood
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.info_outline_rounded),
+            size: 15,
+            color: color,
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
               style: GoogleFonts.poppins(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
+                fontSize: 11.5,
+                height: 1.4,
+                color: isError ? dangerRed : _ink,
               ),
             ),
-            Text(
-              sub,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.poppins(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

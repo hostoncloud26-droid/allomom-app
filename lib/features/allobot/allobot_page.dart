@@ -7,6 +7,7 @@ import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_settings_tab.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 
 class AlloBotPage extends StatefulWidget {
   final int initialTab;
@@ -31,6 +32,9 @@ class _AlloBotPageState extends State<AlloBotPage> {
   /// The conversation the whole page shares, so the mic can show when the baby
   /// is talking without the Ask Allo tab having to tell it.
   final OfflineChatbotController _chatbot = OfflineChatbotController.instance;
+
+  /// The on-device voice model, so the mic can say when it is not ready yet.
+  final AlloBotSpeechController _speech = AlloBotSpeechController.instance;
 
   /// What the docked mic wears while a reply is being read out.
   static const Color _speakingColor = Color(0xFF10B981);
@@ -128,38 +132,6 @@ class _AlloBotPageState extends State<AlloBotPage> {
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
                         color: Color(0xFF1E2024),
-                      ),
-                    ),
-                    const Spacer(),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFECFDF5),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFA7F3D0)),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.wifi_rounded,
-                            color: Color(0xFF059669),
-                            size: 13,
-                          ),
-                          SizedBox(width: 5),
-                          Text(
-                            'HIGH BANDWIDTH',
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF059669),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ],
@@ -266,23 +238,30 @@ class _AlloBotPageState extends State<AlloBotPage> {
             // Speaking turns the mic green, so the control that stops her is
             // also what shows she is talking.
             final isSpeaking = _chatbot.isSpeaking.value;
+            // Greyed out while the voice model is still arriving: tapping it
+            // then can only fail, and the ring shows how far along it is.
+            final isFetchingVoice = _speech.isDownloading.value;
 
             return AlloBotMicButton(
-            isListening: isListening || isSpeaking,
-            gradient: isSpeaking ? _speakingGradient : primaryGradient,
-            color: isSpeaking ? _speakingColor : primaryColor,
-            onTap: () {
-              if (_currentIndex != 0) {
-                setState(() {
-                  _currentIndex = 0;
-                });
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _askAiKey.currentState?.startListening();
-                });
-              } else {
-                _askAiKey.currentState?.toggleListening();
-              }
-            },
+              isListening: isListening || isSpeaking,
+              gradient: isSpeaking ? _speakingGradient : primaryGradient,
+              color: isSpeaking ? _speakingColor : primaryColor,
+              enabled: !isFetchingVoice,
+              progress: isFetchingVoice
+                  ? _speech.downloadProgress.value
+                  : null,
+              onTap: () {
+                if (_currentIndex != 0) {
+                  setState(() {
+                    _currentIndex = 0;
+                  });
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    _askAiKey.currentState?.startListening();
+                  });
+                } else {
+                  _askAiKey.currentState?.toggleListening();
+                }
+              },
             );
           });
         },

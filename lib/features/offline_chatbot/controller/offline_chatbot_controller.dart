@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -109,6 +110,16 @@ class OfflineChatbotController extends GetxController {
   /// Whether the bot is speaking its reply, so the baby can animate along.
   final RxBool isSpeaking = false.obs;
 
+  /// Something the voice input needs to say — that it did not catch the words,
+  /// or that the phone cannot listen at all.
+  ///
+  /// It goes in the baby's speech bubble rather than a snackbar: the bubble is
+  /// where she talks, a bar sliding over the bottom of the screen is the app
+  /// interrupting, and while the voice sheet is open the bottom is exactly
+  /// where she cannot read it.
+  final RxString voiceNotice = ''.obs;
+  Timer? _voiceNoticeTimer;
+
   BotBundle? bundle;
   OfflineChatbotEngine? _engine;
   final BotSession _session = BotSession();
@@ -119,6 +130,15 @@ class OfflineChatbotController extends GetxController {
   int _delivery = 0;
 
   bool get hasBundle => bundle != null && !bundle!.isEmpty;
+
+  /// The languages the catalogue can be downloaded in.
+  ///
+  /// Read from the bundle already on the phone rather than fetched: the server
+  /// ships the language list inside every download, so the picker works with no
+  /// connection, and [loadLanguages] only has to reach out when there is no
+  /// catalogue yet.
+  List<BotLanguage> get availableLanguages =>
+      bundle?.languages ?? const <BotLanguage>[];
 
   int get intentCount => bundle?.intents.length ?? 0;
 
@@ -137,9 +157,25 @@ class OfflineChatbotController extends GetxController {
 
   @override
   void onClose() {
+    _voiceNoticeTimer?.cancel();
     _tts.isSpeakingNotifier.removeListener(_onSpeakingChanged);
     _tts.stop();
     super.onClose();
+  }
+
+  /// Puts a line in the baby's bubble, and takes it away again so the screen
+  /// does not sit on a stale complaint.
+  void showVoiceNotice(String message) {
+    _voiceNoticeTimer?.cancel();
+    voiceNotice.value = message;
+    _voiceNoticeTimer = Timer(const Duration(seconds: 6), () {
+      voiceNotice.value = '';
+    });
+  }
+
+  void clearVoiceNotice() {
+    _voiceNoticeTimer?.cancel();
+    voiceNotice.value = '';
   }
 
   void _onSpeakingChanged() => isSpeaking.value = _tts.isSpeakingNotifier.value;
@@ -153,9 +189,15 @@ class OfflineChatbotController extends GetxController {
 
     if (!hasBundle) {
       await sync();
-    } else {
-      _greet();
+      return;
     }
+
+    // There is a catalogue, so the conversation opens on it straight away —
+    // that is the point of caching it. A refresh then runs behind the screen,
+    // because otherwise a phone that synced once would answer from that
+    // download for ever, and intents added since would never reach her.
+    _greet();
+    unawaited(sync(quiet: true));
   }
 
   // ── Catalogue ────────────────────────────────────────────────────────────
@@ -187,7 +229,11 @@ class OfflineChatbotController extends GetxController {
 
   /// Downloads the bot definition and caches it. The one call that needs a
   /// network; everything after it is local.
-  Future<void> sync({String? language}) async {
+  ///
+  /// [quiet] is for the refresh that runs on launch: a failure there is not
+  /// worth a banner, because the catalogue already on the phone still answers
+  /// and she never asked for the download in the first place.
+  Future<void> sync({String? language, bool quiet = false}) async {
     if (isSyncing.value) return;
     isSyncing.value = true;
     error.value = '';
@@ -198,11 +244,13 @@ class OfflineChatbotController extends GetxController {
       );
 
       if (!response.success || response.item is! Map) {
-        error.value = response.networkError
-            ? 'No connection — using what is already on this phone.'
-            : (response.detail.isEmpty
-                  ? 'Could not download AlloBot right now.'
-                  : response.detail);
+        if (!quiet) {
+          error.value = response.networkError
+              ? 'No connection — using what is already on this phone.'
+              : (response.detail.isEmpty
+                    ? 'Could not download AlloBot right now.'
+                    : response.detail);
+        }
         return;
       }
 
@@ -227,7 +275,7 @@ class OfflineChatbotController extends GetxController {
       activeOptions.clear();
       _greet();
     } catch (e) {
-      error.value = 'Could not download AlloBot: $e';
+      if (!quiet) error.value = 'Could not download AlloBot: $e';
     } finally {
       isSyncing.value = false;
     }
@@ -458,9 +506,17 @@ class OfflineChatbotController extends GetxController {
   /// Answers a message locally and delivers the reply's segments in order,
   /// honouring the pause each one carries so a delay step reads as a real gap
   /// between two bubbles.
-  Future<void> send(String text) async {
+  ///
+  /// [speak] is the caller's call, not a setting: Ask Allo is a conversation
+  /// held out loud and reads the answer back, Chat is a transcript being read,
+  /// and a phone that starts talking while she is reading is an interruption.
+  Future<void> send(String text, {bool speak = true}) async {
     final message = text.trim();
     if (message.isEmpty || isTyping.value) return;
+
+    // Her own words supersede whatever the voice input was complaining about,
+    // including when there is no catalogue yet and this turn ends in a note.
+    clearVoiceNotice();
 
     // Whatever is being said belongs to the previous turn. Not awaited: the
     // stop is a platform round-trip, and the mother's own message should not
@@ -512,7 +568,7 @@ class OfflineChatbotController extends GetxController {
               options: segment.options,
             ),
           );
-          _speakReplyIfEnabled(segment.text);
+          if (speak) _speakReplyIfEnabled(segment.text);
         }
         for (final url in segment.imageUrls) {
           messages.add(OfflineChatMessage(text: '', imageUrl: url));
@@ -535,6 +591,11 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
+  /// The last line handed to the voice, so a test can tell "not spoken" from
+  /// "spoken into a test binding that has no speech plugin".
+  @visibleForTesting
+  String? lastSpokenText;
+
   /// Reads the reply out, when the baby's voice is on.
   ///
   /// An error or a system note is never spoken: hearing "something went wrong"
@@ -545,6 +606,7 @@ class OfflineChatbotController extends GetxController {
       return;
     }
     if (_isSystemOrErrorText(text)) return;
+    lastSpokenText = text;
     _tts.speak(text);
   }
 
@@ -609,6 +671,47 @@ class OfflineChatbotController extends GetxController {
         messages.add(OfflineChatMessage(text: result.message!, isSystem: true));
       }
     }
+  }
+
+  /// Fetches the language list when there is no catalogue to read it from.
+  Future<void> loadLanguages() async {
+    if (availableLanguages.isNotEmpty) return;
+    try {
+      final response = await ChatbotApi.getLanguages();
+      if (!response.success || response.items is! List) return;
+      final fetched = (response.items as List)
+          .whereType<Map>()
+          .map((e) => BotLanguage.fromJson(Map<String, dynamic>.from(e)))
+          .where((l) => l.code.isNotEmpty)
+          .toList();
+      if (fetched.isEmpty) return;
+      // Kept on the bundle so the picker and the download agree on one list.
+      bundle = BotBundle(
+        version: bundle?.version ?? 1,
+        langCode: bundle?.langCode,
+        downloadedAt: bundle?.downloadedAt,
+        languages: fetched,
+        intents: bundle?.intents ?? const [],
+        audios: bundle?.audios ?? const [],
+      );
+      update();
+    } catch (_) {
+      // Without a list the picker simply shows what the bundle already had.
+    }
+  }
+
+  /// Switches the catalogue to another language and downloads it.
+  ///
+  /// The whole catalogue is per-language, so this is a re-download rather than
+  /// a filter — and the conversation starts again, because the intents that
+  /// answered the old one are gone.
+  Future<void> setLanguage(String code) async {
+    final next = code.trim();
+    if (next.isEmpty || next == langCode.value) return;
+
+    langCode.value = next;
+    await AppLanguage.save(next);
+    await sync(language: next);
   }
 
   /// Trigger phrases the downloaded catalogue answers to, for a quick hint.

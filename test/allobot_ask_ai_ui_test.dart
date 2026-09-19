@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -5,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/allobot/tabs/allobot_ask_ai_tab.dart';
+import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
@@ -142,27 +145,34 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('opens on the voice view, with the baby and a reply card',
-        (tester) async {
+    testWidgets('is the voice view only, with the baby standing in for the '
+        'bot avatar', (tester) async {
       await pumpTab(tester, const Size(412, 915));
 
-      // The baby stands in for AlloKonnect's round bot avatar.
       expect(find.byType(BabyHeroBanner), findsOneWidget);
-      // The transcript is the other view, reached from the app bar.
+      // The transcript is the Chat tab's job now, not a view toggled here.
       expect(find.byType(OfflineChatMessageBubble), findsNothing);
-      expect(find.byIcon(Icons.format_list_bulleted_rounded), findsOneWidget);
+      expect(find.byType(OfflineChatbotStatusBar), findsNothing);
+      // What was the toggle now simply opens Chat.
+      expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
     });
 
-    testWidgets('the transcript view shows the status bar and composer',
+    testWidgets('its chat button asks the page for the Chat tab',
         (tester) async {
-      await pumpTab(tester, const Size(412, 915));
+      var openedChat = 0;
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
 
-      await tester.tap(find.byIcon(Icons.format_list_bulleted_rounded));
+      await tester.pumpWidget(
+        MaterialApp(home: AlloBotAskAiTab(onOpenChat: () => openedChat++)),
+      );
       await tester.pump();
 
-      expect(find.byType(OfflineChatbotStatusBar), findsOneWidget);
-      expect(find.byType(OfflineChatbotComposer), findsOneWidget);
-      expect(tester.takeException(), isNull);
+      await tester.tap(find.byIcon(Icons.forum_outlined));
+      await tester.pump();
+
+      expect(openedChat, 1);
     });
 
     testWidgets('keyboard mode swaps in the composer, voice mode leaves room',
@@ -180,6 +190,40 @@ void main() {
       await tester.pump();
       expect(find.byType(OfflineChatbotComposer), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a voice notice lands in the baby\'s bubble, not a snackbar',
+        (tester) async {
+      final key = await pumpTab(tester, const Size(412, 915));
+      final controller = key.currentState!.controller;
+
+      controller.showVoiceNotice('I did not catch that, Amma.');
+      await tester.pump();
+
+      expect(find.text('I did not catch that, Amma.'), findsOneWidget);
+      expect(find.byType(SnackBar), findsNothing);
+
+      // It clears itself, so the screen does not sit on a stale complaint.
+      controller.clearVoiceNotice();
+      await tester.pump();
+      expect(find.text('I did not catch that, Amma.'), findsNothing);
+    });
+
+    testWidgets('sending replaces whatever the notice was about',
+        (tester) async {
+      final key = await pumpTab(tester, const Size(412, 915));
+      final controller = key.currentState!.controller;
+
+      controller.showVoiceNotice('I did not catch that, Amma.');
+      await tester.pump();
+      expect(find.text('I did not catch that, Amma.'), findsOneWidget);
+
+      controller.send('hello');
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(controller.voiceNotice.value, isEmpty);
+      expect(find.text('I did not catch that, Amma.'), findsNothing);
     });
 
     testWidgets('a suggestion chip sends its prompt', (tester) async {
@@ -281,6 +325,116 @@ void main() {
       expect(find.byType(AlloBotVoicePopup), findsNothing);
       expect(controller.messages.length, before);
       expect(controller.isKeyboardMode.value, isFalse);
+    });
+  });
+
+  group('AlloBotChatTab', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+    tearDown(Get.reset);
+
+    Future<void> pumpChat(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(412, 915);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(const MaterialApp(home: AlloBotChatTab()));
+      await tester.pump();
+    }
+
+    testWidgets('is the transcript: status bar, composer, no baby hero',
+        (tester) async {
+      await pumpChat(tester);
+
+      expect(find.byType(OfflineChatbotStatusBar), findsOneWidget);
+      expect(find.byType(OfflineChatbotComposer), findsOneWidget);
+      // The hero belongs to Ask Allo; this view is for reading back.
+      expect(find.byType(BabyHeroBanner), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('shows what was said, from the conversation Ask Allo shares',
+        (tester) async {
+      await pumpChat(tester);
+      final controller = OfflineChatbotController.instance;
+
+      controller.messages.add(OfflineChatMessage(text: 'A line she said'));
+      await tester.pump();
+
+      expect(find.byType(OfflineChatMessageBubble), findsWidgets);
+      expect(find.textContaining('A line she said'), findsOneWidget);
+    });
+  });
+
+  group('speaking', () {
+    setUp(() => SharedPreferences.setMockInitialValues({}));
+    tearDown(Get.reset);
+
+    /// A controller with a catalogue in place, so a turn actually produces a
+    /// reply to read out.
+    Future<OfflineChatbotController> seeded(WidgetTester tester) async {
+      SharedPreferences.setMockInitialValues({
+        'allomom_offline_chatbot_bundle': jsonEncode({
+          'version': 1,
+          'lang_code': 'en',
+          'downloaded_at': DateTime.now().toIso8601String(),
+          'intents': [
+            {
+              'key': 'greet',
+              'name': 'Greet',
+              'examples': ['hi'],
+              'type': 'response',
+              'lang_code': 'en',
+              'response': {'message': 'Hello Amma'},
+            },
+          ],
+        }),
+      });
+      final controller = OfflineChatbotController.instance;
+      // onInit reads prefs and builds the engine.
+      await tester.pumpWidget(const MaterialApp(home: SizedBox()));
+      await tester.pumpAndSettle();
+      return controller;
+    }
+
+    testWidgets('the launch refresh stays quiet when it fails', (tester) async {
+      // A cached catalogue is refreshed in the background on every launch, so
+      // intents added since the last download actually reach her. Under test
+      // that request fails — and must do so silently, because she never asked
+      // for it and the cached catalogue still answers.
+      final controller = await seeded(tester);
+
+      expect(controller.hasBundle, isTrue);
+      expect(controller.error.value, isEmpty);
+      expect(controller.isSyncing.value, isFalse);
+    });
+
+    testWidgets('a refresh she asked for reports what went wrong',
+        (tester) async {
+      final controller = await seeded(tester);
+
+      await controller.sync();
+      await tester.pumpAndSettle();
+
+      expect(controller.error.value, isNotEmpty);
+    });
+
+    testWidgets('Ask Allo reads the answer back', (tester) async {
+      final controller = await seeded(tester);
+      expect(controller.hasBundle, isTrue, reason: 'cached bundle not loaded');
+
+      await controller.send('hi');
+      await tester.pumpAndSettle();
+
+      expect(controller.lastSpokenText, 'Hello Amma');
+    });
+
+    testWidgets('Chat does not — it is a transcript being read', (tester) async {
+      final controller = await seeded(tester);
+
+      await controller.send('hi', speak: false);
+      await tester.pumpAndSettle();
+
+      expect(controller.messages.last.text, 'Hello Amma');
+      expect(controller.lastSpokenText, isNull);
     });
   });
 }

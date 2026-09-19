@@ -17,11 +17,21 @@ class AlloBotMicButton extends StatefulWidget {
     this.gradient,
     this.color = const Color(0xFFFF4E6A),
     this.size = 64,
+    this.enabled = true,
+    this.progress,
   });
 
   final bool isListening;
   final VoidCallback onTap;
   final Gradient? gradient;
+
+  /// False while the phone cannot listen — the voice model is still arriving.
+  /// The button greys out and stops responding rather than failing on tap.
+  final bool enabled;
+
+  /// How far that download has got, 0..1. Drawn as a ring around the button, so
+  /// the wait has a visible end.
+  final double? progress;
 
   /// Used for the pulse rings and as the fallback fill.
   final Color color;
@@ -35,14 +45,18 @@ class AlloBotMicButton extends StatefulWidget {
 
 class _AlloBotMicButtonState extends State<AlloBotMicButton>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1600),
-  );
+  // Built in initState, not as a late field: a button that never pulses would
+  // otherwise have its controller created inside dispose(), which looks up a
+  // ticker on an element that is already gone.
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1600),
+    );
     if (widget.isListening) _controller.repeat();
   }
 
@@ -101,27 +115,50 @@ class _AlloBotMicButtonState extends State<AlloBotMicButton>
                   ),
                 ),
               ),
+            if (widget.progress != null)
+              IgnorePointer(
+                child: SizedBox(
+                  width: widget.size + 10,
+                  height: widget.size + 10,
+                  child: CircularProgressIndicator(
+                    value: widget.progress,
+                    strokeWidth: 3,
+                    backgroundColor: Colors.black.withValues(alpha: 0.06),
+                    valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+                  ),
+                ),
+              ),
             GestureDetector(
-              onTap: widget.onTap,
+              onTap: widget.enabled ? widget.onTap : null,
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 220),
                 width: widget.size,
                 height: widget.size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  gradient: widget.gradient,
-                  color: widget.gradient == null ? widget.color : null,
+                  gradient: widget.enabled ? widget.gradient : null,
+                  color: widget.enabled
+                      ? (widget.gradient == null ? widget.color : null)
+                      : const Color(0xFFD9DBE1),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.color
-                          .withValues(alpha: widget.isListening ? 0.55 : 0.4),
+                      color: (widget.enabled ? widget.color : Colors.black)
+                          .withValues(
+                            alpha: widget.enabled
+                                ? (widget.isListening ? 0.55 : 0.4)
+                                : 0.12,
+                          ),
                       blurRadius: widget.isListening ? 20 : 12,
                       offset: const Offset(0, 4),
                     ),
                   ],
                 ),
                 child: Icon(
-                  widget.isListening ? Icons.pause_rounded : Icons.mic_rounded,
+                  !widget.enabled
+                      ? Icons.mic_off_rounded
+                      : (widget.isListening
+                            ? Icons.pause_rounded
+                            : Icons.mic_rounded),
                   color: Colors.white,
                   size: 28,
                 ),

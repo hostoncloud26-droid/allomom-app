@@ -6,23 +6,26 @@
 /// the moment it opens, closing it mid-listen cancels cleanly, and the keyboard
 /// control hands the screen over to the text composer.
 ///
-/// The one substitution: AlloKonnect records a clip and transcribes it with
-/// Whisper afterwards, so its mic can only show a timer. AlloMom recognises on
-/// device as she speaks, so the words appear above the capsule while she is
-/// still talking.
+/// Like AlloKonnect it records a clip and transcribes it with Whisper on the
+/// device, so nothing she says is sent anywhere: the mic shows a timer while
+/// she talks and a spinner while the model reads it back.
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:speech_to_text/speech_recognition_error.dart';
-import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
 
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
+import 'package:allomom/features/offline_chatbot/speech/allobot_speech_service.dart';
 
 class AlloBotVoicePopup extends StatefulWidget {
   const AlloBotVoicePopup({
@@ -31,6 +34,7 @@ class AlloBotVoicePopup extends StatefulWidget {
     this.onEnableKeyboardMode,
     this.onTopicsRequested,
     this.autoStartListening = true,
+    this.speakReply = true,
   });
 
   final OfflineChatbotController controller;
@@ -46,6 +50,10 @@ class AlloBotVoicePopup extends StatefulWidget {
 
   final bool autoStartListening;
 
+  /// Whether the answer to this turn is read back. False from the transcript,
+  /// which is a screen being read rather than a conversation being held.
+  final bool speakReply;
+
   /// Shows the popup.
   static Future<void> show(
     BuildContext context, {
@@ -53,6 +61,7 @@ class AlloBotVoicePopup extends StatefulWidget {
     VoidCallback? onEnableKeyboardMode,
     VoidCallback? onTopicsRequested,
     bool autoStartListening = true,
+    bool speakReply = true,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -64,6 +73,7 @@ class AlloBotVoicePopup extends StatefulWidget {
         onEnableKeyboardMode: onEnableKeyboardMode,
         onTopicsRequested: onTopicsRequested,
         autoStartListening: autoStartListening,
+        speakReply: speakReply,
       ),
     );
   }
@@ -74,7 +84,8 @@ class AlloBotVoicePopup extends StatefulWidget {
 
 class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     with SingleTickerProviderStateMixin {
-  final stt.SpeechToText _speech = stt.SpeechToText();
+  final AudioRecorder _recorder = AudioRecorder();
+  final AlloBotSpeechController _speech = AlloBotSpeechController.instance;
 
   // Built in initState rather than as late fields: a popup opened and closed
   // without ever pulsing would otherwise create its controller inside
@@ -88,10 +99,10 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
   /// spinner state AlloKonnect shows while Whisper is transcribing.
   bool _isSending = false;
 
-  bool _speechReady = false;
   int _duration = 0;
   Timer? _timer;
-  String _heard = '';
+  String? _clipPath;
+  DateTime? _startedAt;
 
   @override
   void initState() {
@@ -115,11 +126,12 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
-    // Closing the sheet mid-listen must not leave recognition running, and must
-    // not send whatever was picked up on the way out.
+    // Closing the sheet mid-recording must not leave the mic open, and must not
+    // send whatever was picked up on the way out.
     try {
-      _speech.cancel();
+      _recorder.stop();
     } catch (_) {}
+    _recorder.dispose();
     super.dispose();
   }
 
@@ -145,39 +157,63 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     await widget.controller.stopCurrentTurn();
     if (!mounted) return;
 
-    if (!_speechReady) {
-      try {
-        _speechReady = await _speech.initialize(
-          onError: (SpeechRecognitionError error) {
-            debugPrint('Ask Allo voice error: ${error.errorMsg}');
-            if (mounted) _resetListeningState();
-          },
-          onStatus: (status) {
-            if (!mounted) return;
-            // The engine stops itself after a pause. Whatever it heard by then
-            // is the message, so it is sent rather than dropped.
-            if (status == 'done' || status == 'notListening') {
-              if (_isListening) unawaited(_stopAndSend());
-            }
-          },
-        );
-      } catch (e) {
-        debugPrint('Ask Allo voice init failed: $e');
-        _speechReady = false;
-      }
-    }
-    if (!mounted) return;
-
-    if (!_speechReady) {
-      _showNote('Voice input is not available — type instead.');
-      _switchToKeyboard();
+    if (_speech.isDownloading.value) {
+      widget.controller.showVoiceNotice(
+        'I am still learning to listen — the voice model is downloading.',
+      );
       return;
     }
 
+    if (!_speech.canListen) {
+      widget.controller.showVoiceNotice(
+        'My voice model is not ready yet. Type to me, or start the download '
+        'from Settings.',
+      );
+      unawaited(_switchToKeyboard());
+      return;
+    }
+
+    try {
+      if (!await _recorder.hasPermission()) {
+        widget.controller.showVoiceNotice(
+          'I need permission to use the microphone before I can listen.',
+        );
+        return;
+      }
+
+      final tempDir = await getTemporaryDirectory();
+      final path = p.join(
+        tempDir.path,
+        'ask_allo_${DateTime.now().millisecondsSinceEpoch}.wav',
+      );
+      _clipPath = path;
+
+      // 16 kHz mono WAV is what Whisper expects.
+      await _recorder.start(
+        const RecordConfig(
+          encoder: AudioEncoder.wav,
+          sampleRate: 16000,
+          numChannels: 1,
+        ),
+        path: path,
+      );
+    } catch (e) {
+      debugPrint('Ask Allo recording failed to start: $e');
+      widget.controller.showVoiceNotice('I could not start listening just now.');
+      _resetListeningState();
+      return;
+    }
+
+    if (!mounted) {
+      unawaited(_recorder.stop());
+      return;
+    }
+
+    widget.controller.clearVoiceNotice();
+    _startedAt = DateTime.now();
     setState(() {
       _isListening = true;
       _duration = 0;
-      _heard = '';
     });
     _pulseController.repeat(reverse: true);
 
@@ -185,29 +221,14 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       setState(() => _duration++);
+      // A minute is far longer than a question, and the clip has to be held in
+      // memory to transcribe it.
       if (_duration >= 60) unawaited(_stopAndSend());
     });
-
-    try {
-      await _speech.listen(
-        onResult: (result) {
-          if (!mounted) return;
-          setState(() => _heard = result.recognizedWords);
-          if (result.finalResult) unawaited(_stopAndSend());
-        },
-        listenOptions: stt.SpeechListenOptions(
-          listenMode: stt.ListenMode.dictation,
-          partialResults: true,
-          cancelOnError: false,
-        ),
-      );
-    } catch (e) {
-      debugPrint('Ask Allo voice listen failed: $e');
-      if (mounted) _resetListeningState();
-    }
   }
 
-  /// Ends the turn's listening, sends what was heard and closes the sheet.
+  /// Stops the recording, transcribes it on the device, sends what it heard and
+  /// closes the sheet.
   Future<void> _stopAndSend() async {
     if (!_isListening || _isSending) return;
 
@@ -220,22 +241,59 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
       _isSending = true;
     });
 
+    String? path;
     try {
-      await _speech.stop();
-    } catch (_) {}
+      path = await _recorder.stop();
+    } catch (e) {
+      debugPrint('Ask Allo recording failed to stop: $e');
+    }
+    path ??= _clipPath;
 
-    final spoken = _heard.trim();
-    if (spoken.isEmpty) {
-      // Nothing to send: stay open so she can simply try again, which is what
-      // AlloKonnect does when a clip transcribes to nothing.
+    final spokenFor = _startedAt == null
+        ? Duration.zero
+        : DateTime.now().difference(_startedAt!);
+    _startedAt = null;
+    _clipPath = null;
+
+    if (path == null || spokenFor < const Duration(milliseconds: 500)) {
+      // An accidental tap rather than a question.
+      if (path != null) unawaited(_deleteClip(path));
       if (mounted) {
         setState(() => _isSending = false);
-        _showNote('I did not catch that. Please try again.');
+        widget.controller.showVoiceNotice('That was too short for me to hear.');
       }
       return;
     }
 
-    widget.controller.send(spoken);
+    String heard = '';
+    try {
+      heard = await AlloBotSpeechService.instance.transcribe(path);
+    } catch (e) {
+      debugPrint('Ask Allo transcription failed: $e');
+    } finally {
+      unawaited(_deleteClip(path));
+    }
+
+    // Whisper marks what it could not make out with bracketed notes such as
+    // [BLANK_AUDIO]; they are not words she said.
+    final spoken = heard
+        .replaceAll(RegExp(r'\[.*?\]'), '')
+        .replaceAll(RegExp(r'\(.*?\)'), '')
+        .trim();
+
+    if (spoken.isEmpty) {
+      // Nothing to send: stay open so she can simply try again.
+      if (mounted) {
+        setState(() => _isSending = false);
+        // Said in her bubble, behind the sheet, where she does her talking.
+        widget.controller.showVoiceNotice(
+          'I did not catch that, Amma. Please say it again.',
+        );
+      }
+      return;
+    }
+
+    widget.controller.send(spoken, speak: widget.speakReply);
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
@@ -246,10 +304,25 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     _timer?.cancel();
     _pulseController.stop();
     _pulseController.reset();
+
+    final path = _clipPath;
+    _clipPath = null;
+    _startedAt = null;
     try {
-      await _speech.cancel();
+      await _recorder.stop();
     } catch (_) {}
+    if (path != null) unawaited(_deleteClip(path));
+
     if (mounted) _resetListeningState();
+  }
+
+  Future<void> _deleteClip(String path) async {
+    try {
+      final file = File(path);
+      if (await file.exists()) await file.delete();
+    } catch (_) {
+      // A stray temp file is harmless.
+    }
   }
 
   void _resetListeningState() {
@@ -258,29 +331,26 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
       _isListening = false;
       _isSending = false;
       _duration = 0;
-      _heard = '';
     });
   }
 
-  void _showNote(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
-  }
-
+  /// Closes the sheet, then tidies up.
+  ///
+  /// The dismissal is not held behind the recorder: stopping it is a platform
+  /// round-trip, and a sheet that lingers while the microphone is handed back
+  /// reads as a tap that did not land.
   Future<void> _close() async {
-    await _cancelListening();
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
+    unawaited(_cancelListening());
   }
 
   Future<void> _switchToKeyboard() async {
-    await _cancelListening();
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }
+    unawaited(_cancelListening());
     widget.controller.isKeyboardMode.value = true;
     widget.onEnableKeyboardMode?.call();
   }
@@ -316,7 +386,7 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _buildDragPill(),
-                  if (_isListening || _heard.isNotEmpty) _buildHeardLine(),
+                  if (_isListening || _isSending) _buildStatusLine(),
                   _buildCapsule(isBusy),
                   const SizedBox(height: 12),
                 ],
@@ -360,10 +430,13 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     );
   }
 
-  /// What has been recognised so far — the part AlloKonnect cannot show,
-  /// because Whisper only sees the clip once it is over.
-  Widget _buildHeardLine() {
-    final text = _heard.trim();
+  /// What is happening, in her own words.
+  ///
+  /// Whisper only sees the clip once it is finished, so unlike a streaming
+  /// recogniser there is nothing to show word by word — this says whether she
+  /// is still listening or already reading it back.
+  Widget _buildStatusLine() {
+    final text = _isSending ? 'Let me read that back…' : 'Listening, Amma…';
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
@@ -375,14 +448,11 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
           border: Border.all(color: const Color(0xFFF2E4E7)),
         ),
         child: Text(
-          text.isEmpty ? 'Listening, Amma…' : text,
+          text,
           textAlign: TextAlign.center,
-          maxLines: 3,
-          overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             fontSize: 14,
-            fontWeight: text.isEmpty ? FontWeight.w400 : FontWeight.w500,
-            color: text.isEmpty ? const Color(0xFF8E95A5) : textDark,
+            color: const Color(0xFF8E95A5),
           ),
         ),
       ),
