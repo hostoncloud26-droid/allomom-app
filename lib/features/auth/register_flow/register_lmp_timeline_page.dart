@@ -5,10 +5,8 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_cycle_prediction_page.dart';
 import 'package:allomom/features/auth/register_flow/register_edd_due_date_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
-import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 class RegisterLmpTimelinePage extends StatefulWidget {
   final String userName;
@@ -265,33 +263,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 10),
-
-                        // The two things mothers ask at this step: why the date
-                        // is needed, and what to do when they cannot recall it.
-                        NarrationHintChips(
-                          selectedKey: _narrationKey,
-                          onSelected: _say,
-                          padding: const EdgeInsets.only(bottom: 10),
-                          hints: [
-                            const NarrationHint(
-                              'Why do you ask?',
-                              NarrationKeys.pregLmpWhy,
-                            ),
-                            const NarrationHint(
-                              "I don't remember",
-                              NarrationKeys.pregLmpUnknown,
-                            ),
-                            // Resolves to the trimester the chosen date puts
-                            // her in, so all three stage lines are reachable
-                            // from the one chip.
-                            if (_isPregnancyFlow)
-                              NarrationHint(
-                                'Where are we now?',
-                                trimesterNarrationKey(_selectedDate),
-                              ),
-                          ],
-                        ),
+                        const SizedBox(height: 14),
 
                         // Selected Date Display Card
                         Container(
