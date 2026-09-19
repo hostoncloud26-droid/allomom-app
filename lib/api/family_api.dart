@@ -48,16 +48,27 @@ class FamilyApi {
     });
   }
 
-  static Future<APIResponse> joinFamily(String code) async {
-    return await ApiBase.newPostRequest("/family/join", {
+  /// Adds the caller to the family that owns [code].
+  ///
+  /// [role] is the caller's own role — "Mom" or "Dad" — and decides the
+  /// relation their membership row gets. Omitted, the server works it out from
+  /// their profile. A caller already in this family gets the same answer as a
+  /// first join; one in a *different* family is refused until they exit.
+  static Future<APIResponse> joinFamily(String code, {String? role}) async {
+    return await ApiBase.post("/family/join", {
       "code": code.trim().toUpperCase(),
+      if (role != null && role.trim().isNotEmpty) "role": role.trim(),
     });
   }
 
+  /// A preview of the household behind [code] — names, relations and pictures,
+  /// and whether the caller is already in it — for the screen that confirms the
+  /// family before joining.
   static Future<APIResponse> checkFamilyCode(String code) async {
-    return await ApiBase.newPostRequest("/family/info/bycode?code=${code.trim().toUpperCase()}", {
-      "code": code.trim().toUpperCase(),
-    });
+    return await ApiBase.get(
+      "/family/info/bycode",
+      query: {"code": code.trim().toUpperCase()},
+    );
   }
 
   static Future<APIResponse> createFamily({
@@ -111,7 +122,9 @@ class FamilyApi {
     return await ApiBase.newDeleteRequest("/family/remove_member/$userId");
   }
 
+  /// Leaves the caller's family. Their profile, health record and babies stay
+  /// theirs — only the membership and the ties inside the household go.
   static Future<APIResponse> exitFamily() async {
-    return await ApiBase.newPostRequest("/family/exit", {});
+    return await ApiBase.post("/family/exit", const {});
   }
 }

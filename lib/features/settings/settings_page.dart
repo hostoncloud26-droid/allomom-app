@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
+import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
@@ -180,6 +181,34 @@ class _SettingsPageState extends State<SettingsPage> {
                         context,
                         MaterialPageRoute(builder: (_) => const PeoplePage()),
                       );
+                    },
+                  ),
+                  _buildItemDivider(),
+
+                  // 3b. Family Group — the code, who is in it, and the way out.
+                  // The same screen registration uses, which knows from
+                  // `is_registered` that this visit is management rather than
+                  // a step in signing up.
+                  _buildListTile(
+                    icon: Icons.qr_code_2_rounded,
+                    title: 'Family Group',
+                    subtitle: 'Family code, join or leave a family',
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DadFamilySetupPage(
+                            userName: session.userName,
+                            phone: session.userPhone,
+                            countryCode: session.countryCode,
+                            selectedRole:
+                                session.gender.trim().toLowerCase() == 'male'
+                                ? 'Dad'
+                                : 'Mom',
+                          ),
+                        ),
+                      );
+                      if (mounted) setState(() {});
                     },
                   ),
                   _buildItemDivider(),

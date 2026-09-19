@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
-import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
+import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 
@@ -621,28 +621,21 @@ class _PeoplePageState extends State<PeoplePage> {
           ElevatedButton(
             onPressed: () async {
               final code = codeCtrl.text.trim().toUpperCase();
-              if (code.length == 6) {
-                Navigator.pop(ctx);
-                final userId = MainController.instance.userId;
-                Family? joined;
-                if (userId.isNotEmpty) {
-                  joined = await FamilyDbService.instance.joinFamilyByCode(
-                    code: code,
-                    userId: userId,
-                  );
-                }
-                if (joined != null) {
-                  _loadFamilyData();
-                } else if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'No family found for that code on this device',
-                      ),
-                    ),
-                  );
-                }
+              if (code.length != 6) return;
+              Navigator.pop(ctx);
+
+              // Server-side: the family behind the code was created on the
+              // partner's phone, so a lookup against this device's tables
+              // could only ever find one this user already knew about.
+              final error = await FamilyController.instance.joinByCode(code);
+              if (!mounted) return;
+              if (error == null) {
+                _loadFamilyData();
+                return;
               }
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(error)));
             },
             style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
             child: const Text('Join', style: TextStyle(color: Colors.white)),

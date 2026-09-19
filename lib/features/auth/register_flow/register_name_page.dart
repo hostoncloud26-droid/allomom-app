@@ -334,6 +334,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                                           countryCode: widget.countryCode,
                                           selectedLanguage:
                                               widget.selectedLanguage,
+                                          selectedRole: widget.selectedRole,
                                         ),
                                       ),
                                     );
