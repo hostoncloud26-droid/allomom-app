@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/services/google_auth_service.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:allomom/features/auth/register_flow/register_status_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class RegisterNamePage extends StatefulWidget {
   final String phone;
@@ -24,6 +30,81 @@ class RegisterNamePage extends StatefulWidget {
 
 class _RegisterNamePageState extends State<RegisterNamePage> {
   final TextEditingController _nameController = TextEditingController();
+
+  /// What Google gave back, shown under the field so she can see which account
+  /// filled it in. Null until she picks one — or forever, if she dismisses the
+  /// sheet.
+  String? _googleEmail;
+  String? _googlePhotoUrl;
+
+  /// Who is being asked. Mom and Dad get different recordings, so the opening
+  /// line is chosen from the role she picked a screen ago rather than being
+  /// one neutral prompt for both.
+  late String _narrationKey = _isDad
+      ? NarrationKeys.onbNamePromptDad
+      : NarrationKeys.onbNamePromptMom;
+
+  bool get _isDad => widget.selectedRole.trim().toLowerCase() == 'dad';
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, so the card and its narration are on screen
+    // behind the account sheet rather than appearing once it is dismissed.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromGoogle());
+  }
+
+  /// Offers the Google account picker and fills the profile from whatever she
+  /// chooses.
+  ///
+  /// Dismissing the sheet is a normal answer, not a failure: `signIn` returns
+  /// null and this returns quietly, leaving her to type the name herself. The
+  /// same goes for a sign-in that errors — an account she never asked to use
+  /// is not worth a snackbar over a field she can fill in by hand.
+  Future<void> _prefillFromGoogle() async {
+    final GoogleSignInAccount? account;
+    try {
+      account = await GoogleAuthService.signIn();
+    } catch (_) {
+      return;
+    }
+    if (account == null || !mounted) return;
+
+    final name = account.displayName?.trim() ?? '';
+    final email = account.email.trim();
+    final photoUrl = account.photoUrl;
+
+    setState(() {
+      // Only when the field is untouched: she may have started typing while
+      // the sheet was up, and her own name wins over Google's.
+      if (name.isNotEmpty && _nameController.text.trim().isEmpty) {
+        _nameController.text = name;
+      }
+      _googleEmail = email.isEmpty ? null : email;
+      _googlePhotoUrl = photoUrl;
+    });
+
+    // The account already exists — it was created when the OTP was verified —
+    // so the email and picture are saved now rather than carried through the
+    // rest of the flow. `updateProfile` writes locally first and queues the
+    // push, so this survives a bad connection. The name is left to the flow's
+    // own save, which is what she confirms with Next.
+    final changes = <String, dynamic>{
+      if (_googleEmail != null) 'email': _googleEmail,
+      if (_googlePhotoUrl != null) 'profile_picture': _googlePhotoUrl,
+    };
+    if (changes.isNotEmpty) {
+      await MainController.instance.updateProfile(changes);
+    }
+  }
 
   @override
   void dispose() {
@@ -61,7 +142,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                       child: Row(
                         children: [
                           GestureDetector(
-                            onTap: () => Navigator.maybePop(context),
+                            onTap: () => narratedPop(context),
                             child: Container(
                               width: 40,
                               height: 40,
@@ -103,15 +184,8 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                     // ─── BABY SPEECH AVATAR ───
                     BabyPrompt(
                       compact: isKeyboardOpen,
+                      narrationKey: _narrationKey,
                       text: 'You have such a lovely name! 💕',
-                      onSpeakerTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Playing voice note...'),
-                            duration: Duration(milliseconds: 1000),
-                          ),
-                        );
-                      },
                     ),
 
                     const Spacer(),
@@ -195,6 +269,45 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                             ),
                           ),
 
+                          // ─── GOOGLE ACCOUNT CHIP ───
+                          // Only once an account has been picked. It is the
+                          // receipt for the email and picture, which are saved
+                          // but have no field of their own on this screen.
+                          if (_googleEmail != null) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 14,
+                                  backgroundColor: const Color(0xFFFDE7EC),
+                                  backgroundImage: _googlePhotoUrl == null
+                                      ? null
+                                      : NetworkImage(_googlePhotoUrl!),
+                                  child: _googlePhotoUrl != null
+                                      ? null
+                                      : const Icon(
+                                          Icons.person_rounded,
+                                          size: 16,
+                                          color: Color(0xFFFF4E6A),
+                                        ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _googleEmail!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w500,
+                                      color: const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
                           const SizedBox(height: 22),
 
                           // ─── NEXT BUTTON ───
@@ -205,10 +318,13 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                               onPressed: () {
                                 final name = _nameController.text.trim();
                                 if (name.isNotEmpty) {
-                                  if (widget.selectedRole
-                                          .trim()
-                                          .toLowerCase() ==
-                                      'dad') {
+                                  // Plays over the transition; `_say` would
+                                  // bind it to a card that is about to go.
+                                  speak(
+                                    NarrationKeys.onbNameReaction,
+                                    force: true,
+                                  );
+                                  if (_isDad) {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -237,6 +353,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                                     );
                                   }
                                 } else {
+                                  _say(NarrationKeys.onbNameEmpty);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text('Please enter your name'),

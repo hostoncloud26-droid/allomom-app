@@ -4,7 +4,7 @@ import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 
 class PeoplePage extends StatefulWidget {
@@ -34,7 +34,7 @@ class _PeoplePageState extends State<PeoplePage> {
       _isLoadingFamily = true;
     });
     try {
-      final userId = UserSessionManager.instance.userId;
+      final userId = MainController.instance.userId;
       final family = userId.isEmpty
           ? null
           : await FamilyDbService.instance.getMyFamily(userId);
@@ -623,7 +623,7 @@ class _PeoplePageState extends State<PeoplePage> {
               final code = codeCtrl.text.trim().toUpperCase();
               if (code.length == 6) {
                 Navigator.pop(ctx);
-                final userId = UserSessionManager.instance.userId;
+                final userId = MainController.instance.userId;
                 Family? joined;
                 if (userId.isNotEmpty) {
                   joined = await FamilyDbService.instance.joinFamilyByCode(
@@ -686,7 +686,7 @@ class _PeoplePageState extends State<PeoplePage> {
             onPressed: () async {
               final name = nameCtrl.text.trim();
               Navigator.pop(ctx);
-              final userId = UserSessionManager.instance.userId;
+              final userId = MainController.instance.userId;
               if (userId.isEmpty) {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

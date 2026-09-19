@@ -5,6 +5,8 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/services/sync/sync_mappers.dart';
 
 /// CRUD for the family tables: families, family members and join requests.
 ///
@@ -67,12 +69,6 @@ class FamilyDbService {
               synced: const Value(0),
             ),
           );
-
-      await (db.update(db.users)..where((t) => t.id.equals(creatorUserId)))
-          .write(UsersCompanion(
-        familyID: Value(familyId),
-        synced: const Value(0),
-      ));
     });
 
     return (await getFamilyById(familyId))!;
@@ -113,10 +109,6 @@ class FamilyDbService {
       return getFamilyById(familyId);
     }
 
-    final user = await (db.select(db.users)..where((t) => t.id.equals(userId)))
-        .getSingleOrNull();
-    final linked = user?.familyID;
-    if (linked != null && linked.isNotEmpty) return getFamilyById(linked);
     return null;
   }
 
@@ -185,8 +177,6 @@ class FamilyDbService {
                 id: Value(healthDataId),
                 userId: Value(memberUserId),
                 lmpDate: Value(lmpDate),
-                edDate: Value(lmpDate.add(const Duration(days: 280))),
-                pregnancyStatus: const Value('pregnant'),
                 createdAt: Value(DateTime.now()),
                 synced: const Value(0),
               ),
@@ -201,10 +191,7 @@ class FamilyDbService {
               email: Value(email),
               gender: Value(gender),
               dob: Value(resolvedDob),
-              familyID: Value(familyId),
-              healthDataID: Value(healthDataId),
               userType: const Value('FamilyMember'),
-              isDeleted: const Value(false),
               createdAt: Value(DateTime.now()),
               updatedAt: Value(DateTime.now()),
               synced: const Value(0),
@@ -239,8 +226,7 @@ class FamilyDbService {
           .go();
       await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
         UsersCompanion(
-          familyID: const Value(null),
-          isDeleted: const Value(true),
+          deletedAt: Value(DateTime.now()),
           synced: const Value(0),
         ),
       );
@@ -275,12 +261,6 @@ class FamilyDbService {
               ),
             );
       }
-      await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
-        UsersCompanion(
-          familyID: Value(family.id),
-          synced: const Value(0),
-        ),
-      );
     });
 
     return family;
@@ -295,12 +275,6 @@ class FamilyDbService {
       await (db.delete(db.familyMembersTable)
             ..where((t) => t.userid.equals(userId)))
           .go();
-      await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
-        UsersCompanion(
-          familyID: const Value(null),
-          synced: const Value(0),
-        ),
-      );
     });
     return true;
   }
@@ -354,6 +328,226 @@ class FamilyDbService {
     return (db.select(db.families)..where((t) => t.synced.equals(0))).get();
   }
 
+  // ---------------------- SERVER MIRROR ----------------------
+
+  /// Writes a `/family` payload into the local tables, replacing what is there.
+  ///
+  /// The server owns the ids here — it mints the family, the membership rows
+  /// and the partner's user id — so this overwrites rather than merges, and
+  /// marks everything `synced = 1`. [viewerId] is whose view the payload was
+  /// built for: `relation_to_me` and `nick_name` are that user's own record of
+  /// each member, so they are stored as rows owned by them.
+  ///
+  /// Members that vanished from the payload are dropped, which is how a
+  /// replaced partner disappears locally without needing a tombstone.
+  Future<void> mirrorServerFamily(
+    Map<String, dynamic> payload, {
+    required String viewerId,
+  }) async {
+    final db = await SqLiteService().database;
+    final familyId = payload['id']?.toString();
+    if (familyId == null || familyId.isEmpty) return;
+
+    final members = (payload['members'] as List? ?? const [])
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .toList();
+
+    // The local families table keeps the two parents denormalised, so the
+    // People screen can name them without walking the membership rows.
+    String? parentId(String relation) {
+      for (final m in members) {
+        if (m['relation']?.toString().toLowerCase() == relation) {
+          return m['user_id']?.toString();
+        }
+      }
+      return null;
+    }
+
+    await db.transaction(() async {
+      await db.into(db.families).insertOnConflictUpdate(
+            FamiliesCompanion(
+              id: Value(familyId),
+              name: Value(SyncCodec.text(payload['name'])),
+              code: Value(SyncCodec.text(payload['code'])),
+              motherId: Value(parentId('mother')),
+              fatherId: Value(parentId('father')),
+              createdBy: Value(SyncCodec.text(payload['created_by'])),
+              profileImage: Value(SyncCodec.text(payload['profile_image'])),
+              bannerImage: Value(SyncCodec.text(payload['banner_image'])),
+              createdAt: Value(
+                SyncCodec.date(payload['created_at']) ?? DateTime.now(),
+              ),
+              synced: const Value(1),
+            ),
+          );
+
+      final keptMemberIds = <String>[];
+
+      for (final member in members) {
+        final memberId = member['id']?.toString();
+        final memberUserId = member['user_id']?.toString();
+        if (memberId == null || memberUserId == null) continue;
+        keptMemberIds.add(memberId);
+
+        final user = member['user'];
+        if (user is Map) {
+          await const UserMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(user));
+        }
+
+        await db.into(db.familyMembersTable).insertOnConflictUpdate(
+              FamilyMembersTableCompanion(
+                id: Value(memberId),
+                userid: Value(memberUserId),
+                familyid: Value(familyId),
+                relation: Value(SyncCodec.text(member['relation'])),
+                accessLevel: Value(
+                  jsonEncode(
+                    member['is_me'] == true
+                        ? const ['owner']
+                        : const ['view'],
+                  ),
+                ),
+                synced: const Value(1),
+              ),
+            );
+
+        if (memberUserId == viewerId) continue;
+
+        await _mirrorRelation(
+          db,
+          viewerId: viewerId,
+          relatedUserId: memberUserId,
+          relationType: SyncCodec.text(member['relation_to_me']),
+        );
+        await _mirrorNickname(
+          db,
+          viewerId: viewerId,
+          relatedUserId: memberUserId,
+          nickName: SyncCodec.text(member['nick_name']),
+        );
+      }
+
+      // Anyone the server no longer lists has left, or was replaced.
+      await (db.delete(db.familyMembersTable)
+            ..where(
+              (t) =>
+                  t.familyid.equals(familyId) &
+                  t.id.isNotIn(keptMemberIds),
+            ))
+          .go();
+    });
+  }
+
+  /// Upserts the viewer's relation row for one member, clearing it when the
+  /// server reports none.
+  Future<void> _mirrorRelation(
+    AppDriftDatabase db, {
+    required String viewerId,
+    required String relatedUserId,
+    String? relationType,
+  }) async {
+    Expression<bool> where(UserRelations t) =>
+        t.userId.equals(viewerId) & t.relatedUserId.equals(relatedUserId);
+
+    if (relationType == null || relationType.isEmpty) {
+      await (db.delete(db.userRelations)..where(where)).go();
+      return;
+    }
+
+    final existing =
+        await (db.select(db.userRelations)..where(where)).getSingleOrNull();
+
+    if (existing == null) {
+      await db.into(db.userRelations).insert(
+            UserRelationsCompanion.insert(
+              userId: viewerId,
+              relatedUserId: relatedUserId,
+              relationType: relationType,
+              synced: const Value(1),
+            ),
+          );
+    } else {
+      await (db.update(db.userRelations)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(
+        UserRelationsCompanion(
+          relationType: Value(relationType),
+          synced: const Value(1),
+        ),
+      );
+    }
+  }
+
+  /// Upserts the viewer's nickname for one member, clearing it when the server
+  /// reports none.
+  Future<void> _mirrorNickname(
+    AppDriftDatabase db, {
+    required String viewerId,
+    required String relatedUserId,
+    String? nickName,
+  }) async {
+    Expression<bool> where(UserNickNames t) =>
+        t.userId.equals(viewerId) & t.relatedUserId.equals(relatedUserId);
+
+    if (nickName == null || nickName.isEmpty) {
+      await (db.delete(db.userNickNames)..where(where)).go();
+      return;
+    }
+
+    final existing =
+        await (db.select(db.userNickNames)..where(where)).getSingleOrNull();
+
+    if (existing == null) {
+      await db.into(db.userNickNames).insert(
+            UserNickNamesCompanion.insert(
+              userId: viewerId,
+              relatedUserId: relatedUserId,
+              nickName: nickName,
+              synced: const Value(1),
+            ),
+          );
+    } else {
+      await (db.update(db.userNickNames)
+            ..where((t) => t.id.equals(existing.id)))
+          .write(
+        UserNickNamesCompanion(
+          nickName: Value(nickName),
+          synced: const Value(1),
+        ),
+      );
+    }
+  }
+
+  /// What [viewerId] calls [relatedUserId], if anything.
+  Future<String?> nicknameFor({
+    required String viewerId,
+    required String relatedUserId,
+  }) async {
+    final db = await SqLiteService().database;
+    final row = await (db.select(db.userNickNames)
+          ..where((t) =>
+              t.userId.equals(viewerId) &
+              t.relatedUserId.equals(relatedUserId)))
+        .getSingleOrNull();
+    return row?.nickName;
+  }
+
+  /// What [relatedUserId] is to [viewerId] — "wife", "husband" — if recorded.
+  Future<String?> relationFor({
+    required String viewerId,
+    required String relatedUserId,
+  }) async {
+    final db = await SqLiteService().database;
+    final row = await (db.select(db.userRelations)
+          ..where((t) =>
+              t.userId.equals(viewerId) &
+              t.relatedUserId.equals(relatedUserId)))
+        .getSingleOrNull();
+    return row?.relationType;
+  }
+
   Future<List<FamilyMembersTableData>> unsyncedFamilyMembers() async {
     final db = await SqLiteService().database;
     return (db.select(db.familyMembersTable)..where((t) => t.synced.equals(0)))
@@ -372,7 +566,7 @@ class FamilyMemberWithUser {
   String get name => user?.name ?? 'Family Member';
   String get relation => member.relation ?? 'Member';
   String? get phone => user?.phone;
-  String? get image => user?.image;
+  String? get image => user?.profilePicture;
 
   List<String> get accessLevel {
     try {

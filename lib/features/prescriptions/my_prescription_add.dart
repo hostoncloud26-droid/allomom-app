@@ -14,7 +14,7 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
 import 'package:allomom/services/prescription_parser/on_device_prescription_parser.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class MyPrescriptionAdd extends StatefulWidget {
   const MyPrescriptionAdd({super.key});
@@ -161,7 +161,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
 
     setState(() => isSubmitting = true);
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final primaryFile =
           _selectedFiles.isNotEmpty ? _selectedFiles.first.path : null;
 

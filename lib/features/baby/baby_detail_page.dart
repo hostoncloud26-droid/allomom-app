@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' as drift;
+import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -6,19 +7,25 @@ import 'package:intl/intl.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
+import 'package:allomom/api/baby_api.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/services/sync/sync_service.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// One baby's record: their immunisation schedule and milestone checklist,
 /// both seeded from the date of birth and editable here.
 class BabyDetailPage extends StatefulWidget {
   const BabyDetailPage({
     super.key,
-    required this.birthRecordId,
+    required this.babyId,
     this.initialTab = 0,
   });
 
-  final String birthRecordId;
+  final String babyId;
 
   /// 0 = vaccines, 1 = milestones. Lets a caller deep-link to the tab the
   /// mother tapped rather than always landing her on vaccines.
@@ -40,7 +47,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
   );
 
   bool _loading = true;
-  BirthRecord? _baby;
+  Baby? _baby;
   List<BabyImmunizationRecord> _doses = [];
   List<BabyMilestone> _milestones = [];
 
@@ -52,6 +59,10 @@ class _BabyDetailPageState extends State<BabyDetailPage>
       if (!_tabs.indexIsChanging) setState(() {});
     });
     _load();
+    // "Don't worry about my injections." This screen has no baby head card to
+    // put the line on, so it is spoken alone — the vaccine list below it is
+    // what the line is about.
+    if (_tabs.index == 0) speak(NarrationKeys.newVaccineIntro);
   }
 
   @override
@@ -61,9 +72,9 @@ class _BabyDetailPageState extends State<BabyDetailPage>
   }
 
   Future<void> _load() async {
-    final baby = await _db.getBirthRecordById(widget.birthRecordId);
-    final doses = await _db.getImmunizations(widget.birthRecordId);
-    final milestones = await _db.getMilestones(widget.birthRecordId);
+    final baby = await _db.getBabyById(widget.babyId);
+    final doses = await _db.getImmunizations(widget.babyId);
+    final milestones = await _db.getMilestones(widget.babyId);
     if (!mounted) return;
     setState(() {
       _baby = baby;
@@ -102,7 +113,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          baby?.babyName ?? 'Baby',
+          baby?.name ?? 'Baby',
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -175,13 +186,12 @@ class _BabyDetailPageState extends State<BabyDetailPage>
     );
   }
 
-  Widget _summary(BirthRecord baby) {
+  Widget _summary(Baby baby) {
     final chips = <(String, String)>[
-      if (baby.dob != null) ('Born', _dateFmt.format(baby.dob!)),
-      if (baby.dob != null) ('Age', babyAgeLabel(baby.dob)),
+      ('Born', _dateFmt.format(baby.deliveryDate)),
+      ('Age', babyAgeLabel(baby.deliveryDate)),
       if (baby.gender != null) ('Gender', labelForGender(baby.gender)),
-      if (baby.deliveryType != null)
-        ('Delivery', labelForDeliveryType(baby.deliveryType)),
+      ('Delivery', labelForDeliveryType(baby.typeOfDelivery)),
       if (baby.weight != null) ('Birth wt', '${baby.weight} kg'),
       if (baby.bloodGroup != null) ('Blood', baby.bloodGroup!),
     ];
@@ -239,10 +249,10 @@ class _BabyDetailPageState extends State<BabyDetailPage>
   }
 
   Widget _doseCard(BabyImmunizationRecord dose) {
-    final given = dose.vaccinationDate != null;
+    final given = dose.receivedDate != null;
     final status = CareStatus.resolve(
       status: given ? 'done' : 'pending',
-      date: dose.expectedDate,
+      date: dose.scheduledDate,
     );
 
     return _card(
@@ -254,13 +264,12 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         ),
         onChanged: (checked) async {
           if (checked == true) {
-            await _db.markImmunizationGiven(dose.id, date: DateTime.now());
+            await _db.markImmunizationGiven(dose.id, DateTime.now());
           } else {
             await _db.updateImmunization(
               BabyImmunizationRecordsCompanion(
                 id: drift.Value(dose.id),
-                vaccinationDate: const drift.Value(null),
-                vaccinatedBy: const drift.Value(null),
+                receivedDate: const drift.Value(null),
               ),
             );
           }
@@ -270,12 +279,11 @@ class _BabyDetailPageState extends State<BabyDetailPage>
       title: dose.vaccineName,
       titleStrikethrough: given,
       status: status,
-      showStatus: !given || dose.expectedDate != null,
+      showStatus: !given || dose.scheduledDate != null,
       lines: [
-        if (dose.expectedDate != null)
-          'Due ${_dateFmt.format(dose.expectedDate!)}',
-        if (given) 'Given ${_dateFmt.format(dose.vaccinationDate!)}',
-        if ((dose.vaccinatedBy ?? '').isNotEmpty) 'By ${dose.vaccinatedBy}',
+        if (dose.scheduledDate != null)
+          'Due ${_dateFmt.format(dose.scheduledDate!)}',
+        if (given) 'Given ${_dateFmt.format(dose.receivedDate!)}',
         if (dose.required == false) 'Optional',
       ],
       synced: dose.synced,
@@ -291,9 +299,8 @@ class _BabyDetailPageState extends State<BabyDetailPage>
 
   Future<void> _openDoseForm({BabyImmunizationRecord? existing}) async {
     final name = TextEditingController(text: existing?.vaccineName ?? '');
-    final by = TextEditingController(text: existing?.vaccinatedBy ?? '');
-    var expected = existing?.expectedDate ?? _baby?.dob ?? DateTime.now();
-    DateTime? givenOn = existing?.vaccinationDate;
+    var expected = existing?.scheduledDate ?? _baby?.deliveryDate ?? DateTime.now();
+    DateTime? givenOn = existing?.receivedDate;
     var isRequired = existing?.required ?? true;
 
     final saved = await _sheet(
@@ -306,7 +313,6 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         _switch('Required (core schedule)', isRequired, rebuild, (v) {
           isRequired = v;
         }),
-        _text('Vaccinated by', by, hint: 'Dr. Shalini'),
       ],
       onSave: () async {
         if (name.text.trim().isEmpty) {
@@ -314,15 +320,12 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           return false;
         }
         final row = BabyImmunizationRecordsCompanion(
-          id: drift.Value(existing?.id ?? ''),
-          birthRecordId: drift.Value(widget.birthRecordId),
+          id: drift.Value(existing?.id ?? const Uuid().v4()),
+          babyId: drift.Value(widget.babyId),
           vaccineName: drift.Value(name.text.trim()),
-          expectedDate: drift.Value(expected),
-          vaccinationDate: drift.Value(givenOn),
+          scheduledDate: drift.Value(expected),
+          receivedDate: drift.Value(givenOn),
           required: drift.Value(isRequired),
-          vaccinatedBy: drift.Value(
-            by.text.trim().isEmpty ? null : by.text.trim(),
-          ),
         );
         if (existing == null) {
           await _db.createImmunization(row);
@@ -360,13 +363,13 @@ class _BabyDetailPageState extends State<BabyDetailPage>
 
   Widget _milestoneCard(BabyMilestone milestone) {
     final status = CareStatus.resolve(
-      status: milestone.achieved ? 'done' : 'pending',
+      status: milestone.completedAt != null ? 'done' : 'pending',
       date: milestone.expectedDate,
     );
 
     return _card(
       leading: Checkbox(
-        value: milestone.achieved,
+        value: milestone.completedAt != null,
         activeColor: const Color(0xFFF59E0B),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
@@ -374,23 +377,23 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         onChanged: (checked) async {
           await _db.setMilestoneAchieved(
             milestone.id,
-            achieved: checked ?? false,
+            (checked ?? false) ? DateTime.now() : null,
           );
           await _load();
         },
       ),
       title: milestone.milestone,
-      titleStrikethrough: milestone.achieved,
+      titleStrikethrough: milestone.completedAt != null,
       status: status,
       // Milestones are guides, not deadlines — an unmet one should not be
       // shouted at the mother as overdue.
-      showStatus: milestone.achieved,
+      showStatus: milestone.completedAt != null,
       lines: [
         milestone.description,
         if (milestone.expectedDate != null)
           'Usually around ${_dateFmt.format(milestone.expectedDate!)}',
-        if (milestone.completed != null)
-          'Achieved ${_dateFmt.format(milestone.completed!)}',
+        if (milestone.completedAt != null)
+          'Achieved ${_dateFmt.format(milestone.completedAt!)}',
       ],
       synced: milestone.synced,
       onEdit: () => _openMilestoneForm(existing: milestone),
@@ -408,8 +411,8 @@ class _BabyDetailPageState extends State<BabyDetailPage>
     final description = TextEditingController(
       text: existing?.description ?? '',
     );
-    var expected = existing?.expectedDate ?? _baby?.dob ?? DateTime.now();
-    DateTime? achievedOn = existing?.completed;
+    var expected = existing?.expectedDate ?? _baby?.deliveryDate ?? DateTime.now();
+    DateTime? achievedOn = existing?.completedAt;
 
     final saved = await _sheet(
       title: existing == null ? 'Add milestone' : 'Edit milestone',
@@ -429,19 +432,28 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           _toast('Description is required');
           return false;
         }
-        final row = BabyMilestonesCompanion(
-          id: drift.Value(existing?.id ?? ''),
-          birthRecordId: drift.Value(widget.birthRecordId),
-          milestone: drift.Value(name.text.trim()),
-          description: drift.Value(description.text.trim()),
-          expectedDate: drift.Value(expected),
-          achieved: drift.Value(achievedOn != null),
-          completed: drift.Value(achievedOn),
-        );
+        // A milestone's id is assigned by the server, so a brand-new one has
+        // to be created there rather than locally — an id minted here could not
+        // survive the next sync. Edits go to the local row and sync normally.
         if (existing == null) {
-          await _db.createMilestone(row);
+          await BabyApi.createMilestone(widget.babyId, {
+            'milestone': name.text.trim(),
+            'description': description.text.trim(),
+            'expected_date': SyncCodec.isoDate(expected),
+            'completed_at': SyncCodec.isoUtc(achievedOn),
+          });
+          await SyncService.instance.syncModule('milestone');
         } else {
-          await _db.updateMilestone(row);
+          await _db.updateMilestone(
+            BabyMilestonesCompanion(
+              id: drift.Value(existing.id),
+              babyId: drift.Value(widget.babyId),
+              milestone: drift.Value(name.text.trim()),
+              description: drift.Value(description.text.trim()),
+              expectedDate: drift.Value(expected),
+              completedAt: drift.Value(achievedOn),
+            ),
+          );
         }
         return true;
       },

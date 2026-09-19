@@ -7,6 +7,10 @@ import 'package:allomom/features/auth/register_flow/register_partner_details_pag
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 const _accent = Color(0xFFFF4E6A);
 const _ink = Color(0xFF1E2024);
@@ -55,12 +59,26 @@ class _RegisterCyclePredictionPageState
 
   int _cycleLength = defaultCycleLength;
 
+  /// The line on the baby head card. Opens on the cycle-length question, since
+  /// the period date itself was answered on the screen before this one.
+  String _narrationKey = NarrationKeys.preCycleLength;
+
   bool get _isNewMom => isNewMomRegistrationLabel(widget.status);
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
 
   CyclePrediction get _prediction =>
       predictCycle(lastPeriodStart: widget.lmpDate, cycleLength: _cycleLength);
 
   void _next() {
+    speak(NarrationKeys.preCycleSaved, force: true);
+
     // Not pregnant either way, so no EDD is carried forward.
     final page = _isNewMom
         ? KidsDetailsPage(
@@ -117,7 +135,7 @@ class _RegisterCyclePredictionPageState
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
+                          onTap: () => narratedPop(context),
                           child: Container(
                             width: 40,
                             height: 40,
@@ -158,17 +176,10 @@ class _RegisterCyclePredictionPageState
 
                   BabyHeroBanner(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
+                    narrationKey: _narrationKey,
                     speechText: _isNewMom
                         ? 'Let me help you track your cycle again, Amma 🌸'
                         : "Let's find your best days, Amma! 🌸✨",
-                    onSpeakerTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Playing cycle summary...'),
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                      );
-                    },
                   ),
 
                   const Spacer(),
@@ -358,7 +369,31 @@ class _RegisterCyclePredictionPageState
                                   'Breastfeeding can delay your periods. We will '
                                   'refine this prediction as you log each cycle.',
                             ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
+
+                          NarrationHintChips(
+                            selectedKey: _narrationKey,
+                            onSelected: _say,
+                            padding: const EdgeInsets.only(bottom: 16),
+                            hints: [
+                              const NarrationHint(
+                                'My cycle is irregular',
+                                NarrationKeys.preCycleIrregular,
+                              ),
+                              // Only for someone planning: the advice is about
+                              // getting ready, not about recovering.
+                              if (!_isNewMom) ...[
+                                const NarrationHint(
+                                  'Folic acid?',
+                                  NarrationKeys.preFolicAcid,
+                                ),
+                                const NarrationHint(
+                                  'How should I prepare?',
+                                  NarrationKeys.preHabits,
+                                ),
+                              ],
+                            ],
+                          ),
 
                           SizedBox(
                             width: double.infinity,

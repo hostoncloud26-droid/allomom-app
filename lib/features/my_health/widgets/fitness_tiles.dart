@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class FitnessTiles extends StatefulWidget {
   final String? userId;
@@ -36,7 +36,7 @@ class _FitnessTilesState extends State<FitnessTiles> {
   Future<void> _loadFitnessData() async {
     if (!mounted) return;
     try {
-      final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
+      final targetUserId = widget.userId ?? MainController.instance.userId;
       final now = DateTime.now();
       final startOfToday = DateTime(now.year, now.month, now.day);
       final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
@@ -199,7 +199,7 @@ class _FitnessTilesState extends State<FitnessTiles> {
                       value: mins,
                       unit: 'minutes',
                       createdAt: DateTime.now(),
-                      userId: widget.userId ?? UserSessionManager.instance.userId,
+                      userId: widget.userId ?? MainController.instance.userId,
                       data: {'activity': text, 'type': title},
                     );
 

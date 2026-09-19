@@ -1,11 +1,20 @@
 import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
+
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
 
+/// Local reads and writes for the vitals stream.
+///
+/// Now backed by `vitals_stream`, matching allomom-api-new. The visible change
+/// is what a reading is scoped by: rows hang off the health record, not the
+/// user, because that is the server's own shape. The `userId` parameters here
+/// are kept so the existing screens compile unchanged; they resolve to the
+/// signed-in user's health record, which is the only one a device holds.
 class VitalsSqLiteService {
   static final VitalsSqLiteService _instance = VitalsSqLiteService._internal();
   factory VitalsSqLiteService() => _instance;
@@ -13,21 +22,41 @@ class VitalsSqLiteService {
 
   final _uuid = const Uuid();
 
-  Map<String, dynamic> _toMap(Vital vital) {
+  /// The health record readings hang off.
+  ///
+  /// Prefers the loaded session, and otherwise reads the single health row the
+  /// local database holds. A device stores exactly one account, so that row is
+  /// unambiguous — and the fallback means a reading written before the
+  /// controllers have finished loading still lands on the right record instead
+  /// of being orphaned with a null scope.
+  Future<String> _resolveHealthId() async {
+    final fromSession = MainController.instance.healthDataId;
+    if (fromSession.isNotEmpty) return fromSession;
+
+    final db = await SqLiteService().database;
+    final row = await (db.select(db.healthDataTable)..limit(1))
+        .getSingleOrNull();
+    return row?.id ?? '';
+  }
+
+  /// Presents a row in the shape the screens already read, so the column rename
+  /// from `vital_key` to `key` stays inside this file.
+  Map<String, dynamic> _toMap(VitalsStreamTableData vital) {
     return {
       'id': vital.id,
-      'vital_key': vital.vitalKey,
+      'vital_key': vital.key,
+      'key': vital.key,
       'value': vital.value,
       'unit': vital.unit,
       'createdAt': vital.createdAt,
-      'user_id': vital.userId,
+      'user_id': MainController.instance.userId,
+      'health_id': vital.healthId,
       'data': vital.data,
       'synced': vital.synced,
     };
   }
 
-  /// Saves a vital entry to the local database.
-  /// If [id] is not provided, generates a UUID v7.
+  /// Saves a reading. Generates a UUID when [id] is omitted.
   Future<String> saveVital({
     String? id,
     required String key,
@@ -39,24 +68,24 @@ class VitalsSqLiteService {
     int synced = 0,
   }) async {
     final db = await SqLiteService().database;
-    final String recordId = id ?? _uuid.v7();
-    final String targetUserId = userId?.trim().isNotEmpty == true
-        ? userId!.trim()
-        : UserSessionManager.instance.userId;
+    final recordId = id ?? _uuid.v7();
+    final healthId = await _resolveHealthId();
+    final now = DateTime.now();
 
     await db
-        .into(db.vitals)
+        .into(db.vitalsStreamTable)
         .insert(
-          VitalsCompanion(
+          VitalsStreamTableCompanion(
             id: Value(recordId),
-            vitalKey: Value(key),
+            key: Value(key),
             value: Value(value),
             unit: Value(unit),
             createdAt: Value(createdAt),
-            userId: Value(targetUserId.isNotEmpty ? targetUserId : null),
+            healthId: Value(healthId.isNotEmpty ? healthId : null),
             data: Value(
               additionalData != null ? jsonEncode(additionalData) : null,
             ),
+            updatedAt: Value(now),
             synced: Value(synced),
           ),
           mode: InsertMode.insertOrReplace,
@@ -65,7 +94,6 @@ class VitalsSqLiteService {
     return recordId;
   }
 
-  /// Saves a VitalsStreamResponse to the local database.
   Future<void> saveVitalsStreamResponse(
     VitalsStreamResponse response, {
     int synced = 1,
@@ -83,32 +111,31 @@ class VitalsSqLiteService {
     );
   }
 
-  /// Bulk saves a list of VitalsStreamResponse objects.
   Future<void> saveVitalsStreamResponsesBulk(
     List<VitalsStreamResponse> responses, {
     int synced = 1,
     String? userId,
   }) async {
     final db = await SqLiteService().database;
-    final String targetUserId = userId?.trim().isNotEmpty == true
-        ? userId!.trim()
-        : UserSessionManager.instance.userId;
+    final healthId = await _resolveHealthId();
+    final now = DateTime.now();
 
     await db.batch((batch) {
-      for (var response in responses) {
+      for (final response in responses) {
         final recordId = response.id.isNotEmpty ? response.id : _uuid.v7();
         batch.insert(
-          db.vitals,
-          VitalsCompanion(
+          db.vitalsStreamTable,
+          VitalsStreamTableCompanion(
             id: Value(recordId),
-            vitalKey: Value(response.key),
+            key: Value(response.key),
             value: Value(response.value),
             unit: Value(response.unit),
             createdAt: Value(response.createdAt),
-            userId: Value(targetUserId.isNotEmpty ? targetUserId : null),
+            healthId: Value(healthId.isNotEmpty ? healthId : null),
             data: Value(
               response.data != null ? jsonEncode(response.data) : null,
             ),
+            updatedAt: Value(now),
             synced: Value(synced),
           ),
           mode: InsertMode.insertOrReplace,
@@ -132,34 +159,39 @@ class VitalsSqLiteService {
     DateTime? on,
   }) async {
     final db = await SqLiteService().database;
-    final String targetUserId = userId?.trim().isNotEmpty == true
-        ? userId!.trim()
-        : UserSessionManager.instance.userId;
-    if (targetUserId.isEmpty) return false;
+    final healthId = await _resolveHealthId();
+    if (healthId.isEmpty) return false;
 
     final day = on ?? DateTime.now();
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
 
-    final row = await (db.select(db.vitals)
-          ..where((tbl) =>
-              tbl.userId.equals(targetUserId) &
-              tbl.vitalKey.equals(key) &
-              tbl.createdAt.isBiggerOrEqualValue(start) &
-              tbl.createdAt.isSmallerThanValue(end))
-          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
-          ..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (db.select(db.vitalsStreamTable)
+              ..where(
+                (tbl) =>
+                    tbl.healthId.equals(healthId) &
+                    tbl.key.equals(key) &
+                    tbl.deletedAt.isNull() &
+                    tbl.createdAt.isBiggerOrEqualValue(start) &
+                    tbl.createdAt.isSmallerThanValue(end),
+              )
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
     if (row == null) return false;
 
     final merged = <String, dynamic>{..._decodeData(row.data), ...data};
 
-    await (db.update(db.vitals)..where((tbl) => tbl.id.equals(row.id))).write(
-      VitalsCompanion(
-        data: Value(jsonEncode(merged)),
-        synced: const Value(0),
-      ),
-    );
+    await (db.update(db.vitalsStreamTable)
+          ..where((tbl) => tbl.id.equals(row.id)))
+        .write(
+          VitalsStreamTableCompanion(
+            data: Value(jsonEncode(merged)),
+            updatedAt: Value(DateTime.now()),
+            synced: const Value(0),
+          ),
+        );
 
     return true;
   }
@@ -168,20 +200,17 @@ class VitalsSqLiteService {
     if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
     try {
       final decoded = jsonDecode(raw);
-      return decoded is Map<String, dynamic>
-          ? decoded
-          : <String, dynamic>{};
+      return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
     } catch (_) {
       // A row whose data is not JSON is replaced rather than lost to a throw.
       return <String, dynamic>{};
     }
   }
 
-  /// Retrieves all unsynced vital records.
   Future<List<Map<String, dynamic>>> getUnsyncedVitals() async {
     final db = await SqLiteService().database;
     final rows =
-        await (db.select(db.vitals)
+        await (db.select(db.vitalsStreamTable)
               ..where((tbl) => tbl.synced.equals(0))
               ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
             .get();
@@ -189,15 +218,12 @@ class VitalsSqLiteService {
     return rows.map(_toMap).toList();
   }
 
-  /// Marks a vital record as synced.
   Future<void> markAsSynced(String id) async {
     final db = await SqLiteService().database;
-    await (db.update(db.vitals)..where((tbl) => tbl.id.equals(id))).write(
-      const VitalsCompanion(synced: Value(1)),
-    );
+    await (db.update(db.vitalsStreamTable)..where((tbl) => tbl.id.equals(id)))
+        .write(const VitalsStreamTableCompanion(synced: Value(1)));
   }
 
-  /// Retrieves vitals history for a specific user and type with optional date filtering.
   Future<List<Map<String, dynamic>>> getVitalsHistory(
     String userId,
     String key, {
@@ -205,14 +231,19 @@ class VitalsSqLiteService {
     DateTime? toDate,
   }) async {
     final db = await SqLiteService().database;
+    final healthId = await _resolveHealthId();
 
-    final query = db.select(db.vitals)
-      ..where((tbl) => tbl.userId.equals(userId) & tbl.vitalKey.equals(key));
+    final query = db.select(db.vitalsStreamTable)
+      ..where(
+        (tbl) =>
+            tbl.healthId.equals(healthId) &
+            tbl.key.equals(key) &
+            tbl.deletedAt.isNull(),
+      );
 
     if (fromDate != null) {
       query.where((tbl) => tbl.createdAt.isBiggerOrEqualValue(fromDate));
     }
-
     if (toDate != null) {
       query.where((tbl) => tbl.createdAt.isSmallerOrEqualValue(toDate));
     }
@@ -223,56 +254,66 @@ class VitalsSqLiteService {
     return rows.map(_toMap).toList();
   }
 
-  /// Retrieves all vitals for a specific user (all vital types).
   Future<List<Map<String, dynamic>>> getAllVitalsForUser(String userId) async {
     final db = await SqLiteService().database;
-    final rows = await (db.select(db.vitals)
-          ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
-        .get();
+    final healthId = await _resolveHealthId();
+    final rows =
+        await (db.select(db.vitalsStreamTable)
+              ..where(
+                (tbl) => tbl.healthId.equals(healthId) & tbl.deletedAt.isNull(),
+              )
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+            .get();
 
     return rows.map(_toMap).toList();
   }
 
-  /// Retrieves the latest vital per key for a specific user.
+  /// The newest reading per key.
   Future<List<Map<String, dynamic>>> getLatestVitals(String userId) async {
     final db = await SqLiteService().database;
-    final rows = await (db.select(db.vitals)
-          ..where((tbl) => tbl.userId.equals(userId))
-          ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
-        .get();
+    final healthId = await _resolveHealthId();
+    final rows =
+        await (db.select(db.vitalsStreamTable)
+              ..where(
+                (tbl) => tbl.healthId.equals(healthId) & tbl.deletedAt.isNull(),
+              )
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+            .get();
 
     final latestByKey = <String, Map<String, dynamic>>{};
     for (final row in rows) {
-      final map = _toMap(row);
-      final key = map['vital_key'] as String?;
-      if (key == null || latestByKey.containsKey(key)) {
-        continue;
-      }
-      latestByKey[key] = map;
+      if (latestByKey.containsKey(row.key)) continue;
+      latestByKey[row.key] = _toMap(row);
     }
 
     return latestByKey.values.toList();
   }
 
-  /// Deletes a vital record by ID.
+  /// Soft delete, so the removal reaches the server. A hard delete would be
+  /// re-pulled on the next sync.
   Future<void> deleteVital(String id) async {
     final db = await SqLiteService().database;
-    await (db.delete(db.vitals)..where((tbl) => tbl.id.equals(id))).go();
+    final now = DateTime.now();
+    await (db.update(db.vitalsStreamTable)..where((tbl) => tbl.id.equals(id)))
+        .write(
+          VitalsStreamTableCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            synced: const Value(0),
+          ),
+        );
   }
 
-  /// Deletes all vital records where key is 'deleted' and synced is 1.
+  /// Clears rows already soft-deleted and confirmed by the server.
   Future<void> deleteSyncedDeletedVitals() async {
     final db = await SqLiteService().database;
-    await (db.delete(db.vitals)..where(
-          (tbl) => tbl.vitalKey.equals('deleted') & tbl.synced.equals(1),
-        ))
+    await (db.delete(db.vitalsStreamTable)
+          ..where((tbl) => tbl.deletedAt.isNotNull() & tbl.synced.equals(1)))
         .go();
   }
 
-  /// Clears all vitals records.
   Future<void> clearAll() async {
     final db = await SqLiteService().database;
-    await db.delete(db.vitals).go();
+    await db.delete(db.vitalsStreamTable).go();
   }
 }

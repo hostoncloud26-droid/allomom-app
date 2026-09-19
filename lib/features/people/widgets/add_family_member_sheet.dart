@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class AddFamilyMemberSheet extends StatefulWidget {
   final String? familyID;
@@ -97,7 +97,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
       // is created on the fly when the user does not have one yet.
       var familyId = widget.familyID;
       if (familyId == null || familyId.isEmpty) {
-        final ownerId = UserSessionManager.instance.userId;
+        final ownerId = MainController.instance.userId;
         if (ownerId.isEmpty) {
           _showMsg('Sign in before adding family members');
           return;

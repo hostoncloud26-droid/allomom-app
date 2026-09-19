@@ -10,6 +10,7 @@ import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
@@ -18,7 +19,7 @@ import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/repositories/baby_repository.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class PregnancyJourneyPage extends StatefulWidget {
   const PregnancyJourneyPage({super.key});
@@ -35,7 +36,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   bool _isPregnant = false;
   Map<String, dynamic>? _pregnancyInfo;
   List<Map<String, dynamic>> _completedPregnancies = [];
-  List<BirthRecord> _babies = [];
+  List<Baby> _babies = [];
 
   /// The baby whose schedule the postpartum view is showing. Null until the
   /// first load, then the newest baby unless the mother picks another.
@@ -43,8 +44,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   List<BabyImmunizationRecord> _selectedBabyDoses = [];
   List<BabyMilestone> _selectedBabyMilestones = [];
 
-  BirthRecord? get _selectedBaby => _babies
-      .cast<BirthRecord?>()
+  Baby? get _selectedBaby => _babies
+      .cast<Baby?>()
       .firstWhere((b) => b?.id == _selectedBabyId, orElse: () => null);
 
   @override
@@ -60,8 +61,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     setState(() => _isLoading = true);
 
     try {
-      final session = UserSessionManager.instance;
-      await session.refresh();
+      final session = MainController.instance;
+      await session.reload();
       _babies = await BabyRepository.instance.getBabies();
       await _loadSelectedBabySchedule();
 
@@ -73,7 +74,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       Map<String, dynamic>? info;
       if (active != null) {
         final lmp = active.lmpDate;
-        final edd = active.edDate ?? lmp?.add(const Duration(days: 280));
+        final edd = active.eddDate ?? lmp?.add(const Duration(days: 280));
         final now = DateTime.now();
         final daysElapsed = lmp == null ? 0 : now.difference(lmp).inDays;
         final weeks = daysElapsed <= 0 ? 1 : (daysElapsed ~/ 7) + 1;
@@ -96,18 +97,18 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       }
 
       final completedRows = await HealthDbService.instance
-          .getCompletedPregnancies(healthId.isEmpty ? null : healthId);
+          .getCompletedPregnancies(healthId);
       final completed = completedRows
           .map(
             (p) => {
               'id': p.id,
               'status': p.status,
               'lmpDate': p.lmpDate?.toIso8601String(),
-              'edDate': p.edDate?.toIso8601String(),
-              'deliveryDate': p.deliveryDate?.toIso8601String(),
-              'completedAt': p.completedAt?.toIso8601String(),
+              'edDate': p.eddDate?.toIso8601String(),
+              'deliveryDate': p.deliveryDateTime?.toIso8601String(),
+              'completedAt': p.deliveryDateTime?.toIso8601String(),
               'csectionDeliveries': p.csectionDeliveries,
-              'deliveryConductedAt': p.deliveryConductedAt,
+              'deliveryConductedAt': p.status,
             },
           )
           .toList();
@@ -1880,7 +1881,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                                 await HealthDbService.instance
                                     .completePregnancy(
                                       pregId,
-                                      deliveryDate: deliveryDate,
+                                      deliveredAt: deliveryDate,
                                     );
 
                                 // The delivery produces the baby: a birth
@@ -1905,7 +1906,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                                 // She is no longer pregnant. 'new_mom' is a
                                 // non-pregnant status that also tells the app
                                 // she is postpartum rather than never-pregnant.
-                                await UserSessionManager.instance
+                                await MainController.instance
                                     .setPregnancyStatus('new_mom');
                                 await _loadAllPregnancyData();
 
@@ -2186,7 +2187,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     if (babyId == null) return;
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => BabyDetailPage(birthRecordId: babyId, initialTab: tab),
+        builder: (_) => BabyDetailPage(babyId: babyId, initialTab: tab),
       ),
     );
     if (mounted) await _loadAllPregnancyData();
@@ -2212,7 +2213,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               itemBuilder: (_, i) {
                 final b = _babies[i];
                 return _choiceChip(
-                  label: b.babyName ?? 'Baby ${i + 1}',
+                  label: b.name ?? 'Baby ${i + 1}',
                   selected: b.id == _selectedBabyId,
                   onTap: () async {
                     setState(() => _selectedBabyId = b.id);
@@ -2267,13 +2268,13 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   ///
   /// First person, like the pregnant view's "Am 24 weeks, Amma!" — same voice,
   /// the other side of the birth.
-  String _babyBannerText(BirthRecord baby) {
-    final name = baby.babyName?.trim() ?? '';
-    if (baby.dob == null) {
+  String _babyBannerText(Baby baby) {
+    final name = baby.name?.trim() ?? '';
+    if (baby.deliveryDate == null) {
       return "Hi Amma! 💕\nAdd my birthday and I will show you my schedule.";
     }
 
-    final age = babyAgeLabel(baby.dob);
+    final age = babyAgeLabel(baby.deliveryDate);
     final opener = age == 'Newborn' ? "Am here, Amma! 💕" : "Am $age old, Amma! 💕";
     return name.isEmpty
         ? "$opener\nGrowing a little more every day."
@@ -2284,7 +2285,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   ///
   /// Styled as the pregnancy info card is, and sits under the banner in the
   /// same place: the banner is the picture, this is the record.
-  Widget _buildBabyInfoCard(BirthRecord baby) {
+  Widget _buildBabyInfoCard(Baby baby) {
     final photo = baby.photo;
     final hasPhoto = photo != null && photo.isNotEmpty && File(photo).existsSync();
     final gender = baby.gender;
@@ -2404,7 +2405,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      baby.babyName ?? 'Your little one',
+                      baby.name ?? 'Your little one',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
@@ -2415,9 +2416,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      baby.dob == null
+                      baby.deliveryDate == null
                           ? 'Add a date of birth to build their schedule'
-                          : '${babyAgeLabel(baby.dob)} old  ·  Born ${_dateFmt.format(baby.dob!)}',
+                          : '${babyAgeLabel(baby.deliveryDate)} old  ·  Born ${_dateFmt.format(baby.deliveryDate!)}',
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         color: const Color(0xFF6B707B),
@@ -2467,7 +2468,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     );
   }
 
-  Future<void> _editBaby(BirthRecord baby) async {
+  Future<void> _editBaby(Baby baby) async {
     final id = await showBabyFormSheet(
       context,
       existing: baby,
@@ -2703,7 +2704,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   Widget _buildMyBabiesSection() {
     final count = _babies.length;
     final names = _babies
-        .map((b) => b.babyName)
+        .map((b) => b.name)
         .whereType<String>()
         .where((n) => n.isNotEmpty)
         .toList();
@@ -2939,7 +2940,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   pregId,
                 );
                 await HealthDbService.instance.deletePregnancy(pregId);
-                await UserSessionManager.instance.setPregnancyStatus(
+                await MainController.instance.setPregnancyStatus(
                   'notpregnant',
                 );
                 await _loadAllPregnancyData();

@@ -1,7 +1,8 @@
 import 'package:drift/drift.dart' show Value;
 import 'package:uuid/uuid.dart';
 
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/vitals_controller.dart';
 import 'package:allomom/services/cycle_predictor.dart' as predictor;
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
@@ -22,7 +23,7 @@ class CycleRepository {
 
   /// Logged periods, most recent first.
   Future<List<CycleHistory>> history() async {
-    final healthId = UserSessionManager.instance.healthDataId;
+    final healthId = MainController.instance.healthDataId;
     if (healthId.isEmpty) return const [];
     return _db.getCycleHistories(healthId);
   }
@@ -39,7 +40,7 @@ class CycleRepository {
     int? periodDuration,
     String? cycleType,
   }) async {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final healthId = session.healthDataId;
     final startDay = _dateOnly(start);
 
@@ -65,16 +66,26 @@ class CycleRepository {
       );
     }
 
-    // Only the most recent period is the LMP: back-filling an older cycle
-    // must not drag the prediction backwards.
-    final currentLmp = session.lmpDate;
-    final isMostRecent = currentLmp == null || !startDay.isBefore(currentLmp);
-
-    await session.updateCycleSetup(
-      lastPeriodStart: isMostRecent ? startDay : null,
-      cycleLength: cycleLength,
-      periodDuration: periodDuration,
+    // The reading that predictions actually run off, and the only part of a
+    // logged period that reaches the server. `VitalsController.lastPeriodStart`
+    // takes the newest of these, so back-filling an older cycle records the
+    // history without dragging the prediction backwards — no "is this the most
+    // recent one?" check needed any more.
+    await VitalsController.instance.recordPeriodStart(
+      startDay,
+      durationDays: periodDuration,
     );
+
+    if (cycleLength != null) {
+      await VitalsController.instance.record(
+        VitalKeys.cycleLength,
+        value: cycleLength.toDouble(),
+        unit: 'days',
+        recordedAt: startDay,
+      );
+    }
+
+    await session.loadFromLocal();
   }
 
   /// Her cycle length measured from what she has actually logged, or null

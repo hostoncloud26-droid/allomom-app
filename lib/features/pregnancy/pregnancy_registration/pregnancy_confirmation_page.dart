@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/pregnancy_care_scheduler.dart';
 
@@ -118,10 +119,11 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
     setState(() => _isSubmitting = true);
 
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
 
-      // 1. The pregnancy itself, written locally with synced = 0.
-      final pregnancyId = await session.saveOrUpdatePregnancy(
+      // 1. The pregnancy itself. Creating it server-side is what generates the
+      //    ANC, vaccination and lab-report schedules from this LMP.
+      final pregnancyId = await PregnancyController.instance.createPregnancy(
         lmpDate: _selectedLmpDate,
         eddDate: _calculatedEdd,
       );
@@ -130,7 +132,8 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         if (!mounted) return;
         setState(() => _isSubmitting = false);
         _toast(
-          'Could not register the pregnancy — no signed-in profile found.',
+          'Could not register the pregnancy. Please check your connection '
+          'and try again.',
           isError: true,
         );
         return;

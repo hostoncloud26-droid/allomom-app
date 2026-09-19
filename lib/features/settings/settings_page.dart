@@ -9,8 +9,10 @@ import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_conf
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
-import 'package:allomom/features/pregnancy/test_pregnancy_page.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/auth_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:get/get.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -38,9 +40,9 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: _bgTheme,
       body: SafeArea(
         child: ListenableBuilder(
-          listenable: UserSessionManager.instance,
+          listenable: MainController.instance,
           builder: (context, _) {
-            final session = UserSessionManager.instance;
+            final session = MainController.instance;
             final isPregnant = session.isPregnant;
             final gestationalWeek = session.currentGestationalWeek;
             final trimester = session.currentTrimester;
@@ -172,10 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   _buildListTile(
                     icon: Icons.group_outlined,
                     title: 'Family & Care Circle',
-                    subtitle: session.partnerName != null &&
-                            session.partnerName!.isNotEmpty
-                        ? '${session.partnerName} · Connected'
-                        : 'Invite partner & family',
+                    subtitle: 'Invite partner & family',
                     onTap: () {
                       Navigator.push(
                         context,
@@ -221,6 +220,29 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _buildItemDivider(),
 
+                  // 6b. Baby's voice (Switch Toggle)
+                  //
+                  // The one control over the background audio: off means the
+                  // baby stops speaking everywhere, and the speech bubbles keep
+                  // showing her lines in text. Persisted, so it stays off.
+                  if (BackgroundAudioController.isReady) ...[
+                    Obx(() {
+                      final enabled =
+                          BackgroundAudioController.to.isVoiceEnabled.value;
+                      return _buildSwitchTile(
+                        icon: Icons.record_voice_over_outlined,
+                        title: "Baby's voice",
+                        subtitle: enabled
+                            ? 'On · I read every screen out to you'
+                            : 'Off · You will still see what I say',
+                        isSubtitleAccent: enabled,
+                        value: enabled,
+                        onChanged: BackgroundAudioController.to.setVoiceEnabled,
+                      );
+                    }),
+                    _buildItemDivider(),
+                  ],
+
                   // 7. Reminders
                   _buildListTile(
                     icon: Icons.alarm_rounded,
@@ -263,24 +285,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     onTap: () => _showAppInfoDialog(context),
                   ),
 
-                  // 12. Developer (Debug Builds Only)
-                  if (kDebugMode) ...[
-                    _buildItemDivider(),
-                    _buildListTile(
-                      icon: Icons.storage_rounded,
-                      title: 'Test Pregnancy · Local DB',
-                      subtitle: 'Developer test harness',
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const TestPregnancyPage(),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-
                   _buildItemDivider(),
 
                   // 13. Log out
@@ -304,7 +308,7 @@ class _SettingsPageState extends State<SettingsPage> {
   // ─── PROFILE HEADER (FLAT / NO CARD WRAPPER) ───
   Widget _buildProfileHeader(
     BuildContext context,
-    UserSessionManager session,
+    MainController session,
     bool isPregnant,
     int week,
     String trimester,
@@ -564,7 +568,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   // ─── MODALS & DIALOGS ───
 
-  void _showAllowearDialog(BuildContext context, UserSessionManager session) {
+  void _showAllowearDialog(BuildContext context, MainController session) {
     final macController = TextEditingController(
       text: session.allowearMacAddress ?? '',
     );
@@ -631,9 +635,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await session.updateProfile(
-                allowearMacAddress: macController.text.trim(),
-              );
+              await session.setAllowearMacAddress(macController.text.trim());
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
@@ -945,7 +947,7 @@ class _SettingsPageState extends State<SettingsPage> {
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              await UserSessionManager.instance.logout();
+              await AuthController.instance.logout();
               if (!context.mounted) return;
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => const ContactNumberPage()),

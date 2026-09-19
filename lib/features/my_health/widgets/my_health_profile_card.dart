@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/health_info_editor_sheet.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class MyHealthProfileCard extends StatelessWidget {
   const MyHealthProfileCard({super.key});
@@ -10,17 +10,17 @@ class MyHealthProfileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
+      animation: Listenable.merge([MainController.instance, HealthVitalsController.instance]),
       builder: (context, _) {
-        final session = UserSessionManager.instance;
+        final session = MainController.instance;
         final vitals = HealthVitalsController.instance;
 
         final name = session.userName;
         final week = session.currentGestationalWeek;
         final trimester = session.currentTrimester;
         final bg = session.bloodGroup ?? vitals.bloodGroupVital?.unit ?? '--';
-        final heightVal = vitals.heightVital?.value ?? (session.currentHealthData?.height ?? 162.0);
-        final weightVal = vitals.weightVital?.value ?? (session.currentHealthData?.weight ?? 62.5);
+        final heightVal = vitals.heightVital?.value ?? 162.0;
+        final weightVal = vitals.weightVital?.value ?? 62.5;
 
         return Container(
           margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),

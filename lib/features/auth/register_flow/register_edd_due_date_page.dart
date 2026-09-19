@@ -3,8 +3,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
 import 'package:allomom/features/auth/register_flow/family_details_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
-class RegisterEddDueDatePage extends StatelessWidget {
+class RegisterEddDueDatePage extends StatefulWidget {
   final String userName;
   final String status;
   final DateTime lmpDate;
@@ -30,6 +35,23 @@ class RegisterEddDueDatePage extends StatelessWidget {
     this.registerPregnancyForPartner = false,
   });
 
+  @override
+  State<RegisterEddDueDatePage> createState() => _RegisterEddDueDatePageState();
+}
+
+class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
+  /// The line on the baby head card: the cheer about the date, or whichever
+  /// side-question she taps.
+  String _narrationKey = NarrationKeys.pregEddBubble;
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
+
   String _formatEddDate(DateTime date) {
     const months = [
       'January',
@@ -50,8 +72,8 @@ class RegisterEddDueDatePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final eddString = _formatEddDate(eddDate);
-    final daysRemaining = eddDate
+    final eddString = _formatEddDate(widget.eddDate);
+    final daysRemaining = widget.eddDate
         .difference(DateTime.now())
         .inDays
         .clamp(0, 280);
@@ -78,7 +100,7 @@ class RegisterEddDueDatePage extends StatelessWidget {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
+                          onTap: () => narratedPop(context),
                           child: Container(
                             width: 40,
                             height: 40,
@@ -120,16 +142,9 @@ class RegisterEddDueDatePage extends StatelessWidget {
                   // ─── BABY SPEECH AVATAR ───
                   BabyHeroBanner(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
+                    narrationKey: _narrationKey,
                     speechText:
                         'Yay! I can\'t wait to meet you on\n$eddString! 👶🎉',
-                    onSpeakerTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Playing Due Date voice cheer...'),
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                      );
-                    },
                   ),
 
                   const Spacer(),
@@ -238,7 +253,27 @@ class RegisterEddDueDatePage extends StatelessWidget {
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
+
+                        NarrationHintChips(
+                          selectedKey: _narrationKey,
+                          onSelected: _say,
+                          padding: const EdgeInsets.only(bottom: 16),
+                          hints: [
+                            const NarrationHint(
+                              'What are these days?',
+                              NarrationKeys.pregEddDays,
+                            ),
+                            NarrationHint(
+                              'How long is that?',
+                              countdownNarrationKey(daysRemaining),
+                            ),
+                            const NarrationHint(
+                              'Doctor said another date',
+                              NarrationKeys.pregEddDoctorDate,
+                            ),
+                          ],
+                        ),
 
                         // ─── CONFIRM DUE DATE BUTTON ───
                         SizedBox(
@@ -246,20 +281,22 @@ class RegisterEddDueDatePage extends StatelessWidget {
                           height: 54,
                           child: ElevatedButton(
                             onPressed: () {
-                              if (selectedRole.trim().toLowerCase() == 'dad') {
+                              speak(NarrationKeys.pregEddSaved, force: true);
+                              if (widget.selectedRole.trim().toLowerCase() ==
+                                  'dad') {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => FamilyDetailsPage(
-                                      userName: userName,
+                                      userName: widget.userName,
                                       status: 'pregnant',
-                                      eddDate: eddDate,
-                                      lmpDate: lmpDate,
-                                      phone: phone,
-                                      countryCode: countryCode,
+                                      eddDate: widget.eddDate,
+                                      lmpDate: widget.lmpDate,
+                                      phone: widget.phone,
+                                      countryCode: widget.countryCode,
                                       selectedRole: 'Dad',
-                                      partnerName: partnerName,
-                                      partnerPhone: partnerPhone,
+                                      partnerName: widget.partnerName,
+                                      partnerPhone: widget.partnerPhone,
                                       registerPregnancyForPartner: true,
                                     ),
                                   ),
@@ -269,13 +306,13 @@ class RegisterEddDueDatePage extends StatelessWidget {
                                   context,
                                   MaterialPageRoute(
                                     builder: (_) => RegisterPartnerDetailsPage(
-                                      userName: userName,
-                                      status: status,
-                                      eddDate: eddDate,
-                                      lmpDate: lmpDate,
-                                      phone: phone,
-                                      countryCode: countryCode,
-                                      selectedRole: selectedRole,
+                                      userName: widget.userName,
+                                      status: widget.status,
+                                      eddDate: widget.eddDate,
+                                      lmpDate: widget.lmpDate,
+                                      phone: widget.phone,
+                                      countryCode: widget.countryCode,
+                                      selectedRole: widget.selectedRole,
                                     ),
                                   ),
                                 );

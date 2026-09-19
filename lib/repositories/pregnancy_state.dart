@@ -6,7 +6,7 @@
 /// 'notpregnant'; what makes a mother a new mom is the baby she registers,
 /// not a third status value.
 ///
-/// Kept out of `UserSessionManager` (a GetX singleton wired to SQLite and
+/// Kept out of `MainController` (a GetX singleton wired to SQLite and
 /// SharedPreferences) so the precedence rules can be tested directly. The
 /// bugs these guard against: the stored LMP / EDD survive a delivery, so
 /// trusting them ahead of the status left the whole app in pregnancy mode

@@ -6,9 +6,14 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/user_db_service.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 
-/// The bug being guarded: `getActiveUser` used to fall back to the first
-/// stored profile *and* mark it active, so after logging out the leftover row
-/// re-established the session and the old user was signed back in on restart.
+/// Signing out has to leave nothing behind.
+///
+/// The bug this guards: `getActiveUser` used to fall back to the first stored
+/// profile *and* mark it active, so a leftover row re-established the session
+/// and the previous user was signed back in on restart. The session is now the
+/// token in secure storage, and `clearAccountData` is what has to empty the
+/// device — if a row survives it, the same bug comes back through the fallback
+/// in [UserDbService.getFirstStoredUser].
 void main() {
   late AppDriftDatabase db;
 
@@ -22,103 +27,74 @@ void main() {
     await db.close();
   });
 
-  Future<void> signIn(String id) async {
+  Future<void> seedAccount(String id) async {
     await UserDbService.instance.saveUser(
       UsersCompanion.insert(id: id, name: const Value('Meera')),
     );
-    await UserDbService.instance.setActiveUser(id);
+    await db
+        .into(db.healthDataTable)
+        .insertOnConflictUpdate(
+          HealthDataTableCompanion.insert(id: 'hd-$id', userId: id),
+        );
+    await db
+        .into(db.pregnancies)
+        .insertOnConflictUpdate(
+          PregnanciesCompanion.insert(
+            id: 'preg-$id',
+            healthId: Value('hd-$id'),
+          ),
+        );
+    await db
+        .into(db.syncStates)
+        .insertOnConflictUpdate(
+          SyncStatesCompanion.insert(
+            module: 'user',
+            syncedAt: Value(DateTime.now()),
+          ),
+        );
   }
 
-  test('a signed-in user is the active user', () async {
-    await signIn('usr-1');
+  test('clearAccountData removes every trace of the account', () async {
+    await seedAccount('usr-1');
 
-    expect(await UserDbService.instance.hasActiveSession(), isTrue);
-    expect(
-      await UserDbService.instance.getActiveUser(),
-      isA<User>().having((u) => u.id, 'id', 'usr-1'),
-    );
+    expect(await UserDbService.instance.getUserById('usr-1'), isNotNull);
+
+    await db.clearAccountData();
+
+    expect(await db.select(db.users).get(), isEmpty);
+    expect(await db.select(db.healthDataTable).get(), isEmpty);
+    expect(await db.select(db.pregnancies).get(), isEmpty);
   });
 
-  test(
-    'logout leaves no active session even though the profile remains',
-    () async {
-      await signIn('usr-1');
-      await UserDbService.instance.logout();
+  test('no stored user can re-establish a session after a wipe', () async {
+    await seedAccount('usr-1');
+    await db.clearAccountData();
 
-      expect(await UserDbService.instance.getActiveUser(), isNull);
-      expect(await UserDbService.instance.hasActiveSession(), isFalse);
-
-      // The profile row is kept on purpose so signing back in is cheap.
-      expect(await UserDbService.instance.getUserById('usr-1'), isNotNull);
-    },
-  );
-
-  test('a second call after logout does not resurrect the session', () async {
-    await signIn('usr-1');
-    await UserDbService.instance.logout();
-
-    // The old fallback re-activated the first stored user on read, so the
-    // second call would have returned a user again.
-    expect(await UserDbService.instance.getActiveUser(), isNull);
-    expect(await UserDbService.instance.getActiveUser(), isNull);
-    expect(await UserDbService.instance.hasActiveSession(), isFalse);
-  });
-
-  test(
-    'logout with several stored profiles still clears the session',
-    () async {
-      await signIn('usr-1');
-      await UserDbService.instance.saveUser(
-        UsersCompanion.insert(id: 'usr-2', name: const Value('Asha')),
-      );
-
-      await UserDbService.instance.logout();
-
-      expect(await UserDbService.instance.getActiveUser(), isNull);
-      expect(await UserDbService.instance.getAllUsers(), hasLength(2));
-    },
-  );
-
-  test(
-    'getFirstStoredUser finds a profile without starting a session',
-    () async {
-      await signIn('usr-1');
-      await UserDbService.instance.logout();
-
-      final stored = await UserDbService.instance.getFirstStoredUser();
-      expect(stored, isNotNull);
-      expect(stored!.id, 'usr-1');
-
-      // Reading it must not have signed anyone in.
-      expect(await UserDbService.instance.getActiveUser(), isNull);
-    },
-  );
-
-  test('signing back in after logout restores the session', () async {
-    await signIn('usr-1');
-    await UserDbService.instance.logout();
-    await UserDbService.instance.setActiveUser('usr-1');
-
-    expect(await UserDbService.instance.hasActiveSession(), isTrue);
-  });
-
-  test('switching users replaces the active one', () async {
-    await signIn('usr-1');
-    await UserDbService.instance.saveUser(
-      UsersCompanion.insert(id: 'usr-2', name: const Value('Asha')),
-    );
-    await UserDbService.instance.setActiveUser('usr-2');
-
-    expect((await UserDbService.instance.getActiveUser())!.id, 'usr-2');
-  });
-
-  test('an active id pointing at a deleted row yields no session', () async {
-    await signIn('usr-1');
-    await UserDbService.instance.deleteUser('usr-1');
-
-    // Soft-deleted, so the row is still there but must not be a session.
-    final active = await UserDbService.instance.getActiveUser();
-    expect(active?.isDeleted, isTrue);
+    // The fallback that caused the original bug now has nothing to find.
     expect(await UserDbService.instance.getFirstStoredUser(), isNull);
+    expect(await UserDbService.instance.getActiveUser(), isNull);
+  });
+
+  test('sync watermarks are cleared, so the next sign-in re-seeds', () async {
+    await seedAccount('usr-1');
+
+    expect(await db.select(db.syncStates).get(), hasLength(1));
+
+    await db.clearAccountData();
+
+    // A stale watermark would make the next account's first sync ask for
+    // "changes since" a moment that has nothing to do with it, and silently
+    // skip everything written before then.
+    expect(await db.select(db.syncStates).get(), isEmpty);
+  });
+
+  test('a different user signing in does not inherit the old rows', () async {
+    await seedAccount('usr-1');
+    await db.clearAccountData();
+    await seedAccount('usr-2');
+
+    final users = await db.select(db.users).get();
+    expect(users, hasLength(1));
+    expect(users.single.id, 'usr-2');
   });
 }

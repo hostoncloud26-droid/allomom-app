@@ -6,9 +6,11 @@ import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/features/reports/add_report.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 
@@ -29,7 +31,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
 
   bool _isLoading = true;
   String? _pregnancyId;
-  List<ReportChecklist> _reports = const [];
+  List<PregnancyReportChecklist> _reports = const [];
 
   @override
   void initState() {
@@ -40,17 +42,16 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final healthId = session.healthDataId;
       final pregnancy = healthId.isEmpty
           ? null
           : await HealthDbService.instance.getActivePregnancy(healthId);
 
       final reports = pregnancy == null
-          ? const <ReportChecklist>[]
+          ? const <PregnancyReportChecklist>[]
           : await PregnancyCareDbService.instance.getReportChecklists(
-              session.userId,
-              pregnancyId: pregnancy.id,
+              pregnancy.id,
             );
 
       if (!mounted) return;
@@ -65,15 +66,14 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     }
   }
 
-  Future<void> _toggleDone(ReportChecklist report) async {
+  Future<void> _toggleDone(PregnancyReportChecklist report) async {
     final wasDone = report.status == 'done';
     try {
-      await PregnancyCareDbService.instance.updateReportChecklist(
-        ReportChecklistsCompanion(
-          id: Value(report.id),
-          status: Value(wasDone ? 'pending' : 'done'),
-          completedDate: Value(wasDone ? null : DateTime.now()),
-        ),
+      // A test is done exactly when it has a completion date — no separate
+      // status column to keep in step with it.
+      await PregnancyController.instance.setReportCompleted(
+        report.id,
+        wasDone ? null : DateTime.now(),
       );
       await _load();
     } catch (e) {
@@ -83,7 +83,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
 
   /// Opens the report uploader pre-tagged with this checklist entry, which
   /// closes the entry out once the file is saved.
-  Future<void> _uploadResult(ReportChecklist report) async {
+  Future<void> _uploadResult(PregnancyReportChecklist report) async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) =>
@@ -93,7 +93,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     if (added == true) await _load();
   }
 
-  List<ReportChecklist> get _filtered => switch (_filter) {
+  List<PregnancyReportChecklist> get _filtered => switch (_filter) {
     1 => _reports.where((r) => r.status != 'done').toList(),
     2 => _reports.where((r) => r.status == 'done').toList(),
     _ => _reports,
@@ -102,8 +102,8 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
   int get _doneCount => _reports.where((r) => r.status == 'done').length;
 
   /// Filtered rows bucketed by pregnancy month, months in order.
-  Map<int, List<ReportChecklist>> get _byMonth {
-    final grouped = <int, List<ReportChecklist>>{};
+  Map<int, List<PregnancyReportChecklist>> get _byMonth {
+    final grouped = <int, List<PregnancyReportChecklist>>{};
     for (final report in _filtered) {
       grouped.putIfAbsent(report.pregnancyMonth ?? 0, () => []).add(report);
     }
@@ -114,7 +114,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final week = UserSessionManager.instance.currentGestationalWeek;
+    final week = MainController.instance.currentGestationalWeek;
     final grouped = _byMonth;
 
     return Scaffold(
@@ -223,7 +223,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     );
   }
 
-  Widget _buildMonthHeader(int month, List<ReportChecklist> reports) {
+  Widget _buildMonthHeader(int month, List<PregnancyReportChecklist> reports) {
     final due = reports.first.dueDate;
     return Row(
       children: [
@@ -264,7 +264,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     );
   }
 
-  Widget _buildReportCard(ReportChecklist report) {
+  Widget _buildReportCard(PregnancyReportChecklist report) {
     final status = CareStatus.resolve(
       status: report.status,
       date: report.dueDate,
@@ -339,15 +339,6 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                         ],
                       ],
                     ),
-                    if (report.notes != null && report.notes!.isNotEmpty)
-                      Text(
-                        report.notes!,
-                        style: GoogleFonts.poppins(
-                          fontSize: 11.5,
-                          color: const Color(0xFF6B7280),
-                          height: 1.35,
-                        ),
-                      ),
                   ],
                 ),
               ),

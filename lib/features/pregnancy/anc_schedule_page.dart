@@ -5,10 +5,12 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 
@@ -26,7 +28,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
   int _trimesterFilter = 0; // 0: All, 1..3: trimester
   bool _isLoading = true;
   String? _pregnancyId;
-  List<PregnancyAncScheduleData> _visits = const [];
+  List<AncCheckupDate> _visits = const [];
 
   @override
   void initState() {
@@ -37,14 +39,14 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final healthId = session.healthDataId;
       final pregnancy = healthId.isEmpty
           ? null
           : await HealthDbService.instance.getActivePregnancy(healthId);
 
       final visits = pregnancy == null
-          ? const <PregnancyAncScheduleData>[]
+          ? const <AncCheckupDate>[]
           : await PregnancyCareDbService.instance.getAncVisits(pregnancy.id);
 
       if (!mounted) return;
@@ -59,15 +61,14 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
     }
   }
 
-  Future<void> _toggleDone(PregnancyAncScheduleData visit) async {
+  Future<void> _toggleDone(AncCheckupDate visit) async {
     final wasDone = visit.status == 'done';
     try {
-      await PregnancyCareDbService.instance.updateAncVisit(
-        PregnancyAncScheduleCompanion(
-          id: Value(visit.id),
-          status: Value(wasDone ? 'pending' : 'done'),
-          actualDate: Value(wasDone ? null : DateTime.now()),
-        ),
+      // A visit is done exactly when it has a completion date — there is no
+      // separate status column to keep in step with it.
+      await PregnancyController.instance.setAncCompleted(
+        visit.id,
+        wasDone ? null : DateTime.now(),
       );
       await _load();
 
@@ -132,7 +133,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
     if (mounted) Navigator.pop(context);
   }
 
-  List<PregnancyAncScheduleData> get _filtered => _trimesterFilter == 0
+  List<AncCheckupDate> get _filtered => _trimesterFilter == 0
       ? _visits
       : _visits.where((v) => v.trimester == _trimesterFilter).toList();
 
@@ -140,7 +141,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final week = UserSessionManager.instance.currentGestationalWeek;
+    final week = MainController.instance.currentGestationalWeek;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBFC),
@@ -253,7 +254,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
     );
   }
 
-  Widget _buildVisitCard(PregnancyAncScheduleData visit) {
+  Widget _buildVisitCard(AncCheckupDate visit) {
     final status = CareStatus.resolve(
       status: visit.status,
       date: visit.scheduledDate,
@@ -332,31 +333,15 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
           _DetailRow(
             icon: Icons.event_rounded,
             label: 'Scheduled',
-            value: _dateFmt.format(visit.scheduledDate),
+            value: visit.scheduledDate == null
+                ? '—'
+                : _dateFmt.format(visit.scheduledDate!),
           ),
           if (visit.actualDate != null)
             _DetailRow(
               icon: Icons.check_circle_outline_rounded,
               label: 'Attended',
               value: _dateFmt.format(visit.actualDate!),
-            ),
-          if (visit.bp != null)
-            _DetailRow(
-              icon: Icons.monitor_heart_outlined,
-              label: 'Blood pressure',
-              value: visit.bp!,
-            ),
-          if (visit.weightKg != null)
-            _DetailRow(
-              icon: Icons.monitor_weight_outlined,
-              label: 'Weight',
-              value: '${visit.weightKg} kg',
-            ),
-          if (visit.fetalHeartRate != null)
-            _DetailRow(
-              icon: Icons.favorite_outline_rounded,
-              label: 'Fetal heart rate',
-              value: '${visit.fetalHeartRate} bpm',
             ),
 
           const SizedBox(height: 12),

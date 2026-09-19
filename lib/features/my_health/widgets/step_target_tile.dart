@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class StepTargetTile extends StatefulWidget {
   final String? userId;
@@ -99,7 +99,7 @@ class _StepTargetTileState extends State<StepTargetTile> {
                       onTap: () async {
                         await HealthVitalsController.instance.setStepTarget(
                           option,
-                          userId: widget.userId ?? UserSessionManager.instance.userId,
+                          userId: widget.userId ?? MainController.instance.userId,
                         );
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
@@ -170,7 +170,7 @@ class _StepTargetTileState extends State<StepTargetTile> {
                         if (val != null && val > 500 && val < 50000) {
                           await HealthVitalsController.instance.setStepTarget(
                             val,
-                            userId: widget.userId ?? UserSessionManager.instance.userId,
+                            userId: widget.userId ?? MainController.instance.userId,
                           );
                           if (ctx.mounted) Navigator.pop(ctx);
                         }

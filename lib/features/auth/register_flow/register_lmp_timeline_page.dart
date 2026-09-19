@@ -4,6 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_cycle_prediction_page.dart';
 import 'package:allomom/features/auth/register_flow/register_edd_due_date_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 class RegisterLmpTimelinePage extends StatefulWidget {
   final String userName;
@@ -61,6 +66,23 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
 
   late FixedExtentScrollController _dayController;
   late FixedExtentScrollController _monthController;
+
+  /// The line on the baby head card.
+  ///
+  /// The screen is shared: a pregnant mother is being asked for the date that
+  /// gives her a due date, everyone else for the date that starts a cycle
+  /// prediction. Same question, two recordings.
+  late String _narrationKey = _isPregnancyFlow
+      ? NarrationKeys.pregLmp
+      : NarrationKeys.preCycle;
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
 
   @override
   void initState() {
@@ -146,7 +168,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
+                          onTap: () => narratedPop(context),
                           child: Container(
                             width: 40,
                             height: 40,
@@ -189,20 +211,11 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                     padding: const EdgeInsets.only(top: 4, bottom: 8),
                     child: BabyHeroBanner(
                       margin: const EdgeInsets.symmetric(horizontal: 20),
+                      narrationKey: _narrationKey,
                       speechText:
                           widget.selectedRole.trim().toLowerCase() == 'dad'
                           ? "When was the first day of Mommy's last\nmenstrual period? 🌸"
                           : 'When was the first day of your last\nmenstrual period? 🌸',
-                      onSpeakerTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                              'Swipe Day or Month to set your LMP date!',
-                            ),
-                            duration: Duration(milliseconds: 1000),
-                          ),
-                        );
-                      },
                     ),
                   ),
 
@@ -253,6 +266,32 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                           ],
                         ),
                         const SizedBox(height: 10),
+
+                        // The two things mothers ask at this step: why the date
+                        // is needed, and what to do when they cannot recall it.
+                        NarrationHintChips(
+                          selectedKey: _narrationKey,
+                          onSelected: _say,
+                          padding: const EdgeInsets.only(bottom: 10),
+                          hints: [
+                            const NarrationHint(
+                              'Why do you ask?',
+                              NarrationKeys.pregLmpWhy,
+                            ),
+                            const NarrationHint(
+                              "I don't remember",
+                              NarrationKeys.pregLmpUnknown,
+                            ),
+                            // Resolves to the trimester the chosen date puts
+                            // her in, so all three stage lines are reachable
+                            // from the one chip.
+                            if (_isPregnancyFlow)
+                              NarrationHint(
+                                'Where are we now?',
+                                trimesterNarrationKey(_selectedDate),
+                              ),
+                          ],
+                        ),
 
                         // Selected Date Display Card
                         Container(
@@ -523,6 +562,39 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                           child: ElevatedButton(
                             onPressed: () {
                               final lmp = _selectedDate;
+
+                              // The wheels only offer a day and a month, so a
+                              // date later this year is one swipe away. It
+                              // would hand her a due date in the past.
+                              final now = DateTime.now();
+                              final today = DateTime(
+                                now.year,
+                                now.month,
+                                now.day,
+                              );
+                              if (lmp.isAfter(today)) {
+                                _say(NarrationKeys.pregLmpFutureError);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'That date is after today. Please check '
+                                      'once.',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              // One line over the transition, not two: the
+                              // next screen has its own opener, and a queue two
+                              // deep means she is still being talked at after
+                              // she has moved on.
+                              speak(
+                                _isPregnancyFlow
+                                    ? NarrationKeys.pregLmpConfirm
+                                    : NarrationKeys.preCycleSaved,
+                                force: true,
+                              );
 
                               // Only a pregnancy has a due date. Pre-pregnancy and
                               // new-mom users get a next-period prediction instead.

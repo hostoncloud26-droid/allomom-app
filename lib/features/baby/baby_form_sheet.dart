@@ -3,8 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/repositories/baby_repository.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 
 /// Add / edit form for a baby, shown as a bottom sheet.
@@ -15,7 +20,7 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 /// Resolves the birth record id on save, or null if the sheet was dismissed.
 Future<String?> showBabyFormSheet(
   BuildContext context, {
-  BirthRecord? existing,
+  Baby? existing,
   String? pregnancyId,
   DateTime? initialDob,
   String title = 'Add your baby',
@@ -41,7 +46,7 @@ class _BabyFormSheet extends StatefulWidget {
     required this.title,
   });
 
-  final BirthRecord? existing;
+  final Baby? existing;
   final String? pregnancyId;
   final DateTime? initialDob;
   final String title;
@@ -54,29 +59,64 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
   late final TextEditingController _name = TextEditingController(
-    text: widget.existing?.babyName ?? '',
+    text: widget.existing?.name ?? '',
   );
   late final TextEditingController _weight = TextEditingController(
     text: widget.existing?.weight?.toString() ?? '',
   );
 
-  late DateTime? _dob = widget.existing?.dob ?? widget.initialDob;
+  late DateTime? _dob = widget.existing?.deliveryDate ?? widget.initialDob;
   late String? _gender = widget.existing?.gender;
-  late String? _deliveryType = widget.existing?.deliveryType;
+  late String? _deliveryType = widget.existing?.typeOfDelivery;
   late String? _bloodGroup = widget.existing?.bloodGroup;
 
   bool _saving = false;
 
+  final FocusNode _nameFocus = FocusNode();
+
+  /// The baby asking for its own details, one field at a time.
+  ///
+  /// Only for a new record: editing a baby already added is not the moment for
+  /// "What name did you give me?".
+  late String _narrationKey = NarrationKeys.newBabyName;
+
   bool get _isEdit => widget.existing != null;
+
+  /// Whether the sheet speaks at all. Editing is a correction, not an
+  /// introduction.
+  bool get _narrates => !_isEdit;
+
+  @override
+  void initState() {
+    super.initState();
+    // Reacting when she leaves the field rather than on every keystroke, so
+    // the line lands on a finished name.
+    _nameFocus.addListener(() {
+      if (_nameFocus.hasFocus) return;
+      if (_name.text.trim().isEmpty) return;
+      if (_narrationKey == NarrationKeys.newBabyNameReaction) return;
+      _say(NarrationKeys.newBabyNameReaction);
+    });
+  }
+
+  void _say(String key) {
+    if (!mounted || !_narrates) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
 
   @override
   void dispose() {
     _name.dispose();
     _weight.dispose();
+    _nameFocus.dispose();
     super.dispose();
   }
 
   Future<void> _pickDob() async {
+    _say(NarrationKeys.newBabyDob);
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -87,7 +127,12 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
       lastDate: now,
       helpText: "Baby's date of birth",
     );
-    if (picked != null) setState(() => _dob = picked);
+    if (picked != null) {
+      setState(() => _dob = picked);
+      // Date answered, so the baby moves on to the next question rather than
+      // commenting on the one she has just finished.
+      _say(NarrationKeys.newBabyGender);
+    }
   }
 
   Future<void> _save() async {
@@ -113,21 +158,19 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
         babyId = existing.id;
         // Only re-seed the schedule when the date of birth actually moved —
         // it rebuilds every dose and milestone, losing what was ticked off.
-        final dobChanged = existing.dob != dob;
-        await BabyRepository.instance.updateBaby(
-          BirthRecordsCompanion(
-            id: drift.Value(babyId),
-            babyName: drift.Value(_trimmed(_name.text)),
-            dob: drift.Value(dob),
-            gender: drift.Value(_gender),
-            deliveryType: drift.Value(_deliveryType),
-            weight: drift.Value(weight),
-            bloodGroup: drift.Value(_bloodGroup),
-          ),
-          rescheduleFrom: dobChanged ? dob : null,
-        );
+        // Changing the date of birth makes the server reschedule every dose
+        // and milestone that has not been ticked off, so there is nothing to
+        // re-seed from here any more.
+        await BabyRepository.instance.updateBaby(babyId, {
+          'name': _trimmed(_name.text),
+          'delivery_date': SyncCodec.isoUtc(dob),
+          'gender': _gender,
+          'type_of_delivery': _deliveryType,
+          'weight': weight,
+          'blood_group': _bloodGroup,
+        });
       } else {
-        babyId = await BabyRepository.instance.addBaby(
+        final createdId = await BabyRepository.instance.addBaby(
           dob: dob,
           pregnancyId: widget.pregnancyId,
           babyName: _trimmed(_name.text),
@@ -136,8 +179,27 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
           weight: weight,
           bloodGroup: _bloodGroup,
         );
+        if (createdId == null) {
+          // The schedules are seeded server-side, so a baby that never reached
+          // the server would be a name with no care plan behind it. Better to
+          // say so than to leave a half-created record on the device.
+          if (!mounted) return;
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Could not add your baby right now. Please check your '
+                'connection and try again.',
+              ),
+              backgroundColor: Color(0xFFB91C1C),
+            ),
+          );
+          return;
+        }
+        babyId = createdId;
       }
 
+      if (_narrates) speak(NarrationKeys.newBabySaved, force: true);
       if (mounted) Navigator.pop(context, babyId);
     } catch (e) {
       if (!mounted) return;
@@ -226,11 +288,23 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // The sheet's own baby head card: slim, because a bottom sheet
+            // over an open keyboard has no room for the full one.
+            if (_narrates) ...[
+              BabyPromptBar(
+                narrationKey: _narrationKey,
+                margin: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 16),
+            ] else
+              const SizedBox(height: 4),
 
             _label("BABY'S NAME (OPTIONAL)"),
             TextField(
               controller: _name,
+              focusNode: _nameFocus,
               textCapitalization: TextCapitalization.words,
               decoration: _fieldDecoration('e.g. Aarav'),
             ),

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 import 'package:allomom/features/cycle_tracker/widgets/stepper_row.dart';
 import 'package:allomom/repositories/cycle_repository.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 
 /// Asks for the three things a prediction needs: when the last period started,
@@ -53,7 +53,7 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
   @override
   void initState() {
     super.initState();
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final now = DateTime.now();
     _startDate = DateTime(now.year, now.month, now.day);
     _periodDuration = session.averagePeriodDuration;

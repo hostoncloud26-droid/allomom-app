@@ -17,8 +17,10 @@ import 'package:allomom/features/home/widgets/allo_voice_prompt_card.dart';
 import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
 import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart' as health;
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -37,6 +39,52 @@ class _HomePageState extends State<HomePage> {
 
   /// Whether the carousel has already slid off AlloBot onto the summary.
   bool _hasAdvancedToDailySummary = false;
+
+  /// The baby's own line while the home greeting runs, then null.
+  ///
+  /// The hero card is AlloBot's mouthpiece for the rest of the session, so the
+  /// greeting borrows it rather than owning it: three recorded lines on first
+  /// arrival, and then the bubble goes back to whatever AlloBot is saying.
+  String? _homeNarrationKey;
+
+  /// Set once the greeting has run, so coming back to the tab does not replay
+  /// it. The controller also skips keys it has already spoken; this keeps the
+  /// card from flickering through them a second time.
+  static bool _homeGreetingPlayed = false;
+
+  /// Which journey's greeting to play.
+  NarrationFlow get _flow {
+    final session = MainController.instance;
+    if (session.isPregnant) return NarrationFlow.pregnant;
+    if (session.isNewMom) return NarrationFlow.newMom;
+    return NarrationFlow.prePregnancy;
+  }
+
+  /// Welcome, the line that follows it, then the first question.
+  ///
+  /// Awaited line by line so the card's text keeps step with the audio, and
+  /// AlloBot is held back until it finishes — two voices talking over each
+  /// other on the first screen she sees is worse than a short wait.
+  Future<void> _playHomeGreeting() async {
+    if (_homeGreetingPlayed || !BackgroundAudioController.isReady) return;
+    // Muted: hand straight over to AlloBot rather than flickering the card
+    // through three lines nobody will hear.
+    if (!BackgroundAudioController.to.isVoiceEnabled.value) return;
+    _homeGreetingPlayed = true;
+
+    final flow = _flow;
+    for (final key in [
+      flow.homeWelcome,
+      flow.homeFollowUp,
+      flow.homeFirstQuestion,
+    ]) {
+      if (!mounted) return;
+      setState(() => _homeNarrationKey = key);
+      await BackgroundAudioController.to.playByKey(key);
+    }
+
+    if (mounted) setState(() => _homeNarrationKey = null);
+  }
 
   static const List<String> _shortMonths = [
     'Jan',
@@ -60,11 +108,15 @@ class _HomePageState extends State<HomePage> {
     _voice.addListener(_onVoiceChanged);
     HomeVoiceLauncher.instance.ancFollowUpRequests
         .addListener(_onAncFollowUpRequested);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // The baby says hello first, in her own recorded voice; AlloBot picks up
+      // where it leaves off.
+      await _playHomeGreeting();
+      if (!mounted) return;
       // Greets and asks the first question. Deliberately not awaited: the
       // screen renders immediately and the card appears when it is ready.
       _voice.start();
-      final currentUserId = UserSessionManager.instance.userId;
+      final currentUserId = MainController.instance.userId;
       if (currentUserId.isNotEmpty &&
           HealthVitalsController.instance.userId != currentUserId) {
         HealthVitalsController.instance.setUserId(currentUserId);
@@ -176,7 +228,7 @@ class _HomePageState extends State<HomePage> {
   /// otherwise. Long lines are trimmed: the bubble is a fixed shape over the
   /// illustration, and the full text is on the card below it anyway.
   String _babyBubbleText(
-    UserSessionManager session,
+    MainController session,
     bool isPregnant,
     String name,
   ) {
@@ -219,9 +271,9 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: UserSessionManager.instance,
+      animation: MainController.instance,
       builder: (context, child) {
-        final session = UserSessionManager.instance;
+        final session = MainController.instance;
         final isPregnant = session.isPregnant;
         final name = session.userName;
         final week = session.currentGestationalWeek;
@@ -261,12 +313,21 @@ class _HomePageState extends State<HomePage> {
                           // The bubble carries whatever AlloBot is saying, so
                           // the words come from the baby that is speaking them
                           // rather than from a card elsewhere on the page.
+                          //
+                          // While the recorded greeting runs, `narrationKey`
+                          // takes the bubble over; the controller plays the
+                          // lines, so the card itself does not autoplay.
+                          narrationKey: _homeNarrationKey,
+                          autoPlayNarration: false,
                           speechText: _babyBubbleText(session, isPregnant, name),
                           greetingText: "",
                           bubblePosition: SpeechBubblePosition.topCenter,
                           height: 270,
-                          onSpeakerTap:
-                              _voice.isVisible ? _voice.toggleSpeech : null,
+                          onSpeakerTap: _homeNarrationKey != null
+                              ? null
+                              : (_voice.isVisible
+                                    ? _voice.toggleSpeech
+                                    : null),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -308,7 +369,7 @@ class _HomePageState extends State<HomePage> {
   // ─── HEADER / APP BAR ─────────────────────────────────────
   Widget _buildHeader(
     BuildContext context,
-    UserSessionManager session,
+    MainController session,
     String userName,
     bool isPregnant,
     int week,
@@ -548,7 +609,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ─── GENERAL SUMMARY CARD (pregnancy completed / deleted) ──
-  Widget _buildGeneralSummaryCard(UserSessionManager session) {
+  Widget _buildGeneralSummaryCard(MainController session) {
     final isNewMom = session.isNewMom;
     final days = session.daysSinceDelivery;
 
@@ -712,7 +773,7 @@ class _HomePageState extends State<HomePage> {
 
   // ─── DAILY SUMMARY CARD ────────────────────────────────────
   Widget _buildDailySummaryCard() {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final isPregnant = session.isPregnant;
     final gestationalWeek = session.currentGestationalWeek;
     final trimester = session.currentTrimester;
@@ -988,7 +1049,7 @@ class _HomePageState extends State<HomePage> {
 
   // ─── QUICK ACTIONS CARD (GRID OF ALL FEATURES) ─────────────
   Widget _buildQuickActionsCard(BuildContext context) {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final isPregnant = session.isPregnant;
 
     // Kick counting is a pregnancy tool: there is nothing to count once the

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lottie/lottie.dart';
+
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 enum SpeechBubblePosition { left, right, topCenter, none }
 
@@ -13,15 +16,39 @@ class BabyHeroBanner extends StatelessWidget {
   /// When set, a speaker button is shown inside the speech bubble and tapping
   /// it calls this instead of [onTap]. Used by the onboarding screens, which
   /// read their prompt aloud.
+  ///
+  /// Left null when [narrationKey] is set: the narration wires its own speaker,
+  /// which replays the clip rather than showing a snackbar about it.
   final VoidCallback? onSpeakerTap;
 
   /// Outer margin. The onboarding screens place the card inside a full-width
   /// column, so they inset it the same 20px the home page does.
   final EdgeInsetsGeometry? margin;
 
+  /// A `NarrationKeys` constant. When set, the card speaks that line as it
+  /// appears, shows the line's text in the bubble in place of [speechText], and
+  /// turns its speaker button into a replay control.
+  final String? narrationKey;
+
+  /// Whether the clip plays by itself when the card appears. False for cards
+  /// that should stay quiet until the speaker is tapped.
+  final bool autoPlayNarration;
+
+  /// Whether leaving the screen cuts the clip off. False on the last card of a
+  /// flow, which keeps talking as the next screen comes in.
+  final bool stopNarrationOnDispose;
+
+  /// Whether the line replaces [speechText] for good, or only while it plays.
+  /// See [BabyNarration.bindText].
+  final bool bindNarrationText;
+
+  /// Set by [BabyPrompt], which owns the narration itself so the clip is not
+  /// cut in half when the keyboard swaps this card for the slim bar.
+  final bool speakingOverride;
+
   const BabyHeroBanner({
     super.key,
-    required this.speechText,
+    this.speechText = '',
     this.greetingText = "",
     this.bubblePosition = SpeechBubblePosition.topCenter,
     this.height = 270,
@@ -29,6 +56,11 @@ class BabyHeroBanner extends StatelessWidget {
     this.onTap,
     this.onSpeakerTap,
     this.margin,
+    this.narrationKey,
+    this.autoPlayNarration = true,
+    this.stopNarrationOnDispose = true,
+    this.bindNarrationText = true,
+    this.speakingOverride = false,
   });
 
   /// Keys so layout tests can assert the bubble and the baby never overlap.
@@ -45,8 +77,30 @@ class BabyHeroBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final key = narrationKey;
+    if (key == null) {
+      return _buildCard(context, speechText, onSpeakerTap, speakingOverride);
+    }
+
+    return BabyNarration(
+      narrationKey: key,
+      autoPlay: autoPlayNarration,
+      stopOnDispose: stopNarrationOnDispose,
+      bindText: bindNarrationText,
+      fallbackText: speechText,
+      builder: (context, state) =>
+          _buildCard(context, state.text, state.onSpeakerTap, state.speaking),
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    String text,
+    VoidCallback? speakerTap,
+    bool speaking,
+  ) {
     final showBubble =
-        bubblePosition != SpeechBubblePosition.none && speechText.isNotEmpty;
+        bubblePosition != SpeechBubblePosition.none && text.isNotEmpty;
     final compact = height < compactHeight && showBubble;
 
     return GestureDetector(
@@ -111,11 +165,23 @@ class BabyHeroBanner extends StatelessWidget {
                       // overflowing the card. Full: capped at 55% so the baby
                       // always keeps ~40% of the card, however long the prompt.
                       if (compact)
-                        Flexible(child: _buildSpeechBubble(context, speechText))
+                        Flexible(
+                          child: _buildSpeechBubble(
+                            context,
+                            text,
+                            speakerTap,
+                            speaking,
+                          ),
+                        )
                       else
                         ConstrainedBox(
                           constraints: BoxConstraints(maxHeight: height * 0.55),
-                          child: _buildSpeechBubble(context, speechText),
+                          child: _buildSpeechBubble(
+                            context,
+                            text,
+                            speakerTap,
+                            speaking,
+                          ),
                         ),
                     if (!compact) ...[
                       if (showBubble) const SizedBox(height: 6),
@@ -124,24 +190,7 @@ class BabyHeroBanner extends StatelessWidget {
                           constraints: BoxConstraints(
                             maxHeight: babyHeight ?? double.infinity,
                           ),
-                          child: Image.asset(
-                            'assets/allobaby/AlloMombaby.png',
-                            key: babyKey,
-                            fit: BoxFit.contain,
-                            // Grounded on the card's floor rather than floating
-                            // in the middle of the leftover space.
-                            alignment: Alignment.bottomCenter,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const FittedBox(
-                                fit: BoxFit.contain,
-                                child: Icon(
-                                  Icons.face_retouching_natural_rounded,
-                                  size: 110,
-                                  color: Color(0xFFFF6584),
-                                ),
-                              );
-                            },
-                          ),
+                          child: _buildBaby(speaking),
                         ),
                       ),
                     ],
@@ -169,7 +218,49 @@ class BabyHeroBanner extends StatelessWidget {
     );
   }
 
-  Widget _buildSpeechBubble(BuildContext context, String text) {
+  /// The still baby, or the Lottie one while a clip is playing.
+  ///
+  /// Same cue AlloBaby gives next to its speech bubble — the mouth moves only
+  /// while there is sound, so the animation means something rather than looping
+  /// at her all day.
+  Widget _buildBaby(bool speaking) {
+    final still = Image.asset(
+      'assets/allobaby/AlloMombaby.png',
+      fit: BoxFit.contain,
+      // Grounded on the card's floor rather than floating
+      // in the middle of the leftover space.
+      alignment: Alignment.bottomCenter,
+      errorBuilder: (context, error, stackTrace) {
+        return const FittedBox(
+          fit: BoxFit.contain,
+          child: Icon(
+            Icons.face_retouching_natural_rounded,
+            size: 110,
+            color: Color(0xFFFF6584),
+          ),
+        );
+      },
+    );
+
+    if (!speaking) return KeyedSubtree(key: babyKey, child: still);
+
+    return KeyedSubtree(
+      key: babyKey,
+      child: Lottie.asset(
+        'assets/animations/Baby Speaking F.json',
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        errorBuilder: (context, error, stackTrace) => still,
+      ),
+    );
+  }
+
+  Widget _buildSpeechBubble(
+    BuildContext context,
+    String text,
+    VoidCallback? speakerTap,
+    bool speaking,
+  ) {
     final label = Text(
       text,
       textAlign: TextAlign.center,
@@ -193,36 +284,63 @@ class BabyHeroBanner extends StatelessWidget {
           shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
         ),
         child: Container(
-          padding: EdgeInsets.fromLTRB(
-            22,
-            14,
-            onSpeakerTap == null ? 22 : 12,
-            22,
-          ),
-          child: onSpeakerTap == null
+          padding: EdgeInsets.fromLTRB(22, 14, speakerTap == null ? 22 : 12, 22),
+          child: speakerTap == null
               ? label
               : Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(child: label),
                     const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: onSpeakerTap,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFF0F3),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.volume_up_rounded,
-                          color: Color(0xFFFF4E6A),
-                          size: 15,
-                        ),
-                      ),
+                    NarrationSpeakerButton(
+                      onTap: speakerTap,
+                      speaking: speaking,
                     ),
                   ],
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The speaker control inside a speech bubble.
+///
+/// Doubles as the playing indicator: an equaliser glyph on a filled pill while
+/// the clip runs, a plain speaker when it does not. Tapping it mid-clip stops
+/// the baby, which is the only way to cut a line short now that the card is
+/// part of the screen and cannot be swiped away like AlloBaby's floating
+/// bubble.
+class NarrationSpeakerButton extends StatelessWidget {
+  const NarrationSpeakerButton({
+    super.key,
+    required this.onTap,
+    this.speaking = false,
+    this.size = 15,
+  });
+
+  final VoidCallback onTap;
+  final bool speaking;
+  final double size;
+
+  static const buttonKey = Key('narrationSpeakerButton');
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: buttonKey,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: speaking ? const Color(0xFFFF4E6A) : const Color(0xFFFFF0F3),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(
+          speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
+          color: speaking ? Colors.white : const Color(0xFFFF4E6A),
+          size: size,
         ),
       ),
     );
@@ -282,19 +400,48 @@ class _ChatBubbleTailPainter extends CustomPainter {
 class BabyPromptBar extends StatelessWidget {
   const BabyPromptBar({
     super.key,
-    required this.text,
+    this.text = '',
     this.onSpeakerTap,
     this.margin = const EdgeInsets.symmetric(horizontal: 20),
+    this.narrationKey,
+    this.autoPlayNarration = true,
+    this.stopNarrationOnDispose = true,
+    this.bindNarrationText = true,
+    this.speakingOverride = false,
   });
 
   final String text;
   final VoidCallback? onSpeakerTap;
   final EdgeInsetsGeometry margin;
 
+  /// See [BabyHeroBanner.narrationKey].
+  final String? narrationKey;
+  final bool autoPlayNarration;
+  final bool stopNarrationOnDispose;
+  final bool bindNarrationText;
+
+  /// See [BabyHeroBanner.speakingOverride].
+  final bool speakingOverride;
+
   static const barKey = Key('babyPromptBar');
 
   @override
   Widget build(BuildContext context) {
+    final key = narrationKey;
+    if (key == null) return _buildBar(text, onSpeakerTap, speakingOverride);
+
+    return BabyNarration(
+      narrationKey: key,
+      autoPlay: autoPlayNarration,
+      stopOnDispose: stopNarrationOnDispose,
+      bindText: bindNarrationText,
+      fallbackText: text,
+      builder: (context, state) =>
+          _buildBar(state.text, state.onSpeakerTap, state.speaking),
+    );
+  }
+
+  Widget _buildBar(String label, VoidCallback? speakerTap, bool speaking) {
     return Container(
       key: barKey,
       margin: margin,
@@ -314,23 +461,19 @@ class BabyPromptBar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            child: Image.asset(
-              'assets/allobaby/AlloMombaby.png',
-              fit: BoxFit.cover,
-              // The asset is a full-body baby; crop to the head so the face
-              // still reads at this size.
-              alignment: Alignment.topCenter,
-              errorBuilder: (context, error, stackTrace) => const Icon(
-                Icons.face_retouching_natural_rounded,
-                size: 24,
-                color: Color(0xFFFF6584),
-              ),
-            ),
+            child: speaking
+                ? Lottie.asset(
+                    'assets/animations/Baby Speaking F.json',
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        _stillBabyHead(),
+                  )
+                : _stillBabyHead(),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              text.replaceAll('\n', ' '),
+              label.replaceAll('\n', ' '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
@@ -341,28 +484,31 @@ class BabyPromptBar extends StatelessWidget {
               ),
             ),
           ),
-          if (onSpeakerTap != null) ...[
+          if (speakerTap != null) ...[
             const SizedBox(width: 8),
-            GestureDetector(
-              onTap: onSpeakerTap,
-              child: Container(
-                padding: const EdgeInsets.all(7),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.volume_up_rounded,
-                  color: Color(0xFFFF4E6A),
-                  size: 16,
-                ),
-              ),
+            NarrationSpeakerButton(
+              onTap: speakerTap,
+              speaking: speaking,
+              size: 16,
             ),
           ],
         ],
       ),
     );
   }
+
+  Widget _stillBabyHead() => Image.asset(
+    'assets/allobaby/AlloMombaby.png',
+    fit: BoxFit.cover,
+    // The asset is a full-body baby; crop to the head so the face
+    // still reads at this size.
+    alignment: Alignment.topCenter,
+    errorBuilder: (context, error, stackTrace) => const Icon(
+      Icons.face_retouching_natural_rounded,
+      size: 24,
+      color: Color(0xFFFF6584),
+    ),
+  );
 }
 
 /// Picks the right baby prompt for the room available.
@@ -373,11 +519,15 @@ class BabyPromptBar extends StatelessWidget {
 class BabyPrompt extends StatelessWidget {
   const BabyPrompt({
     super.key,
-    required this.text,
+    this.text = '',
     this.onSpeakerTap,
     this.compact = false,
     this.height = 260,
     this.margin = const EdgeInsets.symmetric(horizontal: 20),
+    this.narrationKey,
+    this.autoPlayNarration = true,
+    this.stopNarrationOnDispose = true,
+    this.bindNarrationText = true,
   });
 
   final String text;
@@ -389,20 +539,47 @@ class BabyPrompt extends StatelessWidget {
   final double height;
   final EdgeInsetsGeometry margin;
 
+  /// See [BabyHeroBanner.narrationKey].
+  final String? narrationKey;
+  final bool autoPlayNarration;
+  final bool stopNarrationOnDispose;
+  final bool bindNarrationText;
+
   @override
   Widget build(BuildContext context) {
+    final key = narrationKey;
+    if (key == null) return _build(text, onSpeakerTap, false);
+
+    // The narration lives here rather than on the two leaves below. Opening
+    // the keyboard swaps the card for the bar, which would otherwise dispose
+    // one narration and start another — cutting the clip off mid-sentence and
+    // then declining to replay it, since the key had already been spoken.
+    return BabyNarration(
+      narrationKey: key,
+      autoPlay: autoPlayNarration,
+      stopOnDispose: stopNarrationOnDispose,
+      bindText: bindNarrationText,
+      fallbackText: text,
+      builder: (context, state) =>
+          _build(state.text, state.onSpeakerTap, state.speaking),
+    );
+  }
+
+  Widget _build(String label, VoidCallback? speakerTap, bool speaking) {
     if (compact) {
       return BabyPromptBar(
-        text: text,
-        onSpeakerTap: onSpeakerTap,
+        text: label,
+        onSpeakerTap: speakerTap,
         margin: margin,
+        speakingOverride: speaking,
       );
     }
     return BabyHeroBanner(
       margin: margin,
       height: height,
-      speechText: text,
-      onSpeakerTap: onSpeakerTap,
+      speechText: label,
+      onSpeakerTap: speakerTap,
+      speakingOverride: speaking,
     );
   }
 }

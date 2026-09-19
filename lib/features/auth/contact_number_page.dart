@@ -5,10 +5,11 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/verify_otp_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/services/google_auth_service.dart';
-import 'package:allomom/api/otp_api.dart';
-import 'package:allomom/api/auth_api.dart';
-import 'package:allomom/api/api_base.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/auth_controller.dart';
+import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Step 2 of onboarding, straight after the language choice.
 ///
@@ -28,6 +29,11 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
   final TextEditingController _phoneController = TextEditingController();
   final String _countryCode = '+91';
   bool _isLoading = false;
+
+  /// What the baby head card is saying. Starts as the ask, and is swapped for
+  /// the matching line when the number is short, the network is down, or she
+  /// reaches for Google instead.
+  String _narrationKey = NarrationKeys.onbMobile;
 
   final List<String> _testNumbers = const [
     '9999999999',
@@ -51,77 +57,83 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
         .replaceAll(' ', '')
         .replaceAll('-', '');
     if (phone.length < 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please enter a valid 10-digit mobile number'),
-        ),
+      _say(NarrationKeys.onbMobileInvalid);
+      _showMessage('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
+    // The only step of the whole flow that needs a network. Say so before the
+    // request times out, rather than after.
+    if (!ConnectionController.instance.isInternetAvailable) {
+      _say(NarrationKeys.onbMobileInternet);
+      _showMessage(
+        'This step needs the internet. Please check your connection.',
+        isError: true,
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
-    try {
-      final res = await OtpApi.sendOtp(phone, _countryCode);
-      if (!mounted) return;
+    final error = await AuthController.instance.sendOtp(
+      phone,
+      countryCode: _countryCode,
+    );
 
-      final otpId = res.id;
-      final isTest = _testNumbers.contains(phone);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            isTest
-                ? 'OTP sent to $_countryCode $phone! (Test number OTP: 999777)'
-                : (res.detail.isNotEmpty
-                      ? res.detail
-                      : 'OTP sent successfully to $_countryCode $phone'),
-          ),
-          backgroundColor: const Color(0xFFFF4E6A),
-          duration: const Duration(seconds: 2),
-        ),
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    // A failed send used to fall through to the OTP screen anyway, which left
+    // her typing a code that was never issued. Stay put and say what happened.
+    if (error != null) {
+      _say(
+        ConnectionController.instance.isInternetAvailable
+            ? NarrationKeys.onbMobileInvalid
+            : NarrationKeys.onbMobileInternet,
       );
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => VerifyOtpPage(
-            phoneNumber: '$_countryCode $phone',
-            rawPhone: phone,
-            countryCode: _countryCode,
-            otpId: otpId,
-            selectedLanguage: widget.selectedLanguage,
-          ),
-        ),
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Notice: $e - proceeding with verification'),
-            backgroundColor: const Color(0xFFFF4E6A),
-          ),
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => VerifyOtpPage(
-              phoneNumber: '$_countryCode $phone',
-              rawPhone: phone,
-              countryCode: _countryCode,
-              otpId: null,
-              selectedLanguage: widget.selectedLanguage,
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      _showMessage(error, isError: true);
+      return;
     }
+
+    final isTest = _testNumbers.contains(phone);
+    _showMessage(
+      isTest
+          ? 'OTP sent to $_countryCode $phone (test code: 999777)'
+          : 'OTP sent to $_countryCode $phone',
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VerifyOtpPage(
+          phoneNumber: '$_countryCode $phone',
+          rawPhone: phone,
+          countryCode: _countryCode,
+          selectedLanguage: widget.selectedLanguage,
+        ),
+      ),
+    );
+  }
+
+  /// Swaps the line on the baby head card, replaying it even if that key has
+  /// already been heard — an error the mother just hit is worth repeating.
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor:
+            isError ? Colors.red.shade700 : const Color(0xFFFF4E6A),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -156,7 +168,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                       child: Row(
                         children: [
                           GestureDetector(
-                            onTap: () => Navigator.maybePop(context),
+                            onTap: () => narratedPop(context),
                             child: Container(
                               width: 40,
                               height: 40,
@@ -198,16 +210,9 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                     // ─── BABY SPEECH AVATAR ───
                     BabyPrompt(
                       compact: isKeyboardOpen,
+                      narrationKey: _narrationKey,
                       text:
                           "What's your mobile number\nso I can stay close? 📱",
-                      onSpeakerTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Playing voice prompt...'),
-                            duration: Duration(milliseconds: 1000),
-                          ),
-                        );
-                      },
                     ),
 
                     const Spacer(),
@@ -377,7 +382,10 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                           // ─── OR GOOGLE SIGN IN ───
                           Center(
                             child: GestureDetector(
-                              onTap: () => _handleGoogleSignIn(context),
+                              onTap: () {
+                                _say(NarrationKeys.onbMobileGoogle);
+                                _handleGoogleSignIn(context);
+                              },
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -444,50 +452,22 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
     );
   }
 
+  /// Google sign-in is not wired up.
+  ///
+  /// allomom-api-new has no Google route: the only credential it accepts is a
+  /// verified phone. The button is left in place for when one is added, but it
+  /// says so plainly rather than failing silently against an endpoint that does
+  /// not exist.
   Future<void> _handleGoogleSignIn(BuildContext context) async {
-    try {
-      final account = await GoogleAuthService.signIn();
-      if (account != null && context.mounted) {
-        final auth = await account.authentication;
-        if (auth.idToken != null) {
-          final res = await AuthApi.authGoogle(auth.idToken!);
-          if (res.success && res.item is Map) {
-            final item = res.item as Map;
-            final jwt = item["jwt"]?.toString() ?? "";
-            if (jwt.isNotEmpty) {
-              await ApiBase.setJwt(jwt);
-            }
-            if (item["refresh"] != null) {
-              await ApiBase.setRefreshToken(item["refresh"].toString());
-            }
-            await UserSessionManager.instance.fetchUser();
-          }
-        }
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Welcome, ${account.displayName ?? account.email}!',
-              ),
-              backgroundColor: const Color(0xFFFF4E6A),
-            ),
-          );
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const MainLayout()),
-            (route) => false,
-          );
-        }
-      }
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Google Sign-In failed: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Google sign-in is not available yet. Please continue with your '
+          'mobile number.',
+        ),
+        backgroundColor: Color(0xFFFF4E6A),
+      ),
+    );
   }
 }

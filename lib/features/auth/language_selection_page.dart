@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/services/app_language.dart';
 
 class LanguageSelectionPage extends StatefulWidget {
@@ -13,6 +15,12 @@ class LanguageSelectionPage extends StatefulWidget {
 
 class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
   String _selectedLanguageCode = 'en';
+
+  /// The greeting until she picks, then the reaction to what she picked.
+  ///
+  /// "Other" gets its own line — those languages have no recordings yet, so the
+  /// baby says so and offers English rather than falling silent.
+  String _narrationKey = NarrationKeys.onbLang;
 
   final List<Map<String, dynamic>> _languages = [
     {'code': 'en', 'name': 'English', 'iconType': 'globe_pink'},
@@ -54,18 +62,9 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                   // ─── BABY SPEECH AVATAR ───
                   BabyHeroBanner(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
+                    narrationKey: _narrationKey,
                     speechText:
                         'Hello there! Which language should\nwe speak together? 💬',
-                    onSpeakerTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Playing voice greeting in selected language...',
-                          ),
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                      );
-                    },
                   ),
 
                   const Spacer(),
@@ -137,6 +136,12 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                               // AlloBot needs to read it long after this page
                               // is gone.
                               await AppLanguage.save(_selectedLanguageCode);
+                              // From here on the baby speaks in her language.
+                              if (BackgroundAudioController.isReady) {
+                                await BackgroundAudioController.to.setLanguage(
+                                  _selectedLanguageCode,
+                                );
+                              }
                               if (!context.mounted) return;
                               Navigator.push(
                                 context,
@@ -201,6 +206,9 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
       onTap: () {
         setState(() {
           _selectedLanguageCode = code;
+          _narrationKey = code == 'other'
+              ? NarrationKeys.onbLangOther
+              : NarrationKeys.onbLangSelected;
         });
       },
       child: AnimatedContainer(

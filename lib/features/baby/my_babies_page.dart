@@ -7,7 +7,10 @@ import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Every baby the mother has recorded — the one just delivered, and any
 /// previous children added during registration or here.
@@ -25,7 +28,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
   final _db = BabyDbService.instance;
 
   bool _loading = true;
-  List<BirthRecord> _babies = [];
+  List<Baby> _babies = [];
 
   /// birth record id -> (doses given, doses total, milestones achieved,
   /// milestones total), so each card can show progress without a second load.
@@ -46,9 +49,9 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
       final doses = await _db.getImmunizations(baby.id);
       final milestones = await _db.getMilestones(baby.id);
       _progress[baby.id] = _BabyProgress(
-        dosesGiven: doses.where((d) => d.vaccinationDate != null).length,
+        dosesGiven: doses.where((d) => d.receivedDate != null).length,
         dosesTotal: doses.length,
-        milestonesAchieved: milestones.where((m) => m.achieved).length,
+        milestonesAchieved: milestones.where((m) => m.completedAt != null).length,
         milestonesTotal: milestones.length,
       );
     }
@@ -58,6 +61,11 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
       _babies = babies;
       _loading = false;
     });
+
+    // One baby on the list is the moment to mention a twin — this is the only
+    // screen where a second one can be added, and the prompt makes no sense
+    // before the first is there or after the second has been.
+    if (babies.length == 1) speak(NarrationKeys.newBabyTwin);
   }
 
   Future<void> _addBaby() async {
@@ -65,7 +73,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
     if (id != null) await _load();
   }
 
-  Future<void> _editBaby(BirthRecord baby) async {
+  Future<void> _editBaby(Baby baby) async {
     final id = await showBabyFormSheet(
       context,
       existing: baby,
@@ -74,8 +82,8 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
     if (id != null) await _load();
   }
 
-  Future<void> _deleteBaby(BirthRecord baby) async {
-    final name = baby.babyName ?? 'this baby';
+  Future<void> _deleteBaby(Baby baby) async {
+    final name = baby.name ?? 'this baby';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -221,9 +229,9 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
     );
   }
 
-  Widget _babyCard(BirthRecord baby) {
+  Widget _babyCard(Baby baby) {
     final progress = _progress[baby.id] ?? const _BabyProgress.empty();
-    final name = baby.babyName ?? 'Baby';
+    final name = baby.name ?? 'Baby';
     final isNewborn = baby.pregnancyId != null;
 
     return Container(
@@ -240,7 +248,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
           onTap: () async {
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => BabyDetailPage(birthRecordId: baby.id),
+                builder: (_) => BabyDetailPage(babyId: baby.id),
               ),
             );
             await _load();
@@ -309,8 +317,8 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
                           const SizedBox(height: 3),
                           Text(
                             [
-                              if (baby.dob != null) _dateFmt.format(baby.dob!),
-                              if (baby.dob != null) babyAgeLabel(baby.dob),
+                              _dateFmt.format(baby.deliveryDate),
+                              babyAgeLabel(baby.deliveryDate),
                               labelForGender(baby.gender),
                             ].where((s) => s.isNotEmpty && s != '—').join('  ·  '),
                             style: GoogleFonts.poppins(

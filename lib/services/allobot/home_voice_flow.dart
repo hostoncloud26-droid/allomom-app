@@ -170,6 +170,34 @@ const int lowWaterGlasses = 4;
 /// Hours of sleep below which the same applies.
 const double lowSleepHours = 6;
 
+/// The gap AlloBot leaves before coming back to water.
+///
+/// Sipping through the day is the advice, so the question is worth repeating —
+/// but only on that rhythm. Asked again the moment she reopens the app, "shall
+/// I add another glass?" stops being care and becomes nagging.
+const Duration waterAskGap = Duration(hours: 3);
+
+/// How long each subject stays quiet once it has been put to her.
+///
+/// The per-session [HomeVoiceFlow.asked] set stops the same question twice in
+/// one sitting, but a mother opens the app many times a day and every screen
+/// builds a fresh flow — without a clock behind it, the same question greets
+/// her every single time. These gaps are what make the questions feel like
+/// they are keeping track of the day rather than restarting it.
+///
+/// A subject missing from this map has no gap: the antenatal questions run as
+/// a sequence on the day of the visit, and the meal-detail questions stop
+/// themselves the moment the note is on the record.
+const Map<HomePromptKind, Duration> homePromptCooldowns = {
+  HomePromptKind.water: waterAskGap,
+  HomePromptKind.breakfast: Duration(hours: 2),
+  HomePromptKind.lunch: Duration(hours: 2),
+  HomePromptKind.dinner: Duration(hours: 2),
+  HomePromptKind.kicks: Duration(hours: 4),
+  HomePromptKind.sleep: Duration(hours: 6),
+  HomePromptKind.symptoms: Duration(hours: 6),
+};
+
 /// Builds the greeting AlloBot speaks when the app opens.
 ///
 /// Leads with "Hi mommy", then where she is, then what this part of the day is
@@ -205,11 +233,26 @@ String composeHomeGreeting(AlloBotContext context) {
 /// Hold one per screen: it remembers what has been asked so the same question
 /// is not put twice in a session.
 class HomeVoiceFlow {
-  HomeVoiceFlow({required AlloBotContext context}) : _context = context;
+  HomeVoiceFlow({
+    required AlloBotContext context,
+    Map<HomePromptKind, DateTime> askedAt = const {},
+    void Function(HomePromptKind kind, DateTime at)? onPromptShown,
+  })  : _context = context,
+        _askedAt = Map<HomePromptKind, DateTime>.of(askedAt),
+        _onPromptShown = onPromptShown;
 
   AlloBotContext _context;
 
   final Set<HomePromptKind> _asked = <HomePromptKind>{};
+
+  /// When each subject was last put to her, earlier sessions included.
+  ///
+  /// Seeded from storage so the gaps in [homePromptCooldowns] survive a
+  /// restart — the whole point of them is that they outlive the screen.
+  final Map<HomePromptKind, DateTime> _askedAt;
+
+  /// Told whenever a question is actually shown, so the caller can persist it.
+  final void Function(HomePromptKind kind, DateTime at)? _onPromptShown;
 
   /// Questions that belong immediately after the answer that raised them —
   /// today only what she ate, asked the moment a meal goes down as eaten.
@@ -225,6 +268,32 @@ class HomeVoiceFlow {
 
   /// Subjects already raised this session.
   Set<HomePromptKind> get asked => Set.unmodifiable(_asked);
+
+  /// When each subject was last raised, today's earlier sessions included.
+  Map<HomePromptKind, DateTime> get askedAt =>
+      Map<HomePromptKind, DateTime>.unmodifiable(_askedAt);
+
+  /// Records that [prompt] has been put to her, starting its quiet period.
+  ///
+  /// Called by the layer that actually shows and speaks the question, not by
+  /// [nextPrompt] — a question only counts as asked once she has seen it.
+  void markPrompted(HomePrompt prompt) {
+    final at = _context.now;
+    _askedAt[prompt.kind] = at;
+    _onPromptShown?.call(prompt.kind, at);
+  }
+
+  /// Whether [kind] was raised recently enough to leave alone for now.
+  bool isCoolingDown(HomePromptKind kind) {
+    final gap = homePromptCooldowns[kind];
+    final last = _askedAt[kind];
+    if (gap == null || last == null) return false;
+    final since = _context.now.difference(last);
+    // A clock that has gone backwards (timezone change, a device clock reset)
+    // reads as a negative gap; treat it as "just asked" rather than letting it
+    // unlock every question at once.
+    return since < gap;
+  }
 
   /// Whether the antenatal sequence is part-way through.
   bool get isInAncFlow => _ancIndex < _ancQueue.length;
@@ -285,7 +354,9 @@ class HomeVoiceFlow {
     }
 
     for (final prompt in _candidates()) {
-      if (!_asked.contains(prompt.kind)) return prompt;
+      if (_asked.contains(prompt.kind)) continue;
+      if (isCoolingDown(prompt.kind)) continue;
+      return prompt;
     }
     return null;
   }
@@ -499,9 +570,12 @@ class HomeVoiceFlow {
       );
     }
 
-    // 2. Water, whenever she is short of it.
+    // 2. Water, whenever she is short of it and the last glass is not still
+    //    recent. The cooldown covers asking too often; this covers logging —
+    //    a glass ticked off in Today's Care two minutes ago answers the
+    //    question just as well as a "yes" here would have.
     final water = _context.totalToday(waterVitalKey) ?? 0;
-    if (hour >= 6 && water < 10) {
+    if (hour >= 6 && water < 10 && !_drankRecently()) {
       prompts.add(
         HomePrompt(
           kind: HomePromptKind.water,
@@ -578,6 +652,13 @@ class HomeVoiceFlow {
     );
 
     return prompts;
+  }
+
+  /// Whether the last glass of water went down inside the [waterAskGap].
+  bool _drankRecently() {
+    final last = _context.latestVitals[waterVitalKey];
+    if (last == null || !last.isFromToday(_context.now)) return false;
+    return _context.now.difference(last.recordedAt) < waterAskGap;
   }
 
   bool _isMealLogged(String key) {

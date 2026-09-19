@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_name_page.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Asked only of someone the backend did not recognise after OTP
 /// verification — an existing user is signed straight in and never sees this.
@@ -26,6 +28,9 @@ class RoleSelectionPage extends StatefulWidget {
 class _RoleSelectionPageState extends State<RoleSelectionPage> {
   String _selectedRole = 'Mom'; // 'Mom' or 'Dad'
 
+  /// The question until she answers it, then the baby's delight at the answer.
+  String _narrationKey = NarrationKeys.onbRole;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -39,7 +44,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
+                    onTap: () => narratedPop(context),
                     child: Container(
                       width: 40,
                       height: 40,
@@ -81,15 +86,8 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
             // ─── BABY SPEECH AVATAR ───
             BabyHeroBanner(
               margin: const EdgeInsets.symmetric(horizontal: 20),
+              narrationKey: _narrationKey,
               speechText: 'Yay! Are you my Mommy or my\nDaddy? 👶✨',
-              onSpeakerTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing baby voice...'),
-                    duration: Duration(milliseconds: 1000),
-                  ),
-                );
-              },
             ),
 
             const SizedBox(height: 12),
@@ -229,6 +227,9 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
       onTap: () {
         setState(() {
           _selectedRole = role;
+          _narrationKey = role.trim().toLowerCase() == 'dad'
+              ? NarrationKeys.onbRoleDad
+              : NarrationKeys.onbRoleMom;
         });
       },
       child: AnimatedContainer(

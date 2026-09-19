@@ -6,7 +6,7 @@ import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/services/health_vital_sync_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class HealthVitalsController extends GetxController {
   static HealthVitalsController get instance =>
@@ -20,7 +20,7 @@ class HealthVitalsController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    final currentUserId = UserSessionManager.instance.userId;
+    final currentUserId = MainController.instance.userId;
     if (currentUserId.isNotEmpty) {
       setUserId(currentUserId);
     }
@@ -94,7 +94,7 @@ class HealthVitalsController extends GetxController {
   bool get isLoading => _isLoading;
   String get error => _error;
   String get userId =>
-      _userId.isNotEmpty ? _userId : UserSessionManager.instance.userId;
+      _userId.isNotEmpty ? _userId : MainController.instance.userId;
   List<VitalsStreamResponse> get vitals => List.unmodifiable(_vitals);
 
   // Status checks for presence of recorded data
@@ -302,7 +302,7 @@ class HealthVitalsController extends GetxController {
   }
 
   void reload() {
-    final currentUserId = UserSessionManager.instance.userId;
+    final currentUserId = MainController.instance.userId;
     setUserId(currentUserId);
   }
 

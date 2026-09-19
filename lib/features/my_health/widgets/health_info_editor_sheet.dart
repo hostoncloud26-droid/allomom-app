@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class HealthInfoEditorSheet extends StatefulWidget {
   const HealthInfoEditorSheet({
@@ -133,7 +133,7 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
           userId: widget.userId,
           data: {'blood_group': _selectedBloodGroup},
         );
-        UserSessionManager.instance.updateBloodGroup(_selectedBloodGroup!);
+        MainController.instance.updateBloodGroup(_selectedBloodGroup!);
       }
 
       if (mounted) {

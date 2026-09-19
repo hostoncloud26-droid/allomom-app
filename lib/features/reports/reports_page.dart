@@ -7,7 +7,7 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/features/reports/add_report.dart';
 import 'package:allomom/features/reports/view_report.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class ReportsPage extends StatefulWidget {
   final bool showAppBar;
@@ -63,7 +63,7 @@ class _ReportsPageState extends State<ReportsPage> {
   }
 
   String get _healthId {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     return session.healthDataId.isNotEmpty
         ? session.healthDataId
         : (session.userId.isNotEmpty ? session.userId : 'health_me');

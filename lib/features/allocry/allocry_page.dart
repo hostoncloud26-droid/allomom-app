@@ -13,6 +13,9 @@ import 'package:allomom/features/allocry/screens/cry_history_page.dart';
 import 'package:allomom/features/allocry/screens/cry_listening_page.dart';
 import 'package:allomom/features/allocry/screens/cry_result_page.dart';
 import 'package:allomom/features/allocry/screens/cry_type_detail_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// AlloCry's home: listen to the baby, and learn what each cry means.
 ///
@@ -61,6 +64,11 @@ class _AlloCryPageState extends State<AlloCryPage>
 
   /// Asks for the microphone, then opens the listening screen.
   Future<void> _startListening() async {
+    // Said before the system dialog, not after: the reason has to reach her
+    // while she is deciding, and the OS prompt gives no room to explain.
+    if (!await Permission.microphone.isGranted) {
+      speak(NarrationKeys.onbPermMic);
+    }
     final status = await Permission.microphone.request();
     if (!mounted) return;
 
@@ -81,6 +89,12 @@ class _AlloCryPageState extends State<AlloCryPage>
         ),
       );
       return;
+    }
+
+    // Silence first: AlloCry is about to record, and the baby's own voice
+    // coming out of the speaker is exactly the sound it must not classify.
+    if (BackgroundAudioController.isReady) {
+      await BackgroundAudioController.to.stop();
     }
 
     await Get.to(() => const CryListeningPage());
@@ -105,6 +119,10 @@ class _AlloCryPageState extends State<AlloCryPage>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: BabyHeroBanner(
+                      // Explains what to do the first time, then hands the
+                      // bubble back to the card's own line about the last cry.
+                      narrationKey: NarrationKeys.newAllocryIntro,
+                      bindNarrationText: false,
                       speechText: records.isEmpty
                           ? "I'm listening,\nAmma. ❤️"
                           : 'Last time I was\n${records.first.type.heading.toLowerCase()}.',

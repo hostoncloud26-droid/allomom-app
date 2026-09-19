@@ -13,7 +13,7 @@ import 'package:allomom/features/overview_section/todays_care/care_catalogue.dar
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
 import 'package:allomom/features/overview_section/todays_care/widgets/care_count_sheet.dart';
 import 'package:allomom/features/overview_section/todays_care/widgets/care_meal_sheet.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// Today's care, scoped to the current part of the day.
@@ -94,7 +94,7 @@ class _TodocareSectionState extends State<TodocareSection> {
         '${now.year}-'
         '${now.month.toString().padLeft(2, '0')}-'
         '${now.day.toString().padLeft(2, '0')}';
-    return 'todocare_${UserSessionManager.instance.userId}_$date';
+    return 'todocare_${MainController.instance.userId}_$date';
   }
 
   // ─── LOADING ────────────────────────────────────────────────
@@ -116,7 +116,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   }
 
   Future<void> _loadOnce() async {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final part = CareDayPart.at();
     final items = careItemsFor(
       part: part,
@@ -153,7 +153,7 @@ class _TodocareSectionState extends State<TodocareSection> {
       debugPrint('⚠️ [TodocareSection] Could not read cached tick-offs: $e');
     }
 
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return completed;
 
     try {
@@ -187,7 +187,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   /// (My Health's snack dialog) carry no count, so they count as one unit.
   Future<Map<String, int>> _loadCountsToday(List<CareItem> items) async {
     final counts = <String, int>{};
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return counts;
 
     final countItems = items
@@ -228,7 +228,7 @@ class _TodocareSectionState extends State<TodocareSection> {
 
   Future<Set<String>> _loadMealsLoggedToday(List<CareItem> items) async {
     final logged = <String>{};
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return logged;
 
     final meals = items.map((i) => i.meal).whereType<CareMeal>().toSet();
@@ -258,7 +258,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   /// its vital today (e.g. kicks counted in the kick counter).
   Future<Set<String>> _loadNavigateDone(List<CareItem> items) async {
     final done = <String>{};
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return done;
 
     final keys = items.map((i) => i.doneVitalKey).whereType<String>().toSet();
@@ -454,7 +454,7 @@ class _TodocareSectionState extends State<TodocareSection> {
     // clears the cache, matching how the rest of the app treats these.
     if (wasDone) return;
 
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     try {
       await HealthVitalsController.instance.addVitalEntry(
         key: 'todocare',
@@ -492,7 +492,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   }
 
   String? _userIdOrNull() {
-    final id = UserSessionManager.instance.userId.trim();
+    final id = MainController.instance.userId.trim();
     return id.isEmpty ? null : id;
   }
 
@@ -528,7 +528,7 @@ class _TodocareSectionState extends State<TodocareSection> {
     if (_isLoading) return const SizedBox.shrink();
 
     final progress = _items.isEmpty ? 0.0 : _doneCount / _items.length;
-    final name = UserSessionManager.instance.userName.split(' ').first;
+    final name = MainController.instance.userName.split(' ').first;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),

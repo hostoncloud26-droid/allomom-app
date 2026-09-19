@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -13,9 +15,30 @@ import 'package:allomom/services/sq_lite/sqlite_service.dart';
 void main() {
   late AppDriftDatabase db;
 
-  setUp(() {
+  /// Puts a health record in place.
+  ///
+  /// Readings hang off the health record now, not the user — that is the shape
+  /// allomom-api-new uses — so a test that writes vitals needs one to exist.
+  /// No controller is involved: the service resolves the scope from the
+  /// database, which is what keeps it testable in isolation.
+  Future<String> seedHealthRecord({String userId = 'usr-1'}) async {
+    await db
+        .into(db.users)
+        .insertOnConflictUpdate(
+          UsersCompanion.insert(id: userId, name: const Value('Meera')),
+        );
+    await db
+        .into(db.healthDataTable)
+        .insertOnConflictUpdate(
+          HealthDataTableCompanion.insert(id: 'hd-$userId', userId: userId),
+        );
+    return 'hd-$userId';
+  }
+
+  setUp(() async {
     db = AppDriftDatabase.forTesting(NativeDatabase.memory());
     SqLiteService.overrideDatabaseForTesting(db);
+    await seedHealthRecord();
   });
 
   tearDown(() async {
@@ -23,8 +46,9 @@ void main() {
     await db.close();
   });
 
+
   Future<Map<String, dynamic>> dataOf(String id) async {
-    final row = await (db.select(db.vitals)..where((t) => t.id.equals(id)))
+    final row = await (db.select(db.vitalsStreamTable)..where((t) => t.id.equals(id)))
         .getSingle();
     return jsonDecode(row.data!) as Map<String, dynamic>;
   }
@@ -49,7 +73,7 @@ void main() {
       );
       expect(merged, isTrue);
 
-      final rows = await db.select(db.vitals).get();
+      final rows = await db.select(db.vitalsStreamTable).get();
       expect(rows, hasLength(1), reason: 'no second row to double-count');
       expect(rows.single.value, 600);
       expect(rows.single.synced, 0, reason: 'the note has to reach the server');
@@ -102,31 +126,34 @@ void main() {
       expect(merged, isFalse, reason: 'yesterday is not today');
     });
 
-    test('leaves another user\'s row alone', () async {
+    test("leaves another health record's row alone", () async {
       final mine = await VitalsSqLiteService().saveVital(
         key: 'lunch',
         value: 600,
         unit: 'kcal',
         createdAt: DateTime.now(),
-        userId: 'usr-1',
       );
-      await VitalsSqLiteService().saveVital(
-        key: 'lunch',
-        value: 500,
-        unit: 'kcal',
-        createdAt: DateTime.now(),
-        userId: 'usr-2',
-      );
+      // Written straight to drift under a different health record, which is
+      // how the server scopes readings — the merge must not reach across.
+      await db.into(db.vitalsStreamTable).insert(
+            VitalsStreamTableCompanion.insert(
+              id: 'other-row',
+              key: 'lunch',
+              healthId: const Value('hd-someone-else'),
+              value: const Value(500),
+              unit: const Value('kcal'),
+              createdAt: Value(DateTime.now()),
+            ),
+          );
 
       await VitalsSqLiteService().mergeDataIntoLatest(
         key: 'lunch',
         data: {'items': 'rice and curd'},
-        userId: 'usr-1',
       );
 
       expect((await dataOf(mine))['items'], 'rice and curd');
-      final other = await (db.select(db.vitals)
-            ..where((t) => t.userId.equals('usr-2')))
+      final other = await (db.select(db.vitalsStreamTable)
+            ..where((t) => t.id.equals('other-row')))
           .getSingle();
       expect(other.data, isNull);
     });

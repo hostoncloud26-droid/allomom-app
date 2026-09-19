@@ -1,17 +1,17 @@
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class Apiroutes extends GetxController {
   static Apiroutes get instance => Get.isRegistered<Apiroutes>()
       ? Get.find<Apiroutes>()
       : Get.put(Apiroutes(), permanent: true);
 
-  // String baseUrl = "http://10.0.2.2:8000";
+  String baseUrl = "http://10.0.2.2:8000";
 
   // String baseUrl = "http://192.168.0.141:8000";
 
-  String baseUrl = "https://api.allomom.savemom.app";
+  // String baseUrl = "https://api.allomom.savemom.app";
 
   @override
   void onInit() {
@@ -24,7 +24,7 @@ class Apiroutes extends GetxController {
   }
 
   static bool checkUser() {
-    return UserSessionManager.instance.isAuthenticated;
+    return MainController.instance.isAuthenticated;
   }
 
   int version = 1;

@@ -6,6 +6,10 @@ import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/feeds/feeds_page.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/settings/settings_page.dart';
+import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:get/get.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -23,6 +27,28 @@ class _MainLayoutState extends State<MainLayout> {
     const PeoplePage(),
     const SettingsPage(),
   ];
+
+  Worker? _offlineWatcher;
+
+  @override
+  void initState() {
+    super.initState();
+    // The promise made during sign-up — "just for this step we need internet"
+    // — kept the first time she actually loses it. Once per session, from the
+    // shell rather than a page, since the drop can happen on any tab.
+    _offlineWatcher = ever<bool>(
+      ConnectionController.instance.isInternetAvailableRx,
+      (online) {
+        if (!online) speak(NarrationKeys.onbOfflineNote);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _offlineWatcher?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

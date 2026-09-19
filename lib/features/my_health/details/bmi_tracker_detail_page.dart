@@ -4,7 +4,7 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class BmiTrackerDetailPage extends StatefulWidget {
   const BmiTrackerDetailPage({super.key});
@@ -26,9 +26,9 @@ class _BmiTrackerDetailPageState extends State<BmiTrackerDetailPage> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
+      animation: Listenable.merge([MainController.instance, HealthVitalsController.instance]),
       builder: (context, child) {
-        final session = UserSessionManager.instance;
+        final session = MainController.instance;
         final week = session.currentGestationalWeek;
 
         return Scaffold(

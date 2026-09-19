@@ -1,263 +1,248 @@
 import 'package:drift/drift.dart';
-import 'package:uuid/uuid.dart';
+
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 
-/// CRUD for the pregnancy care schedule tables:
-/// ANC visits, vaccinations, report checklists and report attachments.
+/// Local reads and writes for the three pregnancy schedules.
 ///
-/// Every create returns the generated UUID. Any local write resets
-/// `synced` to 0 so the sync worker can pick the row up again.
+/// Rows come from the server, which seeds them when a pregnancy is created, so
+/// this is a query surface rather than a source of truth. Writes mark the row
+/// `synced = 0` and leave the push to [SyncService]; [PregnancyController] is
+/// the usual entry point and calls through here.
 class PregnancyCareDbService {
-  static final PregnancyCareDbService instance =
+  static final PregnancyCareDbService _instance =
       PregnancyCareDbService._internal();
+  factory PregnancyCareDbService() => _instance;
   PregnancyCareDbService._internal();
 
-  final _uuid = const Uuid();
+  static PregnancyCareDbService get instance => _instance;
 
-  // ---------------------- ANC SCHEDULE ----------------------
+  Future<AppDriftDatabase> get _db => SqLiteService().database;
 
-  Future<String> createAncVisit(PregnancyAncScheduleCompanion visit) async {
-    final db = await SqLiteService().database;
-    final id = visit.id.present && visit.id.value.isNotEmpty
-        ? visit.id.value
-        : _uuid.v7();
-    await db.into(db.pregnancyAncSchedule).insertOnConflictUpdate(
-          visit.copyWith(id: Value(id), synced: const Value(0)),
-        );
-    return id;
+  // ── ANC checkups ───────────────────────────────────────────────────────────
+
+  Future<String> createAncVisit(AncCheckupDatesCompanion visit) async {
+    final db = await _db;
+    await db.into(db.ancCheckupDates).insertOnConflictUpdate(visit);
+    return visit.id.value;
   }
 
-  Future<List<PregnancyAncScheduleData>> getAncVisits(
-      String pregnancyId) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.pregnancyAncSchedule)
-          ..where((tbl) => tbl.pregnancyId.equals(pregnancyId))
-          ..orderBy([(t) => OrderingTerm.asc(t.scheduledDate)]))
+  Future<List<AncCheckupDate>> getAncVisits(String pregnancyId) async {
+    final db = await _db;
+    return (db.select(db.ancCheckupDates)
+          ..where((a) => a.pregnancyId.equals(pregnancyId) & a.deletedAt.isNull())
+          ..orderBy([(a) => OrderingTerm.asc(a.month)]))
         .get();
   }
 
-  Future<PregnancyAncScheduleData?> getAncVisitById(String id) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.pregnancyAncSchedule)
-          ..where((tbl) => tbl.id.equals(id)))
+  Future<AncCheckupDate?> getAncVisitById(String id) async {
+    final db = await _db;
+    return (db.select(db.ancCheckupDates)
+          ..where((a) => a.id.equals(id)))
         .getSingleOrNull();
   }
 
-  Stream<List<PregnancyAncScheduleData>> watchAncVisits(String pregnancyId) {
-    return Stream.fromFuture(SqLiteService().database).asyncExpand((db) {
-      return (db.select(db.pregnancyAncSchedule)
-            ..where((tbl) => tbl.pregnancyId.equals(pregnancyId))
-            ..orderBy([(t) => OrderingTerm.asc(t.scheduledDate)]))
-          .watch();
-    });
+  Stream<List<AncCheckupDate>> watchAncVisits(String pregnancyId) async* {
+    final db = await _db;
+    yield* (db.select(db.ancCheckupDates)
+          ..where((a) => a.pregnancyId.equals(pregnancyId) & a.deletedAt.isNull())
+          ..orderBy([(a) => OrderingTerm.asc(a.month)]))
+        .watch();
   }
 
-  Future<void> updateAncVisit(PregnancyAncScheduleCompanion visit) async {
-    final db = await SqLiteService().database;
-    await (db.update(db.pregnancyAncSchedule)
-          ..where((tbl) => tbl.id.equals(visit.id.value)))
+  Future<void> updateAncVisit(AncCheckupDatesCompanion visit) async {
+    final db = await _db;
+    await (db.update(db.ancCheckupDates)
+          ..where((a) => a.id.equals(visit.id.value)))
         .write(visit.copyWith(synced: const Value(0)));
   }
 
+  /// Soft delete, so the removal itself can be synced. A hard delete would
+  /// simply be re-pulled from the server on the next pass.
   Future<void> deleteAncVisit(String id) async {
-    final db = await SqLiteService().database;
-    await (db.delete(db.pregnancyAncSchedule)
-          ..where((tbl) => tbl.id.equals(id)))
-        .go();
-  }
-
-  Future<List<PregnancyAncScheduleData>> unsyncedAncVisits() async {
-    final db = await SqLiteService().database;
-    return (db.select(db.pregnancyAncSchedule)
-          ..where((tbl) => tbl.synced.equals(0)))
-        .get();
-  }
-
-  // ---------------------- CASCADE ----------------------
-
-  /// Removes every schedule row belonging to a pregnancy. Foreign keys are
-  /// not enforced by SQLite here, so children are cleared explicitly to
-  /// avoid orphan rows when a pregnancy is deleted.
-  Future<void> deleteAllForPregnancy(String pregnancyId) async {
-    final db = await SqLiteService().database;
-    await db.transaction(() async {
-      await (db.delete(db.pregnancyAncSchedule)
-            ..where((tbl) => tbl.pregnancyId.equals(pregnancyId)))
-          .go();
-      await (db.delete(db.vaccinations)
-            ..where((tbl) => tbl.pregnancyId.equals(pregnancyId)))
-          .go();
-      await (db.delete(db.reportChecklists)
-            ..where((tbl) => tbl.pregnancyId.equals(pregnancyId)))
-          .go();
-    });
-  }
-
-  // ---------------------- VACCINATIONS ----------------------
-
-  Future<String> createVaccination(VaccinationsCompanion vaccination) async {
-    final db = await SqLiteService().database;
-    final id = vaccination.id.present && vaccination.id.value.isNotEmpty
-        ? vaccination.id.value
-        : _uuid.v7();
-    await db.into(db.vaccinations).insertOnConflictUpdate(
-          vaccination.copyWith(id: Value(id), synced: const Value(0)),
-        );
-    return id;
-  }
-
-  /// Vaccinations for a user. Pass [pregnancyId] to narrow to maternal
-  /// vaccines tied to that pregnancy.
-  Future<List<Vaccination>> getVaccinations(
-    String userId, {
-    String? pregnancyId,
-  }) async {
-    final db = await SqLiteService().database;
-    final query = db.select(db.vaccinations)
-      ..where((tbl) => tbl.userId.equals(userId));
-    if (pregnancyId != null) {
-      query.where((tbl) => tbl.pregnancyId.equals(pregnancyId));
-    }
-    query.orderBy([(t) => OrderingTerm.asc(t.scheduledDate)]);
-    return query.get();
-  }
-
-  Future<Vaccination?> getVaccinationById(String id) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.vaccinations)..where((tbl) => tbl.id.equals(id)))
-        .getSingleOrNull();
-  }
-
-  Future<void> updateVaccination(VaccinationsCompanion vaccination) async {
-    final db = await SqLiteService().database;
-    await (db.update(db.vaccinations)
-          ..where((tbl) => tbl.id.equals(vaccination.id.value)))
-        .write(vaccination.copyWith(synced: const Value(0)));
-  }
-
-  Future<void> deleteVaccination(String id) async {
-    final db = await SqLiteService().database;
-    await (db.delete(db.vaccinations)..where((tbl) => tbl.id.equals(id))).go();
-  }
-
-  Future<List<Vaccination>> unsyncedVaccinations() async {
-    final db = await SqLiteService().database;
-    return (db.select(db.vaccinations)..where((tbl) => tbl.synced.equals(0)))
-        .get();
-  }
-
-  // ---------------------- REPORT CHECKLISTS ----------------------
-
-  Future<String> createReportChecklist(
-      ReportChecklistsCompanion checklist) async {
-    final db = await SqLiteService().database;
-    final id = checklist.id.present && checklist.id.value.isNotEmpty
-        ? checklist.id.value
-        : _uuid.v7();
-    await db.into(db.reportChecklists).insertOnConflictUpdate(
-          checklist.copyWith(id: Value(id), synced: const Value(0)),
-        );
-    return id;
-  }
-
-  Future<List<ReportChecklist>> getReportChecklists(
-    String userId, {
-    String? pregnancyId,
-  }) async {
-    final db = await SqLiteService().database;
-    final query = db.select(db.reportChecklists)
-      ..where((tbl) => tbl.userId.equals(userId));
-    if (pregnancyId != null) {
-      query.where((tbl) => tbl.pregnancyId.equals(pregnancyId));
-    }
-    query.orderBy([(t) => OrderingTerm.asc(t.dueDate)]);
-    return query.get();
-  }
-
-  Future<ReportChecklist?> getReportChecklistById(String id) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.reportChecklists)..where((tbl) => tbl.id.equals(id)))
-        .getSingleOrNull();
-  }
-
-  Future<void> updateReportChecklist(
-      ReportChecklistsCompanion checklist) async {
-    final db = await SqLiteService().database;
-    await (db.update(db.reportChecklists)
-          ..where((tbl) => tbl.id.equals(checklist.id.value)))
-        .write(checklist.copyWith(synced: const Value(0)));
-  }
-
-  Future<void> deleteReportChecklist(String id) async {
-    final db = await SqLiteService().database;
-    await (db.delete(db.reportChecklists)..where((tbl) => tbl.id.equals(id)))
-        .go();
-  }
-
-  Future<List<ReportChecklist>> unsyncedReportChecklists() async {
-    final db = await SqLiteService().database;
-    return (db.select(db.reportChecklists)
-          ..where((tbl) => tbl.synced.equals(0)))
-        .get();
-  }
-
-  // ---------------------- REPORT ATTACHMENTS ----------------------
-
-  Future<String> createReportAttachment(
-      ReportAttachmentsCompanion attachment) async {
-    final db = await SqLiteService().database;
-    final id = attachment.id.present && attachment.id.value.isNotEmpty
-        ? attachment.id.value
-        : _uuid.v7();
-    await db.into(db.reportAttachments).insertOnConflictUpdate(
-          attachment.copyWith(id: Value(id), synced: const Value(0)),
-        );
-    return id;
-  }
-
-  Future<List<ReportAttachment>> getReportAttachments(String reportId) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.reportAttachments)
-          ..where((tbl) => tbl.reportId.equals(reportId))
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .get();
-  }
-
-  Future<ReportAttachment?> getReportAttachmentById(String id) async {
-    final db = await SqLiteService().database;
-    return (db.select(db.reportAttachments)..where((tbl) => tbl.id.equals(id)))
-        .getSingleOrNull();
-  }
-
-  Future<void> updateReportAttachment(
-      ReportAttachmentsCompanion attachment) async {
-    final db = await SqLiteService().database;
-    await (db.update(db.reportAttachments)
-          ..where((tbl) => tbl.id.equals(attachment.id.value)))
-        .write(attachment.copyWith(synced: const Value(0)));
-  }
-
-  /// Called once a file finishes uploading, to record its remote copy.
-  Future<void> markAttachmentUploaded(String id, String cloudUrl) async {
-    await updateReportAttachment(
-      ReportAttachmentsCompanion(
-        id: Value(id),
-        cloudUrl: Value(cloudUrl),
+    final db = await _db;
+    final now = DateTime.now();
+    await (db.update(db.ancCheckupDates)..where((a) => a.id.equals(id))).write(
+      AncCheckupDatesCompanion(
+        deletedAt: Value(now),
+        updatedAt: Value(now),
+        synced: const Value(0),
       ),
     );
   }
 
-  Future<void> deleteReportAttachment(String id) async {
-    final db = await SqLiteService().database;
-    await (db.delete(db.reportAttachments)..where((tbl) => tbl.id.equals(id)))
-        .go();
+  Future<List<AncCheckupDate>> unsyncedAncVisits() async {
+    final db = await _db;
+    return (db.select(db.ancCheckupDates)..where((a) => a.synced.equals(0)))
+        .get();
   }
 
-  Future<List<ReportAttachment>> unsyncedReportAttachments() async {
-    final db = await SqLiteService().database;
-    return (db.select(db.reportAttachments)
-          ..where((tbl) => tbl.synced.equals(0)))
+  // ── Vaccinations ───────────────────────────────────────────────────────────
+
+  Future<String> createVaccination(
+    PregnancyImmunizationRecordsCompanion vaccination,
+  ) async {
+    final db = await _db;
+    await db
+        .into(db.pregnancyImmunizationRecords)
+        .insertOnConflictUpdate(vaccination);
+    return vaccination.id.value;
+  }
+
+  Future<List<PregnancyImmunizationRecord>> getVaccinations(
+    String pregnancyId,
+  ) async {
+    final db = await _db;
+    return (db.select(db.pregnancyImmunizationRecords)
+          ..where((v) => v.pregnancyId.equals(pregnancyId) & v.deletedAt.isNull())
+          ..orderBy([(v) => OrderingTerm.asc(v.scheduledDate)]))
         .get();
+  }
+
+  Future<PregnancyImmunizationRecord?> getVaccinationById(String id) async {
+    final db = await _db;
+    return (db.select(db.pregnancyImmunizationRecords)
+          ..where((v) => v.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<void> updateVaccination(
+    PregnancyImmunizationRecordsCompanion vaccination,
+  ) async {
+    final db = await _db;
+    await (db.update(db.pregnancyImmunizationRecords)
+          ..where((v) => v.id.equals(vaccination.id.value)))
+        .write(vaccination.copyWith(synced: const Value(0)));
+  }
+
+  Future<void> deleteVaccination(String id) async {
+    final db = await _db;
+    final now = DateTime.now();
+    await (db.update(db.pregnancyImmunizationRecords)
+          ..where((v) => v.id.equals(id)))
+        .write(
+          PregnancyImmunizationRecordsCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            synced: const Value(0),
+          ),
+        );
+  }
+
+  Future<List<PregnancyImmunizationRecord>> unsyncedVaccinations() async {
+    final db = await _db;
+    return (db.select(db.pregnancyImmunizationRecords)
+          ..where((v) => v.synced.equals(0)))
+        .get();
+  }
+
+  // ── Report checklist ───────────────────────────────────────────────────────
+
+  Future<String> createReportChecklist(
+    PregnancyReportChecklistsCompanion checklist,
+  ) async {
+    final db = await _db;
+    await db
+        .into(db.pregnancyReportChecklists)
+        .insertOnConflictUpdate(checklist);
+    return checklist.id.value;
+  }
+
+  Future<List<PregnancyReportChecklist>> getReportChecklists(
+    String pregnancyId,
+  ) async {
+    final db = await _db;
+    return (db.select(db.pregnancyReportChecklists)
+          ..where((r) => r.pregnancyId.equals(pregnancyId) & r.deletedAt.isNull())
+          ..orderBy([(r) => OrderingTerm.asc(r.expectedDate)]))
+        .get();
+  }
+
+  Future<PregnancyReportChecklist?> getReportChecklistById(String id) async {
+    final db = await _db;
+    return (db.select(db.pregnancyReportChecklists)
+          ..where((r) => r.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<void> updateReportChecklist(
+    PregnancyReportChecklistsCompanion checklist,
+  ) async {
+    final db = await _db;
+    await (db.update(db.pregnancyReportChecklists)
+          ..where((r) => r.id.equals(checklist.id.value)))
+        .write(checklist.copyWith(synced: const Value(0)));
+  }
+
+  Future<void> deleteReportChecklist(String id) async {
+    final db = await _db;
+    final now = DateTime.now();
+    await (db.update(db.pregnancyReportChecklists)..where((r) => r.id.equals(id)))
+        .write(
+          PregnancyReportChecklistsCompanion(
+            deletedAt: Value(now),
+            updatedAt: Value(now),
+            synced: const Value(0),
+          ),
+        );
+  }
+
+  Future<List<PregnancyReportChecklist>> unsyncedReportChecklists() async {
+    final db = await _db;
+    return (db.select(db.pregnancyReportChecklists)
+          ..where((r) => r.synced.equals(0)))
+        .get();
+  }
+
+  Future<void> deleteAllForPregnancy(String pregnancyId) async {
+    final db = await _db;
+    await db.transaction(() async {
+      await (db.delete(db.ancCheckupDates)
+            ..where((a) => a.pregnancyId.equals(pregnancyId)))
+          .go();
+      await (db.delete(db.pregnancyImmunizationRecords)
+            ..where((v) => v.pregnancyId.equals(pregnancyId)))
+          .go();
+      await (db.delete(db.pregnancyReportChecklists)
+            ..where((r) => r.pregnancyId.equals(pregnancyId)))
+          .go();
+    });
+  }
+
+  // ── Report attachments (app-local, no server counterpart yet) ──────────────
+
+  Future<String> createReportAttachment(
+    ReportAttachmentsCompanion attachment,
+  ) async {
+    final db = await _db;
+    await db.into(db.reportAttachments).insertOnConflictUpdate(attachment);
+    return attachment.id.value;
+  }
+
+  Future<List<ReportAttachment>> getReportAttachments(String reportId) async {
+    final db = await _db;
+    return (db.select(db.reportAttachments)
+          ..where((a) => a.reportId.equals(reportId)))
+        .get();
+  }
+
+  Future<ReportAttachment?> getReportAttachmentById(String id) async {
+    final db = await _db;
+    return (db.select(db.reportAttachments)..where((a) => a.id.equals(id)))
+        .getSingleOrNull();
+  }
+
+  Future<void> updateReportAttachment(
+    ReportAttachmentsCompanion attachment,
+  ) async {
+    final db = await _db;
+    await (db.update(db.reportAttachments)
+          ..where((a) => a.id.equals(attachment.id.value)))
+        .write(attachment);
+  }
+
+  Future<void> deleteReportAttachment(String id) async {
+    final db = await _db;
+    await (db.delete(db.reportAttachments)..where((a) => a.id.equals(id))).go();
   }
 }

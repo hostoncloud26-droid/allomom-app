@@ -10,10 +10,12 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/foundation.dart';
 
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/allobot/allobot_context.dart';
 import 'package:allomom/services/allobot/allobot_context_loader.dart';
 import 'package:allomom/services/allobot/allobot_engine.dart' show stripForSpeech;
+import 'package:allomom/services/allobot/home_prompt_history.dart';
 import 'package:allomom/services/allobot/home_voice_flow.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -102,7 +104,7 @@ class HomeVoiceController extends ChangeNotifier {
       _language = await AppLanguage.current();
       await _tts.init();
       final loaded = await AlloBotContextLoader.load();
-      _flow = HomeVoiceFlow(context: loaded);
+      _flow = await _buildFlow(loaded);
     } catch (e) {
       debugPrint('HomeVoiceController: could not start: $e');
       _hasGreeted = false;
@@ -128,7 +130,7 @@ class HomeVoiceController extends ChangeNotifier {
       try {
         _language = await AppLanguage.current();
         await _tts.init();
-        _flow = HomeVoiceFlow(context: await AlloBotContextLoader.load());
+        _flow = await _buildFlow(await AlloBotContextLoader.load());
       } catch (e) {
         debugPrint('HomeVoiceController: could not start ANC follow-up: $e');
         return;
@@ -203,10 +205,24 @@ class HomeVoiceController extends ChangeNotifier {
     _speak(_message, _prompt);
   }
 
+  /// Builds the flow with today's ask log behind it, so the gaps between
+  /// questions carry over from the last time she had the app open.
+  Future<HomeVoiceFlow> _buildFlow(AlloBotContext context) async {
+    return HomeVoiceFlow(
+      context: context,
+      askedAt: await HomePromptHistory.load(),
+      onPromptShown: HomePromptHistory.record,
+    );
+  }
+
   void _say(String reply, HomePrompt? next) {
     _message = reply;
     _prompt = next;
     _isVisible = true;
+    // Noted here rather than when the question is chosen: this is the moment
+    // she actually sees and hears it, and so the moment its quiet period
+    // should start running.
+    if (next != null) _flow?.markPrompted(next);
     notifyListeners();
     _speak(reply, next);
   }
@@ -275,7 +291,7 @@ class HomeVoiceController extends ChangeNotifier {
     String unit, {
     Map<String, dynamic>? data,
   }) async {
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
     try {
       await VitalsSqLiteService().saveVital(
@@ -329,7 +345,7 @@ class HomeVoiceController extends ChangeNotifier {
       'logged_by': 'voice',
     };
 
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
 
     try {
@@ -373,7 +389,7 @@ class HomeVoiceController extends ChangeNotifier {
 
     try {
       await PregnancyCareDbService.instance.updateAncVisit(
-        PregnancyAncScheduleCompanion(
+        AncCheckupDatesCompanion(
           id: Value(upcoming.first.id),
           scheduledDate: Value(date),
         ),
@@ -383,7 +399,12 @@ class HomeVoiceController extends ChangeNotifier {
     }
   }
 
-  /// Stores what the doctor said against today's visit, and marks it done.
+  /// Marks today's visit done.
+  ///
+  /// What the doctor said is not stored: `anc_checkup_dates` has no notes
+  /// column, and the spoken summary already reaches the user through the chat
+  /// transcript. Inventing a local-only column for it would create a note she
+  /// could never see on another device.
   Future<void> _saveAncSummary(String? summary) async {
     final flow = _flow;
     if (summary == null || summary.isEmpty || flow == null) return;
@@ -394,13 +415,9 @@ class HomeVoiceController extends ChangeNotifier {
     if (visit == null || visit.id.isEmpty) return;
 
     try {
-      await PregnancyCareDbService.instance.updateAncVisit(
-        PregnancyAncScheduleCompanion(
-          id: Value(visit.id),
-          notes: Value(summary),
-          status: const Value('done'),
-          actualDate: Value(visit.actualDate ?? DateTime.now()),
-        ),
+      await PregnancyController.instance.setAncCompleted(
+        visit.id,
+        visit.actualDate ?? DateTime.now(),
       );
     } catch (e) {
       debugPrint('HomeVoiceController: could not save the visit notes: $e');
@@ -411,12 +428,9 @@ class HomeVoiceController extends ChangeNotifier {
     final dose = _flow?.context.nextVaccine;
     if (dose == null || dose.id.isEmpty) return;
     try {
-      await PregnancyCareDbService.instance.updateVaccination(
-        VaccinationsCompanion(
-          id: Value(dose.id),
-          status: const Value('done'),
-          administeredDate: Value(DateTime.now()),
-        ),
+      await PregnancyController.instance.setVaccinationReceived(
+        dose.id,
+        DateTime.now(),
       );
     } catch (e) {
       debugPrint('HomeVoiceController: could not mark the dose given: $e');

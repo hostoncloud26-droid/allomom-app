@@ -8,6 +8,14 @@ class APIResponse {
   bool networkError = false;
   APIPaginationResponse? pagination;
 
+  /// The decoded response body as it arrived.
+  ///
+  /// Most endpoints answer with the `{detail, id, item, items}` envelope the
+  /// fields above mirror, but `/sync/*` returns a bare object whose keys
+  /// (`synced_at`, `deleted_ids`, `conflicts`) have nowhere to land. Those
+  /// callers read [raw] instead of losing half the response.
+  Map<String, dynamic> raw = const {};
+
   APIResponse({
     required this.success,
     required dynamic map,
@@ -18,6 +26,7 @@ class APIResponse {
 
   void fromJson(dynamic map) {
     if (map is Map) {
+      raw = Map<String, dynamic>.from(map);
       if (map["detail"] is List) {
         detail = map["detail"].toString();
       } else {

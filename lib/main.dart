@@ -15,7 +15,10 @@ import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/services/health_vital_sync_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/auth_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/auth/role_selection_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -41,11 +44,19 @@ void main() async {
   );
 
   Get.put(Apiroutes());
+  // Secure storage first: the token it loads decides whether the bootstrap
+  // below has a session to restore at all.
   await ApiBase.init();
   await SqLiteService.init();
-  await UserSessionManager.instance.init();
+  AuthController.instance.init();
+  await MainController.instance.bootstrap();
   await ConnectionController.instance.init();
   HealthVitalSyncService.instance.init();
+
+  // The baby's voice. Permanent so one player is shared by every screen —
+  // navigating away from a card must not leave a second clip talking over the
+  // next one.
+  Get.put(BackgroundAudioController(), permanent: true);
 
   // Initialize Local Notifications & Health Reminder Scheduler
   try {
@@ -81,13 +92,26 @@ void main() async {
 class AllomomApp extends StatelessWidget {
   const AllomomApp({super.key});
 
+  /// Where a launch lands.
+  ///
+  /// Three states, not two: no session goes to the language picker, a session
+  /// whose registration was never finished resumes the registration flow rather
+  /// than dropping her into a main screen with no profile behind it, and a
+  /// complete account goes straight in.
+  Widget _home() {
+    final main = MainController.instance;
+    if (!main.isAuthenticated) return const LanguageSelectionPage();
+    if (!main.isRegistered) {
+      return RoleSelectionPage(phone: main.userPhone);
+    }
+    return const MainLayout();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: UserSessionManager.instance,
-      builder: (context, _) {
-        final isAuthenticated = UserSessionManager.instance.isAuthenticated;
-
+    return GetBuilder<MainController>(
+      init: MainController.instance,
+      builder: (_) {
         return GetMaterialApp(
           navigatorKey: rootNavigatorKey,
           title: 'Allomom',
@@ -112,9 +136,7 @@ class AllomomApp extends StatelessWidget {
             ),
             useMaterial3: true,
           ),
-          home: isAuthenticated
-              ? const MainLayout()
-              : const LanguageSelectionPage(),
+          home: _home(),
         );
       },
     );

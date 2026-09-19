@@ -12,7 +12,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 import 'package:allomom/services/report_parser/on_device_report_parser.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 
 class AddReport extends StatefulWidget {
   final String? checklistId;
@@ -137,7 +138,7 @@ class _AddReportState extends State<AddReport> {
 
     setState(() => isSubmitting = true);
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final userId = session.userId;
       final healthId = session.healthDataId.isNotEmpty
           ? session.healthDataId
@@ -201,13 +202,11 @@ class _AddReportState extends State<AddReport> {
       // Close out the checklist entry this report was filed against.
       final checklistId = widget.checklistId;
       if (checklistId != null && checklistId.isNotEmpty) {
-        await PregnancyCareDbService.instance.updateReportChecklist(
-          ReportChecklistsCompanion(
-            id: drift.Value(checklistId),
-            status: const drift.Value('done'),
-            completedDate: drift.Value(DateTime.now()),
-            filePath: drift.Value(primaryFile),
-          ),
+        // The checklist tracks whether a test is done; the file itself lives
+        // on the report row saved above, which is why there is no path here.
+        await PregnancyController.instance.setReportCompleted(
+          checklistId,
+          DateTime.now(),
         );
       }
 

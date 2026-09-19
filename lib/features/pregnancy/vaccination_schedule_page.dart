@@ -5,9 +5,11 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 
@@ -25,7 +27,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
 
   bool _isLoading = true;
   String? _pregnancyId;
-  List<Vaccination> _vaccines = const [];
+  List<PregnancyImmunizationRecord> _vaccines = const [];
 
   @override
   void initState() {
@@ -36,17 +38,16 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
   Future<void> _load() async {
     setState(() => _isLoading = true);
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final healthId = session.healthDataId;
       final pregnancy = healthId.isEmpty
           ? null
           : await HealthDbService.instance.getActivePregnancy(healthId);
 
       final vaccines = pregnancy == null
-          ? const <Vaccination>[]
+          ? const <PregnancyImmunizationRecord>[]
           : await PregnancyCareDbService.instance.getVaccinations(
-              session.userId,
-              pregnancyId: pregnancy.id,
+              pregnancy.id,
             );
 
       if (!mounted) return;
@@ -61,15 +62,13 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     }
   }
 
-  Future<void> _toggleDone(Vaccination vaccine) async {
+  Future<void> _toggleDone(PregnancyImmunizationRecord vaccine) async {
     final wasDone = vaccine.status == 'done';
     try {
-      await PregnancyCareDbService.instance.updateVaccination(
-        VaccinationsCompanion(
-          id: Value(vaccine.id),
-          status: Value(wasDone ? 'pending' : 'done'),
-          administeredDate: Value(wasDone ? null : DateTime.now()),
-        ),
+      // A dose is given exactly when it has a received date.
+      await PregnancyController.instance.setVaccinationReceived(
+        vaccine.id,
+        wasDone ? null : DateTime.now(),
       );
       await _load();
     } catch (e) {
@@ -81,7 +80,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final week = UserSessionManager.instance.currentGestationalWeek;
+    final week = MainController.instance.currentGestationalWeek;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBFC),
@@ -99,7 +98,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Vaccination Schedule',
+          'PregnancyImmunizationRecord Schedule',
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -161,7 +160,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     );
   }
 
-  Widget _buildVaccineCard(Vaccination vaccine) {
+  Widget _buildVaccineCard(PregnancyImmunizationRecord vaccine) {
     final status = CareStatus.resolve(
       status: vaccine.status,
       date: vaccine.scheduledDate,
@@ -233,36 +232,6 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
             ],
           ),
 
-          if (vaccine.notes != null && vaccine.notes!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.shield_outlined,
-                    size: 15,
-                    color: Color(0xFF9CA3AF),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      vaccine.notes!,
-                      style: GoogleFonts.poppins(
-                        fontSize: 11.5,
-                        color: const Color(0xFF475569),
-                        height: 1.35,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
 
           Row(
@@ -276,7 +245,9 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
               Text(
                 vaccine.administeredDate != null
                     ? 'Given ${_dateFmt.format(vaccine.administeredDate!)}'
-                    : 'Due ${_dateFmt.format(vaccine.scheduledDate)}',
+                    : vaccine.scheduledDate == null
+                        ? 'Due date not set'
+                        : 'Due ${_dateFmt.format(vaccine.scheduledDate!)}',
                 style: GoogleFonts.poppins(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,

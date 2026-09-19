@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// General daily summary, shown instead of the pregnancy card once a
@@ -43,7 +43,7 @@ class _DailySummarySectionState extends State<DailySummarySection> {
   /// Water is not on the controller, so it is summed straight from today's
   /// rows — the same increment convention Today's Care writes.
   Future<void> _loadWater() async {
-    final userId = UserSessionManager.instance.userId;
+    final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
     try {
       final now = DateTime.now();
@@ -65,7 +65,7 @@ class _DailySummarySectionState extends State<DailySummarySection> {
   @override
   Widget build(BuildContext context) {
     final vitals = HealthVitalsController.instance;
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +115,7 @@ class _DailySummarySectionState extends State<DailySummarySection> {
   }
 
   /// One friendly sentence built from whatever was actually recorded today.
-  String _summaryLine(UserSessionManager session, HealthVitalsController v) {
+  String _summaryLine(MainController session, HealthVitalsController v) {
     final name = session.userName.split(' ').first;
 
     if (session.isNewMom) {

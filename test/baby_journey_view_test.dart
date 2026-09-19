@@ -6,7 +6,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
-import 'package:allomom/repositories/baby_repository.dart';
+import 'package:drift/drift.dart' show Value;
+import 'package:uuid/uuid.dart';
+
+import 'package:allomom/services/baby_care_plan.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 
@@ -16,6 +19,9 @@ import 'package:allomom/services/sq_lite/sqlite_service.dart';
 void main() {
   late AppDriftDatabase db;
 
+  /// Milestone ids are assigned by the server; the tests just need them unique.
+  var _nextMilestoneId = 1;
+
   setUpAll(() {
     // Tests have no network; without this google_fonts tries to fetch and
     // logs failures instead of quietly falling back to the bundled font.
@@ -24,6 +30,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    _nextMilestoneId = 1;
     db = AppDriftDatabase.forTesting(NativeDatabase.memory());
     SqLiteService.overrideDatabaseForTesting(db);
   });
@@ -32,6 +39,70 @@ void main() {
     SqLiteService.overrideDatabaseForTesting(null);
     await db.close();
   });
+
+
+  /// Puts a baby and its care plan straight into the local database.
+  ///
+  /// Not through `BabyRepository`: adding a baby goes via the server now, which
+  /// is what generates the immunisation and milestone schedules. A widget test
+  /// has no network, so it seeds the rows sync would have pulled down —
+  /// which is also what the page actually reads.
+  Future<String> seedBaby({
+    required DateTime dob,
+    required String name,
+    String? gender,
+    bool withSchedule = true,
+  }) async {
+    const uuid = Uuid();
+    final pregnancyId = uuid.v4();
+    final babyId = uuid.v4();
+
+    await db.into(db.pregnancies).insertOnConflictUpdate(
+          PregnanciesCompanion.insert(
+            id: pregnancyId,
+            healthId: const Value('hd-usr-1'),
+            status: const Value('delivered'),
+          ),
+        );
+    await db.into(db.babies).insertOnConflictUpdate(
+          BabiesCompanion.insert(
+            id: babyId,
+            pregnancyId: Value(pregnancyId),
+            name: name,
+            deliveryDate: dob,
+            typeOfDelivery: 'normal',
+            gender: Value(gender),
+            condition: const Value('live'),
+          ),
+        );
+
+    if (withSchedule) {
+      for (final dose in babyVaccineSchedule) {
+        await db.into(db.babyImmunizationRecords).insertOnConflictUpdate(
+              BabyImmunizationRecordsCompanion.insert(
+                id: uuid.v4(),
+                babyId: Value(babyId),
+                vaccineName: dose.name,
+                scheduledDate: Value(dose.dueDateFrom(dob)),
+                required: Value(dose.required),
+              ),
+            );
+      }
+      for (final milestone in babyMilestonePlan) {
+        await db.into(db.babyMilestones).insertOnConflictUpdate(
+              BabyMilestonesCompanion.insert(
+                id: Value(_nextMilestoneId++),
+                babyId: Value(babyId),
+                milestone: milestone.milestone,
+                description: milestone.description,
+                expectedDate: Value(milestone.dueDateFrom(dob)),
+              ),
+            );
+      }
+    }
+
+    return babyId;
+  }
 
   /// A phone-shaped surface — the default 800x600 is not a layout this page
   /// ever renders on, so overflows there would be false alarms.
@@ -56,9 +127,9 @@ void main() {
 
   testWidgets('after delivery it shows the baby, not a registration prompt',
       (tester) async {
-    await BabyRepository.instance.addBaby(
+    await seedBaby(
       dob: DateTime.now().subtract(const Duration(days: 40)),
-      babyName: 'Aarav',
+      name: 'Aarav',
       gender: 'male',
     );
 
@@ -87,9 +158,9 @@ void main() {
 
   testWidgets('the care plan names the next due dose and milestone',
       (tester) async {
-    await BabyRepository.instance.addBaby(
+    await seedBaby(
       dob: DateTime.now().subtract(const Duration(days: 40)),
-      babyName: 'Meera',
+      name: 'Meera',
     );
 
     await pumpPage(tester);
@@ -100,15 +171,15 @@ void main() {
   });
 
   testWidgets('two babies get a switcher', (tester) async {
-    await BabyRepository.instance.addBaby(
+    await seedBaby(
       dob: DateTime.now().subtract(const Duration(days: 400)),
-      babyName: 'Elder',
-      seedSchedule: false,
+      name: 'Elder',
+      withSchedule: false,
     );
-    await BabyRepository.instance.addBaby(
+    await seedBaby(
       dob: DateTime.now().subtract(const Duration(days: 20)),
-      babyName: 'Newborn',
-      seedSchedule: false,
+      name: 'Newborn',
+      withSchedule: false,
     );
 
     await pumpPage(tester);

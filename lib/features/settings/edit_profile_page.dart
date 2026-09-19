@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 
 class EditProfilePage extends StatefulWidget {
@@ -48,7 +50,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     _nameController = TextEditingController(text: session.userName);
     _emailController = TextEditingController(text: session.userEmail);
     _phoneController = TextEditingController(text: session.userPhone);
@@ -139,49 +141,52 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     setState(() => _isSaving = true);
 
-    final success = await UserSessionManager.instance.updateProfile(
-      name: _nameController.text.trim(),
-      email: _emailController.text.trim().isEmpty
-          ? null
-          : _emailController.text.trim(),
-      phone: _phoneController.text.trim().isEmpty
-          ? null
-          : _phoneController.text.trim(),
-      gender: _gender.toLowerCase(),
-      dob: _dob,
-      bio: _bioController.text.trim().isEmpty
-          ? null
-          : _bioController.text.trim(),
-      city: _cityController.text.trim().isEmpty
-          ? null
-          : _cityController.text.trim(),
-      pincode: _pincodeController.text.trim().isEmpty
-          ? null
-          : _pincodeController.text.trim(),
-      adline1: _adline1Controller.text.trim().isEmpty
-          ? null
-          : _adline1Controller.text.trim(),
-      adline2: _adline2Controller.text.trim().isEmpty
-          ? null
-          : _adline2Controller.text.trim(),
-      bloodGroup: _bloodGroup,
-      pregnancyStatus: _pregnancyStatus,
-      lmpDate: _lmpDate,
-      eddDate: _eddDate,
-      image: _imageUrl,
-      allowearMacAddress: _macController.text.trim().isEmpty
-          ? null
-          : _macController.text.trim(),
-    );
+    final session = MainController.instance;
 
-    // Local-only: the pregnancy row is created/removed in SQLite.
+    String? orNull(String value) => value.trim().isEmpty ? null : value.trim();
+
+    // Only the columns `users` actually has. The phone is not among them: it is
+    // the sign-in credential and changes through OTP verification, not here.
+    final success = await session.updateProfile({
+      'name': _nameController.text.trim(),
+      'email': orNull(_emailController.text),
+      'gender': _gender.toLowerCase(),
+      'dob': SyncCodec.isoDate(_dob),
+      'bio': orNull(_bioController.text),
+      'city': orNull(_cityController.text),
+      'pincode': orNull(_pincodeController.text),
+      'address_line_1': orNull(_adline1Controller.text),
+      'address_line_2': orNull(_adline2Controller.text),
+      'profile_picture': _imageUrl,
+    });
+
+    // These three have no column on `users`, so each goes where it belongs.
+    if (_bloodGroup != null && _bloodGroup!.isNotEmpty) {
+      await session.updateBloodGroup(_bloodGroup!);
+    }
+    if (_lmpDate != null) await session.updateLmpDate(_lmpDate!);
+    if (_eddDate != null) await session.updateEddDate(_eddDate!);
+    await session.setAllowearMacAddress(orNull(_macController.text));
+
+    // Whether she is pregnant is the status of her pregnancy row, not a field
+    // on the profile — so switching it starts or closes out a pregnancy.
     if (_pregnancyStatus == pregnantStatus && _lmpDate != null) {
-      await UserSessionManager.instance.saveOrUpdatePregnancy(
-        lmpDate: _lmpDate!,
-        eddDate: _eddDate,
-      );
+      if (session.activePregnancyId == null) {
+        await PregnancyController.instance.createPregnancy(
+          lmpDate: _lmpDate!,
+          eddDate: _eddDate,
+        );
+      } else {
+        await PregnancyController.instance.updatePregnancy(
+          session.activePregnancyId!,
+          {
+            'lmp_date': SyncCodec.isoDate(_lmpDate!),
+            if (_eddDate != null) 'edd_date': SyncCodec.isoDate(_eddDate!),
+          },
+        );
+      }
     } else if (_pregnancyStatus == notPregnantStatus) {
-      await UserSessionManager.instance.deleteActivePregnancy();
+      await session.setPregnancyStatus(notPregnantStatus);
     }
 
     if (!mounted) return;

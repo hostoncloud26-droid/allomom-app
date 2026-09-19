@@ -5,7 +5,7 @@ import 'package:allomom/models/prescription_timing.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/features/prescriptions/my_prescription_add.dart';
 import 'package:allomom/features/prescriptions/prescription_detail.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class MyPrescriptionList extends StatefulWidget {
   const MyPrescriptionList({super.key});
@@ -29,7 +29,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
 
     // Local-only: prescriptions live in the Drift SQLite database.
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final healthId = session.healthDataId.isNotEmpty
           ? session.healthDataId
           : (session.userId.isNotEmpty ? session.userId : 'health_me');

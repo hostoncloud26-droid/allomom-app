@@ -8,7 +8,7 @@ import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/features/prescriptions/my_prescription_list.dart';
 import 'package:allomom/features/prescriptions/my_prescription_add.dart';
 import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class PrescriptionTimingsView extends StatefulWidget {
   final String? userId;
@@ -75,7 +75,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
           DateTime(_selectedDate.year, _selectedDate.month, _selectedDate.day);
       final endOfDay = DateTime(
           _selectedDate.year, _selectedDate.month, _selectedDate.day, 23, 59, 59);
-      final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
+      final targetUserId = widget.userId ?? MainController.instance.userId;
 
       final details = await PrescriptionDbService.instance.getTimingsInRange(
         from: startOfDay,

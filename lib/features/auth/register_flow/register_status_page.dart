@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_lmp_timeline_page.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class RegisterStatusPage extends StatefulWidget {
   final String userName;
@@ -25,6 +27,21 @@ class RegisterStatusPage extends StatefulWidget {
 
 class _RegisterStatusPageState extends State<RegisterStatusPage> {
   String _selectedStatus = 'Pregnant'; // 'Pre Pregnancy', 'Pregnant', 'New Mom'
+
+  /// The question, then the baby's reaction to where they are on the journey.
+  String _narrationKey = NarrationKeys.onbStatus;
+
+  /// The reaction line for a status option.
+  static String narrationKeyForStatus(String status) {
+    switch (status.trim().toLowerCase()) {
+      case 'pre pregnancy':
+        return NarrationKeys.onbStatusPrePregnancy;
+      case 'new mom':
+        return NarrationKeys.onbStatusNewMom;
+      default:
+        return NarrationKeys.onbStatusPregnant;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +67,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
+                          onTap: () => narratedPop(context),
                           child: Container(
                             width: 40,
                             height: 40,
@@ -92,16 +109,9 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                   // ─── BABY SPEECH AVATAR ───
                   BabyHeroBanner(
                     margin: const EdgeInsets.symmetric(horizontal: 20),
+                    narrationKey: _narrationKey,
                     speechText:
                         'Tell me where we are on this magical journey! ✨',
-                    onSpeakerTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Playing voice note...'),
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                      );
-                    },
                   ),
 
                   const Spacer(),
@@ -176,6 +186,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                           height: 54,
                           child: ElevatedButton(
                             onPressed: () {
+                              speak(NarrationKeys.onbAlmostDone);
                               // Every status starts from the LMP: pregnant users get
                               // a due date from it, everyone else gets a next-period
                               // prediction. New Mom used to skip straight ahead with
@@ -249,6 +260,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
       onTap: () {
         setState(() {
           _selectedStatus = title;
+          _narrationKey = narrationKeyForStatus(title);
         });
       },
       child: AnimatedContainer(

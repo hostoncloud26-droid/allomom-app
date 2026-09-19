@@ -6,7 +6,7 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 import 'package:allomom/features/cycle_tracker/cycle_setup_sheet.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 import 'package:allomom/repositories/cycle_repository.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 
@@ -57,7 +57,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final prediction = session.cyclePrediction;
 
     return Scaffold(

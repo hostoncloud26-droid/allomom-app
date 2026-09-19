@@ -5,6 +5,7 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 class FeedingTrackerPage extends StatefulWidget {
   const FeedingTrackerPage({super.key});
@@ -193,6 +194,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: BabyHeroBanner(
+                // Introduces the tracker on the first visit and then gets out
+                // of the way: `bindNarrationText` false leaves the card's own
+                // line in place once the clip has played.
+                narrationKey: NarrationKeys.newFeedingIntro,
+                bindNarrationText: false,
                 speechText: "Time for\nbaby's feed! 🍼",
                 bubblePosition: SpeechBubblePosition.topCenter,
                 height: 250,

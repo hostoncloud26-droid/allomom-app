@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/family_details_page.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class JoinFamilyCodePage extends StatefulWidget {
   final String userName;
@@ -153,7 +154,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                     child: Row(
                       children: [
                         GestureDetector(
-                          onTap: () => Navigator.maybePop(context),
+                          onTap: () => narratedPop(context),
                           child: Container(
                             width: 40,
                             height: 40,

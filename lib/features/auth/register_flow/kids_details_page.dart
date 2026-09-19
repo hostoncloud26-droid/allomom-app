@@ -3,13 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/api/auth_api.dart';
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/features/baby/baby_options.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class KidsDetailsPage extends StatefulWidget {
   final String userName;
@@ -53,6 +58,8 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
   /// checklist can be built from the date of birth.
   final List<_KidEntry> _kidsList = [];
 
+  late final NarrationFlow _flow = NarrationFlowKeys.of(widget.status);
+
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
   bool _isAddingKid = false;
@@ -78,83 +85,58 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
     if (picked != null) setState(() => _kidDob = picked);
   }
 
+  /// Completes registration.
+  ///
+  /// The account already exists — it was created the moment the OTP was
+  /// verified — so this is a PATCH of the profile plus the records the flow
+  /// collected, not a signup. `is_registered` flips last, once everything else
+  /// is in: a run that dies halfway leaves the flag false, so the next sign-in
+  /// resumes the flow rather than landing on a half-built home screen.
   Future<void> _finishSetup() async {
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
       final isDad = widget.selectedRole.trim().toLowerCase() == 'dad';
-      final storedStatus = pregnancyStatusForRegistration(
-        widget.status,
-        isDad: isDad,
-        registeringForPartner: widget.registerPregnancyForPartner,
-      );
-      final payload = {
-        "name": widget.userName.trim(),
-        "phone": widget.phone.trim(),
-        "countryCode": widget.countryCode,
-        "userRole": widget.selectedRole,
-        "gender": isDad ? "male" : "female",
-        "userType": isDad ? "dad" : "patient",
-        "pregnancyStatus": storedStatus,
-        if (widget.eddDate != null) "edDate": widget.eddDate!.toIso8601String(),
-        "lmpDate": widget.lmpDate?.toIso8601String(),
-        if (widget.partnerName != null && widget.partnerName!.trim().isNotEmpty)
-          "partnerName": widget.partnerName!.trim(),
-        if (widget.partnerPhone != null &&
-            widget.partnerPhone!.trim().isNotEmpty)
-          "partnerPhone": widget.partnerPhone!.trim(),
-        if (widget.familyCode != null && widget.familyCode!.trim().isNotEmpty)
-          "familyCode": widget.familyCode!.trim(),
-        "registerPregnancyForPartner": widget.registerPregnancyForPartner,
-      };
+      final main = MainController.instance;
 
-      String? registeredUserId;
-      String? jwt;
-      String? refresh;
-      String? healthDataId;
-
-      final res = await AuthApi.registerMother(payload);
-      if (!res.success) {
-        throw Exception(
-          res.detail.isNotEmpty
-              ? res.detail
-              : "Registration failed. Please try again.",
-        );
-      }
-
-      if (res.item is Map) {
-        final item = res.item as Map;
-        registeredUserId = item["user_id"]?.toString() ?? res.id?.toString();
-        jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
-        refresh = item["refresh"]?.toString();
-        healthDataId = item["healthDataID"]?.toString();
-      } else if (res.id != null) {
-        registeredUserId = res.id.toString();
-      }
-
-      await UserSessionManager.instance.saveRegistration(
+      // Partner details are deliberately not persisted: allomom-api-new has no
+      // column for them, and a local-only copy would never reach her other
+      // devices.
+      await main.saveRegistration(
         name: widget.userName,
-        phone: widget.phone,
-        countryCode: widget.countryCode,
-        pregnancyStatus: storedStatus,
-        eddDate: widget.eddDate,
-        averageCycleLength: widget.averageCycleLength,
-        lmpDate: widget.lmpDate,
-        partnerName: widget.partnerName,
-        partnerPhone: widget.partnerPhone,
-        hasKids: _kidsList.isNotEmpty,
-        kidsCount: _kidsList.length,
-        userId: registeredUserId,
-        jwt: jwt,
-        refresh: refresh,
-        healthDataId: healthDataId,
+        gender: isDad ? 'male' : 'female',
+        markRegistered: false,
       );
 
-      await _saveKidsAsBirthRecords();
+      // A pregnancy, when there is one. The server seeds the ANC, vaccination
+      // and report schedules off this LMP.
+      final isPregnant = pregnancyStatusForRegistration(
+            widget.status,
+            isDad: isDad,
+            registeringForPartner: widget.registerPregnancyForPartner,
+          ) ==
+          pregnantStatus;
+
+      if (isPregnant && widget.lmpDate != null) {
+        await PregnancyController.instance.createPregnancy(
+          lmpDate: widget.lmpDate!,
+          eddDate: widget.eddDate,
+        );
+      } else if (widget.lmpDate != null) {
+        // Not pregnant, but the LMP still anchors her cycle predictions.
+        await main.updateHealthData({
+          'lmp_date': SyncCodec.isoUtc(widget.lmpDate!),
+        });
+      }
+
+      await _saveKids();
+
+      // Only now is the profile genuinely complete.
+      await main.completeRegistration();
 
       if (!mounted) return;
+      // Plays across the jump to the home screen, which then greets her.
+      speak(_flow.setupDone, force: true);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -173,17 +155,13 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error completing registration: $e'),
+            content: Text('Could not finish setting up: $e'),
             backgroundColor: Colors.red.shade700,
           ),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -208,13 +186,11 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
     });
   }
 
-  /// Writes the children entered above as birth records.
+  /// Records the children she listed.
   ///
-  /// They carry no `pregnancyId` — these births predate the app, so there is
-  /// no pregnancy row to link them to. Failures are swallowed deliberately:
-  /// registration has already succeeded at this point and must not be rolled
-  /// back because a child record could not be written locally.
-  Future<void> _saveKidsAsBirthRecords() async {
+  /// One failure does not abort the rest — a child the server rejected is worth
+  /// reporting, but not at the cost of losing her siblings' records too.
+  Future<void> _saveKids() async {
     for (final kid in _kidsList) {
       try {
         await BabyRepository.instance.addBaby(dob: kid.dob, babyName: kid.name);
@@ -237,7 +213,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
+                    onTap: () => narratedPop(context),
                     child: Container(
                       width: 40,
                       height: 40,
@@ -279,6 +255,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             // ─── BABY SPEECH AVATAR ───
             BabyHeroBanner(
               margin: const EdgeInsets.symmetric(horizontal: 20),
+              narrationKey: NarrationKeys.onbAlmostDone,
               speechText: 'Tell me about my brothers & sisters! 🎈',
               onSpeakerTap: () {
                 ScaffoldMessenger.of(context).showSnackBar(

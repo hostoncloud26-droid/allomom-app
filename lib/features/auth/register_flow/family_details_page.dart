@@ -4,10 +4,15 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/api/auth_api.dart';
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class FamilyDetailsPage extends StatefulWidget {
   final String userName;
@@ -49,6 +54,14 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
   bool _hasKids = false; // default to No unless user taps Yes
   bool _isLoading = false;
 
+  /// The journey she is on, which decides how the siblings question is asked
+  /// and which "come, let's go home" plays at the end.
+  late final NarrationFlow _flow = NarrationFlowKeys.of(widget.status);
+
+  /// The line on the baby head card: the question, then the reaction to the
+  /// answer she taps.
+  late String _narrationKey = _flow.kids;
+
   Future<void> _handleNext() async {
     if (_hasKids) {
       Navigator.push(
@@ -76,79 +89,46 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
       });
 
       try {
+        // The account already exists — it was created when the OTP was
+        // verified — so this completes the profile rather than signing up.
+        // Partner details are deliberately not persisted: allomom-api-new has
+        // no column for them.
         final isDad = widget.selectedRole.trim().toLowerCase() == 'dad';
-        final storedStatus = pregnancyStatusForRegistration(
-          widget.status,
-          isDad: isDad,
-          registeringForPartner: widget.registerPregnancyForPartner,
-        );
-        final isPregnant = storedStatus == 'pregnant';
+        final main = MainController.instance;
 
-        final payload = {
-          "name": widget.userName.trim(),
-          "phone": widget.phone.trim(),
-          "countryCode": widget.countryCode,
-          "userRole": widget.selectedRole,
-          "gender": isDad ? "male" : "female",
-          "userType": isDad ? "dad" : "patient",
-          "pregnancyStatus": storedStatus,
-          if (widget.eddDate != null)
-            "edDate": widget.eddDate!.toIso8601String(),
-          "lmpDate": widget.lmpDate?.toIso8601String(),
-          if (widget.partnerName != null &&
-              widget.partnerName!.trim().isNotEmpty)
-            "partnerName": widget.partnerName!.trim(),
-          if (widget.partnerPhone != null &&
-              widget.partnerPhone!.trim().isNotEmpty)
-            "partnerPhone": widget.partnerPhone!.trim(),
-          if (widget.familyCode != null && widget.familyCode!.trim().isNotEmpty)
-            "familyCode": widget.familyCode!.trim(),
-          "registerPregnancyForPartner": widget.registerPregnancyForPartner,
-        };
-
-        String? registeredUserId;
-        String? jwt;
-        String? refresh;
-        String? healthDataId;
-
-        final res = await AuthApi.registerMother(payload);
-        if (!res.success) {
-          throw Exception(
-            res.detail.isNotEmpty
-                ? res.detail
-                : "Registration failed. Please try again.",
-          );
-        }
-
-        if (res.item is Map) {
-          final item = res.item as Map;
-          registeredUserId = item["user_id"]?.toString() ?? res.id?.toString();
-          jwt = item["jwt"]?.toString() ?? item["access_token"]?.toString();
-          refresh = item["refresh"]?.toString();
-          healthDataId = item["healthDataID"]?.toString();
-        } else if (res.id != null) {
-          registeredUserId = res.id.toString();
-        }
-
-        await UserSessionManager.instance.saveRegistration(
+        await main.saveRegistration(
           name: widget.userName,
-          phone: widget.phone,
-          countryCode: widget.countryCode,
-          pregnancyStatus: storedStatus,
-          eddDate: widget.eddDate,
-          averageCycleLength: widget.averageCycleLength,
-          lmpDate: widget.lmpDate,
-          partnerName: widget.partnerName,
-          partnerPhone: widget.partnerPhone,
-          hasKids: false,
-          kidsCount: 0,
-          userId: registeredUserId,
-          jwt: jwt,
-          refresh: refresh,
-          healthDataId: healthDataId,
+          gender: isDad ? 'male' : 'female',
+          markRegistered: false,
         );
+
+        final isPregnant = pregnancyStatusForRegistration(
+              widget.status,
+              isDad: isDad,
+              registeringForPartner: widget.registerPregnancyForPartner,
+            ) ==
+            pregnantStatus;
+
+        if (isPregnant && widget.lmpDate != null) {
+          // The server seeds the ANC, vaccination and report schedules off
+          // this LMP.
+          await PregnancyController.instance.createPregnancy(
+            lmpDate: widget.lmpDate!,
+            eddDate: widget.eddDate,
+          );
+        } else if (widget.lmpDate != null) {
+          await main.updateHealthData({
+            'lmp_date': SyncCodec.isoUtc(widget.lmpDate!),
+          });
+        }
+
+        // Flipped last, so an interrupted run resumes the flow next sign-in
+        // instead of landing on a home screen with no profile behind it.
+        await main.completeRegistration();
 
         if (!mounted) return;
+        // Plays across the jump to the home screen, which then greets her.
+        speak(_flow.setupDone, force: true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -194,7 +174,7 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
+                    onTap: () => narratedPop(context),
                     child: Container(
                       width: 40,
                       height: 40,
@@ -236,16 +216,9 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
             // ─── BABY SPEECH AVATAR ───
             BabyHeroBanner(
               margin: const EdgeInsets.symmetric(horizontal: 20),
+              narrationKey: _narrationKey,
               speechText:
                   'Do you already have sweet little\nbrothers or sisters for me? 👶',
-              onSpeakerTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing siblings voice prompt...'),
-                    duration: Duration(milliseconds: 1000),
-                  ),
-                );
-              },
             ),
 
             const SizedBox(height: 12),
@@ -291,7 +264,10 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
                         subtitle: 'I have other children',
                         isSelected: _hasKids,
                         icon: Icons.child_care_rounded,
-                        onTap: () => setState(() => _hasKids = true),
+                        onTap: () => setState(() {
+                          _hasKids = true;
+                          _narrationKey = NarrationKeys.pregKidsYes;
+                        }),
                       ),
                       const SizedBox(height: 12),
 
@@ -301,7 +277,10 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
                         subtitle: 'This is my first baby 💕',
                         isSelected: !_hasKids,
                         icon: Icons.favorite_rounded,
-                        onTap: () => setState(() => _hasKids = false),
+                        onTap: () => setState(() {
+                          _hasKids = false;
+                          _narrationKey = NarrationKeys.pregKidsNo;
+                        }),
                       ),
 
                       const SizedBox(height: 24),

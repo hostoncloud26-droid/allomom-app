@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class _HealthColors {
   static const excellent = Color(0xFF10B981);
@@ -175,7 +175,7 @@ class AdvancedHealthSummaryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([HealthVitalsController.instance, UserSessionManager.instance]),
+      animation: Listenable.merge([HealthVitalsController.instance, MainController.instance]),
       builder: (context, _) {
         final vitals = HealthVitalsController.instance;
 

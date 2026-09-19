@@ -6,6 +6,8 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/services/local_reminder_storage.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class LocalReminderScheduler {
   static bool _initialized = false;
@@ -66,6 +68,9 @@ class LocalReminderScheduler {
 
   /// Request notification permissions on Android & iOS
   static Future<bool> requestPermissions() async {
+    // Why the reminders matter, spoken alongside the system prompt.
+    speak(NarrationKeys.onbPermNotification);
+
     final android = plugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     final androidGranted = await android?.requestNotificationsPermission() ?? true;
 

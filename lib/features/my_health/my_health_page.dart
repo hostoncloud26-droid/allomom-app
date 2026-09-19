@@ -27,7 +27,7 @@ import 'package:allomom/features/my_health/details/bmi_tracker_detail_page.dart'
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class _HealthTabItem {
   final IconData icon;
@@ -270,9 +270,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([UserSessionManager.instance, HealthVitalsController.instance]),
+      animation: Listenable.merge([MainController.instance, HealthVitalsController.instance]),
       builder: (context, child) {
-        final session = UserSessionManager.instance;
+        final session = MainController.instance;
         final week = session.currentGestationalWeek;
 
         return Column(

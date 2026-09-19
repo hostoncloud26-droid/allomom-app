@@ -4,7 +4,7 @@ import 'package:allomom/services/sq_lite/services/reminder_db_service.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
 import 'package:allomom/local_notification/ui/reminder_setup_bottom_sheet.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class ReminderItem {
   final String id;
@@ -167,7 +167,7 @@ class _RemindersPageState extends State<RemindersPage> {
   /// and appends them to the built-in pregnancy reminder list.
   Future<void> _loadCustomReminders() async {
     try {
-      final targetUserId = widget.userId ?? UserSessionManager.instance.userId;
+      final targetUserId = widget.userId ?? MainController.instance.userId;
       if (targetUserId.isEmpty) return;
 
       final saved = await ReminderDbService.instance.getReminders(targetUserId);
@@ -344,7 +344,7 @@ class _RemindersPageState extends State<RemindersPage> {
                             'custom_${DateTime.now().millisecondsSinceEpoch}';
                         try {
                           final targetUserId = widget.userId ??
-                              UserSessionManager.instance.userId;
+                              MainController.instance.userId;
                           if (targetUserId.isNotEmpty) {
                             reminderId = await ReminderDbService.instance
                                 .createReminder(

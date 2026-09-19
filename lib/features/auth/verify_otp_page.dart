@@ -4,15 +4,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/api/otp_api.dart';
-import 'package:allomom/api/api_base.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/auth_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class VerifyOtpPage extends StatefulWidget {
   final String phoneNumber;
   final String rawPhone;
   final String countryCode;
-  final dynamic otpId;
   final String selectedLanguage;
 
   const VerifyOtpPage({
@@ -20,7 +21,6 @@ class VerifyOtpPage extends StatefulWidget {
     required this.phoneNumber,
     this.rawPhone = '9876543210',
     this.countryCode = '+91',
-    this.otpId,
     this.selectedLanguage = 'en',
   });
 
@@ -37,7 +37,10 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   int _focusedIndex = 0;
   bool _isVerifying = false;
   bool _isResending = false;
-  dynamic _currentOtpId;
+
+  /// The line on the baby head card: the "I sent you a code" opener, then
+  /// whichever of the OTP lines the mother's next step calls for.
+  String _narrationKey = NarrationKeys.onbOtp;
 
   final List<String> _testNumbers = const [
     '9999999999',
@@ -52,7 +55,6 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
   @override
   void initState() {
     super.initState();
-    _currentOtpId = widget.otpId;
 
     for (int i = 0; i < 6; i++) {
       _focusNodes[i].addListener(() {
@@ -78,175 +80,120 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
 
   String get _enteredOtp => _controllers.map((c) => c.text.trim()).join();
 
+  /// Puts [key] on the card and replays it even if it has been heard before.
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
+
+  /// Verifies the code and routes on what the server says about registration.
+  ///
+  /// `is_registered` is the only thing that decides where she lands: false
+  /// means the account exists but the profile was never completed, so she goes
+  /// into the registration flow — including when she is returning to a sign-up
+  /// she abandoned halfway. True goes straight to the main screen.
   Future<void> _handleVerifyOtp() async {
     final otpCode = _enteredOtp;
     if (otpCode.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter the full 6-digit OTP code')),
+      _say(NarrationKeys.onbOtpWrong);
+      _showMessage('Please enter the full 6-digit code');
+      return;
+    }
+
+    setState(() => _isVerifying = true);
+
+    final outcome = await AuthController.instance.verifyOtp(
+      phone: widget.rawPhone,
+      otp: otpCode,
+      countryCode: widget.countryCode,
+    );
+
+    if (!mounted) return;
+    setState(() => _isVerifying = false);
+
+    // A wrong or expired code keeps her on this screen. The old flow sent her
+    // into registration on any failure, which quietly created a second profile
+    // for someone who had simply mistyped a digit.
+    if (!outcome.success) {
+      _say(NarrationKeys.onbOtpWrong);
+      _showMessage(outcome.message, isError: true);
+      return;
+    }
+
+    // Fire-and-forget rather than `_say`: this line plays over the transition
+    // to the next screen, and the card is about to go. Leaving the bound key
+    // alone is also what keeps `dispose` from cutting it off — it only stops
+    // the key the card is showing.
+    speak(NarrationKeys.onbOtpSuccess, force: true);
+
+    if (outcome.isRegistered) {
+      _showMessage(
+        'Welcome back${_greetingName.isEmpty ? '' : ', $_greetingName'}!',
+      );
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const MainLayout()),
+        (route) => false,
       );
       return;
     }
 
-    setState(() {
-      _isVerifying = true;
-    });
+    _showMessage("Verified! Let's set up your profile.");
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(
+        builder: (_) => RoleSelectionPage(
+          phone: widget.rawPhone,
+          countryCode: widget.countryCode,
+          selectedLanguage: widget.selectedLanguage,
+        ),
+      ),
+      (route) => false,
+    );
+  }
 
-    try {
-      final res = await OtpApi.verifyOtp(
-        otpCode,
-        _currentOtpId ?? 0,
-        "com.savemom.allomom",
-      );
-
-      if (!mounted) return;
-
-      if (res.success) {
-        final item = res.item;
-        final bool isNewUser =
-            (item is Map && item["is_new_user"] == true) || res.id == null;
-
-        if (isNewUser) {
-          // New User -> Transition to registration flow
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'OTP Verified! Let\'s set up your maternal care profile.',
-              ),
-              backgroundColor: Color(0xFFFF4E6A),
-              duration: Duration(seconds: 2),
-            ),
-          );
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => RoleSelectionPage(
-                phone: widget.rawPhone,
-                countryCode: widget.countryCode,
-                selectedLanguage: widget.selectedLanguage,
-              ),
-            ),
-          );
-        } else {
-          // Existing User -> Load session and navigate to MainLayout
-          if (item is Map) {
-            await UserSessionManager.instance.setAuthenticatedSession(
-              userId: item["user_id"]?.toString() ?? res.id?.toString() ?? "",
-              jwt:
-                  item["jwt"]?.toString() ??
-                  item["access_token"]?.toString() ??
-                  "",
-              refresh: item["refresh"]?.toString(),
-              name: item["name"]?.toString(),
-              phone: item["phone"]?.toString() ?? widget.rawPhone,
-              email: item["email"]?.toString(),
-              healthDataId: item["healthDataID"]?.toString(),
-            );
-          }
-
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Welcome back, ${item is Map ? item["name"] ?? "Mommy" : "Mommy"}! Loading your care dashboard.',
-              ),
-              backgroundColor: const Color(0xFFFF4E6A),
-              duration: const Duration(seconds: 2),
-            ),
-          );
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const MainLayout()),
-            (route) => false,
-          );
-        }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              res.detail.isNotEmpty
-                  ? res.detail
-                  : 'Invalid OTP code. Please check and try again.',
-            ),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Verification notice: $e - proceeding to registration',
-            ),
-            backgroundColor: const Color(0xFFFF4E6A),
-          ),
-        );
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => RoleSelectionPage(
-              phone: widget.rawPhone,
-              countryCode: widget.countryCode,
-              selectedLanguage: widget.selectedLanguage,
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isVerifying = false;
-        });
-      }
-    }
+  String get _greetingName {
+    final name = MainController.instance.userName;
+    return name.trim();
   }
 
   Future<void> _handleResendOtp() async {
-    setState(() {
-      _isResending = true;
-    });
+    setState(() => _isResending = true);
 
-    try {
-      final res = await OtpApi.sendOtp(widget.rawPhone, widget.countryCode);
-      if (!mounted) return;
+    final error = await AuthController.instance.resendOtp(
+      widget.rawPhone,
+      countryCode: widget.countryCode,
+    );
 
-      if (res.success) {
-        _currentOtpId = res.id;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              res.detail.isNotEmpty
-                  ? res.detail
-                  : 'New OTP sent! (Test OTP: 999777)',
-            ),
-            backgroundColor: const Color(0xFFFF4E6A),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              res.detail.isNotEmpty ? res.detail : 'Failed to resend OTP.',
-            ),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Resend error: $e'),
-            backgroundColor: Colors.red.shade700,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isResending = false;
-        });
-      }
+    if (!mounted) return;
+    setState(() => _isResending = false);
+
+    if (error != null) {
+      _showMessage(error, isError: true);
+      return;
     }
+
+    _say(NarrationKeys.onbOtpResend);
+
+    for (final controller in _controllers) {
+      controller.clear();
+    }
+    _focusNodes.first.requestFocus();
+    _showMessage('A new code is on its way.');
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message.isEmpty ? 'Something went wrong. Please try again.' : message,
+        ),
+        backgroundColor:
+            isError ? Colors.red.shade700 : const Color(0xFFFF4E6A),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -281,7 +228,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                       child: Row(
                         children: [
                           GestureDetector(
-                            onTap: () => Navigator.maybePop(context),
+                            onTap: () => narratedPop(context),
                             child: Container(
                               width: 40,
                               height: 40,
@@ -323,16 +270,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                     // ─── BABY SPEECH AVATAR ───
                     BabyPrompt(
                       compact: isKeyboardOpen,
+                      narrationKey: _narrationKey,
                       text:
                           'I just sent a secret 6-digit code to\nyour phone! 🔑',
-                      onSpeakerTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Playing OTP voice note...'),
-                            duration: Duration(milliseconds: 1000),
-                          ),
-                        );
-                      },
                     ),
 
                     const Spacer(),
@@ -433,11 +373,16 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                "Didn't receive the code?",
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12.5,
-                                  color: const Color(0xFF6B7280),
+                              // Tapping the question is how she asks where the
+                              // code went; the baby answers on the card above.
+                              GestureDetector(
+                                onTap: () => _say(NarrationKeys.onbOtpWhere),
+                                child: Text(
+                                  "Didn't receive the code?",
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 12.5,
+                                    color: const Color(0xFF6B7280),
+                                  ),
                                 ),
                               ),
                               GestureDetector(

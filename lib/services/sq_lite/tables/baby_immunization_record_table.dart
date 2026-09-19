@@ -1,22 +1,26 @@
 part of '../drift_database.dart';
 
-/// Vaccine schedule & administration records for a baby, tied to its birth
-/// record. `immunizationScheduleId` is left as a plain nullable FK column
-/// for the reference `ImmunizationSchedule` table to be added separately.
+/// Mirrors `baby_immunization_records` in allomom-api-new — the infant's
+/// National Immunization Schedule, seeded by the server from the birth date.
 class BabyImmunizationRecords extends Table {
+  @override
+  String get tableName => 'baby_immunization_records';
+
   TextColumn get id => text()(); // UUID
-  TextColumn get birthRecordId =>
-      text().named('birth_record_id').nullable()(); // -> birth_records.id
+  TextColumn get babyId => text().named('baby_id').nullable()();
   TextColumn get vaccineName => text().named('vaccine_name')();
-  DateTimeColumn get expectedDate => dateTime().named('expected_date').nullable()();
-  BoolColumn get required =>
-      boolean().nullable().withDefault(const Constant(true))();
-  DateTimeColumn get vaccinationDate => dateTime().named('vaccination_date').nullable()();
-  TextColumn get vaccinatedBy => text().named('vaccinated_by').nullable()(); // -> users.id
-  TextColumn get immunizationScheduleId =>
-      text().named('immunization_schedule_id').nullable()(); // -> ImmunizationSchedule.id (reference table, added later)
-  TextColumn get reportId => text().named('report_id').nullable()(); // -> reports.id
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get scheduledDate => dateTime().named('scheduled_date').nullable()();
+  DateTimeColumn get receivedDate => dateTime().named('received_date').nullable()();
+  BoolColumn get required => boolean().withDefault(const Constant(true))();
+  DateTimeColumn get scheduledDateRangeFrom =>
+      dateTime().named('scheduled_date_range_from').nullable()();
+  DateTimeColumn get scheduledDateRangeTo =>
+      dateTime().named('scheduled_date_range_to').nullable()();
+  DateTimeColumn get createdAt => dateTime().named('created_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().named('updated_at').withDefault(currentDateAndTime)();
+  DateTimeColumn get deletedAt => dateTime().named('deleted_at').nullable()();
+
+  DateTimeColumn get syncedAt => dateTime().named('synced_at').nullable()();
   IntColumn get synced => integer().withDefault(const Constant(0))();
 
   @override

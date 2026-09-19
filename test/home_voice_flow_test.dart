@@ -12,6 +12,7 @@ AlloBotContext contextAt({
   bool isNewMom = false,
   Map<String, double> todayTotals = const {},
   Map<String, String> todayMealNotes = const {},
+  Map<String, VitalContext> latestVitals = const {},
   List<AncVisitContext> ancVisits = const [],
   List<VaccineContext> vaccines = const [],
   List<TodayCareContext> todayCare = const [],
@@ -38,11 +39,17 @@ AlloBotContext contextAt({
     formattedEdd: '28 Feb',
     todayTotals: todayTotals,
     todayMealNotes: todayMealNotes,
+    latestVitals: latestVitals,
     ancVisits: ancVisits,
     vaccines: vaccines,
     todayCare: todayCare,
   );
 }
+
+/// The clock the fixtures run on, at [hour]:30 — the same instant
+/// [contextAt] uses, so "two hours ago" in a test means two hours before the
+/// flow thinks it is.
+DateTime clockAt(int hour) => DateTime(2026, 9, 7, hour, 30);
 
 HomeVoiceFlow flowAt({
   int hour = 8,
@@ -50,8 +57,10 @@ HomeVoiceFlow flowAt({
   bool isPregnant = true,
   Map<String, double> todayTotals = const {},
   Map<String, String> todayMealNotes = const {},
+  Map<String, VitalContext> latestVitals = const {},
   List<AncVisitContext> ancVisits = const [],
   List<VaccineContext> vaccines = const [],
+  Map<HomePromptKind, DateTime> askedAt = const {},
 }) =>
     HomeVoiceFlow(
       context: contextAt(
@@ -60,10 +69,28 @@ HomeVoiceFlow flowAt({
         isPregnant: isPregnant,
         todayTotals: todayTotals,
         todayMealNotes: todayMealNotes,
+        latestVitals: latestVitals,
         ancVisits: ancVisits,
         vaccines: vaccines,
       ),
+      askedAt: askedAt,
     );
+
+/// A glass of water logged [hoursAgo] before the fixture clock.
+Map<String, VitalContext> waterLogged({
+  required int hour,
+  required double hoursAgo,
+}) =>
+    {
+      waterVitalKey: VitalContext(
+        key: waterVitalKey,
+        value: 1,
+        unit: 'glasses',
+        recordedAt: clockAt(hour).subtract(
+          Duration(minutes: (hoursAgo * 60).round()),
+        ),
+      ),
+    };
 
 void main() {
   group('the greeting', () {
@@ -356,6 +383,69 @@ void main() {
       final flow = flowAt(hour: 10, todayTotals: {'breakfast': 380, 'water': 1});
       final response = flow.answer(flow.nextPrompt()!, affirmed: true);
       expect(response.reply, contains('a fair way to go'));
+    });
+
+    test('leaves it alone for three hours once she has been asked', () {
+      final flow = flowAt(
+        hour: 13,
+        todayTotals: {'breakfast': 380, 'lunch': 600, 'water': 8},
+        askedAt: {HomePromptKind.water: clockAt(13).subtract(
+          const Duration(hours: 1),
+        )},
+      );
+      expect(flow.isCoolingDown(HomePromptKind.water), isTrue);
+      expect(
+        flow.nextPrompt()?.kind,
+        isNot(HomePromptKind.water),
+        reason: 'asked an hour ago — it is too soon to ask again',
+      );
+    });
+
+    test('comes back to it once the three hours are up', () {
+      final flow = flowAt(
+        hour: 13,
+        todayTotals: {'breakfast': 380, 'lunch': 600, 'water': 8},
+        askedAt: {HomePromptKind.water: clockAt(13).subtract(
+          const Duration(hours: 3, minutes: 30),
+        )},
+      );
+      expect(flow.isCoolingDown(HomePromptKind.water), isFalse);
+      expect(flow.nextPrompt()!.kind, HomePromptKind.water);
+    });
+
+    test('showing the question starts its quiet period', () {
+      final asks = <HomePromptKind, DateTime>{};
+      final flow = HomeVoiceFlow(
+        context: contextAt(hour: 10, todayTotals: {'breakfast': 380}),
+        onPromptShown: (kind, at) => asks[kind] = at,
+      );
+
+      final prompt = flow.nextPrompt()!;
+      expect(prompt.kind, HomePromptKind.water);
+      flow.markPrompted(prompt);
+
+      expect(asks.containsKey(HomePromptKind.water), isTrue);
+      expect(flow.isCoolingDown(HomePromptKind.water), isTrue);
+    });
+
+    test('does not ask when the last glass was minutes ago', () {
+      // Logged from Today's Care rather than answered here — it settles the
+      // question just the same.
+      final flow = flowAt(
+        hour: 13,
+        todayTotals: {'breakfast': 380, 'lunch': 600, 'water': 4},
+        latestVitals: waterLogged(hour: 13, hoursAgo: 0.25),
+      );
+      expect(flow.nextPrompt()?.kind, isNot(HomePromptKind.water));
+    });
+
+    test('asks again when the last glass is old enough', () {
+      final flow = flowAt(
+        hour: 13,
+        todayTotals: {'breakfast': 380, 'lunch': 600, 'water': 4},
+        latestVitals: waterLogged(hour: 13, hoursAgo: 4),
+      );
+      expect(flow.nextPrompt()!.kind, HomePromptKind.water);
     });
 
     test('stops asking once she has hit ten', () {

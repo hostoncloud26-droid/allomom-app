@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/join_family_code_page.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class DadFamilySetupPage extends StatelessWidget {
   final String userName;
@@ -33,7 +34,7 @@ class DadFamilySetupPage extends StatelessWidget {
               child: Row(
                 children: [
                   GestureDetector(
-                    onTap: () => Navigator.maybePop(context),
+                    onTap: () => narratedPop(context),
                     child: Container(
                       width: 40,
                       height: 40,

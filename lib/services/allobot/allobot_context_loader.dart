@@ -15,9 +15,11 @@ import 'package:flutter/foundation.dart';
 
 import 'package:allomom/features/overview_section/todays_care/care_catalogue.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/vitals_controller.dart';
 import 'package:allomom/services/allobot/allobot_context.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
@@ -64,7 +66,7 @@ class AlloBotContextLoader {
   /// tested at a fixed time.
   static Future<AlloBotContext> load({DateTime? now}) async {
     final at = now ?? DateTime.now();
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final part = CareDayPart.at(at);
 
     final userId = session.userId;
@@ -102,11 +104,11 @@ class AlloBotContextLoader {
       eddDate: session.eddDate,
       formattedEdd: session.formattedEddDate,
       riskStatus: session.riskStatus,
-      bloodGroup: session.bloodGroup ?? health?.bloodGroup,
-      heightCm: health?.height,
-      weightKg: health?.weight,
+      bloodGroup: session.bloodGroup,
+      heightCm: VitalsController.instance.latestValue(VitalKeys.height),
+      weightKg: VitalsController.instance.latestValue(VitalKeys.weight),
       allergies: _decodeStringList(health?.allergies),
-      medicalConditions: _decodeStringList(health?.medicalConditions),
+      medicalConditions: _decodeStringList(health?.medicalCondition),
       flaggedComplications: _decodeStringList(pregnancy?.flaggedComplications),
       ancVisits: ancVisits,
       vaccines: vaccines,
@@ -123,7 +125,7 @@ class AlloBotContextLoader {
   static Future<HealthDataTableData?> _healthData(String userId) async {
     if (userId.isEmpty) return null;
     try {
-      return await HealthDbService.instance.getHealthDataByUserId(userId);
+      return await HealthDbService.instance.getForUser(userId);
     } catch (e) {
       debugPrint('AlloBotContextLoader: health data unavailable: $e');
       return null;
@@ -149,15 +151,11 @@ class AlloBotContextLoader {
             (row) => AncVisitContext(
               id: row.id,
               visitNumber: row.visitNumber,
-              scheduledDate: row.scheduledDate,
+              scheduledDate: row.scheduledDate ?? DateTime.now(),
               status: row.status,
               pregnancyMonth: row.pregnancyMonth,
               trimester: row.trimester,
               actualDate: row.actualDate,
-              bp: row.bp,
-              weightKg: row.weightKg,
-              fetalHeartRate: row.fetalHeartRate,
-              notes: row.notes,
             ),
           )
           .toList();
@@ -174,14 +172,14 @@ class AlloBotContextLoader {
     if (userId.isEmpty) return const [];
     try {
       final rows = await PregnancyCareDbService.instance
-          .getVaccinations(userId, pregnancyId: pregnancyId);
+          .getVaccinations(pregnancyId ?? '');
       return rows
           .map(
             (row) => VaccineContext(
               id: row.id,
               name: row.vaccineName,
               doseNumber: row.doseNumber,
-              scheduledDate: row.scheduledDate,
+              scheduledDate: row.scheduledDate ?? DateTime.now(),
               status: row.status,
               pregnancyMonth: row.pregnancyMonth,
             ),
@@ -200,7 +198,7 @@ class AlloBotContextLoader {
     if (userId.isEmpty) return const [];
     try {
       final rows = await PregnancyCareDbService.instance
-          .getReportChecklists(userId, pregnancyId: pregnancyId);
+          .getReportChecklists(pregnancyId ?? '');
       return rows
           .map(
             (row) => LabReportContext(
@@ -211,7 +209,6 @@ class AlloBotContextLoader {
               dueDate: row.dueDate,
               completedDate: row.completedDate,
               isRequired: row.isRequired,
-              resultSummary: row.resultSummary,
             ),
           )
           .toList();

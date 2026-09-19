@@ -136,8 +136,6 @@ void main() {
           .getHealthDataByUserId(memberId);
       expect(health, isNotNull);
       expect(health!.lmpDate, lmp);
-      expect(health.edDate, lmp.add(const Duration(days: 280)));
-      expect(health.pregnancyStatus, 'pregnant');
       expect(health.synced, 0);
     });
 
@@ -183,8 +181,7 @@ void main() {
       final row = await (db.select(db.users)
             ..where((t) => t.id.equals(memberId)))
           .getSingle();
-      expect(row.isDeleted, isTrue);
-      expect(row.familyID, isNull);
+      expect(row.deletedAt, isNotNull);
     });
   });
 
@@ -432,8 +429,7 @@ void main() {
       await HealthDbService.instance.saveHealthData(
         HealthDataTableCompanion.insert(
           id: 'hd-1',
-          userId: const Value('usr-1'),
-          pregnancyStatus: const Value('pregnant'),
+          userId: 'usr-1',
           synced: const Value(1), // must be forced back to 0 on write
         ),
       );
@@ -445,7 +441,7 @@ void main() {
           id: 'preg-1',
           healthId: const Value('hd-1'),
           lmpDate: Value(DateTime(2026, 1, 10)),
-          edDate: Value(DateTime(2026, 10, 17)),
+          eddDate: Value(DateTime(2026, 10, 17)),
           synced: const Value(1),
         ),
       );
@@ -458,8 +454,7 @@ void main() {
       final delivered = DateTime(2026, 10, 14);
       await HealthDbService.instance.completePregnancy(
         'preg-1',
-        deliveryDate: delivered,
-        deliveryConductedAt: 'Savemom Hospital',
+        deliveredAt: delivered,
       );
 
       expect(await HealthDbService.instance.getActivePregnancy('hd-1'), isNull);
@@ -467,9 +462,8 @@ void main() {
       final completed =
           await HealthDbService.instance.getCompletedPregnancies('hd-1');
       expect(completed, hasLength(1));
-      expect(completed.single.status, 'completed');
-      expect(completed.single.deliveryDate, delivered);
-      expect(completed.single.deliveryConductedAt, 'Savemom Hospital');
+      expect(completed.single.status, 'delivered');
+      expect(completed.single.deliveryDateTime, delivered);
       expect(completed.single.synced, 0);
 
       expect(await HealthDbService.instance.unsyncedPregnancies(),

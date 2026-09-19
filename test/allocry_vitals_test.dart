@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allomom/features/allocry/data/cry_data.dart';
@@ -16,15 +18,37 @@ import 'package:allomom/services/sq_lite/sqlite_service.dart';
 void main() {
   late AppDriftDatabase db;
 
-  setUp(() {
+  /// Puts a health record in place.
+  ///
+  /// Readings hang off the health record now, not the user — that is the shape
+  /// allomom-api-new uses — so a test that writes vitals needs one to exist.
+  /// No controller is involved: the service resolves the scope from the
+  /// database, which is what keeps it testable in isolation.
+  Future<String> seedHealthRecord({String userId = 'usr-1'}) async {
+    await db
+        .into(db.users)
+        .insertOnConflictUpdate(
+          UsersCompanion.insert(id: userId, name: const Value('Meera')),
+        );
+    await db
+        .into(db.healthDataTable)
+        .insertOnConflictUpdate(
+          HealthDataTableCompanion.insert(id: 'hd-$userId', userId: userId),
+        );
+    return 'hd-$userId';
+  }
+
+  setUp(() async {
     db = AppDriftDatabase.forTesting(NativeDatabase.memory());
     SqLiteService.overrideDatabaseForTesting(db);
+    await seedHealthRecord();
   });
 
   tearDown(() async {
     SqLiteService.overrideDatabaseForTesting(null);
     await db.close();
   });
+
 
   Map<String, dynamic> cryData({
     String cryType = 'Hunger Cry',
@@ -55,9 +79,9 @@ void main() {
       );
 
       final row =
-          await (db.select(db.vitals)..where((t) => t.id.equals(id))).getSingle();
+          await (db.select(db.vitalsStreamTable)..where((t) => t.id.equals(id))).getSingle();
 
-      expect(row.vitalKey, 'cry');
+      expect(row.key, 'cry');
       expect(row.unit, 'cry');
       expect(row.value, CryRecord.typeCodes['Hunger Cry']);
       expect(row.synced, 0, reason: 'queued for the server like every vital');

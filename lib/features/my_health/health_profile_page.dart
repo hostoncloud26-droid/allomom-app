@@ -4,7 +4,8 @@ import 'package:drift/drift.dart' as drift;
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
-import 'package:allomom/repositories/user_session_manager.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
 
 class HealthProfilePage extends StatefulWidget {
   const HealthProfilePage({super.key});
@@ -42,11 +43,11 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
   @override
   void initState() {
     super.initState();
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
     final vitals = HealthVitalsController.instance;
 
-    final initialHeight = vitals.heightVital?.value ?? session.currentHealthData?.height;
-    final initialWeight = vitals.weightVital?.value ?? session.currentHealthData?.weight;
+    final initialHeight = vitals.heightVital?.value;
+    final initialWeight = vitals.weightVital?.value;
     final initialBg = session.bloodGroup ?? vitals.bloodGroupVital?.unit ?? '';
 
     _nameController = TextEditingController(text: session.userName);
@@ -60,10 +61,10 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       text: session.currentHealthData?.allergies ?? 'None reported',
     );
     _conditionsController = TextEditingController(
-      text: session.currentHealthData?.medicalConditions ?? 'None reported',
+      text: session.currentHealthData?.medicalCondition ?? 'None reported',
     );
     _recoveryPhoneController = TextEditingController(
-      text: session.currentHealthData?.recoveryPhone ?? session.partnerPhone ?? '',
+      text: '',
     );
 
     _selectedBloodGroup = initialBg.isNotEmpty && initialBg != '--' ? initialBg : null;
@@ -113,7 +114,7 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
     setState(() => _isSaving = true);
 
     try {
-      final session = UserSessionManager.instance;
+      final session = MainController.instance;
       final vitals = HealthVitalsController.instance;
 
       final heightVal = double.tryParse(_heightController.text.trim());
@@ -152,29 +153,18 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
         session.updateBloodGroup(_selectedBloodGroup!);
       }
 
-      // Save to SQLite HealthDataTable
-      final healthId = session.currentHealthData?.id ?? (session.userId.isNotEmpty ? session.userId : 'health_me');
-      await HealthDbService.instance.saveHealthData(
-        HealthDataTableCompanion(
-          id: drift.Value(healthId),
-          userId: drift.Value(session.userId),
-          height: drift.Value(heightVal),
-          weight: drift.Value(weightVal),
-          bloodGroup: drift.Value(_selectedBloodGroup),
-          allergies: drift.Value(_allergiesController.text.trim()),
-          medicalConditions: drift.Value(_conditionsController.text.trim()),
-          recoveryPhone: drift.Value(_recoveryPhoneController.text.trim()),
-          lmpDate: drift.Value(_selectedLmp),
-          edDate: drift.Value(_selectedEdd),
-          pregnancyStatus: drift.Value(session.pregnancyStatus),
-        ),
-      );
+      // Only the three fields `health_data` actually has. Height and weight
+      // were written to the vitals stream above, where they keep a history
+      // instead of overwriting a single profile value.
+      await session.updateHealthData({
+        'allergies': _allergiesController.text.trim(),
+        'medical_condition': _conditionsController.text.trim(),
+        if (_selectedLmp != null) 'lmp_date': SyncCodec.isoUtc(_selectedLmp!),
+      });
 
-      if (_selectedLmp != null) {
-        session.updateLmpDate(_selectedLmp!);
-      }
+      // The EDD belongs to the pregnancy, not the health record.
       if (_selectedEdd != null) {
-        session.updateEddDate(_selectedEdd!);
+        await session.updateEddDate(_selectedEdd!);
       }
 
       if (mounted) {
@@ -205,7 +195,7 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    final session = UserSessionManager.instance;
+    final session = MainController.instance;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFBFBFC),
