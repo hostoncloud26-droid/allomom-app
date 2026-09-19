@@ -1,20 +1,22 @@
-// ignore_for_file: unused_import, unused_local_variable, unused_field
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
+
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/api/api_base.dart';
-import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
-import 'package:allomom/repositories/pregnancy_state.dart';
-import 'package:allomom/services/sync/sync_codec.dart';
-import 'package:allomom/repositories/baby_repository.dart';
-import 'package:intl/intl.dart';
-import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/baby/baby_form_sheet.dart';
+import 'package:allomom/features/baby/baby_options.dart';
+import 'package:allomom/features/main_layout.dart';
+import 'package:allomom/repositories/baby_repository.dart';
+import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/services/sync/sync_codec.dart';
 
 class KidsDetailsPage extends StatefulWidget {
   final String userName;
@@ -53,44 +55,93 @@ class KidsDetailsPage extends StatefulWidget {
 }
 
 class _KidsDetailsPageState extends State<KidsDetailsPage> {
-  /// Previous children entered here. Each one becomes a `birth_records` row
-  /// once registration succeeds, so their vaccination schedule and milestone
-  /// checklist can be built from the date of birth.
-  final List<_KidEntry> _kidsList = [];
+  static const _pink = Color(0xFFFF4E6A);
+
+  /// The children already on the account.
+  ///
+  /// Read back from the local database rather than kept as a private list of
+  /// what was typed: each child is created for real the moment the sheet is
+  /// saved, so this is the same record the rest of the app will show — name,
+  /// date of birth, and the vaccination and milestone schedule seeded behind
+  /// it.
+  List<Baby> _children = const [];
 
   late final NarrationFlow _flow = NarrationFlowKeys.of(widget.status);
 
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
-  bool _isAddingKid = false;
   bool _isLoading = false;
-  final TextEditingController _kidNameController = TextEditingController();
-  DateTime? _kidDob;
 
   @override
-  void dispose() {
-    _kidNameController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    unawaited(_prepare());
   }
 
-  Future<void> _pickKidDob() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _kidDob ?? DateTime(now.year - 2, now.month, now.day),
-      firstDate: DateTime(now.year - 18),
-      lastDate: now,
-      helpText: "Child's date of birth",
+  /// Settles the health record and reads back any children already recorded.
+  ///
+  /// A child hangs off a pregnancy, which hangs off the health record, so
+  /// resolving it up front means the first "Add Child" is one round trip
+  /// rather than two.
+  Future<void> _prepare() async {
+    await MainController.instance.ensureHealthRecord();
+    await _loadChildren();
+  }
+
+  Future<void> _loadChildren() async {
+    final babies = await BabyRepository.instance.getBabies();
+    if (!mounted) return;
+    setState(() => _children = babies);
+  }
+
+  /// Opens the add-a-child sheet, which creates the child on save.
+  ///
+  /// The sheet is the same one the Babies screen uses, so a child added during
+  /// registration and one added later are the same record built the same way:
+  /// the server settles the health record, resolves (or creates) the pregnancy
+  /// the child hangs off, and seeds their immunisation schedule and milestone
+  /// checklist from the date of birth.
+  Future<void> _openAddChildSheet() async {
+    final babyId = await showBabyFormSheet(context, title: 'Add your child');
+    if (babyId == null || !mounted) return;
+
+    await _loadChildren();
+    await MainController.instance.refreshKidsFromBirthRecords();
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Child added — vaccination and milestone schedule created.',
+        ),
+        backgroundColor: _pink,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 2),
+      ),
     );
-    if (picked != null) setState(() => _kidDob = picked);
+  }
+
+  /// Removes a child, and the schedules seeded for them, from the account.
+  Future<void> _removeChild(Baby child) async {
+    setState(
+      () => _children = _children.where((b) => b.id != child.id).toList(),
+    );
+    try {
+      await BabyRepository.instance.deleteBaby(child.id);
+      await MainController.instance.refreshKidsFromBirthRecords();
+    } catch (e) {
+      debugPrint('Could not remove child ${child.name}: $e');
+    }
+    await _loadChildren();
   }
 
   /// Completes registration.
   ///
   /// The account already exists — it was created the moment the OTP was
   /// verified — so this is a PATCH of the profile plus the records the flow
-  /// collected, not a signup. `is_registered` flips last, once everything else
-  /// is in: a run that dies halfway leaves the flag false, so the next sign-in
+  /// collected, not a signup. The children are already in: each was created as
+  /// its sheet was saved. `is_registered` flips last, once everything else is
+  /// there: a run that dies halfway leaves the flag false, so the next sign-in
   /// resumes the flow rather than landing on a half-built home screen.
   Future<void> _finishSetup() async {
     setState(() => _isLoading = true);
@@ -129,8 +180,6 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
         });
       }
 
-      await _saveKids();
-
       // Only now is the profile genuinely complete.
       await main.completeRegistration();
 
@@ -142,7 +191,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
           content: Text(
             'Welcome, ${widget.userName}! Your family profile is complete.',
           ),
-          backgroundColor: const Color(0xFFFF4E6A),
+          backgroundColor: _pink,
           duration: const Duration(seconds: 2),
         ),
       );
@@ -162,41 +211,6 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  void _addNewKid() {
-    final name = _kidNameController.text.trim();
-    final dob = _kidDob;
-    if (dob == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please pick your child's date of birth"),
-          backgroundColor: Color(0xFFEF4444),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-    setState(() {
-      _kidsList.add(_KidEntry(name: name.isEmpty ? null : name, dob: dob));
-      _kidNameController.clear();
-      _kidDob = null;
-      _isAddingKid = false;
-    });
-  }
-
-  /// Records the children she listed.
-  ///
-  /// One failure does not abort the rest — a child the server rejected is worth
-  /// reporting, but not at the cost of losing her siblings' records too.
-  Future<void> _saveKids() async {
-    for (final kid in _kidsList) {
-      try {
-        await BabyRepository.instance.addBaby(dob: kid.dob, babyName: kid.name);
-      } catch (e) {
-        debugPrint('Could not save child ${kid.name ?? ''}: $e');
-      }
     }
   }
 
@@ -270,13 +284,14 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             const SizedBox(height: 12),
 
             // ─── BOTTOM CARD CONTAINER ───
+            //
+            // A column rather than a scroll view: the children take whatever
+            // room there is and "Complete Setup" stays on the bottom edge,
+            // where the thumb already is, instead of riding up under the list.
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 24,
-                ),
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -288,258 +303,48 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                     ),
                   ],
                 ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'ADDED CHILDREN',
-                            style: GoogleFonts.poppins(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF8E95A5),
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isAddingKid = !_isAddingKid;
-                              });
-                            },
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _isAddingKid
-                                      ? Icons.close_rounded
-                                      : Icons.add_circle_outline_rounded,
-                                  size: 16,
-                                  color: const Color(0xFFFF4E6A),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _isAddingKid ? 'Cancel' : 'Add Child',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12.5,
-                                    fontWeight: FontWeight.bold,
-                                    color: const Color(0xFFFF4E6A),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _children.isEmpty ? _emptyState() : _childrenList(),
+                    ),
+                    const SizedBox(height: 12),
 
-                      // Kids list
-                      ..._kidsList.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final kid = entry.value;
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                    // ─── FINISH BUTTON ───
+                    SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _finishSetup,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF5277),
+                          disabledBackgroundColor: const Color(0xFFFFC9D4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
                           ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF9FAFB),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFE5E7EB)),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFFFFD8E0),
-                                  shape: BoxShape.circle,
+                          elevation: 0,
+                        ),
+                        child: _isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
                                 ),
-                                child: const Icon(
-                                  Icons.face_rounded,
-                                  color: Color(0xFFFF4E6A),
-                                  size: 20,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      kid.name ?? 'Child ${index + 1}',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 14.5,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF1E2024),
-                                      ),
-                                    ),
-                                    Text(
-                                      '${_dateFmt.format(kid.dob)}  ·  '
-                                      '${babyAgeLabel(kid.dob)}',
-                                      style: GoogleFonts.poppins(
-                                        fontSize: 12,
-                                        color: const Color(0xFF6B7280),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _kidsList.removeAt(index);
-                                  });
-                                },
-                                child: const Icon(
-                                  Icons.delete_outline_rounded,
-                                  size: 20,
-                                  color: Color(0xFF9CA3AF),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
-
-                      // Inline add form
-                      if (_isAddingKid) ...[
-                        Container(
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0F3),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: const Color(0xFFFF4E6A),
-                              width: 1,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              TextField(
-                                controller: _kidNameController,
-                                decoration: InputDecoration(
-                                  hintText: 'Child\'s Name',
-                                  hintStyle: GoogleFonts.poppins(
-                                    fontSize: 13,
-                                    color: const Color(0xFF9CA3AF),
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                ),
+                              )
+                            : Text(
+                                'Complete Setup',
                                 style: GoogleFonts.poppins(
-                                  fontSize: 14,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w600,
+                                  color: Colors.white,
                                 ),
                               ),
-                              const Divider(color: Color(0xFFFFD8E0)),
-                              InkWell(
-                                onTap: _pickKidDob,
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 10,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.cake_rounded,
-                                        size: 16,
-                                        color: Color(0xFFFF4E6A),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        _kidDob == null
-                                            ? 'Date of birth'
-                                            : _dateFmt.format(_kidDob!),
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: _kidDob == null
-                                              ? const Color(0xFF9CA3AF)
-                                              : const Color(0xFF1E2024),
-                                        ),
-                                      ),
-                                      const Spacer(),
-                                      if (_kidDob != null)
-                                        Text(
-                                          babyAgeLabel(_kidDob),
-                                          style: GoogleFonts.poppins(
-                                            fontSize: 12,
-                                            color: const Color(0xFF6B7280),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _addNewKid,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFFFF4E6A),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    'Save Child',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      const SizedBox(height: 16),
-
-                      // ─── FINISH BUTTON ───
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _finishSetup,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF5277),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  'Complete Setup',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                        ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -548,13 +353,183 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
       ),
     );
   }
-}
 
-/// One child entered on the registration kids question, before it becomes a
-/// birth record.
-class _KidEntry {
-  const _KidEntry({required this.dob, this.name});
+  /// Nothing added yet: the one thing there is to do, in the middle of the
+  /// space it would otherwise leave empty.
+  Widget _emptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFF0F4),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.child_care_rounded,
+              size: 34,
+              color: _pink,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'No child added',
+            style: GoogleFonts.outfit(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: const Color(0xFF1E2024),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Add your little ones and we'll set up their\n"
+            'vaccines and milestones.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.poppins(
+              fontSize: 12.5,
+              height: 1.5,
+              color: const Color(0xFF8E95A5),
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: _openAddChildSheet,
+            icon: const Icon(Icons.add_rounded, size: 20, color: Colors.white),
+            label: Text(
+              'Add Child',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _pink,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 22,
+                vertical: 14,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  final String? name;
-  final DateTime dob;
+  Widget _childrenList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'ADDED CHILDREN',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF8E95A5),
+                letterSpacing: 0.8,
+              ),
+            ),
+            GestureDetector(
+              onTap: _openAddChildSheet,
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.add_circle_outline_rounded,
+                    size: 16,
+                    color: _pink,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Add Child',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.bold,
+                      color: _pink,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: ListView.separated(
+            physics: const BouncingScrollPhysics(),
+            padding: EdgeInsets.zero,
+            itemCount: _children.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
+            itemBuilder: (_, index) => _childCard(_children[index], index),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _childCard(Baby child, int index) {
+    final name = child.name.trim();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFD8E0),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.face_rounded, color: _pink, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name.isEmpty ? 'Child ${index + 1}' : name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1E2024),
+                  ),
+                ),
+                Text(
+                  '${_dateFmt.format(child.deliveryDate)}  ·  '
+                  '${babyAgeLabel(child.deliveryDate)}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    color: const Color(0xFF6B7280),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          GestureDetector(
+            onTap: () => _removeChild(child),
+            child: const Icon(
+              Icons.delete_outline_rounded,
+              size: 20,
+              color: Color(0xFF9CA3AF),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -17,7 +17,6 @@ const List<({String value, String label})> babyGenderOptions = [
 const List<({String value, String label})> deliveryTypeOptions = [
   (value: 'normal', label: 'Normal'),
   (value: 'c-section', label: 'C-Section'),
-  (value: 'assisted', label: 'Assisted'),
 ];
 
 const List<String> bloodGroupOptions = [
@@ -36,10 +35,7 @@ String labelForGender(String? value) => _labelFor(babyGenderOptions, value);
 String labelForDeliveryType(String? value) =>
     _labelFor(deliveryTypeOptions, value);
 
-String _labelFor(
-  List<({String value, String label})> options,
-  String? value,
-) {
+String _labelFor(List<({String value, String label})> options, String? value) {
   if (value == null || value.isEmpty) return '—';
   for (final option in options) {
     if (option.value == value) return option.label;

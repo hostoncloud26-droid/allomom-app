@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:allomom/api/health_api.dart';
 import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/controllers/family_controller.dart';
@@ -15,6 +16,7 @@ import 'package:allomom/services/auth/secure_token_store.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/services/sync/sync_mappers.dart';
 import 'package:allomom/services/sync/sync_service.dart';
 
 /// Owns the signed-in user and the health record, and is the entry point the
@@ -434,6 +436,79 @@ class MainController extends GetxController {
     await loadFromLocal();
     return true;
   }
+
+  /// Guarantees the account has a health record, keyed by the id the *server*
+  /// uses, and returns it.
+  ///
+  /// `GET /me/healthdata` creates the row when it is missing and answers with
+  /// it, so the local copy ends up under the same id the server hangs
+  /// pregnancies — and therefore babies — off. Without that agreement a baby
+  /// added during registration is written locally under a pregnancy this device
+  /// has never heard of, and disappears the moment anything reads it back.
+  ///
+  /// Falls back to the local-only row when the call cannot be made, so an
+  /// offline registration still has somewhere to write.
+  Future<String> ensureHealthRecord() async {
+    final response = await HealthApi.get();
+    if (response.success && response.item is Map) {
+      final row = Map<String, dynamic>.from(response.item as Map);
+      final db = await _db;
+      final serverId = row['id'].toString();
+      final userId = _user?.id;
+
+      // The server's `user_id` is uniquely indexed, so any *other* row for this
+      // user is a stand-in this device invented before it had heard from the
+      // server. Two of them would make [loadFromLocal]'s single-row read throw,
+      // so the stand-in goes — but anything written into it offline is carried
+      // across first, or an edit made on a plane would vanish on landing.
+      final stale = userId == null
+          ? null
+          : await (db.select(db.healthDataTable)
+                  ..where((h) => h.userId.equals(userId) & h.id.isNotValue(serverId)))
+                .getSingleOrNull();
+
+      await const HealthMapper().applyServerRow(db, row);
+
+      if (stale != null) {
+        await (db.delete(db.healthDataTable)..where((h) => h.id.equals(stale.id)))
+            .go();
+
+        final pending = stale.synced == 0;
+        if (pending) {
+          await (db.update(db.healthDataTable)
+                ..where((h) => h.id.equals(serverId)))
+              .write(
+                HealthDataTableCompanion(
+                  lmpDate: stale.lmpDate == null
+                      ? const drift.Value.absent()
+                      : drift.Value(stale.lmpDate),
+                  rchId: _keep(stale.rchId),
+                  allergies: _keep(stale.allergies),
+                  medicalCondition: _keep(stale.medicalCondition),
+                  updatedAt: drift.Value(DateTime.now()),
+                  synced: const drift.Value(0),
+                ),
+              );
+        }
+      }
+
+      await loadFromLocal();
+      return healthDataId;
+    }
+
+    debugPrint(
+      'ℹ️ [MainController] health record unavailable, using local row: '
+      '${response.detail}',
+    );
+    return (await _ensureHealthRecord())?.id ?? '';
+  }
+
+  /// Keeps a value only when there is one — an empty offline field must not
+  /// overwrite what the server already knows.
+  static drift.Value<String?> _keep(String? value) =>
+      value == null || value.isEmpty
+          ? const drift.Value.absent()
+          : drift.Value(value);
 
   /// Guarantees a health row exists locally so a screen can write to it offline.
   Future<HealthDataTableData?> _ensureHealthRecord() async {

@@ -44,9 +44,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   List<BabyImmunizationRecord> _selectedBabyDoses = [];
   List<BabyMilestone> _selectedBabyMilestones = [];
 
-  Baby? get _selectedBaby => _babies
-      .cast<Baby?>()
-      .firstWhere((b) => b?.id == _selectedBabyId, orElse: () => null);
+  Baby? get _selectedBaby => _babies.cast<Baby?>().firstWhere(
+    (b) => b?.id == _selectedBabyId,
+    orElse: () => null,
+  );
 
   @override
   void initState() {
@@ -1736,7 +1737,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: ['Normal Delivery', 'Cesarean (C-Section)', 'Assisted']
+                    children: ['Normal Delivery', 'Cesarean (C-Section)']
                         .map(
                           (type) => _choiceChip(
                             label: type,
@@ -1801,9 +1802,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                         color: const Color(0xFF8E95A5),
                       ),
                       filled: true,
-                      fillColor: isTwins
-                          ? const Color(0xFFF6F7FA)
-                          : _roseSoft,
+                      fillColor: isTwins ? const Color(0xFFF6F7FA) : _roseSoft,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16,
                         vertical: 15,
@@ -2009,9 +2008,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         decoration: BoxDecoration(
           color: selected ? _rose : _roseSoft,
           borderRadius: BorderRadius.circular(13),
-          border: Border.all(
-            color: selected ? _rose : _roseBorder,
-          ),
+          border: Border.all(color: selected ? _rose : _roseBorder),
         ),
         child: Text(
           label,
@@ -2066,8 +2063,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     child: _photoSourceTile(
                       icon: Icons.photo_camera_rounded,
                       label: 'Camera',
-                      onTap: () =>
-                          Navigator.pop(sheetCtx, ImageSource.camera),
+                      onTap: () => Navigator.pop(sheetCtx, ImageSource.camera),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -2075,8 +2071,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     child: _photoSourceTile(
                       icon: Icons.photo_library_rounded,
                       label: 'Gallery',
-                      onTap: () =>
-                          Navigator.pop(sheetCtx, ImageSource.gallery),
+                      onTap: () => Navigator.pop(sheetCtx, ImageSource.gallery),
                     ),
                   ),
                 ],
@@ -2098,9 +2093,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     } catch (e) {
       debugPrint('Error picking baby photo: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not add photo: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not add photo: $e')));
       }
       return null;
     }
@@ -2275,7 +2270,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     }
 
     final age = babyAgeLabel(baby.deliveryDate);
-    final opener = age == 'Newborn' ? "Am here, Amma! 💕" : "Am $age old, Amma! 💕";
+    final opener = age == 'Newborn'
+        ? "Am here, Amma! 💕"
+        : "Am $age old, Amma! 💕";
     return name.isEmpty
         ? "$opener\nGrowing a little more every day."
         : "$opener\nThank you for looking after me.";
@@ -2287,7 +2284,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   /// same place: the banner is the picture, this is the record.
   Widget _buildBabyInfoCard(Baby baby) {
     final photo = baby.photo;
-    final hasPhoto = photo != null && photo.isNotEmpty && File(photo).existsSync();
+    final hasPhoto =
+        photo != null && photo.isNotEmpty && File(photo).existsSync();
     final gender = baby.gender;
 
     return Container(
@@ -2452,9 +2450,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 child: _buildBabyProgressTile(
                   icon: Icons.emoji_events_rounded,
                   label: 'Milestones hit',
-                  done: _selectedBabyMilestones
-                      .where((m) => m.achieved)
-                      .length,
+                  done: _selectedBabyMilestones.where((m) => m.achieved).length,
                   total: _selectedBabyMilestones.length,
                   color: const Color(0xFFF59E0B),
                   background: const Color(0xFFFEF3C7),
@@ -2572,11 +2568,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         children: [
           const Row(
             children: [
-              Icon(
-                Icons.child_friendly_rounded,
-                color: _rose,
-                size: 15,
-              ),
+              Icon(Icons.child_friendly_rounded, color: _rose, size: 15),
               SizedBox(width: 6),
               Text(
                 "BABY'S CARE PLAN",
@@ -2641,11 +2633,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               color: _roseSoft,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.favorite_rounded,
-              color: _rose,
-              size: 19,
-            ),
+            child: const Icon(Icons.favorite_rounded, color: _rose, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -2866,7 +2854,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   static String? _deliveryTypeValueFor(String label) {
     if (label.startsWith('Normal')) return 'normal';
     if (label.startsWith('Cesarean')) return 'c-section';
-    if (label.startsWith('Assisted')) return 'assisted';
+
     return null;
   }
 
@@ -2940,9 +2928,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   pregId,
                 );
                 await HealthDbService.instance.deletePregnancy(pregId);
-                await MainController.instance.setPregnancyStatus(
-                  'notpregnant',
-                );
+                await MainController.instance.setPregnancyStatus('notpregnant');
                 await _loadAllPregnancyData();
 
                 if (context.mounted) {

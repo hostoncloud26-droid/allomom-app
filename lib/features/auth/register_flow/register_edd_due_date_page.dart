@@ -255,26 +255,6 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
 
                         const SizedBox(height: 16),
 
-                        NarrationHintChips(
-                          selectedKey: _narrationKey,
-                          onSelected: _say,
-                          padding: const EdgeInsets.only(bottom: 16),
-                          hints: [
-                            const NarrationHint(
-                              'What are these days?',
-                              NarrationKeys.pregEddDays,
-                            ),
-                            NarrationHint(
-                              'How long is that?',
-                              countdownNarrationKey(daysRemaining),
-                            ),
-                            const NarrationHint(
-                              'Doctor said another date',
-                              NarrationKeys.pregEddDoctorDate,
-                            ),
-                          ],
-                        ),
-
                         // ─── CONFIRM DUE DATE BUTTON ───
                         SizedBox(
                           width: double.infinity,

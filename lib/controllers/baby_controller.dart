@@ -134,11 +134,23 @@ class BabyController extends GetxController {
       return null;
     }
 
-    await _persistDetail(Map<String, dynamic>.from(response.item as Map));
-    // A baby may have caused the server to create a placeholder pregnancy, so
-    // the pregnancy list has to catch up before the baby can be read back —
-    // local ownership is resolved through it.
+    final detail = Map<String, dynamic>.from(response.item as Map);
+    await _persistDetail(detail);
+
+    // A baby may have caused the server to create a placeholder pregnancy —
+    // a child born before the app existed has none of its own — and local
+    // ownership is resolved through the pregnancy. Until that row is here, the
+    // baby and the schedules seeded alongside it are filtered straight back out
+    // of [loadFromLocal], so pull it down before reading anything back.
     await PregnancyController.instance.loadFromLocal();
+    final resolvedPregnancyId = SyncCodec.text(detail['pregnancy_id']);
+    final known = PregnancyController.instance.pregnancies
+        .any((p) => p.id == resolvedPregnancyId);
+    if (resolvedPregnancyId != null && !known) {
+      await SyncService.instance.syncModule('pregnancy');
+      await PregnancyController.instance.loadFromLocal();
+    }
+
     await loadFromLocal();
     return response.id?.toString();
   }
