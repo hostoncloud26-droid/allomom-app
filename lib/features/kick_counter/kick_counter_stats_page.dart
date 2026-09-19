@@ -4,6 +4,8 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
+import 'package:allomom/controllers/main_controller.dart';
 
 class KickCounterStatsPage extends StatefulWidget {
   const KickCounterStatsPage({super.key});
@@ -51,20 +53,14 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
 
         String periodLabel = 'today';
         String dateSubheader = 'Today, ${DateFormat('dd MMM').format(DateTime.now())}';
-        List<String> xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
-        List<double> barValues = [1.0, 3.0, 7.0, 5.0, 9.0, 3.0, 2.0, 11.0, 3.0, 2.0];
 
         if (_selectedFilter == 1) {
           periodLabel = 'this week';
           final start = DateTime.now().subtract(const Duration(days: 6));
           dateSubheader = '${DateFormat('dd MMM').format(start)} - Today';
-          xLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-          barValues = [12.0, 15.0, 9.0, 14.0, 18.0, 10.0, totalMovements.toDouble()];
         } else if (_selectedFilter == 2) {
           periodLabel = 'this month';
           dateSubheader = DateFormat('MMMM yyyy').format(DateTime.now());
-          xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
-          barValues = [45.0, 52.0, 48.0, 60.0, totalMovements.toDouble()];
         }
 
         return Scaffold(
@@ -119,10 +115,11 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                 ),
 
                 // ─── FIXED TOP: Baby Hero Banner, Summary Card & Filter Tabs ───
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: BabyHeroBanner(
-                    speechText: "Week 24, Amma!\nWe're growing together. Can you feel the kicks?",
+                    speechText:
+                        "Week ${MainController.instance.currentGestationalWeek}, Amma!\nWe're growing together. Can you feel the kicks?",
                     bubblePosition: SpeechBubblePosition.topCenter,
                     height: 220,
                   ),
@@ -270,10 +267,11 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                           ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
                               dateSubheader,
+                              textAlign: TextAlign.right,
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: Color(0xFF8C93A3),
@@ -282,76 +280,22 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                             ),
                             const SizedBox(height: 20),
 
-                            // Bar Chart Display
-                            SizedBox(
-                              height: 160,
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  // Y-Axis Labels
-                                  const SizedBox(
-                                    width: 28,
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('20', style: TextStyle(fontSize: 11, color: Color(0xFF8C93A3))),
-                                        Text('10', style: TextStyle(fontSize: 11, color: Color(0xFF8C93A3))),
-                                        Text('0', style: TextStyle(fontSize: 11, color: Color(0xFF8C93A3))),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-
-                                  // Bars Area
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        Expanded(
-                                          child: Row(
-                                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                                            crossAxisAlignment: CrossAxisAlignment.end,
-                                            children: List.generate(barValues.length, (index) {
-                                              final val = barValues[index];
-                                              final isPeak = index == (barValues.length ~/ 2);
-                                              final maxVal = barValues.fold<double>(20.0, (m, e) => e > m ? e : m);
-                                              final heightFactor = (val / maxVal).clamp(0.08, 1.0);
-
-                                              return FractionallySizedBox(
-                                                heightFactor: heightFactor,
-                                                child: Container(
-                                                  width: _selectedFilter == 2 ? 18 : 12,
-                                                  decoration: BoxDecoration(
-                                                    color: isPeak
-                                                        ? const Color(0xFFFF4E6A)
-                                                        : const Color(0xFFFFE0E6),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                  ),
-                                                ),
-                                              );
-                                            }),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 10),
-                                        // Baseline
-                                        Container(
-                                          height: 1,
-                                          color: const Color(0xFFF3F4F6),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        // X-Axis Labels
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          children: xLabels.map((lbl) => Text(
-                                            lbl,
-                                            style: const TextStyle(fontSize: 10.5, color: Color(0xFF8C93A3)),
-                                          )).toList(),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            VitalTrendChart(
+                              period: _periodKey,
+                              accent: const Color(0xFFFF4E6A),
+                              unit: 'kicks',
+                              bars: true,
+                              minY: 0,
+                              height: 176,
+                              emptyTitle: 'No movements logged',
+                              emptySubtitle: 'Tap Log to count your first kicks',
+                              series: [
+                                VitalSeries.fromHistory(
+                                  label: 'Kicks',
+                                  color: const Color(0xFFFF4E6A),
+                                  history: periodHistory,
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -369,18 +313,22 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                           color: const Color(0xFFFFF0F4),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.favorite_rounded,
                               color: Color(0xFFFF4E6A),
                               size: 24,
                             ),
-                            SizedBox(width: 14),
+                            const SizedBox(width: 14),
                             Expanded(
                               child: Text(
-                                "Your baby's movements are\nwithin your usual range.",
-                                style: TextStyle(
+                                // Reassurance only means something once there is
+                                // something to be reassured about.
+                                totalMovements > 0
+                                    ? "Your baby's movements are\nwithin your usual range."
+                                    : "No movements counted $periodLabel.\nTap Log when you feel a kick.",
+                                style: const TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF1E2024),

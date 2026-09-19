@@ -8,7 +8,9 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 const _accent = Color(0xFFFF4E6A);
 const _ink = Color(0xFF1E2024);
@@ -57,7 +59,15 @@ class _RegisterCyclePredictionPageState
   final int _cycleLength = defaultCycleLength;
 
   /// The line on the baby head card.
-  final String _narrationKey = NarrationKeys.preCycleLength;
+  String _narrationKey = NarrationKeys.preCycleLength;
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
 
   bool get _isNewMom => isNewMomRegistrationLabel(widget.status);
 
@@ -282,7 +292,31 @@ class _RegisterCyclePredictionPageState
                               ],
                             ),
                           ),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
+
+                          NarrationHintChips(
+                            selectedKey: _narrationKey,
+                            onSelected: _say,
+                            padding: const EdgeInsets.only(bottom: 16),
+                            hints: [
+                              const NarrationHint(
+                                'My cycle is irregular',
+                                NarrationKeys.preCycleIrregular,
+                              ),
+                              // Only for someone planning: the advice is about
+                              // getting ready, not about recovering.
+                              if (!_isNewMom) ...[
+                                const NarrationHint(
+                                  'Folic acid?',
+                                  NarrationKeys.preFolicAcid,
+                                ),
+                                const NarrationHint(
+                                  'How should I prepare?',
+                                  NarrationKeys.preHabits,
+                                ),
+                              ],
+                            ],
+                          ),
 
                           SizedBox(
                             width: double.infinity,

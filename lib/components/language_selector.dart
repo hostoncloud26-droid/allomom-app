@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class LanguageSelector extends StatefulWidget {
   final String initialAppLanguage;
@@ -125,9 +128,17 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                 symbol: lang['symbol']!,
                 name: lang['name']!,
                 isSelected: isSelected,
-                onTap: () {
+                onTap: () async {
                   setState(() => _selectedAppLang = lang['code']!);
                   widget.onAppLanguageChanged?.call(lang['code']!);
+                  // The baby switches over too, then says so in the new
+                  // language — which is the only way she can check it worked.
+                  if (BackgroundAudioController.isReady) {
+                    await BackgroundAudioController.to.setLanguage(
+                      lang['code']!,
+                    );
+                  }
+                  speak(NarrationKeys.pgConfLanguageSaved, force: true);
                 },
               );
             }).toList(),
@@ -159,6 +170,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                 onTap: () {
                   setState(() => _selectedSpeechLang = lang['code']!);
                   widget.onSpeechLanguageChanged?.call(lang['code']!);
+                  speak(NarrationKeys.pgConfVoiceSaved, force: true);
                 },
               );
             }).toList(),

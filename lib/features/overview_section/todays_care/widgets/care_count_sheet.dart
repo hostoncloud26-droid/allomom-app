@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
 
 /// Bottom sheet that asks "how many?" — glasses of water, cups of coffee or
 /// portions of a snack. Returns the number the user chose to log, or null if
@@ -21,6 +22,7 @@ class CareCountSheet extends StatefulWidget {
     this.presets = const [1, 2, 3],
     this.maxPerLog = 12,
     this.subtitle,
+    this.narrationKey,
   });
 
   final String title;
@@ -48,6 +50,9 @@ class CareCountSheet extends StatefulWidget {
 
   final String? subtitle;
 
+  /// A `NarrationKeys` constant, when this count has a line of its own.
+  final String? narrationKey;
+
   /// Shows the sheet and resolves to the amount to log, or null on dismiss.
   static Future<int?> show(
     BuildContext context, {
@@ -61,6 +66,7 @@ class CareCountSheet extends StatefulWidget {
     List<int> presets = const [1, 2, 3],
     int maxPerLog = 12,
     String? subtitle,
+    String? narrationKey,
   }) {
     return showModalBottomSheet<int>(
       context: context,
@@ -77,6 +83,7 @@ class CareCountSheet extends StatefulWidget {
         presets: presets,
         maxPerLog: maxPerLog,
         subtitle: subtitle,
+        narrationKey: narrationKey,
       ),
     );
   }
@@ -131,7 +138,18 @@ class _CareCountSheetState extends State<CareCountSheet> {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
+
+          // This sheet counts glasses, cups and snacks. Only water has a
+          // recorded line, so the others open without one rather than being
+          // given somebody else's.
+          if (widget.narrationKey != null) ...[
+            BabyPromptBar(
+              narrationKey: widget.narrationKey,
+              margin: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 16),
+          ],
 
           Row(
             children: [

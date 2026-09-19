@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class StepsDetailPage extends StatefulWidget {
@@ -164,29 +165,23 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'TODAY';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final steps = HealthVitalsController.instance.stepsValue;
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('steps', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -230,30 +225,21 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
           ),
           const SizedBox(height: 20),
 
-          // Chart Graphic
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _StepsChartPainter(
-                period: _selectedTab,
-                steps: steps,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFF10B981),
+            unit: 'steps',
+            bars: true,
+            minY: 0,
+            emptyTitle: 'No steps recorded',
+            emptySubtitle: 'Sync your Allowear or log your walk',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Steps',
+                color: const Color(0xFF10B981),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -402,153 +388,4 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
       ),
     );
   }
-}
-
-class _StepsChartPainter extends CustomPainter {
-  final String period;
-  final int steps;
-
-  const _StepsChartPainter({
-    this.period = 'Day',
-    this.steps = 0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const rightPadding = 24.0;
-    final chartWidth = size.width - rightPadding;
-    final chartHeight = size.height;
-
-    // Y-Axis Scale Labels on right
-    final y12k = TextPainter(text: const TextSpan(text: '12k', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y12k.paint(canvas, Offset(chartWidth + 4, 15));
-
-    final y9k = TextPainter(text: const TextSpan(text: '9k', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y9k.paint(canvas, Offset(chartWidth + 4, chartHeight * 0.40));
-
-    final y6k = TextPainter(text: const TextSpan(text: '6k', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y6k.paint(canvas, Offset(chartWidth + 4, chartHeight * 0.70));
-
-    // Horizontal dashed lines
-    final dashPaint = Paint()..color = const Color(0xFFF0F1F5)..strokeWidth = 1.0;
-    canvas.drawLine(Offset(0, chartHeight * 0.40 + 6), Offset(chartWidth, chartHeight * 0.40 + 6), dashPaint);
-    canvas.drawLine(Offset(0, chartHeight * 0.70 + 6), Offset(chartWidth, chartHeight * 0.70 + 6), dashPaint);
-
-    // Step Curve adapts to Day, Week, Month
-    final path = Path();
-    if (period == 'Day') {
-      path.moveTo(0, chartHeight * 0.85);
-      path.cubicTo(
-        chartWidth * 0.25, chartHeight * 0.80,
-        chartWidth * 0.35, chartHeight * 0.72,
-        chartWidth * 0.50, chartHeight * 0.60,
-      );
-      path.cubicTo(
-        chartWidth * 0.65, chartHeight * 0.48,
-        chartWidth * 0.80, chartHeight * 0.30,
-        chartWidth, chartHeight * 0.15,
-      );
-    } else if (period == 'Week') {
-      path.moveTo(0, chartHeight * 0.75);
-      path.cubicTo(
-        chartWidth * 0.18, chartHeight * 0.45,
-        chartWidth * 0.35, chartHeight * 0.65,
-        chartWidth * 0.50, chartHeight * 0.35,
-      );
-      path.cubicTo(
-        chartWidth * 0.68, chartHeight * 0.55,
-        chartWidth * 0.85, chartHeight * 0.25,
-        chartWidth, chartHeight * 0.20,
-      );
-    } else {
-      path.moveTo(0, chartHeight * 0.70);
-      path.cubicTo(
-        chartWidth * 0.25, chartHeight * 0.60,
-        chartWidth * 0.50, chartHeight * 0.45,
-        chartWidth * 0.75, chartHeight * 0.35,
-      );
-      path.cubicTo(
-        chartWidth * 0.85, chartHeight * 0.30,
-        chartWidth * 0.95, chartHeight * 0.22,
-        chartWidth, chartHeight * 0.18,
-      );
-    }
-
-    // Fill Gradient under curve
-    final fillPath = Path.from(path)
-      ..lineTo(chartWidth, chartHeight)
-      ..lineTo(0, chartHeight)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFF10B981).withValues(alpha: 0.18),
-          const Color(0xFF10B981).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, chartWidth, chartHeight));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Green stroke
-    final strokePaint = Paint()
-      ..color = const Color(0xFF10B981)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.8
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, strokePaint);
-
-    // Dotted vertical line
-    final dotX = chartWidth * 0.52;
-    final dotY = period == 'Day' ? chartHeight * 0.58 : (period == 'Week' ? chartHeight * 0.42 : chartHeight * 0.45);
-
-    final verticalLinePaint = Paint()
-      ..color = const Color(0xFF10B981)
-      ..strokeWidth = 1.2
-      ..style = PaintingStyle.stroke;
-
-    double curY = dotY;
-    while (curY < chartHeight) {
-      canvas.drawLine(Offset(dotX, curY), Offset(dotX, curY + 3), verticalLinePaint);
-      curY += 6;
-    }
-
-    // Dot at current point
-    canvas.drawCircle(Offset(dotX, dotY), 4.5, Paint()..color = const Color(0xFF10B981));
-    canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
-
-    // Tooltip Card above point
-    const tooltipW = 78.0;
-    const tooltipH = 50.0;
-    final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 8, tooltipW, tooltipH);
-
-    final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10));
-    canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.12), 4.0, true);
-    canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
-
-    final tipTitle = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
-    final tTime = TextPainter(
-      text: TextSpan(text: tipTitle, style: const TextStyle(fontSize: 9, color: Color(0xFF8E95A5), fontWeight: FontWeight.w600)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 6));
-
-    final displayStepStr = steps > 0 ? NumberFormat('#,###').format(steps) : '5,680';
-    final tVal = TextPainter(
-      text: TextSpan(text: displayStepStr, style: const TextStyle(fontSize: 12.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
-
-    final tUnit = TextPainter(
-      text: const TextSpan(text: 'steps', style: TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5))),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tUnit.paint(canvas, Offset(tooltipRect.left + (tooltipW - tUnit.width) / 2, tooltipRect.top + 33));
-  }
-
-  @override
-  bool shouldRepaint(covariant _StepsChartPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.steps != steps;
 }

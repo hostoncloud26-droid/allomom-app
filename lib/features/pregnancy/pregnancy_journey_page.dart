@@ -20,6 +20,9 @@ import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 
 class PregnancyJourneyPage extends StatefulWidget {
   const PregnancyJourneyPage({super.key});
@@ -390,6 +393,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       children: [
         // ─── BABY HERO CARD ───
         BabyHeroBanner(
+          // The tour of this screen, once; the card's own line counts the
+          // weeks, which the recording cannot.
+          narrationKey: NarrationKeys.pgJourneyOpen,
+          bindNarrationText: false,
           speechText:
               "Am $gestationalWeek weeks, Amma! 💕\nWe're growing so strong together.",
           bubblePosition: SpeechBubblePosition.topCenter,
@@ -411,15 +418,27 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         const SizedBox(height: 16),
 
         // ─── UPCOMING CARE & SCHEDULE SECTION CARD ───
-        _buildUpcomingScheduleCard(context),
+        //
+        // Each section explains itself as it scrolls into view rather than all
+        // at once on open — three lines back to back is a lecture.
+        NarrationOnVisible(
+          narrationKey: NarrationKeys.pgJourneyUpcoming,
+          child: _buildUpcomingScheduleCard(context),
+        ),
         const SizedBox(height: 20),
 
         // ─── MY BABIES SECTION ───
-        _buildMyBabiesSection(),
+        NarrationOnVisible(
+          narrationKey: NarrationKeys.pgJourneyBabies,
+          child: _buildMyBabiesSection(),
+        ),
         const SizedBox(height: 20),
 
         // ─── COMPLETE PREGNANCY SECTION ───
-        _buildCompletePregnancySection(context),
+        NarrationOnVisible(
+          narrationKey: NarrationKeys.pgJourneyComplete,
+          child: _buildCompletePregnancySection(context),
+        ),
         const SizedBox(height: 20),
 
         // ─── DELETE PREGNANCY CARD SECTION ───
@@ -1910,6 +1929,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                                 await _loadAllPregnancyData();
 
                                 if (context.mounted) {
+                                  speak(
+                                    NarrationKeys.pgConfJourneyDone,
+                                    force: true,
+                                  );
                                   Navigator.pop(ctx);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
@@ -2830,7 +2853,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
 
   Future<void> _addBabyFromJourney() async {
     final id = await showBabyFormSheet(context);
-    if (id != null) await _loadAllPregnancyData();
+    if (id == null) return;
+    speak(NarrationKeys.pgConfBabyAdded, force: true);
+    await _loadAllPregnancyData();
   }
 
   /// Maps the modal's baby chip onto `birth_records.gender`. "Twins" says
@@ -2863,6 +2888,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   void _showDeletePregnancyDialog(BuildContext context) {
     final pregId = _pregnancyInfo?['id']?.toString();
     if (pregId == null || pregId.isEmpty) return;
+
+    // Read out every time, not once: this one undoes the whole record, and a
+    // mother who has heard it before is exactly who might tap it by accident.
+    speak(NarrationKeys.pgJourneyDelete, force: true);
 
     showDialog(
       context: context,

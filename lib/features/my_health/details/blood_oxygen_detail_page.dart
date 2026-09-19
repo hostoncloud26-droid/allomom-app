@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class BloodOxygenDetailPage extends StatefulWidget {
@@ -164,29 +165,23 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'TODAY';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final spo2 = HealthVitalsController.instance.bloodOxygenValue;
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('blood_oxygen', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -230,30 +225,24 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
           ),
           const SizedBox(height: 20),
 
-          // Chart Graphic
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _BloodOxygenChartPainter(
-                period: _selectedTab,
-                spo2Val: double.tryParse(spo2) ?? 98.0,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFF3898EC),
+            unit: '%',
+            minY: 90,
+            maxY: 100,
+            bands: const [
+              VitalBand(min: 95, max: 100, color: Color(0x0A10B981)),
+            ],
+            emptyTitle: 'No SpO2 readings',
+            emptySubtitle: 'Sync your Allowear or log a reading',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Blood Oxygen',
+                color: const Color(0xFF3898EC),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -262,7 +251,6 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
 
   Widget _buildBottomStatsRow() {
     final vitals = HealthVitalsController.instance;
-    final hasSpo2 = vitals.hasBloodOxygen;
     final avg = vitals.getAverageForVitalPeriod('blood_oxygen', _selectedTab);
     final min = vitals.getMinForVitalPeriod('blood_oxygen', _selectedTab);
     final max = vitals.getMaxForVitalPeriod('blood_oxygen', _selectedTab);
@@ -276,9 +264,9 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
             iconColor: const Color(0xFF3898EC),
             iconBg: const Color(0xFFEDF6FF),
             label: 'Average',
-            value: (hasSpo2 || avg > 0) ? avg.toInt().toString() : '--',
+            value: avg > 0 ? avg.toInt().toString() : '--',
             unit: '%',
-            subtitle: (hasSpo2 || avg > 0) ? '$_selectedTab avg' : '',
+            subtitle: avg > 0 ? '$_selectedTab avg' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -290,9 +278,9 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Lowest',
-            value: (hasSpo2 || min > 0) ? min.toInt().toString() : '--',
+            value: min > 0 ? min.toInt().toString() : '--',
             unit: '%',
-            subtitle: (hasSpo2 || min > 0) ? '$_selectedTab min' : '',
+            subtitle: min > 0 ? '$_selectedTab min' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -304,9 +292,9 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
             iconColor: const Color(0xFFFF4E6A),
             iconBg: const Color(0xFFFFF0F4),
             label: 'Highest',
-            value: (hasSpo2 || max > 0) ? max.toInt().toString() : '--',
+            value: max > 0 ? max.toInt().toString() : '--',
             unit: '%',
-            subtitle: (hasSpo2 || max > 0) ? '$_selectedTab max' : '',
+            subtitle: max > 0 ? '$_selectedTab max' : '',
           ),
         ),
       ],
@@ -405,144 +393,4 @@ class _BloodOxygenDetailPageState extends State<BloodOxygenDetailPage> {
       ),
     );
   }
-}
-
-class _BloodOxygenChartPainter extends CustomPainter {
-  final String period;
-  final double spo2Val;
-
-  const _BloodOxygenChartPainter({
-    this.period = 'Day',
-    this.spo2Val = 98.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const rightPadding = 24.0;
-    final chartWidth = size.width - rightPadding;
-    final chartHeight = size.height;
-
-    // Y-Axis Scale Labels on right (100, 95, 90, 85, 80)
-    final scales = ['100', '95', '90', '85', '80'];
-    for (int i = 0; i < scales.length; i++) {
-      final textP = TextPainter(
-        text: TextSpan(text: scales[i], style: const TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textP.paint(canvas, Offset(chartWidth + 4, chartHeight * (i / (scales.length - 1)) * 0.85 + 6));
-    }
-
-    // Blood Oxygen Curve adapts to Day, Week, Month
-    final path = Path();
-    if (period == 'Day') {
-      path.moveTo(0, chartHeight * 0.55);
-      path.cubicTo(
-        chartWidth * 0.15, chartHeight * 0.52,
-        chartWidth * 0.25, chartHeight * 0.58,
-        chartWidth * 0.35, chartHeight * 0.54,
-      );
-      path.cubicTo(
-        chartWidth * 0.45, chartHeight * 0.45,
-        chartWidth * 0.52, chartHeight * 0.50,
-        chartWidth * 0.60, chartHeight * 0.56,
-      );
-      path.cubicTo(
-        chartWidth * 0.70, chartHeight * 0.60,
-        chartWidth * 0.80, chartHeight * 0.25,
-        chartWidth * 0.90, chartHeight * 0.25,
-      );
-      path.cubicTo(
-        chartWidth * 0.95, chartHeight * 0.25,
-        chartWidth * 0.98, chartHeight * 0.40,
-        chartWidth, chartHeight * 0.48,
-      );
-    } else if (period == 'Week') {
-      path.moveTo(0, chartHeight * 0.35);
-      path.cubicTo(
-        chartWidth * 0.20, chartHeight * 0.30,
-        chartWidth * 0.40, chartHeight * 0.45,
-        chartWidth * 0.60, chartHeight * 0.28,
-      );
-      path.cubicTo(
-        chartWidth * 0.75, chartHeight * 0.35,
-        chartWidth * 0.90, chartHeight * 0.25,
-        chartWidth, chartHeight * 0.30,
-      );
-    } else {
-      path.moveTo(0, chartHeight * 0.30);
-      path.cubicTo(
-        chartWidth * 0.30, chartHeight * 0.32,
-        chartWidth * 0.60, chartHeight * 0.28,
-        chartWidth * 0.85, chartHeight * 0.30,
-      );
-      path.lineTo(chartWidth, chartHeight * 0.29);
-    }
-
-    // Fill Gradient
-    final fillPath = Path.from(path)
-      ..lineTo(chartWidth, chartHeight)
-      ..lineTo(0, chartHeight)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFF3898EC).withValues(alpha: 0.16),
-          const Color(0xFF3898EC).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, chartWidth, chartHeight));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Blue stroke
-    final strokePaint = Paint()
-      ..color = const Color(0xFF3898EC)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, strokePaint);
-
-    // Dotted vertical line
-    final dotX = chartWidth * 0.52;
-    final dotY = period == 'Day' ? chartHeight * 0.50 : (period == 'Week' ? chartHeight * 0.35 : chartHeight * 0.30);
-
-    final verticalLinePaint = Paint()
-      ..color = const Color(0xFF3898EC).withValues(alpha: 0.35)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(dotX, dotY), Offset(dotX, chartHeight), verticalLinePaint);
-
-    // Dot at current point
-    canvas.drawCircle(Offset(dotX, dotY), 4.5, Paint()..color = const Color(0xFF3898EC));
-    canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
-
-    // Tooltip Card above point
-    const tooltipW = 75.0;
-    const tooltipH = 42.0;
-    final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 6, tooltipW, tooltipH);
-
-    final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10));
-    canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
-    canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
-
-    final tipTimeStr = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
-    final tTime = TextPainter(
-      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
-
-    final valStr = spo2Val > 0 ? '${spo2Val.toStringAsFixed(0)}%' : '98%';
-    final tVal = TextPainter(
-      text: TextSpan(text: valStr, style: const TextStyle(fontSize: 13, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 20));
-  }
-
-  @override
-  bool shouldRepaint(covariant _BloodOxygenChartPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.spo2Val != spo2Val;
 }

@@ -91,7 +91,6 @@ class _KickCounterPageState extends State<KickCounterPage>
     });
 
     if (_kickCount == _kickGoal) {
-      _saveKickSession();
       _showGoalReachedDialog();
     }
   }
@@ -138,7 +137,8 @@ class _KickCounterPageState extends State<KickCounterPage>
               ),
               const SizedBox(height: 8),
               Text(
-                'You reached 10 kicks today! Your baby is active and healthy.',
+                'You reached $_kickGoal kicks! Your baby is active and healthy.\n'
+                'Tap "Save Session" when you are done counting.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),

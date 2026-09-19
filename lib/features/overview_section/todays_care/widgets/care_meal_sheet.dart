@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 /// What the user entered for a meal.
 class CareMealLog {
@@ -167,7 +169,15 @@ class _CareMealSheetState extends State<CareMealSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // The baby head card for the sheet — slim, since the keyboard
+            // takes most of it once she starts typing.
+            const BabyPromptBar(
+              narrationKey: NarrationKeys.pgNutritionMeal,
+              margin: EdgeInsets.zero,
+            ),
+            const SizedBox(height: 16),
 
             Row(
               children: [

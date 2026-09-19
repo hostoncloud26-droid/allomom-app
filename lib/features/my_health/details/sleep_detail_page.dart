@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class SleepDetailPage extends StatefulWidget {
@@ -161,32 +162,33 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
+  /// Renders decimal hours the way a night's sleep is read: `7h 20m`.
+  static String _formatSleep(double hours) {
+    final h = hours.floor();
+    final m = ((hours - h) * 60).round();
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
+  }
+
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'LAST NIGHT';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['10 PM', '1 AM', '4 AM', '7 AM'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final sleepHours = HealthVitalsController.instance.sleepHoursValue;
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('sleep', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -230,30 +232,24 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
           ),
           const SizedBox(height: 24),
 
-          // Sleep Hypnogram Visual Timeline
-          SizedBox(
-            height: 100,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _DetailedSleepHypnogramPainter(
-                period: _selectedTab,
-                sleepHours: sleepHours,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFF8B5CF6),
+            unit: 'hrs',
+            decimals: 1,
+            bars: true,
+            minY: 0,
+            maxY: 10,
+            valueFormatter: _formatSleep,
+            emptyTitle: 'No sleep recorded',
+            emptySubtitle: 'Log a night to see your sleep trend',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Sleep',
+                color: const Color(0xFF8B5CF6),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -395,145 +391,4 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       ),
     );
   }
-}
-
-class _DetailedSleepHypnogramPainter extends CustomPainter {
-  final String period;
-  final double sleepHours;
-
-  const _DetailedSleepHypnogramPainter({
-    this.period = 'Day',
-    this.sleepHours = 7.5,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (period == 'Day') {
-      // Stage Labels on Left
-      final lightLabel = TextPainter(
-        text: const TextSpan(text: 'Light', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFFC084FC))),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      lightLabel.paint(canvas, const Offset(0, 4));
-
-      final deepLabel = TextPainter(
-        text: const TextSpan(text: 'Deep', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFF6366F1))),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      deepLabel.paint(canvas, const Offset(0, 48));
-
-      const startX = 50.0;
-      final usableWidth = size.width - startX;
-
-      // Dashed guide lines
-      final guidePaint = Paint()..color = const Color(0xFFF6F7FA)..strokeWidth = 1.0;
-      canvas.drawLine(Offset(startX, 18), Offset(size.width, 18), guidePaint);
-      canvas.drawLine(Offset(startX, 62), Offset(size.width, 62), guidePaint);
-
-      final lightPaint = Paint()..color = const Color(0xFFC084FC);
-      final deepPaint = Paint()..color = const Color(0xFF6366F1);
-
-      // Deep Sleep Segment 1 (10:30 PM - 1:30 AM)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(startX + usableWidth * 0.05, 40, usableWidth * 0.25, 36),
-          const Radius.circular(8),
-        ),
-        deepPaint,
-      );
-
-      // Light Sleep Segment 1 (1:30 AM - 3:30 AM)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(startX + usableWidth * 0.30, 0, usableWidth * 0.25, 36),
-          const Radius.circular(8),
-        ),
-        lightPaint,
-      );
-
-      // Deep Sleep Segment 2 (3:30 AM - 4:45 AM)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(startX + usableWidth * 0.55, 40, usableWidth * 0.16, 36),
-          const Radius.circular(8),
-        ),
-        deepPaint,
-      );
-
-      // Light Sleep Segment 2 (4:45 AM - 6:20 AM)
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(startX + usableWidth * 0.71, 0, usableWidth * 0.29, 36),
-          const Radius.circular(8),
-        ),
-        lightPaint,
-      );
-    } else if (period == 'Week') {
-      // 7-day stacked bar chart (Deep on bottom, Light on top)
-      final barCount = 7;
-      final spacing = size.width / barCount;
-      const barWidth = 18.0;
-      final lightPaint = Paint()..color = const Color(0xFFC084FC);
-      final deepPaint = Paint()..color = const Color(0xFF6366F1);
-
-      final dailyHeights = [0.75, 0.85, 0.65, 0.90, 0.80, 0.70, (sleepHours.clamp(4.0, 10.0) / 10.0)];
-
-      for (int i = 0; i < barCount; i++) {
-        final x = (i * spacing) + (spacing - barWidth) / 2;
-        final totalH = size.height * dailyHeights[i];
-        final deepH = totalH * 0.35;
-        final lightH = totalH * 0.65;
-
-        // Draw deep sleep (bottom)
-        final deepRect = RRect.fromRectAndCorners(
-          Rect.fromLTWH(x, size.height - deepH, barWidth, deepH),
-          bottomLeft: const Radius.circular(6),
-          bottomRight: const Radius.circular(6),
-        );
-        canvas.drawRRect(deepRect, deepPaint);
-
-        // Draw light sleep (top)
-        final lightRect = RRect.fromRectAndCorners(
-          Rect.fromLTWH(x, size.height - deepH - lightH, barWidth, lightH),
-          topLeft: const Radius.circular(6),
-          topRight: const Radius.circular(6),
-        );
-        canvas.drawRRect(lightRect, lightPaint);
-      }
-    } else {
-      // Monthly 5 intervals stacked bars
-      final barCount = 5;
-      final spacing = size.width / barCount;
-      const barWidth = 26.0;
-      final lightPaint = Paint()..color = const Color(0xFFC084FC);
-      final deepPaint = Paint()..color = const Color(0xFF6366F1);
-
-      final monthHeights = [0.80, 0.75, 0.85, 0.78, (sleepHours.clamp(4.0, 10.0) / 10.0)];
-
-      for (int i = 0; i < barCount; i++) {
-        final x = (i * spacing) + (spacing - barWidth) / 2;
-        final totalH = size.height * monthHeights[i];
-        final deepH = totalH * 0.35;
-        final lightH = totalH * 0.65;
-
-        final deepRect = RRect.fromRectAndCorners(
-          Rect.fromLTWH(x, size.height - deepH, barWidth, deepH),
-          bottomLeft: const Radius.circular(8),
-          bottomRight: const Radius.circular(8),
-        );
-        canvas.drawRRect(deepRect, deepPaint);
-
-        final lightRect = RRect.fromRectAndCorners(
-          Rect.fromLTWH(x, size.height - deepH - lightH, barWidth, lightH),
-          topLeft: const Radius.circular(8),
-          topRight: const Radius.circular(8),
-        );
-        canvas.drawRRect(lightRect, lightPaint);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DetailedSleepHypnogramPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.sleepHours != sleepHours;
 }

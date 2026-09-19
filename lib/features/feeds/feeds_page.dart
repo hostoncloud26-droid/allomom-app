@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 enum FeedType {
   tipCard,
@@ -62,6 +65,17 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // What the feed is, and — when she is offline — which part of it still
+    // works. The offline line is the more useful one to hear first, so it
+    // replaces the tour rather than following it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      speak(
+        ConnectionController.instance.isInternetAvailable
+            ? NarrationKeys.pgFeedsOpen
+            : NarrationKeys.pgFeedsOffline,
+      );
+    });
 
     _feedItems = [
       // 1. Tip Card (Sleeping position) - Screen 1
@@ -366,6 +380,12 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
         scrollDirection: Axis.vertical,
         itemCount: _feedItems.length,
         onPageChanged: (index) {
+          // The first recipe she lands on introduces itself. Once per session,
+          // so swiping through a dozen reels stays quiet.
+          if (_feedItems[index].tag.toUpperCase().contains('RECIPE')) {
+            speak(NarrationKeys.pgFeedsRecipe);
+          }
+
           // Stop speech reading when swiped to another page
           if (_currentlyReadingId != null) {
             _speechTimer?.cancel();

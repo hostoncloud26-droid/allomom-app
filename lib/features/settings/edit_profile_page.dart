@@ -4,6 +4,8 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class EditProfilePage extends StatefulWidget {
   const EditProfilePage({super.key});
@@ -193,6 +195,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     setState(() => _isSaving = false);
 
     if (success) {
+      speak(NarrationKeys.pgConfProfileSaved, force: true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated successfully! ✨'),

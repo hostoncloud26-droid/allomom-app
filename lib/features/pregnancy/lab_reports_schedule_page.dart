@@ -12,6 +12,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// The lab tests and scans booked locally when the pregnancy was registered,
 /// grouped by the pregnancy month they are due in.
@@ -37,6 +39,12 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     super.initState();
     _load();
   }
+
+  /// What the card says: the tour of the screen, or, when there is nothing
+  /// scheduled, the line that tells her how to get something on it.
+  String get _narrationKey => (_pregnancyId == null || _reports.isEmpty)
+      ? NarrationKeys.pgLabEmpty
+      : NarrationKeys.pgLabOpen;
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
@@ -75,6 +83,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
         wasDone ? null : DateTime.now(),
       );
       await _load();
+      if (!wasDone) speak(NarrationKeys.pgConfLabSaved, force: true);
     } catch (e) {
       debugPrint('Error updating report checklist ${report.id}: $e');
     }
@@ -158,6 +167,10 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                   ),
                   children: [
                     BabyHeroBanner(
+                      // The line plays, then the card goes back to its own
+                      // copy — which counts the weeks, and the script cannot.
+                      narrationKey: _narrationKey,
+                      bindNarrationText: false,
                       speechText:
                           "Am $week weeks, Amma! 🧪\nLet's keep our tests on track.",
                       bubblePosition: SpeechBubblePosition.topCenter,

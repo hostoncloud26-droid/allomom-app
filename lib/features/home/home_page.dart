@@ -21,6 +21,8 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -76,6 +78,8 @@ class _HomePageState extends State<HomePage> {
     for (final key in [
       flow.homeWelcome,
       flow.homeFollowUp,
+      // What this screen is for, said once she has been welcomed to it.
+      NarrationKeys.pgHomeOpen,
       flow.homeFirstQuestion,
     ]) {
       if (!mounted) return;
@@ -341,11 +345,21 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 16),
 
                       // ─── SWIPEABLE CAROUSEL (ALLOBOT, DAILY SUMMARY, QUICK ACTIONS) ───
-                      _buildSummaryCarousel(context),
+                      //
+                      // Each section says what it is the first time it is
+                      // actually on screen, and never over the top of the one
+                      // before it. Scrolling straight past says nothing.
+                      NarrationOnVisible(
+                        narrationKey: NarrationKeys.pgHomeSummary,
+                        child: _buildSummaryCarousel(context),
+                      ),
                       const SizedBox(height: 20),
 
                       // ─── TODAY'S CARE ───
-                      _buildTodaysCareSection(context),
+                      NarrationOnVisible(
+                        narrationKey: NarrationKeys.pgHomeCare,
+                        child: _buildTodaysCareSection(context),
+                      ),
                       const SizedBox(height: 24),
 
                       // ─── OVERVIEW (VITALS & NUTRITION TILES) ───

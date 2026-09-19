@@ -8,6 +8,9 @@ import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_settings_tab.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
+import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class AlloBotPage extends StatefulWidget {
   final int initialTab;
@@ -48,6 +51,18 @@ class _AlloBotPageState extends State<AlloBotPage> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialTab;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // What AlloBot is for, then what it can promise: offline it answers only
+      // the questions it carries on the phone, and the doctor still decides.
+      speakAll([
+        NarrationKeys.pgAllobotOpen,
+        if (!ConnectionController.instance.isInternetAvailable)
+          NarrationKeys.pgAllobotOffline,
+        NarrationKeys.pgAllobotDisclaimer,
+      ]);
+    });
+
     if (widget.autoStartListening) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _openListeningPopup();

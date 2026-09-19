@@ -3,14 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/overview_section/nutrition/nutrition_detail_page.dart';
 
 class NutritionTiles extends StatefulWidget {
   final String? userId;
 
-  const NutritionTiles({
-    super.key,
-    this.userId,
-  });
+  const NutritionTiles({super.key, this.userId});
 
   @override
   State<NutritionTiles> createState() => _NutritionTilesState();
@@ -116,7 +114,21 @@ class _NutritionTilesState extends State<NutritionTiles> {
     } catch (_) {}
   }
 
-  void _showAddMealDialog(String mealType, String label, Color color, IconData icon) {
+  /// Opens a tile's own detail page — its trend, its numbers, its entries.
+  Future<void> _openDetail(NutritionMetric metric) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NutritionDetailPage(metric: metric)),
+    );
+    if (mounted) await _loadMeals();
+  }
+
+  void _showAddMealDialog(
+    String mealType,
+    String label,
+    Color color,
+    IconData icon,
+  ) {
     final calController = TextEditingController();
     final itemController = TextEditingController();
 
@@ -126,7 +138,12 @@ class _NutritionTilesState extends State<NutritionTiles> {
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return Container(
-          padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 30),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            20,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 30,
+          ),
           decoration: const BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
@@ -233,7 +250,8 @@ class _NutritionTilesState extends State<NutritionTiles> {
                 height: 50,
                 child: ElevatedButton(
                   onPressed: () async {
-                    final cal = double.tryParse(calController.text.trim()) ?? 300.0;
+                    final cal =
+                        double.tryParse(calController.text.trim()) ?? 300.0;
                     final text = itemController.text.trim();
 
                     await HealthVitalsController.instance.addVitalEntry(
@@ -249,7 +267,9 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: color,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
                     elevation: 0,
                   ),
                   child: Text(
@@ -297,7 +317,13 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   color: const Color(0xFFFF9800),
                   label: 'Breakfast',
                   calories: _breakfastCal,
-                  onTap: () => _showAddMealDialog('breakfast', 'Breakfast', const Color(0xFFFF9800), Icons.wb_sunny_rounded),
+                  metric: NutritionMetric.breakfast,
+                  onLog: () => _showAddMealDialog(
+                    'breakfast',
+                    'Breakfast',
+                    const Color(0xFFFF9800),
+                    Icons.wb_sunny_rounded,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -307,7 +333,13 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   color: const Color(0xFF10B981),
                   label: 'Lunch',
                   calories: _lunchCal,
-                  onTap: () => _showAddMealDialog('lunch', 'Lunch', const Color(0xFF10B981), Icons.lunch_dining_rounded),
+                  metric: NutritionMetric.lunch,
+                  onLog: () => _showAddMealDialog(
+                    'lunch',
+                    'Lunch',
+                    const Color(0xFF10B981),
+                    Icons.lunch_dining_rounded,
+                  ),
                 ),
               ),
             ],
@@ -326,7 +358,13 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   color: const Color(0xFFF59E0B),
                   label: 'Snacks',
                   calories: _snacksCal,
-                  onTap: () => _showAddMealDialog('snacks', 'Snacks', const Color(0xFFF59E0B), Icons.cookie_rounded),
+                  metric: NutritionMetric.snacks,
+                  onLog: () => _showAddMealDialog(
+                    'snacks',
+                    'Snacks',
+                    const Color(0xFFF59E0B),
+                    Icons.cookie_rounded,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -336,7 +374,13 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   color: const Color(0xFF8B5CF6),
                   label: 'Dinner',
                   calories: _dinnerCal,
-                  onTap: () => _showAddMealDialog('dinner', 'Dinner', const Color(0xFF8B5CF6), Icons.dinner_dining_rounded),
+                  metric: NutritionMetric.dinner,
+                  onLog: () => _showAddMealDialog(
+                    'dinner',
+                    'Dinner',
+                    const Color(0xFF8B5CF6),
+                    Icons.dinner_dining_rounded,
+                  ),
                 ),
               ),
             ],
@@ -345,124 +389,148 @@ class _NutritionTilesState extends State<NutritionTiles> {
         const SizedBox(height: 12),
 
         // Row 3: Water Hydration Card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+        GestureDetector(
+          onTap: () => _openDetail(NutritionMetric.water),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.water_drop_rounded,
+                          color: Color(0xFF0284C7),
+                          size: 22,
+                        ),
+                      ),
                     ),
-                    child: const Center(
-                      child: Icon(Icons.water_drop_rounded, color: Color(0xFF0284C7), size: 22),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Hydration Tracker',
+                            style: GoogleFonts.manrope(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _waterGlasses > 0
+                                ? '$_waterGlasses of 10 glasses (${(_waterGlasses * 0.25).toStringAsFixed(1)}L)'
+                                : '0 of 10 glasses • Tap + to log',
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Hydration Tracker',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E2024),
+                    if (_waterGlasses > 0)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        onPressed: () async {
+                          setState(() => _waterGlasses = _waterGlasses - 1);
+                          // Rows hold increments (the reader sums them), so a
+                          // correction is logged as -1, not as the new total.
+                          await HealthVitalsController.instance.addVitalEntry(
+                            key: 'water',
+                            value: -1,
+                            unit: 'glasses',
+                            createdAt: DateTime.now(),
+                            userId:
+                                widget.userId ?? MainController.instance.userId,
+                            data: const {
+                              'details': 'Corrected by 1 glass',
+                              'type': 'water',
+                            },
+                          );
+                        },
+                        icon: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF1F5F9),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.remove_rounded,
+                            color: Color(0xFF64748B),
+                            size: 16,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _waterGlasses > 0
-                              ? '$_waterGlasses of 10 glasses (${(_waterGlasses * 0.25).toStringAsFixed(1)}L)'
-                              : '0 of 10 glasses • Tap + to log',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (_waterGlasses > 0)
+                      ),
                     IconButton(
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       onPressed: () async {
-                        setState(() => _waterGlasses = _waterGlasses - 1);
-                        // Rows hold increments (the reader sums them), so a
-                        // correction is logged as -1, not as the new total.
+                        setState(() => _waterGlasses = _waterGlasses + 1);
                         await HealthVitalsController.instance.addVitalEntry(
                           key: 'water',
-                          value: -1,
+                          value: 1,
                           unit: 'glasses',
                           createdAt: DateTime.now(),
-                          userId: widget.userId ?? MainController.instance.userId,
-                          data: const {'details': 'Corrected by 1 glass', 'type': 'water'},
+                          userId:
+                              widget.userId ?? MainController.instance.userId,
+                          data: const {'details': '1 glass', 'type': 'water'},
                         );
                       },
                       icon: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
+                          color: const Color(
+                            0xFF0284C7,
+                          ).withValues(alpha: 0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.remove_rounded, color: Color(0xFF64748B), size: 16),
+                        child: const Icon(
+                          Icons.add_rounded,
+                          color: Color(0xFF0284C7),
+                          size: 18,
+                        ),
                       ),
                     ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    padding: EdgeInsets.zero,
-                    onPressed: () async {
-                      setState(() => _waterGlasses = _waterGlasses + 1);
-                      await HealthVitalsController.instance.addVitalEntry(
-                        key: 'water',
-                        value: 1,
-                        unit: 'glasses',
-                        createdAt: DateTime.now(),
-                        userId: widget.userId ?? MainController.instance.userId,
-                        data: const {'details': '1 glass', 'type': 'water'},
-                      );
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.add_rounded, color: Color(0xFF0284C7), size: 18),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: (_waterGlasses / 10.0).clamp(0.0, 1.0),
-                  backgroundColor: const Color(0xFFF1F5F9),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF0284C7)),
-                  minHeight: 6,
+                  ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: (_waterGlasses / 10.0).clamp(0.0, 1.0),
+                    backgroundColor: const Color(0xFFF1F5F9),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF0284C7),
+                    ),
+                    minHeight: 6,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -474,12 +542,13 @@ class _NutritionTilesState extends State<NutritionTiles> {
     required Color color,
     required String label,
     required double calories,
-    required VoidCallback onTap,
+    required NutritionMetric metric,
+    required VoidCallback onLog,
   }) {
     final hasLogged = calories > 0;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: () => _openDetail(metric),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
@@ -509,18 +578,26 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   ),
                   child: Icon(icon, color: color, size: 18),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: hasLogged ? const Color(0xFFE6F9F0) : color.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    hasLogged ? 'Logged' : '+ Add',
-                    style: GoogleFonts.manrope(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: hasLogged ? const Color(0xFF10B981) : color,
+                GestureDetector(
+                  onTap: onLog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: hasLogged
+                          ? const Color(0xFFE6F9F0)
+                          : color.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      hasLogged ? '+ Log' : '+ Add',
+                      style: GoogleFonts.manrope(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: hasLogged ? const Color(0xFF10B981) : color,
+                      ),
                     ),
                   ),
                 ),
@@ -544,7 +621,9 @@ class _NutritionTilesState extends State<NutritionTiles> {
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: hasLogged ? FontWeight.w700 : FontWeight.w500,
-                    color: hasLogged ? const Color(0xFF1E2024) : const Color(0xFF94A3B8),
+                    color: hasLogged
+                        ? const Color(0xFF1E2024)
+                        : const Color(0xFF94A3B8),
                   ),
                 ),
               ],

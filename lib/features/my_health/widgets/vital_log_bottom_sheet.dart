@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class VitalLogBottomSheet extends StatefulWidget {
   final String initialKey;
@@ -53,6 +56,17 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
 
   // Feeding state
   String _feedingType = 'Breastfeeding';
+
+  /// The baby explaining what to type, for the three readings the script
+  /// covers. The other vitals get no line — the field labels are enough, and
+  /// inventing one would mean an mp3 that does not exist.
+  static const Map<String, String> _narrationByVital = {
+    'blood_pressure': NarrationKeys.pgVitalsBp,
+    'glucose': NarrationKeys.pgVitalsGlucose,
+    'hemoglobin': NarrationKeys.pgVitalsHb,
+  };
+
+  String? get _narrationKey => _narrationByVital[_currentKey];
 
   @override
   void initState() {
@@ -252,6 +266,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
       }
 
       if (!mounted) return;
+      speak(NarrationKeys.pgConfVitalsSaved, force: true);
       Navigator.pop(context, true);
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -322,6 +337,16 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                 ),
               ),
               const SizedBox(height: 16),
+
+              // The baby head card for the sheet, when this vital has a line.
+              // Slim, because the keyboard takes most of the sheet.
+              if (_narrationKey != null) ...[
+                BabyPromptBar(
+                  narrationKey: _narrationKey,
+                  margin: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 16),
+              ],
 
               // Title and Date Selector Row
               Row(
