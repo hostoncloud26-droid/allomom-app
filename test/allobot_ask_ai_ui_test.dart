@@ -385,6 +385,29 @@ void main() {
               'lang_code': 'en',
               'response': {'message': 'Hello Amma'},
             },
+            {
+              'key': 'slow',
+              'name': 'Slow answer',
+              'examples': ['tell me slowly'],
+              'type': 'flow',
+              'lang_code': 'en',
+              'flow': {
+                'name': 'Slow answer',
+                'completion_message': '',
+                'steps': [
+                  // A delay step carries its seconds in `question`.
+                  {'ref': 's1', 'type': 'delay', 'question': '1'},
+                  {
+                    'ref': 's2',
+                    'type': 'text',
+                    'question': 'Answered slowly.',
+                  },
+                ],
+                'connectors': [
+                  {'ref': 'c1', 'from_ref': 's1', 'to_ref': 's2', 'logic': {}},
+                ],
+              },
+            },
           ],
         }),
       });
@@ -435,6 +458,55 @@ void main() {
 
       expect(controller.messages.last.text, 'Hello Amma');
       expect(controller.lastSpokenText, isNull);
+    });
+
+    testWidgets('a message sent mid-answer is queued, not lost',
+        (tester) async {
+      final controller = await seeded(tester);
+
+      // The first turn holds the line open on a delay step. The composer has
+      // already cleared the field by the time the second one is sent, so a
+      // message refused here would vanish with no reply and no trace.
+      final first = controller.send('tell me slowly', speak: false);
+      await tester.pump();
+      expect(controller.isTyping.value, isTrue);
+
+      await controller.send('hi', speak: false);
+      await tester.pump();
+
+      // Hers is on screen immediately, even though it cannot be answered yet.
+      expect(
+        controller.messages.where((m) => m.fromUser && m.text == 'hi').length,
+        1,
+      );
+
+      // Advances the fake clock past the delay step, which is what lets the
+      // first turn finish at all.
+      await tester.pumpAndSettle(const Duration(milliseconds: 200));
+      await first;
+      await tester.pumpAndSettle(const Duration(milliseconds: 200));
+
+      final said = controller.messages.map((m) => m.text).toList();
+      expect(said, contains('Answered slowly.'));
+      expect(said, contains('Hello Amma'));
+      // Queued, so it is answered after the turn it was sent during.
+      expect(
+        said.indexOf('Hello Amma'),
+        greaterThan(said.indexOf('Answered slowly.')),
+      );
+      expect(controller.isTyping.value, isFalse);
+    });
+
+    testWidgets('a turn that produces nothing still answers', (tester) async {
+      final controller = await seeded(tester);
+
+      // Nothing in the catalogue matches and it carries no fallback intent —
+      // which used to leave her looking at her own message with no reply.
+      await controller.send('qwertyuiop', speak: false);
+      await tester.pumpAndSettle();
+
+      expect(controller.messages.last.fromUser, isFalse);
+      expect(controller.messages.last.text, isNotEmpty);
     });
   });
 }

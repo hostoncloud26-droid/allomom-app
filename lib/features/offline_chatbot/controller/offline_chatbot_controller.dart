@@ -277,6 +277,7 @@ class OfflineChatbotController extends GetxController {
       // it is dropped. What was said is not: a sync is housekeeping, and it has
       // no business throwing away the conversation the mother is in.
       _delivery++;
+      _pending.clear();
       isTyping.value = false;
       _session.clear();
       activeOptions.clear();
@@ -452,6 +453,7 @@ class OfflineChatbotController extends GetxController {
   void resetConversation({bool announce = true}) {
     _delivery++;
     _tts.stop();
+    _pending.clear();
     isTyping.value = false;
     _session.clear();
     activeOptions.clear();
@@ -484,10 +486,20 @@ class OfflineChatbotController extends GetxController {
     }
 
     _delivery++;
+    _pending.clear();
     isTyping.value = false;
     unawaited(_tts.stop());
     await _persistTranscript();
   }
+
+  /// Messages sent while the previous one was still being answered, oldest
+  /// first. Each is answered in turn once the one in flight finishes.
+  final List<({String text, bool speak})> _pending = [];
+
+  /// What a turn says when it produced nothing at all — rather than leaving
+  /// the mother looking at her own message with no reply under it.
+  static const String _nothingToSayMessage =
+      "I'm sorry, I didn't catch that. Could you say it another way?";
 
   /// Answers a message locally and delivers the reply's segments in order,
   /// honouring the pause each one carries so a delay step reads as a real gap
@@ -496,14 +508,45 @@ class OfflineChatbotController extends GetxController {
   /// [speak] is the caller's call, not a setting: Ask Allo is a conversation
   /// held out loud and reads the answer back, Chat is a transcript being read,
   /// and a phone that starts talking while she is reading is an interruption.
+  ///
+  /// A message sent while the previous one is still being answered is queued,
+  /// not dropped. It used to be dropped: the composer had already cleared the
+  /// field by the time this refused it, so the message vanished with no reply
+  /// and no trace — and an `ai` step can hold a turn open for a minute or more,
+  /// which is a long window to lose everything typed into.
   Future<void> send(String text, {bool speak = true}) async {
     final message = text.trim();
-    if (message.isEmpty || isTyping.value) return;
+    if (message.isEmpty) return;
 
     // Her own words supersede whatever the voice input was complaining about,
     // including when there is no catalogue yet and this turn ends in a note.
     clearVoiceNotice();
 
+    // The message appears the moment she sends it, answered now or queued.
+    messages.add(OfflineChatMessage(text: message, fromUser: true));
+
+    if (isTyping.value) {
+      _pending.add((text: message, speak: speak));
+      return;
+    }
+
+    await _answer(message, speak: speak);
+    await _drainPending();
+  }
+
+  /// Answers whatever was typed while a turn was in flight, in order.
+  ///
+  /// A loop rather than recursion through [send]: the user's message is
+  /// already in the transcript, and a long queue should not nest.
+  Future<void> _drainPending() async {
+    while (_pending.isNotEmpty && !isTyping.value) {
+      final next = _pending.removeAt(0);
+      await _answer(next.text, speak: next.speak);
+    }
+  }
+
+  /// Runs one turn. The user's message is already on screen by now.
+  Future<void> _answer(String message, {bool speak = true}) async {
     // Whatever is being said belongs to the previous turn. Not awaited: the
     // stop is a platform round-trip, and the mother's own message should not
     // wait on it to appear.
@@ -511,6 +554,7 @@ class OfflineChatbotController extends GetxController {
 
     final engine = _engine;
     if (engine == null) {
+      _pending.clear();
       messages.add(
         OfflineChatMessage(
           text: 'AlloBot is not downloaded yet. Tap sync to fetch it.',
@@ -521,9 +565,13 @@ class OfflineChatbotController extends GetxController {
     }
 
     final delivery = ++_delivery;
-    messages.add(OfflineChatMessage(text: message, fromUser: true));
     activeOptions.clear();
     isTyping.value = true;
+
+    // Whether this turn put anything on screen or did anything at all. A flow
+    // that runs out mid-graph can return a reply with no text in it, and the
+    // turn would then end in silence.
+    var answered = false;
 
     try {
       final reply = await engine.respond(
@@ -545,8 +593,10 @@ class OfflineChatbotController extends GetxController {
         // reports" appears.
         await _runActions(segment.actions);
         if (_delivery != delivery) return;
+        if (segment.actions.isNotEmpty) answered = true;
 
         if (segment.text.isNotEmpty) {
+          answered = true;
           messages.add(
             OfflineChatMessage(
               text: segment.text,
@@ -564,11 +614,16 @@ class OfflineChatbotController extends GetxController {
           }
         }
         for (final url in segment.imageUrls) {
+          answered = true;
           messages.add(OfflineChatMessage(text: '', imageUrl: url));
         }
       }
 
       if (_delivery != delivery) return;
+      if (!answered) {
+        messages.add(OfflineChatMessage(text: _nothingToSayMessage));
+        if (speak) await _speakReplyIfEnabled(_nothingToSayMessage);
+      }
       activeOptions.assignAll(reply.options);
     } catch (e) {
       messages.add(
