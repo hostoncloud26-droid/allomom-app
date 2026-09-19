@@ -16,7 +16,15 @@ import 'package:allomom/services/auth/secure_token_store.dart';
 /// the refresh itself fails the session is cleared and [onSessionExpired] fires,
 /// which is what sends the app back to the sign-in screen.
 class ApiBase {
+  /// What an ordinary call is given. Enough for a round trip and a database
+  /// query, and short enough that a screen on a dead connection says so rather
+  /// than spinning.
   static const Duration _timeout = Duration(seconds: 20);
+
+  /// A slow call passes its own instead — inference against a model, with a
+  /// whole transcript folded into the prompt, routinely outlasts 20 seconds,
+  /// and the app was giving up on answers the server had already produced.
+  static Duration _timeoutFor(Duration? override) => override ?? _timeout;
 
   /// Called when the refresh token is rejected, i.e. the session is truly over.
   /// Set by the auth controller at startup.
@@ -48,13 +56,17 @@ class ApiBase {
     String endpoint, {
     Map<String, dynamic>? query,
     bool withAuth = true,
-  }) => _send('GET', endpoint, query: query, withAuth: withAuth);
+    Duration? timeout,
+  }) => _send('GET', endpoint, query: query, withAuth: withAuth,
+      timeout: timeout);
 
   static Future<APIResponse> post(
     String endpoint,
     dynamic body, {
     bool withAuth = true,
-  }) => _send('POST', endpoint, body: body, withAuth: withAuth);
+    Duration? timeout,
+  }) => _send('POST', endpoint, body: body, withAuth: withAuth,
+      timeout: timeout);
 
   static Future<APIResponse> patch(
     String endpoint,
@@ -98,7 +110,9 @@ class ApiBase {
     Map<String, dynamic>? query,
     bool withAuth = true,
     bool isRetry = false,
+    Duration? timeout,
   }) async {
+    final deadline = _timeoutFor(timeout);
     try {
       var uri = Uri.parse('${ApiRoutes.instance.baseUrl}$endpoint');
       if (query != null && query.isNotEmpty) {
@@ -113,23 +127,23 @@ class ApiBase {
       late http.Response response;
       switch (method) {
         case 'GET':
-          response = await http.get(uri, headers: headers).timeout(_timeout);
+          response = await http.get(uri, headers: headers).timeout(deadline);
         case 'POST':
           response = await http
               .post(uri, headers: headers, body: encoded)
-              .timeout(_timeout);
+              .timeout(deadline);
         case 'PATCH':
           response = await http
               .patch(uri, headers: headers, body: encoded)
-              .timeout(_timeout);
+              .timeout(deadline);
         case 'PUT':
           response = await http
               .put(uri, headers: headers, body: encoded)
-              .timeout(_timeout);
+              .timeout(deadline);
         case 'DELETE':
           response = await http
               .delete(uri, headers: headers, body: encoded)
-              .timeout(_timeout);
+              .timeout(deadline);
         default:
           throw UnsupportedError('Unsupported method $method');
       }
@@ -147,6 +161,8 @@ class ApiBase {
             query: query,
             withAuth: withAuth,
             isRetry: true,
+            // The retry is the same call, so it gets the same budget.
+            timeout: timeout,
           );
         }
       }

@@ -36,6 +36,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -60,21 +61,24 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                   const SizedBox(height: 14),
 
                   // ─── BABY SPEECH AVATAR ───
-                  BabyHeroBanner(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    narrationKey: _narrationKey,
-                    speechText:
-                        'Hello there! Which language should\nwe speak together? 💬',
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText:
+                          'Hello there! Which language should\nwe speak together? 💬',
+                    ),
                   ),
-
-                  const Spacer(),
 
                   // ─── BOTTOM SELECTION CONTAINER ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 22,
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      22,
+                      20,
+                      22 + MediaQuery.paddingOf(context).bottom,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,

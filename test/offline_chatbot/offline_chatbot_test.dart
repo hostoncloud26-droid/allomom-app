@@ -125,6 +125,32 @@ BotBundle _bundle() => BotBundle.fromJson({
           },
         },
         {
+          'key': 'ask_ai_no_history',
+          'name': 'FallBack to AI without history',
+          'examples': ['classify {question}'],
+          'type': 'flow',
+          'lang_code': 'en',
+          'flow': {
+            'name': 'FallBack to AI without history',
+            'completion_message': 'Flow completed successfully.',
+            'steps': [
+              {
+                'ref': 's1',
+                'type': 'ai',
+                'question': '',
+                'save_key': 'ai_message',
+                'ai_prompt': 'Question :- {trigger_message}',
+                // The opt-out, for a step where an earlier exchange is noise.
+                'options': ['no_history'],
+              },
+              {'ref': 's2', 'type': 'text', 'question': '{ai_message}'},
+            ],
+            'connectors': [
+              {'ref': 'c1', 'from_ref': 's1', 'to_ref': 's2', 'logic': {}},
+            ],
+          },
+        },
+        {
           'key': 'fallback',
           'name': 'Fallback',
           'examples': [],
@@ -315,6 +341,23 @@ void main() {
       expect(seen.useEntireHistory, isTrue);
     });
 
+    test('the catalogue language reaches the resolver', () async {
+      late AiStepRequest seen;
+      final engine = OfflineChatbotEngine(
+        bundle: _bundle(),
+        langCode: 'ta',
+        aiResolver: (request) async {
+          seen = request;
+          return 'Sure.';
+        },
+      );
+
+      // An authored prompt is written once in English and shared by every
+      // language's catalogue, so the step has to carry the language itself.
+      await engine.respond(message: 'ask ai anything', session: BotSession());
+      expect(seen.langCode, 'ta');
+    });
+
     test('the profile reaches the resolver, unasked', () async {
       late AiStepRequest seen;
       final engine = OfflineChatbotEngine(
@@ -356,7 +399,7 @@ void main() {
       expect(seen.profile, isEmpty);
     });
 
-    test('a step without the flag does not ask for history', () async {
+    test('a step with no flag at all still asks for history', () async {
       late AiStepRequest seen;
       final engine = OfflineChatbotEngine(
         bundle: _bundle(),
@@ -367,8 +410,40 @@ void main() {
         },
       );
 
+      // Context is the default: "I ate it, what do I do?" is unanswerable
+      // without the line before it, and most authored steps never said so.
       await engine.respond(message: 'ask ai anything', session: BotSession());
+      expect(seen.useEntireHistory, isTrue);
+    });
+
+    test('a step that opted out does not ask for history', () async {
+      late AiStepRequest seen;
+      final engine = OfflineChatbotEngine(
+        bundle: _bundle(),
+        langCode: 'en',
+        aiResolver: (request) async {
+          seen = request;
+          return 'Sure.';
+        },
+      );
+
+      await engine.respond(
+          message: 'classify this line', session: BotSession());
       expect(seen.useEntireHistory, isFalse);
+    });
+
+    test('the opt-out in options never makes the step wait for a selection',
+        () async {
+      final engine = OfflineChatbotEngine(
+        bundle: _bundle(),
+        langCode: 'en',
+        aiResolver: (_) async => 'Answered.',
+      );
+
+      final reply = await engine.respond(
+          message: 'classify this line', session: BotSession());
+      expect(reply.text, 'Answered.');
+      expect(reply.options, isEmpty);
     });
 
     test('the flag in options never makes the step wait for a selection',

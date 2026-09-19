@@ -262,10 +262,19 @@ class AiStepRequest {
   final String? system;
   final String? model;
 
-  /// Whether the step asked to see the conversation so far. The transcript is
-  /// sent either way — the resolver cannot know which steps want it — and this
-  /// is what decides whether it is actually used.
+  /// Whether this step sees the conversation so far, which an `ai` step does
+  /// unless it was authored to opt out. The transcript is sent either way —
+  /// the resolver cannot know which steps want it — and this is what decides
+  /// whether it is actually used.
   final bool useEntireHistory;
+
+  /// The language the catalogue is in, so the model answers in the language
+  /// the rest of the conversation is written in.
+  ///
+  /// An authored prompt is written once, usually in English, and every
+  /// language's catalogue reuses it — so without this a Tamil conversation got
+  /// an English answer the moment it reached an `ai` step.
+  final String? langCode;
 
   /// What is known about the person asking — the same facts every `{profile.*}`
   /// placeholder resolves against.
@@ -279,7 +288,8 @@ class AiStepRequest {
     required this.prompt,
     this.system,
     this.model,
-    this.useEntireHistory = false,
+    this.useEntireHistory = true,
+    this.langCode,
     this.profile = const {},
   });
 }
@@ -533,6 +543,7 @@ class OfflineChatbotEngine {
         system: system.isEmpty ? null : system,
         model: step.aiModel,
         useEntireHistory: step.usesEntireHistory,
+        langCode: langCode,
         profile: raw is Map
             ? Map<String, dynamic>.from(raw)
             : const <String, dynamic>{},

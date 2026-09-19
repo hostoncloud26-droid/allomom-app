@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/api/chatbot_api.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
@@ -110,6 +111,9 @@ class OfflineChatbotController extends GetxController {
   /// Whether the bot is speaking its reply, so the baby can animate along.
   final RxBool isSpeaking = false.obs;
 
+  /// Whether speech or reply is currently being generated/synthesised.
+  final RxBool isGenerating = false.obs;
+
   /// Something the voice input needs to say — that it did not catch the words,
   /// or that the phone cannot listen at all.
   ///
@@ -152,6 +156,7 @@ class OfflineChatbotController extends GetxController {
     super.onInit();
     _tts.init();
     _tts.isSpeakingNotifier.addListener(_onSpeakingChanged);
+    _tts.isGeneratingNotifier.addListener(_onGeneratingChanged);
     unawaited(_bootstrap());
   }
 
@@ -159,6 +164,7 @@ class OfflineChatbotController extends GetxController {
   void onClose() {
     _voiceNoticeTimer?.cancel();
     _tts.isSpeakingNotifier.removeListener(_onSpeakingChanged);
+    _tts.isGeneratingNotifier.removeListener(_onGeneratingChanged);
     _tts.stop();
     super.onClose();
   }
@@ -179,6 +185,7 @@ class OfflineChatbotController extends GetxController {
   }
 
   void _onSpeakingChanged() => isSpeaking.value = _tts.isSpeakingNotifier.value;
+  void _onGeneratingChanged() => isGenerating.value = _tts.isGeneratingNotifier.value;
 
   /// Reads the cached catalogue and transcript, then downloads a fresh
   /// catalogue if there is none.
@@ -302,10 +309,18 @@ class OfflineChatbotController extends GetxController {
         prompt: request.prompt,
         system: request.system,
         model: request.model,
-        // Sent every time: the app cannot know which steps want context, so the
-        // step's own flag travels with it and the server decides.
+        // Sent every time, and used every time unless the step opted out: a
+        // follow-up like "I ate it, what do I do?" is unanswerable without
+        // the line before it.
         history: _transcript(),
         useEntireHistory: request.useEntireHistory,
+        // The catalogue's language, so the answer is written in the one she
+        // has been reading.
+        langCode: request.langCode?.isNotEmpty == true
+            ? request.langCode
+            : (langCode.value.isEmpty
+                  ? AppLanguage.cachedOrFallback
+                  : langCode.value),
         // Who is asking, so a step can pose a plain question and still get an
         // answer that knows which week and whose vitals it is talking about.
         profile: _inferenceProfile(request.profile),
@@ -325,42 +340,13 @@ class OfflineChatbotController extends GetxController {
 
   /// What the model is told about the mother asking.
   ///
-  /// A curated view of the profile, not the whole of it. Two things are left
-  /// out deliberately: the alias keys the template layer carries for authoring
-  /// convenience (`time_now`, `current_time` and `time_formatted` are one value
-  /// under three names), and the contact details — phone, email, ids — which
-  /// cannot make an answer more personal and have no reason to reach a model.
-  Map<String, dynamic> _inferenceProfile(Map<String, dynamic> profile) {
-    if (profile.isEmpty) return const {};
-
-    Map<String, dynamic> section(String key) {
-      final raw = profile[key];
-      return raw is Map
-          ? Map<String, dynamic>.from(raw)
-          : <String, dynamic>{};
-    }
-
-    const aboutKeys = <String>['name', 'gender', 'age', 'city', 'language'];
-
-    final user = section('user');
-    final about = <String, dynamic>{};
-    for (final key in aboutKeys) {
-      final value = user[key];
-      if (value != null && value.toString().trim().isNotEmpty) {
-        about[key] = value;
-      }
-    }
-
-    return <String, dynamic>{
-      if (about.isNotEmpty) 'user': about,
-      if (section('pregnancy').isNotEmpty) 'pregnancy': section('pregnancy'),
-      if (section('baby').isNotEmpty) 'baby': section('baby'),
-      if (section('vitals').isNotEmpty) 'vitals': section('vitals'),
-      'today': profile['date_today'] ?? profile['date'],
-      'day_of_week': profile['day'],
-      'current_time': profile['time_formatted'],
-    }..removeWhere((_, value) => value == null);
-  }
+  /// The whole profile, unchanged. It is already the curated view — name, age,
+  /// where the pregnancy stands, four vitals, today's date — and carries no
+  /// contact details or ids, so there is nothing here to strip before it
+  /// reaches a model. Kept as its own step so that stays a decision rather than
+  /// an accident.
+  Map<String, dynamic> _inferenceProfile(Map<String, dynamic> profile) =>
+      profile.isEmpty ? const {} : profile;
 
   /// The conversation so far, as `{role, content}` entries.
   ///
@@ -568,7 +554,14 @@ class OfflineChatbotController extends GetxController {
               options: segment.options,
             ),
           );
-          if (speak) _speakReplyIfEnabled(segment.text);
+          if (speak) {
+            await _speakReplyIfEnabled(
+              segment.text,
+              audioUrl: segment.audioUrls.isEmpty
+                  ? null
+                  : segment.audioUrls.first,
+            );
+          }
         }
         for (final url in segment.imageUrls) {
           messages.add(OfflineChatMessage(text: '', imageUrl: url));
@@ -596,18 +589,36 @@ class OfflineChatbotController extends GetxController {
   @visibleForTesting
   String? lastSpokenText;
 
-  /// Reads the reply out, when the baby's voice is on.
+  /// Says a reply aloud, handing the voice the clip this answer carries.
   ///
-  /// An error or a system note is never spoken: hearing "something went wrong"
-  /// in the baby's voice is worse than reading it.
-  void _speakReplyIfEnabled(String text) {
+  /// [audioUrl] is the recording the intent was authored with; [TtsService]
+  /// prefers it over anything synthesised and falls back on its own when the
+  /// clip cannot be played.
+  Future<void> _speakReplyIfEnabled(String text, {String? audioUrl}) async {
     if (BackgroundAudioController.isReady &&
         !BackgroundAudioController.to.isVoiceEnabled.value) {
+      debugPrint('Chatbot: Voice is disabled in BackgroundAudioController');
       return;
     }
     if (_isSystemOrErrorText(text)) return;
     lastSpokenText = text;
-    _tts.speak(text);
+    debugPrint('Chatbot: Speaking reply: "$text"');
+    await _tts.speak(text, audioUrl: _absoluteAudioUrl(audioUrl));
+  }
+
+  /// Absolutises a clip path from the catalogue.
+  ///
+  /// The sync bundle stores whatever was uploaded: a full URL for a clip on
+  /// Firebase, but a bare `/media/...` path for one served by the API — which
+  /// no player can open on its own.
+  static String? _absoluteAudioUrl(String? url) {
+    final clean = url?.trim() ?? '';
+    if (clean.isEmpty) return null;
+    if (!clean.startsWith('/')) return clean;
+    final base = ApiRoutes.instance.baseUrl;
+    return base.endsWith('/')
+        ? '${base.substring(0, base.length - 1)}$clean'
+        : '$base$clean';
   }
 
   bool _isSystemOrErrorText(String text) {

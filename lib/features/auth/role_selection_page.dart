@@ -36,177 +36,192 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP APP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Fills the viewport so the baby can expand into whatever the card
+            // below does not claim, and scrolls instead of overflowing when the
+            // card needs more room than the screen has.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => narratedPop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Color(0xFF1E2024),
-                        size: 24,
-                      ),
+                  // ─── TOP APP BAR ───
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Select Your Role',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40), // Balance left arrow
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── BABY SPEECH AVATAR ───
-            BabyHeroBanner(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              narrationKey: _narrationKey,
-              speechText: 'Yay! Are you my Mommy or my\nDaddy? 👶✨',
-            ),
-
-            const SizedBox(height: 12),
-
-            // ─── BOTTOM SELECTION CONTAINER ───
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 24,
-                ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 20,
-                      offset: Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'I am a:',
-                        style: GoogleFonts.outfit(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E2024),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // 2 Large Role Cards
-                      Row(
-                        children: [
-                          // Mom Card
-                          Expanded(
-                            child: _buildRoleCard(
-                              role: 'Mom',
-                              iconBg: const Color(0xFFFFE4E9),
-                              avatarColor: const Color(0xFFFF4E6A),
-                              isFemale: true,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-
-                          // Dad Card
-                          Expanded(
-                            child: _buildRoleCard(
-                              role: 'Dad',
-                              iconBg: const Color(0xFFDBEAFE),
-                              avatarColor: const Color(0xFF2563EB),
-                              isFemale: false,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ─── PROCEED BUTTON ───
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => RegisterNamePage(
-                                  phone: widget.phone,
-                                  countryCode: widget.countryCode,
-                                  selectedLanguage: widget.selectedLanguage,
-                                  selectedRole: _selectedRole,
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => narratedPop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
                                 ),
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF5277),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
+                              ],
                             ),
-                            elevation: 0,
+                            child: const Icon(
+                              Icons.chevron_left_rounded,
+                              color: Color(0xFF1E2024),
+                              size: 24,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  'Proceed',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Select Your Role',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40), // Balance left arrow
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // ─── BABY SPEECH AVATAR ───
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText: 'Yay! Are you my Mommy or my\nDaddy? 👶✨',
+                    ),
+                  ),
+
+                  // ─── BOTTOM SELECTION CONTAINER ───
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      24 + MediaQuery.paddingOf(context).bottom,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(32),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          offset: Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'I am a:',
+                          style: GoogleFonts.outfit(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E2024),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // 2 Large Role Cards
+                        Row(
+                          children: [
+                            // Mom Card
+                            Expanded(
+                              child: _buildRoleCard(
+                                role: 'Mom',
+                                iconBg: const Color(0xFFFFE4E9),
+                                avatarColor: const Color(0xFFFF4E6A),
+                                isFemale: true,
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            // Dad Card
+                            Expanded(
+                              child: _buildRoleCard(
+                                role: 'Dad',
+                                iconBg: const Color(0xFFDBEAFE),
+                                avatarColor: const Color(0xFF2563EB),
+                                isFemale: false,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ─── PROCEED BUTTON ───
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => RegisterNamePage(
+                                    phone: widget.phone,
+                                    countryCode: widget.countryCode,
+                                    selectedLanguage: widget.selectedLanguage,
+                                    selectedRole: _selectedRole,
                                   ),
                                 ),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF5277),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
                               ),
-                              const SizedBox(width: 8),
-                              const Icon(
-                                Icons.arrow_forward_rounded,
-                                color: Colors.white,
-                                size: 20,
-                              ),
-                            ],
+                              elevation: 0,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    'Proceed',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Icon(
+                                  Icons.arrow_forward_rounded,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           ],

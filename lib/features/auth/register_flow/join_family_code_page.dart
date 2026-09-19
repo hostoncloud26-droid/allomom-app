@@ -109,8 +109,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
 
   /// The person the joiner came looking for — the other parent — if the family
   /// has one yet.
-  FamilyPreviewMember? get _expectedParent =>
-      _preview?.parent(_lookingFor);
+  FamilyPreviewMember? get _expectedParent => _preview?.parent(_lookingFor);
 
   Future<void> _joinAndContinue() async {
     final code = _codeController.text.trim().toUpperCase();
@@ -172,6 +171,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -231,28 +231,33 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                   const SizedBox(height: 12),
 
                   // ─── BABY SPEECH AVATAR ───
-                  BabyHeroBanner(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    speechText:
-                        'Ask $_partnerWord for the 6-digit\nFamily Code to join! 💌',
-                    onSpeakerTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Playing family code instructions...'),
-                          duration: Duration(milliseconds: 1000),
-                        ),
-                      );
-                    },
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      speechText:
+                          'Ask $_partnerWord for the 6-digit\nFamily Code to join! 💌',
+                      onSpeakerTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Playing family code instructions...',
+                            ),
+                            duration: Duration(milliseconds: 1000),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-
-                  const Spacer(),
 
                   // ─── BOTTOM CARD CONTAINER ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 24,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      24 + MediaQuery.paddingOf(context).bottom,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,

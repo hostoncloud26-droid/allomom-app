@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -313,9 +312,8 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
                     ),
                     Text(
                       [
-                        if (month != null) monthLabel(month),
-                        if (visit.trimester != null)
-                          'Trimester ${visit.trimester}',
+                        monthLabel(month),
+                        'Trimester ${visit.trimester}',
                       ].join(' · '),
                       style: GoogleFonts.poppins(
                         fontSize: 11.5,

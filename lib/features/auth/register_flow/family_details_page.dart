@@ -8,7 +8,6 @@ import 'package:allomom/api/api_base.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
-import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -102,7 +101,8 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
           markRegistered: false,
         );
 
-        final isPregnant = pregnancyStatusForRegistration(
+        final isPregnant =
+            pregnancyStatusForRegistration(
               widget.status,
               isDad: isDad,
               registeringForPartner: widget.registerPregnancyForPartner,
@@ -166,162 +166,177 @@ class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP APP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Fills the viewport so the baby can expand into whatever the card
+            // below does not claim, and scrolls instead of overflowing when the
+            // card needs more room than the screen has.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => narratedPop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Color(0xFF1E2024),
-                        size: 24,
-                      ),
+                  // ─── TOP APP BAR ───
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      'Family Details',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 40),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── BABY SPEECH AVATAR ───
-            BabyHeroBanner(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              narrationKey: _narrationKey,
-              speechText:
-                  'Do you already have sweet little\nbrothers or sisters for me? 👶',
-            ),
-
-            const SizedBox(height: 12),
-
-            // ─── BOTTOM CARD CONTAINER ───
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 24,
-                ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 20,
-                      offset: Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'DO YOU HAVE KIDS?',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF8E95A5),
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Option 1: Yes
-                      _buildKidOption(
-                        title: 'Yes',
-                        subtitle: 'I have other children',
-                        isSelected: _hasKids,
-                        icon: Icons.child_care_rounded,
-                        onTap: () => setState(() {
-                          _hasKids = true;
-                          _narrationKey = NarrationKeys.pregKidsYes;
-                        }),
-                      ),
-                      const SizedBox(height: 12),
-
-                      // Option 2: No
-                      _buildKidOption(
-                        title: 'No',
-                        subtitle: 'This is my first baby 💕',
-                        isSelected: !_hasKids,
-                        icon: Icons.favorite_rounded,
-                        onTap: () => setState(() {
-                          _hasKids = false;
-                          _narrationKey = NarrationKeys.pregKidsNo;
-                        }),
-                      ),
-
-                      const SizedBox(height: 24),
-
-                      // ─── NEXT BUTTON ───
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _handleNext,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFFF5277),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : Text(
-                                  _hasKids
-                                      ? 'Next (Add Kids Details)'
-                                      : 'Finish Setup',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => narratedPop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
                                 ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.chevron_left_rounded,
+                              color: Color(0xFF1E2024),
+                              size: 24,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        Expanded(
+                          child: Text(
+                            'Family Details',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+
+                  // ─── BABY SPEECH AVATAR ───
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText:
+                          'Do you already have sweet little\nbrothers or sisters for me? 👶',
+                    ),
+                  ),
+
+                  // ─── BOTTOM CARD CONTAINER ───
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      24 + MediaQuery.paddingOf(context).bottom,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(32),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          offset: Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'DO YOU HAVE KIDS?',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF8E95A5),
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Option 1: Yes
+                        _buildKidOption(
+                          title: 'Yes',
+                          subtitle: 'I have other children',
+                          isSelected: _hasKids,
+                          icon: Icons.child_care_rounded,
+                          onTap: () => setState(() {
+                            _hasKids = true;
+                            _narrationKey = NarrationKeys.pregKidsYes;
+                          }),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Option 2: No
+                        _buildKidOption(
+                          title: 'No',
+                          subtitle: 'This is my first baby 💕',
+                          isSelected: !_hasKids,
+                          icon: Icons.favorite_rounded,
+                          onTap: () => setState(() {
+                            _hasKids = false;
+                            _narrationKey = NarrationKeys.pregKidsNo;
+                          }),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // ─── NEXT BUTTON ───
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _handleNext,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFFFF5277),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(25),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : Text(
+                                    _hasKids
+                                        ? 'Next (Add Kids Details)'
+                                        : 'Finish Setup',
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

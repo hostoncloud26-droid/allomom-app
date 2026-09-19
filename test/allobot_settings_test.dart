@@ -56,8 +56,7 @@ void main() {
       expect(find.text('LANGUAGE'), findsOneWidget);
       expect(find.text('VOICE MODEL'), findsOneWidget);
 
-      // The panels that configured nothing are gone, and so is the catalogue
-      // download — picking a language already fetches it.
+      // The panels that configured nothing are gone.
       expect(find.textContaining('MODEL CONFIG'), findsNothing);
       expect(find.textContaining('Creativity'), findsNothing);
       expect(find.textContaining('Gemini'), findsNothing);
@@ -65,6 +64,23 @@ void main() {
       expect(find.textContaining('ALLOBABY INTENTS'), findsNothing);
       expect(find.textContaining('Sync AlloBaby Intents'), findsNothing);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('ends with a sync that says what is already on the phone',
+        (tester) async {
+      await pumpSettings(tester);
+      await tester.scrollUntilVisible(find.text('Sync intents'), 200);
+
+      expect(find.text('TOPICS'), findsOneWidget);
+      expect(find.textContaining('1 topics on this phone'), findsOneWidget);
+
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Sync intents'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(button.onPressed, isNotNull);
     });
 
     testWidgets('lists the languages the catalogue carries', (tester) async {

@@ -7,7 +7,6 @@ import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -83,7 +82,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
   }
 
   Future<void> _deleteBaby(Baby baby) async {
-    final name = baby.name ?? 'this baby';
+    final name = baby.name;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -231,7 +230,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
 
   Widget _babyCard(Baby baby) {
     final progress = _progress[baby.id] ?? const _BabyProgress.empty();
-    final name = baby.name ?? 'Baby';
+    final name = baby.name;
     final isNewborn = baby.pregnancyId != null;
 
     return Container(

@@ -161,7 +161,8 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
 
       // A pregnancy, when there is one. The server seeds the ANC, vaccination
       // and report schedules off this LMP.
-      final isPregnant = pregnancyStatusForRegistration(
+      final isPregnant =
+          pregnancyStatusForRegistration(
             widget.status,
             isDad: isDad,
             registeringForPartner: widget.registerPregnancyForPartner,
@@ -219,6 +220,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             // ─── TOP APP BAR ───
@@ -291,7 +293,12 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                padding: EdgeInsets.fromLTRB(
+                  24,
+                  24,
+                  24,
+                  16 + MediaQuery.paddingOf(context).bottom,
+                ),
                 decoration: const BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -307,7 +314,9 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: _children.isEmpty ? _emptyState() : _childrenList(),
+                      child: _children.isEmpty
+                          ? _emptyState()
+                          : _childrenList(),
                     ),
                     const SizedBox(height: 12),
 
@@ -368,11 +377,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
               color: Color(0xFFFFF0F4),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
-              Icons.child_care_rounded,
-              size: 34,
-              color: _pink,
-            ),
+            child: const Icon(Icons.child_care_rounded, size: 34, color: _pink),
           ),
           const SizedBox(height: 16),
           Text(
@@ -409,10 +414,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: _pink,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 22,
-                vertical: 14,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),

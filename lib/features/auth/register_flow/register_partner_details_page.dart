@@ -261,10 +261,7 @@ class _RegisterPartnerDetailsPageState
             role: widget.selectedRole,
             familyName: _familyName,
           )
-        : await family.updatePartner(
-            name: pName,
-            phone: pPhone,
-          );
+        : await family.updatePartner(name: pName, phone: pPhone);
 
     if (!mounted) return;
     setState(() => _isSaving = false);
@@ -368,7 +365,6 @@ class _RegisterPartnerDetailsPageState
     );
   }
 
-
   /// Prettifies a stored relation for display: "wife" -> "Wife".
   String _titleCase(String value) {
     if (value.isEmpty) return value;
@@ -390,7 +386,7 @@ class _RegisterPartnerDetailsPageState
       Row(
         children: [
           Text(
-            'SAVED',
+            'Partner Details',
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w700,
@@ -438,8 +434,9 @@ class _RegisterPartnerDetailsPageState
             CircleAvatar(
               radius: 26,
               backgroundColor: const Color(0xFFFCE7F0),
-              backgroundImage:
-                  photo == null || photo.isEmpty ? null : NetworkImage(photo),
+              backgroundImage: photo == null || photo.isEmpty
+                  ? null
+                  : NetworkImage(photo),
               child: photo == null || photo.isEmpty
                   ? Text(
                       partner.displayName.isEmpty
@@ -516,22 +513,6 @@ class _RegisterPartnerDetailsPageState
         ),
       ),
 
-      // The partner owns their number once they have signed in, so the screen
-      // says why editing it here will not work rather than letting the save
-      // fail with a server error.
-      if (partner.isRegistered) ...[
-        const SizedBox(height: 10),
-        Text(
-          '${partner.displayName} has their own account, so their mobile '
-          'number can only be changed by them.',
-          style: GoogleFonts.poppins(
-            fontSize: 11.5,
-            height: 1.45,
-            color: const Color(0xFF9CA3AF),
-          ),
-        ),
-      ],
-
       const SizedBox(height: 22),
 
       SizedBox(
@@ -597,17 +578,11 @@ class _RegisterPartnerDetailsPageState
 
       // Partner Name Input
       Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
+          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
         ),
         child: Row(
           children: [
@@ -655,17 +630,11 @@ class _RegisterPartnerDetailsPageState
 
       // Partner Phone Input
       Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 4,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: const Color(0xFFE5E7EB),
-            width: 1.5,
-          ),
+          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
         ),
         child: Row(
           children: [
@@ -678,11 +647,7 @@ class _RegisterPartnerDetailsPageState
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: 1,
-              height: 24,
-              color: const Color(0xFFE5E7EB),
-            ),
+            Container(width: 1, height: 24, color: const Color(0xFFE5E7EB)),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -724,13 +689,10 @@ class _RegisterPartnerDetailsPageState
                 onPressed: _isSaving
                     ? null
                     : _editing
-                        ? _cancelEdit
-                        : _goToFamilyDetails,
+                    ? _cancelEdit
+                    : _goToFamilyDetails,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(
-                    color: Color(0xFFE5E7EB),
-                    width: 1.5,
-                  ),
+                  side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -805,6 +767,7 @@ class _RegisterPartnerDetailsPageState
       backgroundColor: const Color(0xFFFAF6F7),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        bottom: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
@@ -867,20 +830,24 @@ class _RegisterPartnerDetailsPageState
                     const SizedBox(height: 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyPrompt(
-                      compact: isKeyboardOpen,
-                      narrationKey: _narrationKey,
-                      text: speechText,
+                    Expanded(
+                      child: BabyPrompt(
+                        compact: isKeyboardOpen,
+                        expand: true,
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        narrationKey: _narrationKey,
+                        text: speechText,
+                      ),
                     ),
-
-                    const Spacer(),
 
                     // ─── BOTTOM CARD CONTAINER ───
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 24,
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        24,
+                        24,
+                        24 + MediaQuery.paddingOf(context).bottom,
                       ),
                       decoration: const BoxDecoration(
                         color: Colors.white,

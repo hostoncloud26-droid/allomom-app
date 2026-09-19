@@ -1,22 +1,27 @@
-/// AlloBot settings — two things, both of them real.
+/// AlloBot settings — three things, all of them real.
 ///
 /// The persona cards, model pickers and creativity sliders that used to live
 /// here configured nothing: AlloBot answers from a downloaded intent catalogue
 /// and a Whisper model on the phone. So this screen is the language that
-/// catalogue is in, and the voice model she listens with.
+/// catalogue is in, the voice model she listens with, and the voice she
+/// answers in.
 ///
-/// Fetching the catalogue is not a control here — picking a language already
-/// downloads it, and the explicit sync lives in Ask Allo's own menu.
+/// Picking a language already downloads the catalogue, so the sync at the
+/// bottom is for the other case: the topics changed on the server and the
+/// phone is still answering from the ones it downloaded last time.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/services/app_language.dart';
+import 'package:allomom/services/omnivoice_service.dart';
+import 'package:allomom/services/online_tts_settings.dart';
 
 const Color _ink = Color(0xFF1E2024);
 const Color _muted = Color(0xFF8E95A5);
@@ -43,6 +48,10 @@ class AlloBotSettingsTab extends StatefulWidget {
 class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
   final OfflineChatbotController chatbot = OfflineChatbotController.instance;
   final AlloBotSpeechController speech = AlloBotSpeechController.instance;
+  final OnlineTtsSettings onlineVoice = OnlineTtsSettings.instance;
+
+  final TextEditingController _baseUrlField = TextEditingController();
+  final FocusNode _baseUrlFocus = FocusNode();
 
   @override
   void initState() {
@@ -50,6 +59,79 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
     // Only reaches the network when the phone has no catalogue to read the
     // list from.
     chatbot.loadLanguages();
+
+    // The field is filled once the stored URL is back, not on every rebuild:
+    // typing into it must not be overwritten by what is still saved.
+    onlineVoice.load().then((_) {
+      if (!mounted) return;
+      _baseUrlField.text = onlineVoice.baseUrl.value;
+      _fieldReady = true;
+    });
+
+    // Also saved on the way out, for the keystroke that lands in the same
+    // frame as the field losing focus.
+    _baseUrlFocus.addListener(() {
+      if (!_baseUrlFocus.hasFocus) _saveBaseUrl();
+    });
+  }
+
+  @override
+  void dispose() {
+    _baseUrlField.dispose();
+    _baseUrlFocus.dispose();
+    super.dispose();
+  }
+
+  /// Whether the field holds the stored URL yet.
+  ///
+  /// Until it does, an empty field means "not read back", not "cleared" —
+  /// saving it would point the online voice at nothing.
+  bool _fieldReady = false;
+
+  String _testResult = '';
+  bool _testing = false;
+
+  /// Keeps the stored address in step with the field.
+  ///
+  /// Saved as it is typed rather than when the field is left: a mother who
+  /// types an address and taps the mic never gave the field a chance to lose
+  /// focus, and the reply she got was read by the phone.
+  void _saveBaseUrl() {
+    if (!_fieldReady) return;
+    onlineVoice.setBaseUrl(_baseUrlField.text);
+  }
+
+  void _onBaseUrlChanged(String _) {
+    // The old verdict belongs to the old address.
+    if (_testResult.isNotEmpty) setState(() => _testResult = '');
+    _saveBaseUrl();
+  }
+
+  /// Asks the address in the field whether it is there, so "it still sounds
+  /// like the phone" has an answer other than reading the logs.
+  Future<void> _testConnection() async {
+    _saveBaseUrl();
+    final url = onlineVoice.resolvedBaseUrl;
+    if (url.isEmpty) {
+      setState(() => _testResult = 'Add the server address first.');
+      return;
+    }
+
+    setState(() {
+      _testing = true;
+      _testResult = '';
+    });
+
+    OmniVoiceService.instance.setBaseUrl(url);
+    final reachable = await OmniVoiceService.instance.ping();
+    if (!mounted) return;
+    setState(() {
+      _testing = false;
+      _testResult = reachable
+          ? 'Reached $url — her answers will be spoken from there.'
+          : 'No answer from $url. Her answers will be read by this phone '
+                'until it responds.';
+    });
   }
 
   @override
@@ -60,8 +142,8 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
           Text(
-            'Configure the voice AlloBot listens with, and the language she '
-            'answers in.',
+            'Configure the voice AlloBot listens with, the language she '
+            'answers in, and the voice she answers with.',
             style: GoogleFonts.poppins(
               fontSize: 13,
               height: 1.5,
@@ -72,6 +154,10 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
           _buildLanguageCard(),
           const SizedBox(height: 16),
           _buildVoiceModelCard(),
+          const SizedBox(height: 16),
+          _buildOnlineVoiceCard(),
+          const SizedBox(height: 16),
+          _buildSyncCard(),
           const SizedBox(height: 20),
           _buildFootnote(),
         ],
@@ -247,6 +333,269 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
           ),
         ],
       ),
+    );
+  }
+
+  // ── Online voice ─────────────────────────────────────────────────────────
+
+  Widget _buildOnlineVoiceCard() {
+    return _card(
+      icon: Icons.record_voice_over_rounded,
+      title: 'SPEAKING VOICE',
+      subtitle: 'How her answers are read out loud',
+      child: Obx(() {
+        final enabled = onlineVoice.isEnabled.value;
+        final missingUrl = enabled && onlineVoice.resolvedBaseUrl.isEmpty;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _toggleRow(
+              title: 'Use the online voice',
+              subtitle: enabled
+                  ? 'Answers are synthesised on the server below'
+                  : 'Answers are read by this phone\'s own voice',
+              value: enabled,
+              onChanged: (value) {
+                // Whatever is in the field belongs to the switch being
+                // flipped, so it is saved before the setting it configures.
+                _saveBaseUrl();
+                onlineVoice.setEnabled(value);
+              },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _baseUrlField,
+              focusNode: _baseUrlFocus,
+              enabled: enabled,
+              keyboardType: TextInputType.url,
+              autocorrect: false,
+              textInputAction: TextInputAction.done,
+              onChanged: _onBaseUrlChanged,
+              onSubmitted: (_) => _saveBaseUrl(),
+              style: GoogleFonts.poppins(fontSize: 13, color: _ink),
+              decoration: InputDecoration(
+                labelText: 'Voice server address',
+                hintText: OnlineTtsSettings.defaultBaseUrl,
+                labelStyle: GoogleFonts.poppins(fontSize: 12.5, color: _muted),
+                hintStyle: GoogleFonts.poppins(fontSize: 12.5, color: _muted),
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                filled: true,
+                fillColor: enabled ? Colors.white : const Color(0xFFF7F7F9),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: dividerColor),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: dividerColor),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: dividerColor),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: const BorderSide(color: primaryColor, width: 1.4),
+                ),
+              ),
+            ),
+            if (missingUrl) ...[
+              const SizedBox(height: 10),
+              _notice(
+                'Add the server address, or her answers will keep being read '
+                'by this phone.',
+                isError: true,
+              ),
+            ],
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: (!enabled || _testing) ? null : _testConnection,
+                icon: _testing
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: primaryColor,
+                        ),
+                      )
+                    : const Icon(Icons.wifi_tethering_rounded, size: 17),
+                label: Text(
+                  _testing ? 'Checking…' : 'Test this server',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: TextButton.styleFrom(
+                  foregroundColor: primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
+            if (_testResult.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              _notice(
+                _testResult,
+                isGood: _testResult.startsWith('Reached'),
+                isError: !_testResult.startsWith('Reached'),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              'A topic that was recorded is always played as recorded. The '
+              'online voice is only for the answers that have no recording, '
+              'and this phone reads them whenever the server cannot be '
+              'reached.',
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                height: 1.4,
+                color: _muted,
+              ),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
+  Widget _toggleRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+      decoration: BoxDecoration(
+        color: value ? accentLight : Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: value ? primaryColor : dividerColor,
+          width: value ? 1.4 : 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: value ? primaryColor : _ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.poppins(fontSize: 11.5, color: _muted),
+                ),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: Colors.white,
+            activeTrackColor: primaryColor,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Topics ───────────────────────────────────────────────────────────────
+
+  /// Re-downloads the intent catalogue in the language already chosen.
+  ///
+  /// The conversation survives it — [OfflineChatbotController.sync] only drops
+  /// a half-walked flow, which belongs to the catalogue being replaced.
+  Widget _buildSyncCard() {
+    return _card(
+      icon: Icons.cloud_sync_rounded,
+      title: 'TOPICS',
+      subtitle: 'What she can answer with no connection',
+      child: Obx(() {
+        final syncing = chatbot.isSyncing.value;
+        final synced = chatbot.lastSynced.value;
+        final count = chatbot.intentCount;
+        final error = chatbot.error.value;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _notice(
+              count > 0
+                  ? '$count topics on this phone'
+                        '${synced == null ? '' : ', synced '
+                              '${DateFormat('d MMM, h:mm a').format(synced)}'}.'
+                  : 'No topics downloaded yet — sync once and AlloBot can '
+                        'answer offline.',
+              isGood: count > 0,
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                // Two downloads writing into the same cache is one too many,
+                // and a language switch is a sync of its own.
+                onPressed: syncing ? null : () => chatbot.sync(),
+                icon: syncing
+                    ? const SizedBox(
+                        width: 15,
+                        height: 15,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 18),
+                label: Text(
+                  syncing ? 'Syncing…' : 'Sync intents',
+                  style: GoogleFonts.poppins(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: FilledButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: primaryColor.withValues(alpha: 0.5),
+                  disabledForegroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+            if (error.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _notice(error, isError: true),
+            ],
+            const SizedBox(height: 10),
+            Text(
+              'Sync when the topics have changed on the server. The ones '
+              'already here keep answering until the new ones arrive.',
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                height: 1.4,
+                color: _muted,
+              ),
+            ),
+          ],
+        );
+      }),
     );
   }
 

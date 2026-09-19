@@ -46,6 +46,18 @@ class BabyHeroBanner extends StatelessWidget {
   /// cut in half when the keyboard swaps this card for the slim bar.
   final bool speakingOverride;
 
+  /// Whether the baby is thinking / generating an answer or audio.
+  final bool thinkingOverride;
+
+  /// Drops the fixed [height] and lets the card fill whatever the parent hands
+  /// it, so a screen can put the card in an `Expanded` and give the baby every
+  /// pixel the form below does not need.
+  ///
+  /// The registration screens used to pair a fixed-height card with a `Spacer`,
+  /// which parked a band of empty background between the baby and the form.
+  /// Growing the card instead keeps the page full at any screen height.
+  final bool expand;
+
   const BabyHeroBanner({
     super.key,
     this.speechText = '',
@@ -61,6 +73,8 @@ class BabyHeroBanner extends StatelessWidget {
     this.stopNarrationOnDispose = true,
     this.bindNarrationText = true,
     this.speakingOverride = false,
+    this.thinkingOverride = false,
+    this.expand = false,
   });
 
   /// Keys so layout tests can assert the bubble and the baby never overlap.
@@ -75,11 +89,27 @@ class BabyHeroBanner extends StatelessWidget {
   /// mother gets a clean prompt instead of a squashed baby.
   static const compactHeight = 200.0;
 
+  /// How tall the baby claims to be while [expand] is on.
+  ///
+  /// `BoxFit.contain` lets the real baby grow with the card, but the raw asset
+  /// reports its own pixel height as an intrinsic — and a `SliverFillRemaining`
+  /// sizes the page off intrinsics. Left uncapped the page would decide it
+  /// needed ~800px and scroll on every phone. This is roughly the room the
+  /// fixed 270 card used to leave the baby, so the page's minimum height is
+  /// unchanged and only the slack above it is new.
+  static const expandedBabyExtent = 140.0;
+
   @override
   Widget build(BuildContext context) {
     final key = narrationKey;
     if (key == null) {
-      return _buildCard(context, speechText, onSpeakerTap, speakingOverride);
+      return _buildCard(
+        context,
+        speechText,
+        onSpeakerTap,
+        speakingOverride,
+        thinkingOverride,
+      );
     }
 
     return BabyNarration(
@@ -88,8 +118,13 @@ class BabyHeroBanner extends StatelessWidget {
       stopOnDispose: stopNarrationOnDispose,
       bindText: bindNarrationText,
       fallbackText: speechText,
-      builder: (context, state) =>
-          _buildCard(context, state.text, state.onSpeakerTap, state.speaking),
+      builder: (context, state) => _buildCard(
+        context,
+        state.text,
+        state.onSpeakerTap,
+        state.speaking,
+        thinkingOverride,
+      ),
     );
   }
 
@@ -98,16 +133,17 @@ class BabyHeroBanner extends StatelessWidget {
     String text,
     VoidCallback? speakerTap,
     bool speaking,
+    bool thinking,
   ) {
     final showBubble =
         bubblePosition != SpeechBubblePosition.none && text.isNotEmpty;
-    final compact = height < compactHeight && showBubble;
+    final compact = !expand && height < compactHeight && showBubble;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         margin: margin,
-        height: height,
+        height: expand ? null : height,
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
@@ -175,7 +211,11 @@ class BabyHeroBanner extends StatelessWidget {
                         )
                       else
                         ConstrainedBox(
-                          constraints: BoxConstraints(maxHeight: height * 0.55),
+                          // Expanding: the card has no height to take a share
+                          // of, and the bubble caps itself at four lines.
+                          constraints: BoxConstraints(
+                            maxHeight: expand ? double.infinity : height * 0.55,
+                          ),
                           child: _buildSpeechBubble(
                             context,
                             text,
@@ -188,9 +228,11 @@ class BabyHeroBanner extends StatelessWidget {
                       Expanded(
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxHeight: babyHeight ?? double.infinity,
+                            maxHeight:
+                                babyHeight ??
+                                (expand ? expandedBabyExtent : double.infinity),
                           ),
-                          child: _buildBaby(speaking),
+                          child: _buildBaby(speaking, thinking),
                         ),
                       ),
                     ],
@@ -218,14 +260,22 @@ class BabyHeroBanner extends StatelessWidget {
     );
   }
 
-  /// The still baby, or the Lottie one while a clip is playing.
+  /// The still baby, or the Lottie one while a clip is playing or thinking.
   ///
-  /// Same cue AlloBaby gives next to its speech bubble — the mouth moves only
-  /// while there is sound, so the animation means something rather than looping
-  /// at her all day.
-  Widget _buildBaby(bool speaking) {
+  /// Mouth moves only while there is sound (Baby Speaking F.json).
+  /// While thinking / generating, plays idle/blinking animation (Baby Non Speaking Final.json).
+  Widget _buildBaby(bool speaking, bool thinking) {
+    // The square re-frame of AlloMombaby.png, not the original.
+    //
+    // The Lottie clips are drawn on a 1024² canvas with the baby filling 75%
+    // of the height; the original still is a 1508x1043 frame with the same
+    // baby filling 75% of the height but only 41% of the width. Fitted into
+    // the same box, `contain` therefore drew the still 1.44x smaller than the
+    // clip, so the baby lurched larger the moment it started talking. The
+    // square copy carries the same framing as the clips — 75% height, 11.7%
+    // gap under the feet — so the swap is invisible.
     final still = Image.asset(
-      'assets/allobaby/AlloMombaby.png',
+      'assets/allobaby/AlloMombabySquare.png',
       fit: BoxFit.contain,
       // Grounded on the card's floor rather than floating
       // in the middle of the leftover space.
@@ -242,17 +292,31 @@ class BabyHeroBanner extends StatelessWidget {
       },
     );
 
-    if (!speaking) return KeyedSubtree(key: babyKey, child: still);
+    if (speaking) {
+      return KeyedSubtree(
+        key: babyKey,
+        child: Lottie.asset(
+          'assets/animations/Baby Speaking F.json',
+          fit: BoxFit.contain,
+          alignment: Alignment.bottomCenter,
+          errorBuilder: (context, error, stackTrace) => still,
+        ),
+      );
+    }
 
-    return KeyedSubtree(
-      key: babyKey,
-      child: Lottie.asset(
-        'assets/animations/Baby Speaking F.json',
-        fit: BoxFit.contain,
-        alignment: Alignment.bottomCenter,
-        errorBuilder: (context, error, stackTrace) => still,
-      ),
-    );
+    if (thinking) {
+      return KeyedSubtree(
+        key: babyKey,
+        child: Lottie.asset(
+          'assets/animations/Baby Non Speaking Final.json',
+          fit: BoxFit.contain,
+          alignment: Alignment.bottomCenter,
+          errorBuilder: (context, error, stackTrace) => still,
+        ),
+      );
+    }
+
+    return KeyedSubtree(key: babyKey, child: still);
   }
 
   Widget _buildSpeechBubble(
@@ -284,7 +348,12 @@ class BabyHeroBanner extends StatelessWidget {
           shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
         ),
         child: Container(
-          padding: EdgeInsets.fromLTRB(22, 14, speakerTap == null ? 22 : 12, 22),
+          padding: EdgeInsets.fromLTRB(
+            22,
+            14,
+            speakerTap == null ? 22 : 12,
+            22,
+          ),
           child: speakerTap == null
               ? label
               : Row(
@@ -528,6 +597,7 @@ class BabyPrompt extends StatelessWidget {
     this.autoPlayNarration = true,
     this.stopNarrationOnDispose = true,
     this.bindNarrationText = true,
+    this.expand = false,
   });
 
   final String text;
@@ -535,6 +605,12 @@ class BabyPrompt extends StatelessWidget {
 
   /// True when the keyboard is open and the full card will not fit.
   final bool compact;
+
+  /// See [BabyHeroBanner.expand]. The caller puts this widget in an `Expanded`
+  /// and the card grows into the slack; the compact bar keeps its own height
+  /// and leaves the rest of the slot empty rather than stretching into a tall
+  /// pink slab.
+  final bool expand;
 
   final double height;
   final EdgeInsetsGeometry margin;
@@ -567,16 +643,19 @@ class BabyPrompt extends StatelessWidget {
 
   Widget _build(String label, VoidCallback? speakerTap, bool speaking) {
     if (compact) {
-      return BabyPromptBar(
+      final bar = BabyPromptBar(
         text: label,
         onSpeakerTap: speakerTap,
         margin: margin,
         speakingOverride: speaking,
       );
+      if (!expand) return bar;
+      return Column(children: [bar, const Spacer()]);
     }
     return BabyHeroBanner(
       margin: margin,
       height: height,
+      expand: expand,
       speechText: label,
       onSpeakerTap: speakerTap,
       speakingOverride: speaking,

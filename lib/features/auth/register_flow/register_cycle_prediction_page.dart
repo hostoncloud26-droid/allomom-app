@@ -104,6 +104,7 @@ class _RegisterCyclePredictionPageState
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -162,22 +163,25 @@ class _RegisterCyclePredictionPageState
                   ),
                   const SizedBox(height: 12),
 
-                  BabyHeroBanner(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    narrationKey: _narrationKey,
-                    speechText: _isNewMom
-                        ? 'Let me help you track your cycle again, Amma 🌸'
-                        : "Let's find your best days, Amma! 🌸✨",
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText: _isNewMom
+                          ? 'Let me help you track your cycle again, Amma 🌸'
+                          : "Let's find your best days, Amma! 🌸✨",
+                    ),
                   ),
-
-                  const Spacer(),
 
                   // ─── BOTTOM CYCLE CARD ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 22,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      22,
+                      24,
+                      22 + MediaQuery.paddingOf(context).bottom,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,

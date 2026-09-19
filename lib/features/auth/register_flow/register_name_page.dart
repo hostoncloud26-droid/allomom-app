@@ -120,6 +120,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
       backgroundColor: const Color(0xFFFAF6F7),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        bottom: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
@@ -182,20 +183,24 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                     const SizedBox(height: 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyPrompt(
-                      compact: isKeyboardOpen,
-                      narrationKey: _narrationKey,
-                      text: 'You have such a lovely name! 💕',
+                    Expanded(
+                      child: BabyPrompt(
+                        compact: isKeyboardOpen,
+                        expand: true,
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        narrationKey: _narrationKey,
+                        text: 'You have such a lovely name! 💕',
+                      ),
                     ),
-
-                    const Spacer(),
 
                     // ─── BOTTOM CARD CONTAINER ───
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 24,
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        24,
+                        24,
+                        24 + MediaQuery.paddingOf(context).bottom,
                       ),
                       decoration: const BoxDecoration(
                         color: Colors.white,

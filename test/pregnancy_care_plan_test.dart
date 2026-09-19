@@ -2,8 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/pregnancy_care_scheduler.dart';
-import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 
 void main() {
   group('addMonthsClamped', () {

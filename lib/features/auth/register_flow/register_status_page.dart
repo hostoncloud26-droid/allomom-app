@@ -48,6 +48,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -107,21 +108,24 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                   const SizedBox(height: 12),
 
                   // ─── BABY SPEECH AVATAR ───
-                  BabyHeroBanner(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    narrationKey: _narrationKey,
-                    speechText:
-                        'Tell me where we are on this magical journey! ✨',
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText:
+                          'Tell me where we are on this magical journey! ✨',
+                    ),
                   ),
-
-                  const Spacer(),
 
                   // ─── BOTTOM CARD CONTAINER ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 24,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      24 + MediaQuery.paddingOf(context).bottom,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,

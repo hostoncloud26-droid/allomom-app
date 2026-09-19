@@ -129,8 +129,9 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? Colors.red.shade700 : const Color(0xFFFF4E6A),
+        backgroundColor: isError
+            ? Colors.red.shade700
+            : const Color(0xFFFF4E6A),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -144,6 +145,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
       backgroundColor: const Color(0xFFFAF6F7),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        bottom: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
@@ -208,21 +210,26 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                     SizedBox(height: isKeyboardOpen ? 4 : 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyPrompt(
-                      compact: isKeyboardOpen,
-                      narrationKey: _narrationKey,
-                      text:
-                          "What's your mobile number\nso I can stay close? 📱",
+                    Expanded(
+                      child: BabyPrompt(
+                        compact: isKeyboardOpen,
+                        expand: true,
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        narrationKey: _narrationKey,
+                        text:
+                            "What's your mobile number\nso I can stay close? 📱",
+                      ),
                     ),
-
-                    const Spacer(),
 
                     // ─── BOTTOM INPUT CONTAINER ───
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: isKeyboardOpen ? 16 : 24,
+                      padding: EdgeInsets.fromLTRB(
+                        24,
+                        isKeyboardOpen ? 16 : 24,
+                        24,
+                        (isKeyboardOpen ? 16 : 24) +
+                            MediaQuery.paddingOf(context).bottom,
                       ),
                       decoration: const BoxDecoration(
                         color: Colors.white,

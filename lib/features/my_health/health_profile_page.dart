@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:drift/drift.dart' as drift;
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
 

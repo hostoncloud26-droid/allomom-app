@@ -327,16 +327,33 @@ class BotStep {
             : {'key': nextIntentKey, 'lang_code': nextIntentLang ?? 'en'},
       };
 
-  /// An ai step opts into the conversation transcript by carrying this tag in
-  /// its [options]. That column is unused on an ai step — options are a
-  /// question's quick-reply buttons — so the flag rides along there rather than
-  /// costing a schema change.
+  /// The tag an ai step used to carry to opt *into* the transcript. Kept so an
+  /// already-authored step still reads as it did — it now says what is already
+  /// true. The [options] column is unused on an ai step — options are a
+  /// question's quick-reply buttons — so these flags ride along there rather
+  /// than costing a schema change.
   static const String historyOption = 'use_entire_history';
 
-  /// Whether this ai step was authored to see the conversation so far.
-  bool get usesEntireHistory =>
-      type == 'ai' &&
-      options.any((o) => o.trim().toLowerCase() == historyOption);
+  /// The opt-*out*: an ai step carrying this answers the prompt alone.
+  ///
+  /// For the steps that summarise, classify or extract, where an earlier
+  /// exchange is noise in the prompt rather than context.
+  static const String noHistoryOption = 'no_history';
+
+  /// Whether this ai step sees the conversation so far — which it does unless
+  /// it was authored to not.
+  ///
+  /// The default used to be the other way round, and it made the bot forgetful
+  /// in exactly the moment a mother expects it not to be: told that raw papaya
+  /// is unsafe, she asks "I ate it, what do I do?", and a step without the
+  /// transcript has no idea what "it" was.
+  bool get usesEntireHistory {
+    if (type != 'ai') return false;
+    return !options.any((o) {
+      final tag = o.trim().toLowerCase();
+      return tag == noHistoryOption || tag == 'no_entire_history';
+    });
+  }
 
   /// Steps that run on their own and hand straight over to the next one.
   bool get isAutomatic => const [

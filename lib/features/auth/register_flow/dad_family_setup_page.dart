@@ -179,9 +179,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: Text(
           'Leave ${family.displayName}?',
           style: GoogleFonts.outfit(
@@ -261,99 +259,114 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
-        child: Column(
-          children: [
-            // ─── TOP APP BAR ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
+        bottom: false,
+        child: CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            // Fills the viewport so the baby can expand into whatever the card
+            // below does not claim, and scrolls instead of overflowing when the
+            // card needs more room than the screen has.
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Column(
                 children: [
-                  GestureDetector(
-                    onTap: () => narratedPop(context),
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black12,
-                            blurRadius: 8,
-                            offset: Offset(0, 2),
+                  // ─── TOP APP BAR ───
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => narratedPop(context),
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.chevron_left_rounded,
+                              color: Color(0xFF1E2024),
+                              size: 24,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.chevron_left_rounded,
-                        color: Color(0xFF1E2024),
-                        size: 24,
-                      ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            'Family Setup',
+                            textAlign: TextAlign.center,
+                            style: GoogleFonts.outfit(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w800,
+                              color: const Color(0xFF1E2024),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 40),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 12),
+
+                  // ─── BABY SPEECH AVATAR ───
                   Expanded(
-                    child: Text(
-                      'Family Setup',
-                      textAlign: TextAlign.center,
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      speechText: _speechText,
+                      onSpeakerTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Playing family guide...'),
+                            duration: Duration(milliseconds: 1000),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // ─── BOTTOM CARD CONTAINER ───
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      28,
+                      24,
+                      28 + MediaQuery.paddingOf(context).bottom,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(32),
                       ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 20,
+                          offset: Offset(0, -4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: _loading
+                          ? _loadingChildren()
+                          : (_family == null
+                                ? _chooseChildren()
+                                : _familyChildren(_family!)),
                     ),
                   ),
-                  const SizedBox(width: 40),
                 ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── BABY SPEECH AVATAR ───
-            BabyHeroBanner(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              speechText: _speechText,
-              onSpeakerTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Playing family guide...'),
-                    duration: Duration(milliseconds: 1000),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            // ─── BOTTOM CARD CONTAINER ───
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 28,
-                ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black12,
-                      blurRadius: 20,
-                      offset: Offset(0, -4),
-                    ),
-                  ],
-                ),
-                child: SingleChildScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: _loading
-                        ? _loadingChildren()
-                        : (_family == null
-                              ? _chooseChildren()
-                              : _familyChildren(_family!)),
-                  ),
-                ),
               ),
             ),
           ],
@@ -366,7 +379,10 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
     return [
       const SizedBox(height: 40),
       const Center(
-        child: CircularProgressIndicator(color: _primaryColor, strokeWidth: 2.5),
+        child: CircularProgressIndicator(
+          color: _primaryColor,
+          strokeWidth: 2.5,
+        ),
       ),
       const SizedBox(height: 18),
       Center(
@@ -573,11 +589,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.vpn_key_rounded,
-                color: Colors.white,
-                size: 20,
-              ),
+              const Icon(Icons.vpn_key_rounded, color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Text(
                 'I have a Family Code',
@@ -689,11 +701,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                 ],
               ),
             ),
-            const Icon(
-              Icons.copy_rounded,
-              size: 18,
-              color: Color(0xFF9CA3AF),
-            ),
+            const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF9CA3AF)),
           ],
         ),
       ),

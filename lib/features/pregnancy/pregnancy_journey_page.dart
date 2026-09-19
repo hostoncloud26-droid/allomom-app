@@ -2208,7 +2208,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               itemBuilder: (_, i) {
                 final b = _babies[i];
                 return _choiceChip(
-                  label: b.name ?? 'Baby ${i + 1}',
+                  label: b.name,
                   selected: b.id == _selectedBabyId,
                   onTap: () async {
                     setState(() => _selectedBabyId = b.id);
@@ -2264,11 +2264,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   /// First person, like the pregnant view's "Am 24 weeks, Amma!" — same voice,
   /// the other side of the birth.
   String _babyBannerText(Baby baby) {
-    final name = baby.name?.trim() ?? '';
-    if (baby.deliveryDate == null) {
-      return "Hi Amma! 💕\nAdd my birthday and I will show you my schedule.";
-    }
-
+    final name = baby.name.trim();
     final age = babyAgeLabel(baby.deliveryDate);
     final opener = age == 'Newborn'
         ? "Am here, Amma! 💕"
@@ -2403,7 +2399,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      baby.name ?? 'Your little one',
+                      baby.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.outfit(
@@ -2414,9 +2410,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      baby.deliveryDate == null
-                          ? 'Add a date of birth to build their schedule'
-                          : '${babyAgeLabel(baby.deliveryDate)} old  ·  Born ${_dateFmt.format(baby.deliveryDate!)}',
+                      '${babyAgeLabel(baby.deliveryDate)} old  ·  '
+                      'Born ${_dateFmt.format(baby.deliveryDate)}',
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         color: const Color(0xFF6B707B),

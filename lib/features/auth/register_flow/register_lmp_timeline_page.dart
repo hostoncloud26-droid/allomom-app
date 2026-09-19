@@ -147,6 +147,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -205,10 +206,10 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                   ),
 
                   // ─── BABY SPEECH AVATAR ───
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  Expanded(
                     child: BabyHeroBanner(
-                      margin: const EdgeInsets.symmetric(horizontal: 20),
+                      margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                      expand: true,
                       narrationKey: _narrationKey,
                       speechText:
                           widget.selectedRole.trim().toLowerCase() == 'dad'
@@ -217,12 +218,15 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                     ),
                   ),
 
-                  const Spacer(),
-
                   // ─── BOTTOM CARD CONTAINER (SINGLE VIEW, NO SCROLL) ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      18,
+                      20,
+                      18 + MediaQuery.paddingOf(context).bottom,
+                    ),
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.vertical(

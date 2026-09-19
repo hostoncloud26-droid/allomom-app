@@ -320,7 +320,9 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   Widget _buildVoiceView() {
     return Obx(() {
       final isTyping = controller.isTyping.value;
+      final isGenerating = controller.isGenerating.value;
       final isSpeaking = controller.isSpeaking.value;
+      final isThinking = isTyping || isGenerating;
 
       // The latest thing the bot said, which is what the card below the baby
       // shows. A fresh conversation falls back to the greeting, so the card is
@@ -378,6 +380,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                         height: babyHeight,
                         speechText: bubbleText,
                         speakingOverride: isSpeaking,
+                        thinkingOverride: isThinking,
                         bubblePosition: SpeechBubblePosition.topCenter,
                       ),
                     ),
@@ -391,7 +394,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                           constraints: BoxConstraints(
                             maxHeight: _replyCardCap(context),
                           ),
-                          child: _buildReplyCard(latest, isTyping),
+                          child: _buildReplyCard(latest, isThinking),
                         ),
                       ),
                     ),

@@ -189,8 +189,9 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
         content: Text(
           message.isEmpty ? 'Something went wrong. Please try again.' : message,
         ),
-        backgroundColor:
-            isError ? Colors.red.shade700 : const Color(0xFFFF4E6A),
+        backgroundColor: isError
+            ? Colors.red.shade700
+            : const Color(0xFFFF4E6A),
         duration: const Duration(seconds: 2),
       ),
     );
@@ -204,6 +205,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       backgroundColor: const Color(0xFFFAF6F7),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
+        bottom: false,
         child: GestureDetector(
           onTap: () => FocusScope.of(context).unfocus(),
           behavior: HitTestBehavior.opaque,
@@ -268,21 +270,26 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                     SizedBox(height: isKeyboardOpen ? 4 : 12),
 
                     // ─── BABY SPEECH AVATAR ───
-                    BabyPrompt(
-                      compact: isKeyboardOpen,
-                      narrationKey: _narrationKey,
-                      text:
-                          'I just sent a secret 6-digit code to\nyour phone! 🔑',
+                    Expanded(
+                      child: BabyPrompt(
+                        compact: isKeyboardOpen,
+                        expand: true,
+                        margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                        narrationKey: _narrationKey,
+                        text:
+                            'I just sent a secret 6-digit code to\nyour phone! 🔑',
+                      ),
                     ),
-
-                    const Spacer(),
 
                     // ─── BOTTOM OTP INPUT CONTAINER ───
                     Container(
                       width: double.infinity,
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: isKeyboardOpen ? 16 : 24,
+                      padding: EdgeInsets.fromLTRB(
+                        20,
+                        isKeyboardOpen ? 16 : 24,
+                        20,
+                        (isKeyboardOpen ? 16 : 24) +
+                            MediaQuery.paddingOf(context).bottom,
                       ),
                       decoration: const BoxDecoration(
                         color: Colors.white,

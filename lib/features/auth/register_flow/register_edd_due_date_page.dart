@@ -4,10 +4,8 @@ import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
 import 'package:allomom/features/auth/register_flow/family_details_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
-import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 class RegisterEddDueDatePage extends StatefulWidget {
   final String userName;
@@ -44,14 +42,6 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
   /// side-question she taps.
   String _narrationKey = NarrationKeys.pregEddBubble;
 
-  void _say(String key) {
-    if (!mounted) return;
-    setState(() => _narrationKey = key);
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(key, force: true);
-    }
-  }
-
   String _formatEddDate(DateTime date) {
     const months = [
       'January',
@@ -81,6 +71,7 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFAF6F7),
       body: SafeArea(
+        bottom: false,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -140,21 +131,24 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                   const SizedBox(height: 12),
 
                   // ─── BABY SPEECH AVATAR ───
-                  BabyHeroBanner(
-                    margin: const EdgeInsets.symmetric(horizontal: 20),
-                    narrationKey: _narrationKey,
-                    speechText:
-                        'Yay! I can\'t wait to meet you on\n$eddString! 👶🎉',
+                  Expanded(
+                    child: BabyHeroBanner(
+                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                      expand: true,
+                      narrationKey: _narrationKey,
+                      speechText:
+                          'Yay! I can\'t wait to meet you on\n$eddString! 👶🎉',
+                    ),
                   ),
-
-                  const Spacer(),
 
                   // ─── BOTTOM DUE DATE CARD CONTAINER ───
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 24,
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      24 + MediaQuery.paddingOf(context).bottom,
                     ),
                     decoration: const BoxDecoration(
                       color: Colors.white,
