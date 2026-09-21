@@ -44,10 +44,8 @@ class AlloBotSpeechController extends GetxController {
   static const _kActiveModelId = 'allomom_speech_active_model_id';
   static const _kLocalPath = 'allomom_speech_local_path';
 
-  /// The model downloaded when nothing has been chosen — the smallest one, so
-  /// a mother on a metered connection is not handed a 480MB bill for tapping a
-  /// microphone.
-  static const String defaultModelId = 'whisper-tiny';
+  /// Whisper Base is the single on-device speech model.
+  static const String defaultModelId = 'whisper-base';
 
   static AlloBotSpeechController get instance =>
       Get.isRegistered<AlloBotSpeechController>()
@@ -56,22 +54,10 @@ class AlloBotSpeechController extends GetxController {
 
   final models = const <AlloBotSpeechModelOption>[
     AlloBotSpeechModelOption(
-      id: 'whisper-tiny',
-      name: 'Whisper Tiny',
-      intelligence: 'Fastest · good for short questions',
-      downloadSize: '75 MB',
-    ),
-    AlloBotSpeechModelOption(
       id: 'whisper-base',
       name: 'Whisper Base',
       intelligence: 'Balanced · clearer on long sentences',
       downloadSize: '145 MB',
-    ),
-    AlloBotSpeechModelOption(
-      id: 'whisper-small',
-      name: 'Whisper Small',
-      intelligence: 'Most accurate · slower, large download',
-      downloadSize: '480 MB',
     ),
   ];
 
@@ -108,8 +94,10 @@ class AlloBotSpeechController extends GetxController {
   Future<void> _bootstrap() async {
     await _loadState();
 
-    if (activeModelId.value.isEmpty) {
+    if (activeModelId.value != defaultModelId) {
       activeModelId.value = defaultModelId;
+      localPath.value = '';
+      isReady.value = false;
       await _persistState();
     }
 
@@ -118,8 +106,7 @@ class AlloBotSpeechController extends GetxController {
       return;
     }
 
-    // Nothing on the phone yet. Fetched in the background: it is 75MB, and
-    // nothing else on the screen should wait for it.
+    // Nothing on the phone yet. Fetched in the background.
     unawaited(startDownload());
   }
 

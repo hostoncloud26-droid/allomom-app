@@ -43,6 +43,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
     _input.clear();
     // Not spoken: this screen is the conversation being read back, and a reply
     // read aloud over it would talk across what she is reading.
+    FocusScope.of(context).unfocus();
     controller.send(message, speak: false);
     _scrollToBottom();
   }
@@ -85,7 +86,6 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
         child: Column(
           children: [
             _buildAppBar(),
-            OfflineChatbotStatusBar(controller: controller),
             Expanded(
               child: Obx(() {
                 final messages = controller.messages;
@@ -148,8 +148,8 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               }
             },
             child: Container(
-              width: 40,
-              height: 40,
+              width: 35,
+              height: 35,
               decoration: const BoxDecoration(
                 color: Colors.white,
                 shape: BoxShape.circle,
@@ -179,21 +179,6 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
                     color: const Color(0xFF1E2024),
-                  ),
-                ),
-                Obx(
-                  () => Text(
-                    controller.isTyping.value
-                        ? 'Thinking…'
-                        : (controller.flowLabel == 'Idle'
-                              ? 'Empathetic Maternal AI'
-                              : controller.flowLabel),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: const Color(0xFF8E95A5),
-                    ),
                   ),
                 ),
               ],

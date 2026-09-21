@@ -97,6 +97,7 @@ class OfflineChatbotStatusBar extends StatelessWidget {
                     ],
                   ),
                 ),
+
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 9,
@@ -148,19 +149,12 @@ class OfflineChatbotStatusBar extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.info_outline,
-                      size: 14,
-                      color: dangerRed,
-                    ),
+                    const Icon(Icons.info_outline, size: 14, color: dangerRed),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         error,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: dangerRed,
-                        ),
+                        style: const TextStyle(fontSize: 11, color: dangerRed),
                       ),
                     ),
                   ],
@@ -197,8 +191,9 @@ class OfflineChatMessageBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser && showAvatar) ...[
@@ -227,10 +222,7 @@ class OfflineChatMessageBubble extends StatelessWidget {
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.74,
               ),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 gradient: isUser ? primaryGradient : null,
                 color: isUser ? null : _cardBg,
@@ -252,8 +244,9 @@ class OfflineChatMessageBubble extends StatelessWidget {
                 ],
               ),
               child: Column(
-                crossAxisAlignment:
-                    isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                crossAxisAlignment: isUser
+                    ? CrossAxisAlignment.end
+                    : CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   if (message.imageUrl != null && message.imageUrl!.isNotEmpty)
@@ -741,10 +734,7 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => widget.onSend(),
-                      style: const TextStyle(
-                        fontSize: 15,
-                        color: _textStrong,
-                      ),
+                      style: const TextStyle(fontSize: 15, color: _textStrong),
                       decoration: InputDecoration(
                         hintText: widget.hintText,
                         hintStyle: const TextStyle(

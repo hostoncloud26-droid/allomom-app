@@ -92,6 +92,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     final message = (text ?? _input.text).trim();
     if (message.isEmpty) return;
     _input.clear();
+    FocusScope.of(context).unfocus();
     controller.send(message);
     _scrollToBottom();
   }

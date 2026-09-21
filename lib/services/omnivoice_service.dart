@@ -17,10 +17,7 @@ class OmniVoiceService {
         'http://localhost:7860',
       ];
     }
-    return const [
-      'http://127.0.0.1:7860',
-      'http://localhost:7860',
-    ];
+    return const ['http://127.0.0.1:7860', 'http://localhost:7860'];
   }
 
   String? _workingBaseUrl;
@@ -97,7 +94,7 @@ class OmniVoiceService {
   Future<String?> generateBabySpeech({
     required String text,
     String langCode = 'en',
-    String model = 'commandeaw/OmniVoice-MLX-4bit',
+    String model = 'k2-fsa/OmniVoice',
     String refAudio = 'reference.mp3',
     String audioFormat = 'wav',
     Duration timeout = const Duration(seconds: 35),
@@ -143,7 +140,9 @@ class OmniVoiceService {
               }
             }
           } catch (_) {
-            final match = RegExp(r'"filename":\s*"([^"]+)"').firstMatch(cleanLine);
+            final match = RegExp(
+              r'"filename":\s*"([^"]+)"',
+            ).firstMatch(cleanLine);
             if (match != null) {
               outputFilename = match.group(1);
             }

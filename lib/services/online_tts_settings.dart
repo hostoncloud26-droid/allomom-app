@@ -19,10 +19,10 @@ class OnlineTtsSettings extends GetxController {
 
   /// What the field is pre-filled with the first time it is opened — the
   /// emulator's route to a server running on the development machine.
-  static const String defaultBaseUrl = 'https://10.0.2.2:7860';
+  // static const String defaultBaseUrl = 'http://10.0.2.2:7860';
+  static const String defaultBaseUrl = "http://47.29.133.221:30834";
 
-  static OnlineTtsSettings get instance =>
-      Get.isRegistered<OnlineTtsSettings>()
+  static OnlineTtsSettings get instance => Get.isRegistered<OnlineTtsSettings>()
       ? Get.find<OnlineTtsSettings>()
       : Get.put(OnlineTtsSettings(), permanent: true);
 

@@ -20,6 +20,8 @@ class TtsService {
   StreamSubscription? _playerErrorSub;
   bool _isPlayingAudioPlayer = false;
   int _speakGeneration = 0;
+  int _flutterTtsGeneration = 0;
+  VoidCallback? _flutterTtsOnComplete;
   final ValueNotifier<bool> isSpeakingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isGeneratingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> currentSpeakingText = ValueNotifier<String?>(null);
@@ -58,23 +60,46 @@ class TtsService {
       await _flutterTts.setVolume(1.0);
 
       _flutterTts.setStartHandler(() {
-        isSpeakingNotifier.value = true;
+        if (_flutterTtsGeneration == _speakGeneration) {
+          isSpeakingNotifier.value = true;
+        }
       });
 
       _flutterTts.setCompletionHandler(() {
-        isSpeakingNotifier.value = false;
-        currentSpeakingText.value = null;
+        debugPrint(
+          'TtsService: FlutterTTS completion (gen: $_flutterTtsGeneration, current: $_speakGeneration)',
+        );
+        if (_flutterTtsGeneration == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          final cb = _flutterTtsOnComplete;
+          _flutterTtsOnComplete = null;
+          cb?.call();
+        }
       });
 
       _flutterTts.setCancelHandler(() {
-        isSpeakingNotifier.value = false;
-        currentSpeakingText.value = null;
+        debugPrint(
+          'TtsService: FlutterTTS cancel (gen: $_flutterTtsGeneration, current: $_speakGeneration)',
+        );
+        if (_flutterTtsGeneration == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          _flutterTtsOnComplete = null;
+        }
       });
 
       _flutterTts.setErrorHandler((msg) {
-        debugPrint('FlutterTTS Error: $msg');
-        isSpeakingNotifier.value = false;
-        currentSpeakingText.value = null;
+        debugPrint(
+          'TtsService: FlutterTTS Error: $msg (gen: $_flutterTtsGeneration, current: $_speakGeneration)',
+        );
+        if (_flutterTtsGeneration == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          final cb = _flutterTtsOnComplete;
+          _flutterTtsOnComplete = null;
+          cb?.call();
+        }
       });
 
       _isInitialized = true;
@@ -342,16 +367,62 @@ class TtsService {
 
       if (language != null) await setLanguage(language);
 
+      _flutterTtsGeneration = generation;
+      _flutterTtsOnComplete = onComplete;
       isSpeakingNotifier.value = true;
-      if (onComplete != null) {
-        _flutterTts.setCompletionHandler(() {
-          if (generation == _speakGeneration) {
+
+      _flutterTts.setCompletionHandler(() {
+        debugPrint(
+          'TtsService: device TTS completed (gen: $generation, current: $_speakGeneration)',
+        );
+        if (generation == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          final cb = _flutterTtsOnComplete;
+          _flutterTtsOnComplete = null;
+          cb?.call();
+        }
+      });
+
+      _flutterTts.setCancelHandler(() {
+        debugPrint(
+          'TtsService: device TTS cancelled (gen: $generation, current: $_speakGeneration)',
+        );
+        if (generation == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          _flutterTtsOnComplete = null;
+        }
+      });
+
+      _flutterTts.setErrorHandler((msg) {
+        debugPrint(
+          'TtsService: device TTS error: $msg (gen: $generation, current: $_speakGeneration)',
+        );
+        if (generation == _speakGeneration) {
+          isSpeakingNotifier.value = false;
+          currentSpeakingText.value = null;
+          final cb = _flutterTtsOnComplete;
+          _flutterTtsOnComplete = null;
+          cb?.call();
+        }
+      });
+
+      final durationSec = (cleanText.length / 8).clamp(8.0, 90.0).toInt();
+      unawaited(
+        Future<void>.delayed(Duration(seconds: durationSec)).then((_) {
+          if (generation == _speakGeneration && isSpeakingNotifier.value) {
+            debugPrint(
+              'TtsService: safety timeout reached for device TTS ($durationSec s)',
+            );
             isSpeakingNotifier.value = false;
             currentSpeakingText.value = null;
-            onComplete();
+            final cb = _flutterTtsOnComplete;
+            _flutterTtsOnComplete = null;
+            cb?.call();
           }
-        });
-      }
+        }),
+      );
 
       await _flutterTts.speak(cleanText);
     } on MissingPluginException catch (_) {
@@ -369,6 +440,7 @@ class TtsService {
 
   Future<void> stop() async {
     _speakGeneration++;
+    _flutterTtsOnComplete = null;
     isGeneratingNotifier.value = false;
     _playerCompleteSub?.cancel();
     _playerCompleteSub = null;

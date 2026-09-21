@@ -103,8 +103,8 @@ class _AlloBotPageState extends State<AlloBotPage> {
                     GestureDetector(
                       onTap: () => _onTabSelected(0),
                       child: Container(
-                        width: 40,
-                        height: 40,
+                        width: 35,
+                        height: 35,
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
@@ -172,53 +172,53 @@ class _AlloBotPageState extends State<AlloBotPage> {
       bottomNavigationBar: isKeyboardOpen
           ? null
           : BottomAppBar(
-        color: Colors.white,
-        elevation: 8,
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 6,
-        height: 70,
-        child: Row(
-          children: <Widget>[
-            Expanded(
+              color: Colors.white,
+              elevation: 8,
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 6,
+              height: 70,
               child: Row(
-                children: [
-                  _buildNavItem(
-                    index: 0,
-                    activeIcon: Icons.auto_awesome,
-                    inactiveIcon: Icons.auto_awesome_outlined,
-                    label: 'Ask Allo',
+                children: <Widget>[
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _buildNavItem(
+                          index: 0,
+                          activeIcon: Icons.auto_awesome,
+                          inactiveIcon: Icons.auto_awesome_outlined,
+                          label: 'Ask Allo',
+                        ),
+                        _buildNavItem(
+                          index: 1,
+                          activeIcon: Icons.smart_toy,
+                          inactiveIcon: Icons.smart_toy_outlined,
+                          label: 'Agents',
+                        ),
+                      ],
+                    ),
                   ),
-                  _buildNavItem(
-                    index: 1,
-                    activeIcon: Icons.smart_toy,
-                    inactiveIcon: Icons.smart_toy_outlined,
-                    label: 'Agents',
+                  const SizedBox(width: 80),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        _buildNavItem(
+                          index: 2,
+                          activeIcon: Icons.chat_bubble,
+                          inactiveIcon: Icons.chat_bubble_outline,
+                          label: 'Chat',
+                        ),
+                        _buildNavItem(
+                          index: 3,
+                          activeIcon: Icons.settings,
+                          inactiveIcon: Icons.settings_outlined,
+                          label: 'Settings',
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 80),
-            Expanded(
-              child: Row(
-                children: [
-                  _buildNavItem(
-                    index: 2,
-                    activeIcon: Icons.chat_bubble,
-                    inactiveIcon: Icons.chat_bubble_outline,
-                    label: 'Chat',
-                  ),
-                  _buildNavItem(
-                    index: 3,
-                    activeIcon: Icons.settings,
-                    inactiveIcon: Icons.settings_outlined,
-                    label: 'Settings',
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
 
       // ─── EXACT SAME FLOATING DOCKED CENTER MIC BUTTON AS HOME PAGE ───
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -232,45 +232,45 @@ class _AlloBotPageState extends State<AlloBotPage> {
       floatingActionButton: isKeyboardOpen
           ? null
           : ValueListenableBuilder<bool>(
-        valueListenable: _isListeningNotifier,
-        builder: (context, isListening, child) {
-          return Obx(() {
-            // Speaking turns the mic green, so the control that stops her is
-            // also what shows she is talking.
-            final isSpeaking = _chatbot.isSpeaking.value;
-            // Greyed out while the voice model is still arriving: tapping it
-            // then can only fail, and the ring shows how far along it is.
-            final isFetchingVoice = _speech.isDownloading.value;
+              valueListenable: _isListeningNotifier,
+              builder: (context, isListening, child) {
+                return Obx(() {
+                  // Speaking turns the mic green, so the control that stops her is
+                  // also what shows she is talking.
+                  final isSpeaking = _chatbot.isSpeaking.value;
+                  // Greyed out while the voice model is still arriving: tapping it
+                  // then can only fail, and the ring shows how far along it is.
+                  final isFetchingVoice = _speech.isDownloading.value;
 
-            return AlloBotMicButton(
-              isListening: isListening || isSpeaking,
-              isSpeaking: isSpeaking,
-              gradient: isSpeaking ? _speakingGradient : primaryGradient,
-              color: isSpeaking ? _speakingColor : primaryColor,
-              enabled: !isFetchingVoice,
-              progress: isFetchingVoice
-                  ? _speech.downloadProgress.value
-                  : null,
-              onTap: () {
-                if (isSpeaking) {
-                  _chatbot.stopCurrentTurn();
-                  return;
-                }
-                if (_currentIndex != 0) {
-                  setState(() {
-                    _currentIndex = 0;
-                  });
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    _askAiKey.currentState?.startListening();
-                  });
-                } else {
-                  _askAiKey.currentState?.toggleListening();
-                }
+                  return AlloBotMicButton(
+                    isListening: isListening || isSpeaking,
+                    isSpeaking: isSpeaking,
+                    gradient: isSpeaking ? _speakingGradient : primaryGradient,
+                    color: isSpeaking ? _speakingColor : primaryColor,
+                    enabled: !isFetchingVoice,
+                    progress: isFetchingVoice
+                        ? _speech.downloadProgress.value
+                        : null,
+                    onTap: () {
+                      if (isSpeaking) {
+                        _chatbot.stopCurrentTurn();
+                        return;
+                      }
+                      if (_currentIndex != 0) {
+                        setState(() {
+                          _currentIndex = 0;
+                        });
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          _askAiKey.currentState?.startListening();
+                        });
+                      } else {
+                        _askAiKey.currentState?.toggleListening();
+                      }
+                    },
+                  );
+                });
               },
-            );
-          });
-        },
-      ),
+            ),
     );
   }
 

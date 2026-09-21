@@ -226,112 +226,219 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
       child: Obx(() {
         final downloading = speech.isDownloading.value;
         final progress = speech.downloadProgress.value;
-        final activeId = speech.activeModelId.value;
         final ready = speech.isReady.value;
         final error = speech.errorMessage.value;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (downloading) ...[
-              _buildDownloadProgress(progress),
-              const SizedBox(height: 12),
-            ] else if (ready) ...[
-              _notice(
-                'Ready — ${speech.activeModel?.name ?? 'the voice model'} is on '
-                'this phone.',
-                isGood: true,
-              ),
-              const SizedBox(height: 12),
-            ],
-            for (final model in speech.supportedModels)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _selectableRow(
-                  title: model.name,
-                  subtitle: '${model.intelligence} · ${model.downloadSize}',
-                  selected: model.id == activeId,
-                  // One download at a time: starting a second would leave two
-                  // writing into the same folder.
-                  onTap: downloading ? null : () => speech.selectModel(model.id),
-                ),
-              ),
-            if (error.isNotEmpty) ...[
-              const SizedBox(height: 4),
+            _buildSpeechStatusTile(
+              downloading: downloading,
+              ready: ready,
+              progress: progress,
+              error: error,
+            ),
+            if (error.isNotEmpty && !downloading) ...[
+              const SizedBox(height: 10),
               _notice(error, isError: true),
             ],
-            if (!downloading && !ready && error.isEmpty) ...[
-              const SizedBox(height: 4),
-              _notice(
-                'The voice model downloads by itself the first time it is '
-                'needed. Until it is here, you can type to AlloBot.',
+            const SizedBox(height: 10),
+            Text(
+              'Whisper Base runs entirely on this device. What you say is transcribed locally and never uploaded to any server.',
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                height: 1.4,
+                color: _muted,
               ),
-            ],
+            ),
           ],
         );
       }),
     );
   }
 
-  Widget _buildDownloadProgress(double progress) {
+  Widget _buildSpeechStatusTile({
+    required bool downloading,
+    required bool ready,
+    required double progress,
+    required String error,
+  }) {
     final percent = (progress.clamp(0.0, 1.0) * 100).round();
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: accentLight,
+
+    final String title;
+    final String subtitle;
+    final Color borderColor;
+    final Color bgColor;
+    final Color titleColor;
+    final Widget trailingWidget;
+    final IconData iconData;
+    final Color iconColor;
+    final Color iconBgColor;
+    final VoidCallback? onTap;
+
+    if (downloading) {
+      title = 'Training Speech';
+      subtitle = 'Downloading Whisper Base model… $percent%';
+      borderColor = primaryColor;
+      bgColor = accentLight;
+      titleColor = primaryColor;
+      iconData = Icons.graphic_eq_rounded;
+      iconColor = primaryColor;
+      iconBgColor = Colors.white;
+      trailingWidget = Text(
+        '$percent%',
+        style: GoogleFonts.poppins(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: primaryColor,
+        ),
+      );
+      onTap = null;
+    } else if (ready) {
+      title = 'Speech Ready';
+      subtitle = 'Whisper Base (145 MB) is active on this phone';
+      borderColor = const Color(0xFF10B981);
+      bgColor = const Color(0xFFF0FDF4);
+      titleColor = const Color(0xFF065F46);
+      iconData = Icons.check_circle_rounded;
+      iconColor = const Color(0xFF10B981);
+      iconBgColor = const Color(0xFFD1FAE5);
+      trailingWidget = const Icon(
+        Icons.check_circle_rounded,
+        size: 22,
+        color: Color(0xFF10B981),
+      );
+      onTap = null;
+    } else {
+      title = 'Speech Not Ready';
+      subtitle = error.isNotEmpty
+          ? error
+          : 'Tap to download Whisper Base (145 MB)';
+      borderColor = error.isNotEmpty
+          ? dangerRed.withValues(alpha: 0.5)
+          : dividerColor;
+      bgColor = error.isNotEmpty ? const Color(0xFFFEF2F2) : Colors.white;
+      titleColor = error.isNotEmpty ? dangerRed : _ink;
+      iconData = Icons.mic_off_rounded;
+      iconColor = error.isNotEmpty ? dangerRed : _muted;
+      iconBgColor = const Color(0xFFF3F4F6);
+      trailingWidget = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: primaryColor.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.download_rounded, size: 14, color: primaryColor),
+            const SizedBox(width: 4),
+            Text(
+              'Download',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+          ],
+        ),
+      );
+      onTap = () => speech.startDownload();
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFFD2DC)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: primaryColor,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Downloading ${speech.activeModel?.name ?? 'the voice model'}…',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: _ink,
-                  ),
-                ),
-              ),
-              Text(
-                '$percent%',
-                style: GoogleFonts.poppins(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: primaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress <= 0 ? null : progress,
-              minHeight: 6,
-              backgroundColor: Colors.white,
-              valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: bgColor,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: borderColor,
+              width: (ready || downloading) ? 1.4 : 1,
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            'The microphone waits until this finishes.',
-            style: GoogleFonts.poppins(fontSize: 11.5, color: _muted),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: iconBgColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: downloading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: primaryColor,
+                              ),
+                            ),
+                          )
+                        : Icon(iconData, size: 20, color: iconColor),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: titleColor,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          subtitle,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            color: _muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  trailingWidget,
+                ],
+              ),
+              if (downloading) ...[
+                const SizedBox(height: 12),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: LinearProgressIndicator(
+                    value: progress <= 0 ? null : progress,
+                    minHeight: 6,
+                    backgroundColor: Colors.white,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      primaryColor,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'The microphone waits until this finishes.',
+                  style: GoogleFonts.poppins(fontSize: 11.5, color: _muted),
+                ),
+              ],
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
