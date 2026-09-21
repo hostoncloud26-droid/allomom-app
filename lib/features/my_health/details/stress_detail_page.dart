@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class StressDetailPage extends StatefulWidget {
@@ -164,29 +165,23 @@ class _StressDetailPageState extends State<StressDetailPage> {
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'TODAY';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final stressVal = HealthVitalsController.instance.stressVital?.value.toInt() ?? 24;
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('stress', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -230,30 +225,23 @@ class _StressDetailPageState extends State<StressDetailPage> {
           ),
           const SizedBox(height: 20),
 
-          // Chart Graphic
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _StressChartPainter(
-                period: _selectedTab,
-                stressScore: stressVal,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFF0284C7),
+            minY: 0,
+            maxY: 100,
+            bands: const [
+              VitalBand(min: 0, max: 40, color: Color(0x0A10B981)),
+            ],
+            emptyTitle: 'No stress readings',
+            emptySubtitle: 'Sync your Allowear to see stress load',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Stress',
+                color: const Color(0xFF0284C7),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -262,12 +250,11 @@ class _StressDetailPageState extends State<StressDetailPage> {
 
   Widget _buildBottomStatsRow() {
     final vitals = HealthVitalsController.instance;
-    final hasStress = vitals.hasStress;
     final avg = vitals.getAverageForVitalPeriod('stress', _selectedTab);
     final peak = vitals.getMaxForVitalPeriod('stress', _selectedTab);
     final sleepHours = vitals.sleepHoursValue;
 
-    final isRecorded = hasStress || avg > 0;
+    final isRecorded = avg > 0;
     final score = isRecorded ? avg.toInt() : 0;
     String scoreLevel = 'Low';
     if (score > 70) {
@@ -416,146 +403,4 @@ class _StressDetailPageState extends State<StressDetailPage> {
       ),
     );
   }
-}
-
-class _StressChartPainter extends CustomPainter {
-  final String period;
-  final int stressScore;
-
-  const _StressChartPainter({
-    this.period = 'Day',
-    this.stressScore = 24,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const rightPadding = 28.0;
-    final chartWidth = size.width - rightPadding;
-    final chartHeight = size.height;
-
-    // Y-Axis Scale Labels on right (High, Mod, Low, Rest)
-    final scales = ['High', 'Mod', 'Low', 'Rest'];
-    for (int i = 0; i < scales.length; i++) {
-      final textP = TextPainter(
-        text: TextSpan(text: scales[i], style: const TextStyle(fontSize: 8.5, color: Color(0xFFBDC3CE))),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textP.paint(canvas, Offset(chartWidth + 4, chartHeight * (i / (scales.length - 1)) * 0.85 + 6));
-    }
-
-    // Stress Curve adapts to Day, Week, Month
-    final path = Path();
-    if (period == 'Day') {
-      path.moveTo(0, chartHeight * 0.78);
-      path.cubicTo(
-        chartWidth * 0.20, chartHeight * 0.75,
-        chartWidth * 0.35, chartHeight * 0.65,
-        chartWidth * 0.52, chartHeight * 0.62,
-      );
-      path.cubicTo(
-        chartWidth * 0.65, chartHeight * 0.58,
-        chartWidth * 0.75, chartHeight * 0.40,
-        chartWidth * 0.85, chartHeight * 0.45,
-      );
-      path.cubicTo(
-        chartWidth * 0.92, chartHeight * 0.50,
-        chartWidth * 0.98, chartHeight * 0.70,
-        chartWidth, chartHeight * 0.72,
-      );
-    } else if (period == 'Week') {
-      path.moveTo(0, chartHeight * 0.65);
-      path.cubicTo(
-        chartWidth * 0.25, chartHeight * 0.55,
-        chartWidth * 0.50, chartHeight * 0.72,
-        chartWidth * 0.75, chartHeight * 0.48,
-      );
-      path.cubicTo(
-        chartWidth * 0.88, chartHeight * 0.50,
-        chartWidth * 0.95, chartHeight * 0.62,
-        chartWidth, chartHeight * 0.60,
-      );
-    } else {
-      path.moveTo(0, chartHeight * 0.60);
-      path.cubicTo(
-        chartWidth * 0.30, chartHeight * 0.65,
-        chartWidth * 0.60, chartHeight * 0.55,
-        chartWidth * 0.85, chartHeight * 0.62,
-      );
-      path.lineTo(chartWidth, chartHeight * 0.58);
-    }
-
-    // Fill Gradient
-    final fillPath = Path.from(path)
-      ..lineTo(chartWidth, chartHeight)
-      ..lineTo(0, chartHeight)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFF0284C7).withValues(alpha: 0.18),
-          const Color(0xFF0284C7).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, chartWidth, chartHeight));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Cyan/Blue stroke
-    final strokePaint = Paint()
-      ..color = const Color(0xFF0284C7)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, strokePaint);
-
-    // Dotted vertical line
-    final dotX = chartWidth * 0.52;
-    final dotY = period == 'Day' ? chartHeight * 0.62 : (period == 'Week' ? chartHeight * 0.72 : chartHeight * 0.58);
-
-    final verticalLinePaint = Paint()
-      ..color = const Color(0xFF0284C7).withValues(alpha: 0.4)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(dotX, dotY), Offset(dotX, chartHeight), verticalLinePaint);
-
-    // Dot at current point
-    canvas.drawCircle(Offset(dotX, dotY), 4.5, Paint()..color = const Color(0xFF0284C7));
-    canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
-
-    // Tooltip Card
-    const tooltipW = 75.0;
-    const tooltipH = 46.0;
-    final tooltipRect = Rect.fromLTWH(dotX - tooltipW / 2, dotY - tooltipH - 8, tooltipW, tooltipH);
-
-    final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10));
-    canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
-    canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
-
-    final tipTimeStr = period == 'Day' ? 'Today' : (period == 'Week' ? '7D Avg' : 'Monthly');
-    final tTime = TextPainter(
-      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
-
-    final scoreLevel = stressScore > 70 ? 'High' : (stressScore > 40 ? 'Mod' : 'Low');
-    final scoreColor = stressScore > 70 ? const Color(0xFFFF4E6A) : (stressScore > 40 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
-
-    final tVal = TextPainter(
-      text: TextSpan(text: scoreLevel, style: TextStyle(fontSize: 13, color: scoreColor, fontWeight: FontWeight.w800)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
-
-    final tSub = TextPainter(
-      text: TextSpan(text: '$stressScore score', style: const TextStyle(fontSize: 8, color: Color(0xFF8E95A5))),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tSub.paint(canvas, Offset(tooltipRect.left + (tooltipW - tSub.width) / 2, tooltipRect.top + 32));
-  }
-
-  @override
-  bool shouldRepaint(covariant _StressChartPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.stressScore != stressScore;
 }

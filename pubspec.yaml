@@ -95,6 +95,7 @@ flutter:
     # The baby's onboarding voice. One mp3 per narration keyword, per language;
     # add a `assets/audio/<code>/onboard/` line here as each language lands.
     - assets/audio/en/onboard/
+    - assets/audio/en/screens/
     - assets/babyicons/
     - assets/cry_samples/
     # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"

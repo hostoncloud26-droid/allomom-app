@@ -15,6 +15,8 @@ import 'package:allomom/features/overview_section/todays_care/widgets/care_count
 import 'package:allomom/features/overview_section/todays_care/widgets/care_meal_sheet.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Today's care, scoped to the current part of the day.
 ///
@@ -367,6 +369,7 @@ class _TodocareSectionState extends State<TodocareSection> {
           'day_part': _part.name,
         },
       );
+      speak(NarrationKeys.pgConfMealSaved, force: true);
       _showLogged('${meal.label} logged · ${log.calories.round()} kcal');
     } catch (e) {
       debugPrint('⚠️ [TodocareSection] Error logging ${meal.vitalKey}: $e');
@@ -388,6 +391,10 @@ class _TodocareSectionState extends State<TodocareSection> {
       target: item.dailyTarget,
       presets: item.presets,
       subtitle: item.subtitle,
+      // Water is the only count with a recorded line; the rest open silent.
+      narrationKey: item.countVitalKey == 'water'
+          ? NarrationKeys.pgNutritionWater
+          : null,
     );
     if (amount == null) return;
 
@@ -411,6 +418,9 @@ class _TodocareSectionState extends State<TodocareSection> {
           'day_part': _part.name,
         },
       );
+      if (item.countVitalKey == 'water') {
+        speak(NarrationKeys.pgConfWaterAdded, force: true);
+      }
       _showLogged('Logged $amount $unit');
     } catch (e) {
       debugPrint('⚠️ [TodocareSection] Error logging ${item.countVitalKey}: $e');

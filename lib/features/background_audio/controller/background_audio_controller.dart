@@ -347,6 +347,9 @@ class BackgroundAudioController extends GetxController {
 
   Future<void> setVolume(double volume) => _player.setVolume(volume);
 
+  /// Whether [key] has already been spoken since launch.
+  bool hasSpoken(String key) => _playedKeysThisSession.contains(key.trim());
+
   /// Lets a line be heard again later in the same session.
   void forget(String key) => _playedKeysThisSession.remove(key.trim());
 

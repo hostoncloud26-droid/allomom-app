@@ -5,6 +5,8 @@ import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
 import 'package:allomom/local_notification/ui/reminder_setup_bottom_sheet.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class ReminderItem {
   final String id;
@@ -152,6 +154,39 @@ class _RemindersPageState extends State<RemindersPage> {
     super.initState();
     _syncWithLocalController();
     _loadCustomReminders();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => speak(NarrationKeys.pgRemindersOpen),
+    );
+  }
+
+  /// The line for turning [type] on, and the one confirming it.
+  ///
+  /// Water, medicine, meals and sleep each have their own pair; the rest of
+  /// the list shares the plain "your reminder is set" confirmation and gets no
+  /// explanation, because none was recorded for them.
+  static ({String? explain, String confirm}) _narrationFor(
+    LocalReminderType? type,
+  ) {
+    switch (type) {
+      case LocalReminderType.drinkWater:
+        return (
+          explain: NarrationKeys.pgRemindersWater,
+          confirm: NarrationKeys.pgConfReminderWater,
+        );
+      case LocalReminderType.medicineReminder:
+        return (
+          explain: NarrationKeys.pgRemindersMedicine,
+          confirm: NarrationKeys.pgConfReminderMedicine,
+        );
+      case LocalReminderType.sleepReminder:
+        return (explain: null, confirm: NarrationKeys.pgConfReminderSleep);
+      case LocalReminderType.breakfast:
+      case LocalReminderType.lunch:
+      case LocalReminderType.dinner:
+        return (explain: null, confirm: NarrationKeys.pgConfReminderMeal);
+      default:
+        return (explain: null, confirm: NarrationKeys.pgConfReminderSet);
+    }
   }
 
   void _syncWithLocalController() {
@@ -195,6 +230,48 @@ class _RemindersPageState extends State<RemindersPage> {
     }
   }
 
+  /// Removes one of her own reminders, after asking.
+  Future<void> _deleteCustomReminder(ReminderItem item) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Remove reminder?',
+          style: GoogleFonts.manrope(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          '"${item.title}" will stop reminding you.',
+          style: GoogleFonts.manrope(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Remove',
+              style: TextStyle(color: Color(0xFFEF4444)),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ReminderDbService.instance.deleteReminder(item.id);
+    } catch (e) {
+      debugPrint('Error deleting reminder ${item.id}: $e');
+    }
+
+    if (!mounted) return;
+    setState(() => _pregnancyReminders.removeWhere((r) => r.id == item.id));
+    speak(NarrationKeys.pgConfReminderDeleted, force: true);
+  }
+
   static String? _formatReminderTime(int? hour, int? minute) {
     if (hour == null || minute == null) return null;
     final period = hour < 12 ? 'AM' : 'PM';
@@ -203,6 +280,7 @@ class _RemindersPageState extends State<RemindersPage> {
   }
 
   void _showAddCustomReminderDialog() {
+    speak(NarrationKeys.pgRemindersAdd, force: true);
     final nameCtrl = TextEditingController();
     TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
 
@@ -377,6 +455,7 @@ class _RemindersPageState extends State<RemindersPage> {
                           });
                         }
 
+                        speak(NarrationKeys.pgConfReminderSet, force: true);
                         if (ctx.mounted) Navigator.pop(ctx);
                       },
                       style: ElevatedButton.styleFrom(
@@ -515,7 +594,23 @@ class _RemindersPageState extends State<RemindersPage> {
                     if (r.localType != null)
                       IconButton(
                         icon: const Icon(Icons.tune_rounded, color: Color(0xFF94A3B8), size: 19),
-                        onPressed: () => ReminderSetupBottomSheet.show(context, r.localType!),
+                        onPressed: () {
+                          final explain = _narrationFor(r.localType).explain;
+                          if (explain != null) speak(explain);
+                          ReminderSetupBottomSheet.show(context, r.localType!);
+                        },
+                      )
+                    else
+                      // Only her own reminders can go. The built-in pregnancy
+                      // ones are switched off, not deleted — there would be no
+                      // way to get them back.
+                      IconButton(
+                        icon: const Icon(
+                          Icons.delete_outline_rounded,
+                          color: Color(0xFF94A3B8),
+                          size: 19,
+                        ),
+                        onPressed: () => _deleteCustomReminder(r),
                       ),
 
                     Switch(
@@ -523,6 +618,13 @@ class _RemindersPageState extends State<RemindersPage> {
                       activeThumbColor: const Color(0xFFFF3B5C),
                       onChanged: (val) async {
                         setState(() => r.isEnabled = val);
+
+                        final lines = _narrationFor(r.localType);
+                        speak(
+                          val ? lines.confirm : NarrationKeys.pgConfReminderOff,
+                          force: true,
+                        );
+
                         if (r.localType != null) {
                           await LocalReminderController.instance.toggleReminder(r.localType!, val);
                         } else {

@@ -3,7 +3,9 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 class BloodGlucoseDetailPage extends StatefulWidget {
   const BloodGlucoseDetailPage({super.key});
@@ -88,6 +90,8 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
                 child: Column(
                   children: [
                     BabyHeroBanner(
+                      narrationKey: NarrationKeys.pgVitalsGlucose,
+                      bindNarrationText: false,
                       speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
                       bubblePosition: SpeechBubblePosition.topCenter,
                       height: 250,
@@ -164,29 +168,23 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'TODAY';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['Fast', 'Breakf', 'Lunch', 'Snack', 'Dinner'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final glucose = HealthVitalsController.instance.bloodGlucoseValue;
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('glucose', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -230,30 +228,24 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
           ),
           const SizedBox(height: 20),
 
-          // Chart Graphic
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _BloodGlucoseChartPainter(
-                period: _selectedTab,
-                glucoseVal: glucose,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFFD97706),
+            unit: 'mg/dL',
+            minY: 60,
+            maxY: 160,
+            bands: const [
+              VitalBand(min: 70, max: 140, color: Color(0x0A10B981)),
+            ],
+            emptyTitle: 'No glucose readings',
+            emptySubtitle: 'Log a reading to start your trend',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Blood Glucose',
+                color: const Color(0xFFD97706),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' || lbl == 'Fast' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -415,156 +407,4 @@ class _BloodGlucoseDetailPageState extends State<BloodGlucoseDetailPage> {
       ),
     );
   }
-}
-
-class _BloodGlucoseChartPainter extends CustomPainter {
-  final String period;
-  final double glucoseVal;
-
-  const _BloodGlucoseChartPainter({
-    this.period = 'Day',
-    this.glucoseVal = 92.0,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const rightPadding = 26.0;
-    final chartWidth = size.width - rightPadding;
-    final chartHeight = size.height;
-
-    // Y-Axis Scale Labels on right (160, 120, 90, 60)
-    final scales = ['160', '120', '90', '60'];
-    for (int i = 0; i < scales.length; i++) {
-      final textP = TextPainter(
-        text: TextSpan(text: scales[i], style: const TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textP.paint(canvas, Offset(chartWidth + 4, chartHeight * (i / (scales.length - 1)) * 0.85 + 6));
-    }
-
-    // Normal safe zone corridor (70 to 120 mg/dL)
-    final safeZone = Rect.fromLTWH(0, chartHeight * 0.28, chartWidth, chartHeight * 0.42);
-    canvas.drawRect(
-      safeZone,
-      Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.06),
-    );
-
-    // Glucose Curve adapts to Day / Week / Month
-    final path = Path();
-    if (period == 'Day') {
-      path.moveTo(0, chartHeight * 0.60); // Fasting = 92
-      path.cubicTo(
-        chartWidth * 0.15, chartHeight * 0.58,
-        chartWidth * 0.25, chartHeight * 0.32,
-        chartWidth * 0.35, chartHeight * 0.32, // Breakf = 118
-      );
-      path.cubicTo(
-        chartWidth * 0.42, chartHeight * 0.32,
-        chartWidth * 0.48, chartHeight * 0.50,
-        chartWidth * 0.55, chartHeight * 0.35, // Lunch = 115
-      );
-      path.cubicTo(
-        chartWidth * 0.65, chartHeight * 0.38,
-        chartWidth * 0.72, chartHeight * 0.55,
-        chartWidth * 0.80, chartHeight * 0.48, // Snack = 102
-      );
-      path.cubicTo(
-        chartWidth * 0.88, chartHeight * 0.44,
-        chartWidth * 0.95, chartHeight * 0.38,
-        chartWidth, chartHeight * 0.40, // Dinner = 110
-      );
-    } else if (period == 'Week') {
-      path.moveTo(0, chartHeight * 0.55);
-      path.cubicTo(
-        chartWidth * 0.20, chartHeight * 0.45,
-        chartWidth * 0.40, chartHeight * 0.62,
-        chartWidth * 0.60, chartHeight * 0.40,
-      );
-      path.cubicTo(
-        chartWidth * 0.75, chartHeight * 0.35,
-        chartWidth * 0.90, chartHeight * 0.50,
-        chartWidth, chartHeight * 0.45,
-      );
-    } else {
-      path.moveTo(0, chartHeight * 0.50);
-      path.cubicTo(
-        chartWidth * 0.30, chartHeight * 0.46,
-        chartWidth * 0.60, chartHeight * 0.52,
-        chartWidth * 0.85, chartHeight * 0.44,
-      );
-      path.lineTo(chartWidth, chartHeight * 0.42);
-    }
-
-    // Fill Gradient
-    final fillPath = Path.from(path)
-      ..lineTo(chartWidth, chartHeight)
-      ..lineTo(0, chartHeight)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFFD97706).withValues(alpha: 0.16),
-          const Color(0xFFD97706).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, chartWidth, chartHeight));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Amber stroke
-    final strokePaint = Paint()
-      ..color = const Color(0xFFD97706)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(path, strokePaint);
-
-    // Dotted vertical line
-    final dotX = period == 'Day' ? 14.0 : chartWidth * 0.60;
-    final dotY = period == 'Day' ? chartHeight * 0.60 : chartHeight * 0.40;
-
-    final verticalLinePaint = Paint()
-      ..color = const Color(0xFFD97706).withValues(alpha: 0.4)
-      ..strokeWidth = 1.0
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(dotX, dotY), Offset(dotX, chartHeight), verticalLinePaint);
-
-    // Dot at current point
-    canvas.drawCircle(Offset(dotX, dotY), 4.5, Paint()..color = const Color(0xFFD97706));
-    canvas.drawCircle(Offset(dotX, dotY), 2.0, Paint()..color = Colors.white);
-
-    // Tooltip Card
-    const tooltipW = 85.0;
-    const tooltipH = 48.0;
-    final tooltipRect = Rect.fromLTWH(dotX - (period == 'Day' ? 10 : tooltipW / 2), dotY - tooltipH - 8, tooltipW, tooltipH);
-
-    final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10));
-    canvas.drawShadow(Path()..addRRect(tooltipRRect), Colors.black.withValues(alpha: 0.10), 4.0, true);
-    canvas.drawRRect(tooltipRRect, Paint()..color = Colors.white);
-
-    final tipTimeStr = period == 'Day' ? 'Fasting' : (period == 'Week' ? '7D Average' : 'Monthly');
-    final tTime = TextPainter(
-      text: TextSpan(text: tipTimeStr, style: const TextStyle(fontSize: 8.5, color: Color(0xFF8E95A5), fontWeight: FontWeight.w500)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tTime.paint(canvas, Offset(tooltipRect.left + (tooltipW - tTime.width) / 2, tooltipRect.top + 5));
-
-    final valStr = glucoseVal > 0 ? '${glucoseVal.toStringAsFixed(0)} mg/dL' : '92 mg/dL';
-    final tVal = TextPainter(
-      text: TextSpan(text: valStr, style: const TextStyle(fontSize: 11.5, color: Color(0xFF1E2024), fontWeight: FontWeight.w800)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tVal.paint(canvas, Offset(tooltipRect.left + (tooltipW - tVal.width) / 2, tooltipRect.top + 18));
-
-    final tSub = TextPainter(
-      text: const TextSpan(text: 'Normal', style: TextStyle(fontSize: 8.5, color: Color(0xFF10B981), fontWeight: FontWeight.w700)),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tSub.paint(canvas, Offset(tooltipRect.left + (tooltipW - tSub.width) / 2, tooltipRect.top + 32));
-  }
-
-  @override
-  bool shouldRepaint(covariant _BloodGlucoseChartPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.glucoseVal != glucoseVal;
 }

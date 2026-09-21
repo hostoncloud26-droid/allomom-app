@@ -18,11 +18,10 @@ class SignInOutcome {
     this.message = '',
   });
 
-  const SignInOutcome.failure(String message)
+  const SignInOutcome.failure(this.message)
     : success = false,
       isRegistered = false,
-      isNewUser = false,
-      message = message;
+      isNewUser = false;
 
   final bool success;
 

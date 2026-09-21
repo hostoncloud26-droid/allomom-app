@@ -11,6 +11,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// The maternal vaccine doses booked locally when the pregnancy was registered.
 class VaccinationSchedulePage extends StatefulWidget {
@@ -33,6 +35,12 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     super.initState();
     _load();
   }
+
+  /// What the card says: the tour of the screen, or, when there is nothing
+  /// scheduled, the line that tells her how to get something on it.
+  String get _narrationKey => (_pregnancyId == null || _vaccines.isEmpty)
+      ? NarrationKeys.pgVaccEmpty
+      : NarrationKeys.pgVaccOpen;
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
@@ -70,6 +78,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
         wasDone ? null : DateTime.now(),
       );
       await _load();
+      if (!wasDone) speak(NarrationKeys.pgConfVaccSaved, force: true);
     } catch (e) {
       debugPrint('Error updating vaccination ${vaccine.id}: $e');
     }
@@ -123,6 +132,10 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
                   ),
                   children: [
                     BabyHeroBanner(
+                      // The line plays, then the card goes back to its own
+                      // copy — which counts the weeks, and the script cannot.
+                      narrationKey: _narrationKey,
+                      bindNarrationText: false,
                       speechText:
                           "Am $week weeks, Amma! 💉\nOur vaccines keep us both safe.",
                       bubblePosition: SpeechBubblePosition.topCenter,

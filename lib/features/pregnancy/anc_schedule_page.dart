@@ -12,6 +12,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// The ANC visits booked locally when the pregnancy was registered.
 class AncSchedulePage extends StatefulWidget {
@@ -34,6 +36,12 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
     super.initState();
     _load();
   }
+
+  /// What the card says: the tour of the screen, or, when there is nothing
+  /// scheduled, the line that tells her how to get something on it.
+  String get _narrationKey => (_pregnancyId == null || _visits.isEmpty)
+      ? NarrationKeys.pgAncEmpty
+      : NarrationKeys.pgAncOpen;
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
@@ -70,6 +78,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
         wasDone ? null : DateTime.now(),
       );
       await _load();
+      if (!wasDone) speak(NarrationKeys.pgConfAncSaved, force: true);
 
       // Marking a visit complete is the moment the post-visit questions are
       // worth asking — what the doctor said, the next date, the vaccine, any
@@ -184,6 +193,10 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
                   ),
                   children: [
                     BabyHeroBanner(
+                      // The line plays, then the card goes back to its own
+                      // copy — which counts the weeks, and the script cannot.
+                      narrationKey: _narrationKey,
+                      bindNarrationText: false,
                       speechText:
                           "Am $week weeks, Amma! 💕\nLet's check our doctor visits.",
                       bubblePosition: SpeechBubblePosition.topCenter,

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 
 class FeedingTrackerStatsPage extends StatefulWidget {
@@ -181,10 +182,11 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                 ),
 
                 // ─── FIXED TOP: Baby Hero Banner, Top Summary Card & Filter Tabs ───
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 0, 20, 10),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: BabyHeroBanner(
-                    speechText: "Week 24, Amma!\nWe're growing together. Can you feel the kicks?",
+                    speechText:
+                        "Week ${MainController.instance.currentGestationalWeek}, Amma!\nWe're growing together. Can you feel the kicks?",
                     bubblePosition: SpeechBubblePosition.topCenter,
                     height: 220,
                   ),

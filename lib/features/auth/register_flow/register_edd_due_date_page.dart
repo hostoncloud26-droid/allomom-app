@@ -1,3 +1,5 @@
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -41,6 +43,14 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
   /// The line on the baby head card: the cheer about the date, or whichever
   /// side-question she taps.
   String _narrationKey = NarrationKeys.pregEddBubble;
+
+  void _say(String key) {
+    if (!mounted) return;
+    setState(() => _narrationKey = key);
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.playByKey(key, force: true);
+    }
+  }
 
   String _formatEddDate(DateTime date) {
     const months = [
@@ -248,6 +258,25 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                         ),
 
                         const SizedBox(height: 16),
+                        NarrationHintChips(
+                          selectedKey: _narrationKey,
+                          onSelected: _say,
+                          padding: const EdgeInsets.only(bottom: 16),
+                          hints: [
+                            const NarrationHint(
+                              'What are these days?',
+                              NarrationKeys.pregEddDays,
+                            ),
+                            NarrationHint(
+                              'How long is that?',
+                              countdownNarrationKey(daysRemaining),
+                            ),
+                            const NarrationHint(
+                              'Doctor said another date',
+                              NarrationKeys.pregEddDoctorDate,
+                            ),
+                          ],
+                        ),
 
                         // ─── CONFIRM DUE DATE BUTTON ───
                         SizedBox(

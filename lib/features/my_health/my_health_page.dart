@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:intl/intl.dart' hide TextDirection;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -7,12 +8,12 @@ import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/reports/reports_page.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
 import 'package:allomom/features/my_health/health_profile_page.dart';
-import 'package:allomom/features/my_health/widgets/my_health_profile_card.dart';
 import 'package:allomom/features/my_health/widgets/advanced_health_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/step_target_tile.dart';
 import 'package:allomom/features/my_health/widgets/fitness_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/calories_tracker_tile.dart';
 import 'package:allomom/features/my_health/widgets/nutrition_tiles.dart';
+import 'package:allomom/features/overview_section/nutrition/nutrition_trend_card.dart';
 import 'package:allomom/features/my_health/widgets/fitness_tiles.dart';
 import 'package:allomom/features/my_health/details/steps_detail_page.dart';
 import 'package:allomom/features/my_health/details/blood_oxygen_detail_page.dart';
@@ -28,15 +29,13 @@ import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
 import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 class _HealthTabItem {
   final IconData icon;
   final String label;
 
-  const _HealthTabItem({
-    required this.icon,
-    required this.label,
-  });
+  const _HealthTabItem({required this.icon, required this.label});
 }
 
 class MyHealthPage extends StatefulWidget {
@@ -120,10 +119,10 @@ class _MyHealthPageState extends State<MyHealthPage> {
           _currentIndex == 0
               ? 'My Health'
               : _currentIndex == 1
-                  ? 'My Reports'
-                  : _currentIndex == 2
-                      ? 'My Prescriptions'
-                      : 'My Profile',
+              ? 'My Reports'
+              : _currentIndex == 2
+              ? 'My Prescriptions'
+              : 'My Profile',
           style: GoogleFonts.manrope(
             fontSize: 20,
             fontWeight: FontWeight.w800,
@@ -142,13 +141,12 @@ class _MyHealthPageState extends State<MyHealthPage> {
             ? const SizedBox(
                 width: 24,
                 height: 24,
-                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2.5,
+                ),
               )
-            : const Icon(
-                Icons.watch_rounded,
-                color: Colors.white,
-                size: 28,
-              ),
+            : const Icon(Icons.watch_rounded, color: Colors.white, size: 28),
       ),
       bottomNavigationBar: BottomAppBar(
         color: Colors.white,
@@ -178,17 +176,26 @@ class _MyHealthPageState extends State<MyHealthPage> {
           }
         },
         children: [
-          // Tab 0: Health Section
-          RefreshIndicator(
-            color: const Color(0xFFFF3B5C),
-            onRefresh: () async {
-              await HealthVitalsController.instance.syncAllVitals();
-            },
-            child: const SingleChildScrollView(
-              physics: AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-              padding: EdgeInsets.symmetric(horizontal: 0, vertical: 6),
-              child: MyHealthSection(showBabyHero: true),
-            ),
+          // Tab 0: Health Section — the baby stays put, the rest scrolls under it
+          Column(
+            children: [
+              const _PinnedBabyHero(),
+              Expanded(
+                child: RefreshIndicator(
+                  color: const Color(0xFFFF3B5C),
+                  onRefresh: () async {
+                    await HealthVitalsController.instance.syncAllVitals();
+                  },
+                  child: const SingleChildScrollView(
+                    physics: AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: EdgeInsets.only(top: 4),
+                    child: MyHealthSection(),
+                  ),
+                ),
+              ),
+            ],
           ),
 
           // Tab 1: Reports
@@ -244,15 +251,48 @@ class _MyHealthPageState extends State<MyHealthPage> {
   }
 }
 
+/// The baby card that stays fixed at the top of My Health.
+///
+/// It sits outside the scroll view so the greeting never scrolls away — only
+/// the cards below it move.
+class _PinnedBabyHero extends StatelessWidget {
+  const _PinnedBabyHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        MainController.instance,
+        HealthVitalsController.instance,
+      ]),
+      builder: (context, child) {
+        final week = MainController.instance.currentGestationalWeek;
+
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
+          child: BabyHeroBanner(
+            // A screen of empty tiles needs the line that asks for a
+            // first reading, not the tour of what lives here.
+            narrationKey: HealthVitalsController.instance.hasAnyVital
+                ? NarrationKeys.pgVitalsOpen
+                : NarrationKeys.pgVitalsEmpty,
+            bindNarrationText: false,
+            speechText:
+                "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+            bubblePosition: SpeechBubblePosition.topCenter,
+            height: 270,
+            greetingText: "",
+          ),
+        );
+      },
+    );
+  }
+}
+
 class MyHealthSection extends StatefulWidget {
-  final bool showBabyHero;
   final bool showSectionHeader;
 
-  const MyHealthSection({
-    super.key,
-    this.showBabyHero = false,
-    this.showSectionHeader = false,
-  });
+  const MyHealthSection({super.key, this.showSectionHeader = false});
 
   @override
   State<MyHealthSection> createState() => _MyHealthSectionState();
@@ -270,11 +310,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: Listenable.merge([MainController.instance, HealthVitalsController.instance]),
+      animation: Listenable.merge([
+        MainController.instance,
+        HealthVitalsController.instance,
+      ]),
       builder: (context, child) {
-        final session = MainController.instance;
-        final week = session.currentGestationalWeek;
-
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -297,7 +337,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       onTap: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const MyHealthPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const MyHealthPage(),
+                          ),
                         );
                       },
                       child: Row(
@@ -324,24 +366,6 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 ),
               ),
               const SizedBox(height: 14),
-            ],
-
-            // ─── COLLAPSIBLE USER PROFILE BANNER ───
-            const MyHealthProfileCard(),
-            const SizedBox(height: 12),
-
-            // ─── BABY HERO CARD (OPTIONAL) ───
-            if (widget.showBabyHero) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: BabyHeroBanner(
-                  speechText: "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                  bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
-                  greetingText: "",
-                ),
-              ),
-              const SizedBox(height: 18),
             ],
 
             // ─── ADVANCED READINESS & VITAL SCORING ENGINE ───
@@ -412,6 +436,13 @@ class _MyHealthSectionState extends State<MyHealthSection> {
               padding: EdgeInsets.symmetric(horizontal: 20),
               child: NutritionTiles(),
             ),
+            const SizedBox(height: 14),
+
+            // ─── INTAKE TRENDS (CALORIES BY MEAL & WATER) ───
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: NutritionTrendCard(),
+            ),
             const SizedBox(height: 20),
 
             // ─── GENTLE PREGNANCY FITNESS TILES ───
@@ -427,6 +458,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     );
   }
 
+  /// The last week of readings for a tile sparkline, oldest first so the line
+  /// runs forward in time.
+  List<double> _sparklinePoints(String key) {
+    final history = HealthVitalsController.instance.getHistoryForPeriod(
+      key,
+      'Week',
+    );
+    return history.map((e) => e.value).toList();
+  }
+
   // ─── VITALS GRID (STEPS, HEART RATE, HRV, BLOOD OXYGEN, STRESS) ───
   Widget _buildVitalsGrid() {
     return Column(
@@ -436,13 +477,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: _buildStepsTile(),
-              ),
+              Expanded(child: _buildStepsTile()),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildHeartRateTile(),
-              ),
+              Expanded(child: _buildHeartRateTile()),
             ],
           ),
         ),
@@ -453,13 +490,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: _buildHrvTile(),
-              ),
+              Expanded(child: _buildHrvTile()),
               const SizedBox(width: 12),
-              Expanded(
-                child: _buildBloodOxygenTile(),
-              ),
+              Expanded(child: _buildBloodOxygenTile()),
             ],
           ),
         ),
@@ -479,13 +512,13 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     final statusText = !hasHr
         ? 'No record'
         : (hrInt >= 60 && hrInt <= 100)
-            ? 'Normal'
-            : (hrInt < 60 ? 'Low' : 'Elevated');
+        ? 'Normal'
+        : (hrInt < 60 ? 'Low' : 'Elevated');
     final statusColor = !hasHr
         ? const Color(0xFF8E95A5)
         : (hrInt >= 60 && hrInt <= 100)
-            ? const Color(0xFF10B981)
-            : const Color(0xFFFF5252);
+        ? const Color(0xFF10B981)
+        : const Color(0xFFFF5252);
 
     return GestureDetector(
       onTap: () {
@@ -534,9 +567,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'heart_rate', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'heart_rate',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFECEF),
                           borderRadius: BorderRadius.circular(10),
@@ -544,7 +584,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFFFF3B5C)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFFFF3B5C),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -616,10 +660,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   child: CustomPaint(
                     painter: _MiniSparklinePainter(
                       color: const Color(0xFFFF3B5C),
-                      dataPoints: HealthVitalsController.instance
-                          .getHistory('heart_rate')
-                          .map((e) => e.value)
-                          .toList(),
+                      dataPoints: _sparklinePoints('heart_rate'),
                     ),
                   ),
                 ),
@@ -635,7 +676,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   Widget _buildStepsTile() {
     final steps = HealthVitalsController.instance.stepsValue;
     final goal = HealthVitalsController.instance.currentStepTarget;
-    final pct = ((steps / (goal > 0 ? goal : 6000)) * 100).clamp(0, 100).toInt();
+    final pct = ((steps / (goal > 0 ? goal : 6000)) * 100)
+        .clamp(0, 100)
+        .toInt();
 
     return GestureDetector(
       onTap: () {
@@ -684,9 +727,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'steps', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'steps',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE6F9F0),
                           borderRadius: BorderRadius.circular(10),
@@ -694,7 +744,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFF10B981)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFF10B981),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -765,7 +819,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                     value: pct / 100.0,
                     minHeight: 5,
                     backgroundColor: const Color(0xFFF0F1F5),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      Color(0xFF10B981),
+                    ),
                   ),
                 ),
               ],
@@ -784,8 +840,8 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     final statusText = !hasHrv
         ? 'No record'
         : (hrvInt >= 50)
-            ? 'Good'
-            : (hrvInt >= 35 ? 'Balanced' : 'Low');
+        ? 'Good'
+        : (hrvInt >= 35 ? 'Balanced' : 'Low');
     final statusColor = !hasHrv
         ? const Color(0xFF8E95A5)
         : (hrvInt >= 35 ? const Color(0xFF10B981) : const Color(0xFFF59E0B));
@@ -837,9 +893,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'hrv', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'hrv',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF3E8FF),
                           borderRadius: BorderRadius.circular(10),
@@ -847,7 +910,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFF9333EA)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFF9333EA),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -919,10 +986,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   child: CustomPaint(
                     painter: _MiniSparklinePainter(
                       color: const Color(0xFF9333EA),
-                      dataPoints: HealthVitalsController.instance
-                          .getHistory('hrv')
-                          .map((e) => e.value)
-                          .toList(),
+                      dataPoints: _sparklinePoints('hrv'),
                     ),
                   ),
                 ),
@@ -993,9 +1057,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'blood_oxygen', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'blood_oxygen',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE0F2FE),
                           borderRadius: BorderRadius.circular(10),
@@ -1003,7 +1074,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFF0284C7)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFF0284C7),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -1075,10 +1150,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   child: CustomPaint(
                     painter: _MiniSparklinePainter(
                       color: const Color(0xFF0284C7),
-                      dataPoints: HealthVitalsController.instance
-                          .getHistory('blood_oxygen')
-                          .map((e) => e.value)
-                          .toList(),
+                      dataPoints: _sparklinePoints('blood_oxygen'),
                     ),
                   ),
                 ),
@@ -1095,28 +1167,30 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     final hasStress = HealthVitalsController.instance.hasStress;
     final stressVital = HealthVitalsController.instance.stressVital;
     final stressScore = stressVital != null ? stressVital.value.toInt() : 0;
-    final stressBadge = hasStress ? HealthVitalsController.instance.stressLevel : 'No record';
+    final stressBadge = hasStress
+        ? HealthVitalsController.instance.stressLevel
+        : 'No record';
     final progress = hasStress ? (stressScore / 100.0).clamp(0.0, 1.0) : 0.0;
     final subtitle = hasStress
         ? (stressScore <= 30
-            ? 'Low stress ($stressScore/100)'
-            : stressScore <= 60
-                ? 'Moderate stress ($stressScore/100)'
-                : 'High stress ($stressScore/100)')
+              ? 'Low stress ($stressScore/100)'
+              : stressScore <= 60
+              ? 'Moderate stress ($stressScore/100)'
+              : 'High stress ($stressScore/100)')
         : 'Not recorded yet';
     final statusText = hasStress
         ? (stressScore <= 30
-            ? 'Well rested'
-            : stressScore <= 60
-                ? 'Normal load'
-                : 'Take a rest')
+              ? 'Well rested'
+              : stressScore <= 60
+              ? 'Normal load'
+              : 'Take a rest')
         : 'Sync to track';
     final badgeColor = hasStress
         ? (stressScore <= 30
-            ? const Color(0xFF10B981)
-            : stressScore <= 60
-                ? const Color(0xFFF59E0B)
-                : const Color(0xFFFF3B5C))
+              ? const Color(0xFF10B981)
+              : stressScore <= 60
+              ? const Color(0xFFF59E0B)
+              : const Color(0xFFFF3B5C))
         : const Color(0xFF8E95A5);
 
     return GestureDetector(
@@ -1178,7 +1252,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: badgeColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -1194,9 +1271,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'stress', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'stress',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE0F2FE),
                           borderRadius: BorderRadius.circular(12),
@@ -1204,7 +1288,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFF0284C7)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFF0284C7),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -1269,7 +1357,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     final sleepH = sleepHours.toInt();
     final sleepM = ((sleepHours - sleepH) * 60).round();
     final sleepDate = HealthVitalsController.instance.sleepDate;
-    final sleepScore = hasSleep ? ((sleepHours / 8.0) * 100).clamp(30, 99).toInt() : null;
+    final sleepScore = hasSleep
+        ? ((sleepHours / 8.0) * 100).clamp(30, 99).toInt()
+        : null;
 
     return GestureDetector(
       onTap: () {
@@ -1352,7 +1442,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEEF2FF),
                         borderRadius: BorderRadius.circular(20),
@@ -1360,10 +1453,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.star_rounded, size: 13, color: Color(0xFF4F46E5)),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 13,
+                            color: Color(0xFF4F46E5),
+                          ),
                           const SizedBox(width: 3),
                           Text(
-                            sleepScore != null ? 'Score $sleepScore' : 'No record',
+                            sleepScore != null
+                                ? 'Score $sleepScore'
+                                : 'No record',
                             style: GoogleFonts.manrope(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
@@ -1375,9 +1474,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'sleep', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'sleep',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEEF2FF),
                           borderRadius: BorderRadius.circular(12),
@@ -1385,7 +1491,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFF4F46E5)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFF4F46E5),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -1422,15 +1532,17 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 Text(
                   hasSleep
                       ? (sleepHours >= 7.0
-                          ? '• Optimal rest'
-                          : sleepHours >= 5.0
-                              ? '• Fair rest'
-                              : '• Need more rest')
+                            ? '• Optimal rest'
+                            : sleepHours >= 5.0
+                            ? '• Fair rest'
+                            : '• Need more rest')
                       : '• Tap to log',
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: hasSleep ? const Color(0xFF10B981) : const Color(0xFF8E95A5),
+                    color: hasSleep
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFF8E95A5),
                   ),
                 ),
               ],
@@ -1441,7 +1553,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
               height: 48,
               width: double.infinity,
               child: CustomPaint(
-                painter: _SleepHypnogramPainter(hasSleep: hasSleep, sleepHours: sleepHours),
+                painter: _SleepHypnogramPainter(
+                  hasSleep: hasSleep,
+                  sleepHours: sleepHours,
+                ),
               ),
             ),
           ],
@@ -1503,63 +1618,95 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 value: HealthVitalsController.instance.bloodPressureValue,
                 unit: 'mmHg',
                 date: HealthVitalsController.instance.bloodPressureDate,
-                status: HealthVitalsController.instance.hasBloodPressure ? 'Recorded' : 'No record',
-                statusColor: HealthVitalsController.instance.hasBloodPressure ? const Color(0xFF10B981) : const Color(0xFF8E95A5),
+                status: HealthVitalsController.instance.hasBloodPressure
+                    ? 'Recorded'
+                    : 'No record',
+                statusColor: HealthVitalsController.instance.hasBloodPressure
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFF8E95A5),
                 accentColor: const Color(0xFFFF3B5C),
                 icon: Icons.favorite_border_rounded,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const BloodPressureDetailPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const BloodPressureDetailPage(),
+                    ),
                   );
                 },
-                onLog: () => VitalLogBottomSheet.show(context, initialKey: 'blood_pressure', lockKey: true),
+                onLog: () => VitalLogBottomSheet.show(
+                  context,
+                  initialKey: 'blood_pressure',
+                  lockKey: true,
+                ),
               ),
               const SizedBox(width: 12),
 
               _buildReadingCard(
                 title: 'Hemoglobin',
                 value: HealthVitalsController.instance.hasHemoglobin
-                    ? HealthVitalsController.instance.hemoglobinValue.toStringAsFixed(1)
+                    ? HealthVitalsController.instance.hemoglobinValue
+                          .toStringAsFixed(1)
                     : '--',
                 unit: 'g/dL',
                 date: HealthVitalsController.instance.hemoglobinDate,
                 status: HealthVitalsController.instance.hasHemoglobin
-                    ? (HealthVitalsController.instance.hemoglobinValue >= 11.0 ? 'Adequate' : 'Low')
+                    ? (HealthVitalsController.instance.hemoglobinValue >= 11.0
+                          ? 'Adequate'
+                          : 'Low')
                     : 'No record',
-                statusColor: HealthVitalsController.instance.hasHemoglobin ? const Color(0xFF10B981) : const Color(0xFF8E95A5),
+                statusColor: HealthVitalsController.instance.hasHemoglobin
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFF8E95A5),
                 accentColor: const Color(0xFF9333EA),
                 icon: Icons.water_drop_outlined,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const HemoglobinDetailPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const HemoglobinDetailPage(),
+                    ),
                   );
                 },
-                onLog: () => VitalLogBottomSheet.show(context, initialKey: 'hemoglobin', lockKey: true),
+                onLog: () => VitalLogBottomSheet.show(
+                  context,
+                  initialKey: 'hemoglobin',
+                  lockKey: true,
+                ),
               ),
               const SizedBox(width: 12),
 
               _buildReadingCard(
                 title: 'Blood Glucose',
                 value: HealthVitalsController.instance.hasBloodGlucose
-                    ? HealthVitalsController.instance.bloodGlucoseValue.toStringAsFixed(0)
+                    ? HealthVitalsController.instance.bloodGlucoseValue
+                          .toStringAsFixed(0)
                     : '--',
                 unit: 'mg/dL',
                 date: HealthVitalsController.instance.bloodGlucoseDate,
                 status: HealthVitalsController.instance.hasBloodGlucose
-                    ? (HealthVitalsController.instance.bloodGlucoseValue <= 100 ? 'Normal' : 'Elevated')
+                    ? (HealthVitalsController.instance.bloodGlucoseValue <= 100
+                          ? 'Normal'
+                          : 'Elevated')
                     : 'No record',
-                statusColor: HealthVitalsController.instance.hasBloodGlucose ? const Color(0xFF3898EC) : const Color(0xFF8E95A5),
+                statusColor: HealthVitalsController.instance.hasBloodGlucose
+                    ? const Color(0xFF3898EC)
+                    : const Color(0xFF8E95A5),
                 accentColor: const Color(0xFFF59E0B),
                 icon: Icons.bloodtype_outlined,
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const BloodGlucoseDetailPage()),
+                    MaterialPageRoute(
+                      builder: (_) => const BloodGlucoseDetailPage(),
+                    ),
                   );
                 },
-                onLog: () => VitalLogBottomSheet.show(context, initialKey: 'glucose', lockKey: true),
+                onLog: () => VitalLogBottomSheet.show(
+                  context,
+                  initialKey: 'glucose',
+                  lockKey: true,
+                ),
               ),
             ],
           ),
@@ -1667,7 +1814,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
@@ -1685,7 +1835,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   GestureDetector(
                     onTap: onLog,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: accentColor.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
@@ -1718,9 +1871,15 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   // ─── WEIGHT & BMI TRACKER CARD ───────────────────────────────
   Widget _buildWeightAndBmiTrackerCard(BuildContext context) {
     final hasWeight = HealthVitalsController.instance.hasWeight;
-    final wt = hasWeight ? HealthVitalsController.instance.weightValue.toStringAsFixed(1) : '--';
-    final wtDate = hasWeight ? HealthVitalsController.instance.weightDate : 'No record';
-    final bmi = hasWeight ? HealthVitalsController.instance.bmiValue.toStringAsFixed(1) : '--';
+    final wt = hasWeight
+        ? HealthVitalsController.instance.weightValue.toStringAsFixed(1)
+        : '--';
+    final wtDate = hasWeight
+        ? HealthVitalsController.instance.weightDate
+        : 'No record';
+    final bmi = hasWeight
+        ? HealthVitalsController.instance.bmiValue.toStringAsFixed(1)
+        : '--';
 
     final weightHistory = HealthVitalsController.instance.getHistory('weight');
     String gestationalGainStr = '--';
@@ -1731,7 +1890,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
       final initialWt = sortedAsc.first.value;
       final currentWt = sortedAsc.last.value;
       final diff = currentWt - initialWt;
-      gestationalGainStr = diff >= 0 ? '+${diff.toStringAsFixed(1)}' : diff.toStringAsFixed(1);
+      gestationalGainStr = diff >= 0
+          ? '+${diff.toStringAsFixed(1)}'
+          : diff.toStringAsFixed(1);
       gainColor = diff >= 0 ? const Color(0xFF10B981) : const Color(0xFF3898EC);
     } else if (hasWeight) {
       gestationalGainStr = '+0.0';
@@ -1795,7 +1956,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                           ),
                         ),
                         Text(
-                          hasWeight ? 'Recorded $wtDate' : 'No weight logged yet',
+                          hasWeight
+                              ? 'Recorded $wtDate'
+                              : 'No weight logged yet',
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             color: const Color(0xFF8E95A5),
@@ -1808,9 +1971,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(context, initialKey: 'weight', lockKey: true),
+                      onTap: () => VitalLogBottomSheet.show(
+                        context,
+                        initialKey: 'weight',
+                        lockKey: true,
+                      ),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFECEF),
                           borderRadius: BorderRadius.circular(12),
@@ -1818,7 +1988,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.add_rounded, size: 12, color: Color(0xFFFF3B5C)),
+                            Icon(
+                              Icons.add_rounded,
+                              size: 12,
+                              color: Color(0xFFFF3B5C),
+                            ),
                             SizedBox(width: 2),
                             Text(
                               'Log',
@@ -1852,7 +2026,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   children: [
                     Text(
                       'Current Weight',
-                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
+                      style: GoogleFonts.manrope(
+                        fontSize: 11.5,
+                        color: const Color(0xFF8E95A5),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Row(
@@ -1861,10 +2039,20 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       children: [
                         Text(
                           wt,
-                          style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF1E2024)),
+                          style: GoogleFonts.manrope(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF1E2024),
+                          ),
                         ),
                         const SizedBox(width: 3),
-                        Text('kg', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF8E95A5))),
+                        Text(
+                          'kg',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: const Color(0xFF8E95A5),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -1875,7 +2063,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   children: [
                     Text(
                       'Gestational Gain',
-                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
+                      style: GoogleFonts.manrope(
+                        fontSize: 11.5,
+                        color: const Color(0xFF8E95A5),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Row(
@@ -1884,10 +2076,20 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                       children: [
                         Text(
                           gestationalGainStr,
-                          style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: gainColor),
+                          style: GoogleFonts.manrope(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: gainColor,
+                          ),
                         ),
                         const SizedBox(width: 3),
-                        Text('kg', style: GoogleFonts.manrope(fontSize: 12, color: const Color(0xFF8E95A5))),
+                        Text(
+                          'kg',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            color: const Color(0xFF8E95A5),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -1898,12 +2100,20 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   children: [
                     Text(
                       'BMI',
-                      style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF8E95A5), fontWeight: FontWeight.w600),
+                      style: GoogleFonts.manrope(
+                        fontSize: 11.5,
+                        color: const Color(0xFF8E95A5),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       bmi,
-                      style: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w800, color: const Color(0xFF1E2024)),
+                      style: GoogleFonts.manrope(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: const Color(0xFF1E2024),
+                      ),
                     ),
                   ],
                 ),
@@ -1928,6 +2138,60 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   Widget _buildBabyTrackingSection(BuildContext context) {
     final vitals = HealthVitalsController.instance;
 
+    // Kicks are counted per day, so the tile shows today's running total and
+    // only falls back to the last recorded day when nothing came in today.
+    final kicksToday = vitals.getHistoryForPeriod('kick_count', 'Day');
+    final kickHistory = vitals.getHistory('kick_count');
+    final hasKicksToday = kicksToday.isNotEmpty;
+    final latestKick = kickHistory.isNotEmpty
+        ? kickHistory.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
+        : null;
+
+    final String kickValue;
+    final String kickCaption;
+    if (hasKicksToday) {
+      final total = kicksToday
+          .fold<double>(0, (sum, v) => sum + v.value)
+          .round();
+      kickValue = '$total';
+      kickCaption =
+          'Today, ${DateFormat('h:mm a').format(kicksToday.last.createdAt)}';
+    } else if (latestKick != null) {
+      kickValue = '${latestKick.value.round()}';
+      kickCaption = DateFormat('dd MMM, h:mm a').format(latestKick.createdAt);
+    } else {
+      kickValue = '--';
+      kickCaption = 'No kicks logged yet';
+    }
+
+    // Feeding sessions differ in unit (mins vs ml), so the tile reports the
+    // latest session rather than a total that would mix the two.
+    final feedingHistory = vitals.getHistory('feeding');
+    final latestFeeding = feedingHistory.isNotEmpty
+        ? feedingHistory.reduce(
+            (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
+          )
+        : null;
+
+    final String feedingValue;
+    final String feedingUnit;
+    final String feedingCaption;
+    if (latestFeeding != null) {
+      feedingValue = latestFeeding.value % 1 == 0
+          ? latestFeeding.value.toInt().toString()
+          : latestFeeding.value.toStringAsFixed(1);
+      feedingUnit = latestFeeding.unit.isNotEmpty ? latestFeeding.unit : 'mins';
+      final type = latestFeeding.data?['type']?.toString();
+      final when = _isToday(latestFeeding.createdAt)
+          ? 'Today'
+          : DateFormat('dd MMM').format(latestFeeding.createdAt);
+      feedingCaption = type != null && type.isNotEmpty ? '$type · $when' : when;
+    } else {
+      feedingValue = '--';
+      feedingUnit = 'mins';
+      feedingCaption = 'No feeds logged yet';
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1943,7 +2207,14 @@ class _MyHealthSectionState extends State<MyHealthSection> {
               ),
             ),
             GestureDetector(
-              onTap: () => _showAddReadingSheet(context),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const KickCounterStatsPage(),
+                  ),
+                );
+              },
               child: Text(
                 'View All',
                 style: GoogleFonts.manrope(
@@ -1956,251 +2227,191 @@ class _MyHealthSectionState extends State<MyHealthSection> {
           ],
         ),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            // Kick Counter Card
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
+        // IntrinsicHeight gives the Row a real height so the two cards can match
+        // each other inside the scroll view, which has no bound of its own.
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildTrackingTile(
+                  icon: Icons.pets_rounded,
+                  accent: const Color(0xFFFF4E6A),
+                  accentBg: const Color(0xFFFFE4E6),
+                  title: 'Kick Counter',
+                  value: kickValue,
+                  unit: 'kicks',
+                  caption: kickCaption,
+                  hasData: hasKicksToday || latestKick != null,
+                  onOpen: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const KickCounterStatsPage()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
+                    MaterialPageRoute(
+                      builder: (_) => const KickCounterStatsPage(),
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFE4E6),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.pets_rounded,
-                                color: Color(0xFFFF4E6A),
-                                size: 19,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => VitalLogBottomSheet.show(context, initialKey: 'kick_count', lockKey: true),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFE4E6),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add_rounded, size: 12, color: Color(0xFFFF4E6A)),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'Log',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFFFF4E6A),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Kick Counter',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E2024),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            vitals.hasKickCount ? '${vitals.kickCountValue}' : '7',
-                            style: GoogleFonts.manrope(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'kicks',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        vitals.hasKickCount ? vitals.kickCountDate : 'Today, 12:45 PM',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10.5,
-                          color: const Color(0xFF8E95A5),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                  onLog: () => VitalLogBottomSheet.show(
+                    context,
+                    initialKey: 'kick_count',
+                    lockKey: true,
                   ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildTrackingTile(
+                  icon: Icons.local_drink_rounded,
+                  accent: const Color(0xFF8B5CF6),
+                  accentBg: const Color(0xFFEDE9FE),
+                  title: 'Feeding Tracker',
+                  value: feedingValue,
+                  unit: feedingUnit,
+                  caption: feedingCaption,
+                  hasData: latestFeeding != null,
+                  onOpen: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const FeedingTrackerStatsPage(),
+                    ),
+                  ),
+                  onLog: () => VitalLogBottomSheet.show(
+                    context,
+                    initialKey: 'feeding',
+                    lockKey: true,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-            // Feeding Tracker Card
-            Expanded(
-              child: GestureDetector(
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const FeedingTrackerStatsPage()),
-                  );
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 10,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEDE9FE),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.local_drink_rounded,
-                                color: Color(0xFF8B5CF6),
-                                size: 19,
-                              ),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: () => VitalLogBottomSheet.show(context, initialKey: 'feeding', lockKey: true),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEDE9FE),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add_rounded, size: 12, color: Color(0xFF8B5CF6)),
-                                  SizedBox(width: 2),
-                                  Text(
-                                    'Log',
-                                    style: TextStyle(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF8B5CF6),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Feeding Tracker',
-                        style: GoogleFonts.manrope(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E2024),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            vitals.hasFeeding
-                                ? (vitals.feedingValue > 0 ? '${vitals.feedingValue.toInt()}' : '20')
-                                : '20',
-                            style: GoogleFonts.manrope(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            vitals.hasFeeding ? vitals.feedingUnit : 'mins',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF8E95A5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        vitals.hasFeeding ? '${vitals.feedingType} · ${vitals.feedingDate}' : 'Breast · Today',
-                        style: GoogleFonts.manrope(
-                          fontSize: 10.5,
-                          color: const Color(0xFF8E95A5),
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+  bool _isToday(DateTime t) {
+    final now = DateTime.now();
+    return t.year == now.year && t.month == now.month && t.day == now.day;
+  }
+
+  Widget _buildTrackingTile({
+    required IconData icon,
+    required Color accent,
+    required Color accentBg,
+    required String title,
+    required String value,
+    required String unit,
+    required String caption,
+    required bool hasData,
+    required VoidCallback onOpen,
+    required VoidCallback onLog,
+  }) {
+    return GestureDetector(
+      onTap: onOpen,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
-      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accentBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(child: Icon(icon, color: accent, size: 19)),
+                ),
+                GestureDetector(
+                  onTap: onLog,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: accentBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.add_rounded, size: 12, color: accent),
+                        const SizedBox(width: 2),
+                        Text(
+                          'Log',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: accent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: GoogleFonts.manrope(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF1E2024),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  value,
+                  style: GoogleFonts.manrope(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: hasData
+                        ? const Color(0xFF1E2024)
+                        : const Color(0xFFB4BAC6),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  unit,
+                  style: GoogleFonts.manrope(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8E95A5),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              caption,
+              style: GoogleFonts.manrope(
+                fontSize: 10.5,
+                color: const Color(0xFF8E95A5),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2252,26 +2463,25 @@ class _MiniSparklinePainter extends CustomPainter {
       return;
     }
 
-    final path = Path();
-    path.moveTo(0, size.height * 0.6);
-    path.cubicTo(
-      size.width * 0.25, size.height * 0.1,
-      size.width * 0.40, size.height * 0.9,
-      size.width * 0.65, size.height * 0.2,
-    );
-    path.cubicTo(
-      size.width * 0.85, size.height * 0.8,
-      size.width * 0.95, size.height * 0.3,
-      size.width, size.height * 0.4,
-    );
-
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.5)
+    // Nothing recorded yet — a flat baseline says so; a curve would be a lie.
+    final y = size.height * 0.62;
+    final basePaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
-    canvas.drawPath(path, paint);
+    const dash = 4.0;
+    var x = 0.0;
+    while (x < size.width) {
+      final end = math.min(x + dash, size.width);
+      canvas.drawLine(Offset(x, y), Offset(end, y), basePaint);
+      x = end + dash;
+    }
+
+    if (dataPoints != null && dataPoints!.length == 1) {
+      canvas.drawCircle(Offset(size.width / 2, y), 3, Paint()..color = color);
+    }
   }
 
   @override
@@ -2283,10 +2493,7 @@ class _SleepHypnogramPainter extends CustomPainter {
   final bool hasSleep;
   final double sleepHours;
 
-  const _SleepHypnogramPainter({
-    this.hasSleep = false,
-    this.sleepHours = 0.0,
-  });
+  const _SleepHypnogramPainter({this.hasSleep = false, this.sleepHours = 0.0});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2295,23 +2502,41 @@ class _SleepHypnogramPainter extends CustomPainter {
         ..color = const Color(0xFFE2E8F0)
         ..strokeWidth = 1.5
         ..style = PaintingStyle.stroke;
-      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), dashedPaint);
+      canvas.drawLine(
+        Offset(0, size.height / 2),
+        Offset(size.width, size.height / 2),
+        dashedPaint,
+      );
 
       final textPainter = TextPainter(
         text: const TextSpan(
           text: 'Wear your Allowear watch or tap above to track sleep',
-          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF94A3B8),
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset((size.width - textPainter.width) / 2, (size.height - textPainter.height) / 2));
+      textPainter.paint(
+        canvas,
+        Offset(
+          (size.width - textPainter.width) / 2,
+          (size.height - textPainter.height) / 2,
+        ),
+      );
       return;
     }
 
     final lightTextPainter = TextPainter(
       text: const TextSpan(
         text: 'Light',
-        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFFC084FC)),
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFFC084FC),
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -2320,7 +2545,11 @@ class _SleepHypnogramPainter extends CustomPainter {
     final deepTextPainter = TextPainter(
       text: const TextSpan(
         text: 'Deep',
-        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: Color(0xFF6366F1)),
+        style: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF6366F1),
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -2338,7 +2567,12 @@ class _SleepHypnogramPainter extends CustomPainter {
     // Block 1 (Light)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(barStartX + usableWidth * 0.15, 0, usableWidth * (lightRatio * 0.4), 16),
+        Rect.fromLTWH(
+          barStartX + usableWidth * 0.15,
+          0,
+          usableWidth * (lightRatio * 0.4),
+          16,
+        ),
         const Radius.circular(5),
       ),
       lightPaint,
@@ -2347,7 +2581,12 @@ class _SleepHypnogramPainter extends CustomPainter {
     // Block 2 (Light)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(barStartX + usableWidth * 0.55, 0, usableWidth * (lightRatio * 0.45), 16),
+        Rect.fromLTWH(
+          barStartX + usableWidth * 0.55,
+          0,
+          usableWidth * (lightRatio * 0.45),
+          16,
+        ),
         const Radius.circular(5),
       ),
       lightPaint,
@@ -2365,7 +2604,12 @@ class _SleepHypnogramPainter extends CustomPainter {
     // Block 2 (Deep)
     canvas.drawRRect(
       RRect.fromRectAndRadius(
-        Rect.fromLTWH(barStartX + usableWidth * 0.35, 24, usableWidth * (deepRatio * 0.5), 16),
+        Rect.fromLTWH(
+          barStartX + usableWidth * 0.35,
+          24,
+          usableWidth * (deepRatio * 0.5),
+          16,
+        ),
         const Radius.circular(5),
       ),
       deepPaint,
@@ -2390,16 +2634,30 @@ class _WeightTrendPainter extends CustomPainter {
         ..color = const Color(0xFFF1F5F9)
         ..strokeWidth = 2
         ..style = PaintingStyle.stroke;
-      canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), basePaint);
+      canvas.drawLine(
+        Offset(0, size.height / 2),
+        Offset(size.width, size.height / 2),
+        basePaint,
+      );
 
       final textPainter = TextPainter(
         text: const TextSpan(
           text: 'No weight entries logged yet',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF94A3B8),
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset((size.width - textPainter.width) / 2, (size.height - textPainter.height) / 2));
+      textPainter.paint(
+        canvas,
+        Offset(
+          (size.width - textPainter.width) / 2,
+          (size.height - textPainter.height) / 2,
+        ),
+      );
       return;
     }
 
@@ -2431,7 +2689,11 @@ class _WeightTrendPainter extends CustomPainter {
     final startText = TextPainter(
       text: TextSpan(
         text: '${firstVal.toStringAsFixed(1)} kg',
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8E95A5)),
+        style: const TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF8E95A5),
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
@@ -2445,7 +2707,11 @@ class _WeightTrendPainter extends CustomPainter {
     final endText = TextPainter(
       text: TextSpan(
         text: '${lastVal.toStringAsFixed(1)} kg',
-        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800, color: Color(0xFFFF3B5C)),
+        style: const TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+          color: Color(0xFFFF3B5C),
+        ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();

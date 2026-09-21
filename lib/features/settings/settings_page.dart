@@ -12,6 +12,8 @@ import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -23,6 +25,14 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => speak(NarrationKeys.pgSettingsOpen),
+    );
+  }
 
   // AlloMom Theme Color Palette from config/colors.dart
   static const Color _bgTheme = Colors.white;
@@ -121,6 +131,7 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Edit Profile',
                     subtitle: 'Personal info, address & pregnancy details',
                     onTap: () {
+                      speak(NarrationKeys.pgSettingsProfile);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -141,6 +152,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             ? 'New Mom Journey'
                             : 'Update status & LMP',
                     onTap: () {
+                      speak(NarrationKeys.pgSettingsTimeline);
                       Navigator.push(
                         context,
                         MaterialPageRoute(
@@ -220,7 +232,10 @@ class _SettingsPageState extends State<SettingsPage> {
                             session.allowearMacAddress!.isNotEmpty
                         ? 'Paired: ${session.allowearMacAddress}'
                         : 'Connect Bluetooth vitals band',
-                    onTap: () => _showAllowearDialog(context, session),
+                    onTap: () {
+                      speak(NarrationKeys.pgSettingsBand);
+                      _showAllowearDialog(context, session);
+                    },
                   ),
                   _buildItemDivider(),
 
@@ -229,7 +244,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: Icons.translate_rounded,
                     title: 'Language',
                     subtitle: 'English',
-                    onTap: () => _showLanguagePickerModal(context),
+                    onTap: () {
+                      speak(NarrationKeys.pgSettingsLanguage);
+                      _showLanguagePickerModal(context);
+                    },
                   ),
                   _buildItemDivider(),
 
@@ -285,7 +303,10 @@ class _SettingsPageState extends State<SettingsPage> {
                     icon: Icons.volume_up_outlined,
                     title: 'Accessibility & Voice',
                     subtitle: 'Speech speed & voice volume',
-                    onTap: () => _showAccessibilityModal(context),
+                    onTap: () {
+                      speak(NarrationKeys.pgSettingsVoice);
+                      _showAccessibilityModal(context);
+                    },
                   ),
                   _buildItemDivider(),
 
@@ -597,6 +618,10 @@ class _SettingsPageState extends State<SettingsPage> {
   // ─── MODALS & DIALOGS ───
 
   void _showAllowearDialog(BuildContext context, MainController session) {
+    // Said as the field appears: the number is printed on the band and she may
+    // have to go and find it.
+    speak(NarrationKeys.pgSettingsBandMac);
+
     final macController = TextEditingController(
       text: session.allowearMacAddress ?? '',
     );
@@ -664,6 +689,10 @@ class _SettingsPageState extends State<SettingsPage> {
             onPressed: () async {
               Navigator.pop(ctx);
               await session.setAllowearMacAddress(macController.text.trim());
+              speakAll([
+                NarrationKeys.pgConfBandSaved,
+                NarrationKeys.pgSettingsBandOk,
+              ], force: true);
               if (!context.mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

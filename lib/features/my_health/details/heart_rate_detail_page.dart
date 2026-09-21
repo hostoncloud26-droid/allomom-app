@@ -3,6 +3,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
+import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class HeartRateDetailPage extends StatefulWidget {
@@ -164,31 +165,23 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
   Widget _buildMainChartCard() {
     String headerTitle;
     String dateRangeText;
-    List<String> xLabels;
     final now = DateTime.now();
 
     if (_selectedTab == 'Day') {
       headerTitle = 'TODAY';
       dateRangeText = DateFormat('EEE, dd MMM yyyy').format(now);
-      xLabels = ['12 AM', '6 AM', '12 PM', '6 PM', '12 AM'];
     } else if (_selectedTab == 'Week') {
       headerTitle = 'THIS WEEK';
       final start = now.subtract(const Duration(days: 6));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = List.generate(7, (i) {
-        final d = now.subtract(Duration(days: 6 - i));
-        return i == 6 ? 'Today' : DateFormat('E').format(d);
-      });
     } else {
       headerTitle = 'THIS MONTH';
       final start = now.subtract(const Duration(days: 28));
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
-      xLabels = ['W1', 'W2', 'W3', 'W4', 'Today'];
     }
 
-    final currentHr = HealthVitalsController.instance.hasHeartRate
-        ? HealthVitalsController.instance.heartRateValue.toString()
-        : '--';
+    final history =
+        HealthVitalsController.instance.getHistoryForPeriod('heart_rate', _selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -232,30 +225,24 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
           ),
           const SizedBox(height: 20),
 
-          // Chart Graphic
-          SizedBox(
-            height: 180,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _DetailedHeartRateChartPainter(
-                period: _selectedTab,
-                currentHr: currentHr,
+          VitalTrendChart(
+            period: _selectedTab,
+            accent: const Color(0xFFFF3B5C),
+            unit: 'bpm',
+            minY: 50,
+            maxY: 120,
+            bands: const [
+              VitalBand(min: 60, max: 100, color: Color(0x0A10B981)),
+            ],
+            emptyTitle: 'No heart rate readings',
+            emptySubtitle: 'Sync your Allowear or log a reading',
+            series: [
+              VitalSeries.fromHistory(
+                label: 'Heart Rate',
+                color: const Color(0xFFFF3B5C),
+                history: history,
               ),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // X-Axis Time Labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: xLabels.map((lbl) => Text(
-              lbl,
-              style: TextStyle(
-                fontSize: 10,
-                color: const Color(0xFF8E95A5),
-                fontWeight: lbl == 'Today' ? FontWeight.w700 : FontWeight.w500,
-              ),
-            )).toList(),
+            ],
           ),
         ],
       ),
@@ -264,7 +251,6 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
 
   Widget _buildBottomStatsRow() {
     final vitals = HealthVitalsController.instance;
-    final hasHr = vitals.hasHeartRate;
     final avg = vitals.getAverageForVitalPeriod('heart_rate', _selectedTab);
     final min = vitals.getMinForVitalPeriod('heart_rate', _selectedTab);
     final max = vitals.getMaxForVitalPeriod('heart_rate', _selectedTab);
@@ -278,9 +264,9 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
             iconColor: const Color(0xFF3898EC),
             iconBg: const Color(0xFFEDF6FF),
             label: 'Average',
-            value: (hasHr || avg > 0) ? avg.toInt().toString() : '--',
+            value: avg > 0 ? avg.toInt().toString() : '--',
             unit: 'bpm',
-            subtitle: (hasHr || avg > 0) ? '$_selectedTab avg' : '',
+            subtitle: avg > 0 ? '$_selectedTab avg' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -292,9 +278,9 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
             iconColor: const Color(0xFF10B981),
             iconBg: const Color(0xFFE6F9F0),
             label: 'Lowest',
-            value: (hasHr || min > 0) ? min.toInt().toString() : '--',
+            value: min > 0 ? min.toInt().toString() : '--',
             unit: 'bpm',
-            subtitle: (hasHr || min > 0) ? '$_selectedTab min' : '',
+            subtitle: min > 0 ? '$_selectedTab min' : '',
           ),
         ),
         const SizedBox(width: 10),
@@ -306,9 +292,9 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
             iconColor: const Color(0xFFFF4E6A),
             iconBg: const Color(0xFFFFF0F4),
             label: 'Highest',
-            value: (hasHr || max > 0) ? max.toInt().toString() : '--',
+            value: max > 0 ? max.toInt().toString() : '--',
             unit: 'bpm',
-            subtitle: (hasHr || max > 0) ? '$_selectedTab max' : '',
+            subtitle: max > 0 ? '$_selectedTab max' : '',
           ),
         ),
       ],
@@ -407,153 +393,4 @@ class _HeartRateDetailPageState extends State<HeartRateDetailPage> {
       ),
     );
   }
-}
-
-class _DetailedHeartRateChartPainter extends CustomPainter {
-  final String period;
-  final String currentHr;
-
-  const _DetailedHeartRateChartPainter({
-    this.period = 'Day',
-    this.currentHr = '--',
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const leftPadding = 26.0;
-    final chartWidth = size.width - leftPadding;
-    final chartHeight = size.height;
-
-    // Y-Axis Scale Labels on left (120, 90, 60)
-    final y120 = TextPainter(text: const TextSpan(text: '120', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y120.paint(canvas, const Offset(0, 10));
-
-    final y90 = TextPainter(text: const TextSpan(text: '90', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y90.paint(canvas, Offset(0, chartHeight * 0.45));
-
-    final y60 = TextPainter(text: const TextSpan(text: '60', style: TextStyle(fontSize: 9.5, color: Color(0xFFBDC3CE))), textDirection: TextDirection.ltr)..layout();
-    y60.paint(canvas, Offset(0, chartHeight * 0.85));
-
-    // Horizontal grid lines
-    final gridPaint = Paint()..color = const Color(0xFFF0F1F5)..strokeWidth = 1.0;
-    canvas.drawLine(Offset(leftPadding, 16), Offset(size.width, 16), gridPaint);
-    canvas.drawLine(Offset(leftPadding, chartHeight * 0.45 + 6), Offset(size.width, chartHeight * 0.45 + 6), gridPaint);
-    canvas.drawLine(Offset(leftPadding, chartHeight * 0.85 + 6), Offset(size.width, chartHeight * 0.85 + 6), gridPaint);
-
-    // Heart Rate Curve adapts to Day, Week, Month
-    final path = Path();
-    if (period == 'Day') {
-      path.moveTo(leftPadding, chartHeight * 0.80);
-      path.lineTo(leftPadding + chartWidth * 0.20, chartHeight * 0.80);
-      path.cubicTo(
-        leftPadding + chartWidth * 0.35, chartHeight * 0.78,
-        leftPadding + chartWidth * 0.45, chartHeight * 0.50,
-        leftPadding + chartWidth * 0.55, chartHeight * 0.50,
-      );
-      path.cubicTo(
-        leftPadding + chartWidth * 0.65, chartHeight * 0.50,
-        leftPadding + chartWidth * 0.72, chartHeight * 0.60,
-        leftPadding + chartWidth * 0.80, chartHeight * 0.55,
-      );
-      path.cubicTo(
-        leftPadding + chartWidth * 0.88, chartHeight * 0.50,
-        leftPadding + chartWidth * 0.94, chartHeight * 0.22,
-        leftPadding + chartWidth * 0.98, chartHeight * 0.22,
-      );
-    } else if (period == 'Week') {
-      // 7-day variation wave
-      path.moveTo(leftPadding, chartHeight * 0.65);
-      path.cubicTo(
-        leftPadding + chartWidth * 0.18, chartHeight * 0.55,
-        leftPadding + chartWidth * 0.35, chartHeight * 0.72,
-        leftPadding + chartWidth * 0.50, chartHeight * 0.48,
-      );
-      path.cubicTo(
-        leftPadding + chartWidth * 0.68, chartHeight * 0.35,
-        leftPadding + chartWidth * 0.82, chartHeight * 0.60,
-        leftPadding + chartWidth * 0.98, chartHeight * 0.42,
-      );
-    } else {
-      // Month trend curve
-      path.moveTo(leftPadding, chartHeight * 0.70);
-      path.cubicTo(
-        leftPadding + chartWidth * 0.25, chartHeight * 0.62,
-        leftPadding + chartWidth * 0.50, chartHeight * 0.58,
-        leftPadding + chartWidth * 0.75, chartHeight * 0.45,
-      );
-      path.cubicTo(
-        leftPadding + chartWidth * 0.88, chartHeight * 0.40,
-        leftPadding + chartWidth * 0.94, chartHeight * 0.36,
-        leftPadding + chartWidth * 0.98, chartHeight * 0.35,
-      );
-    }
-
-    // Gradient Fill Underneath
-    final fillPath = Path.from(path)
-      ..lineTo(leftPadding + chartWidth * 0.98, chartHeight)
-      ..lineTo(leftPadding, chartHeight)
-      ..close();
-
-    final fillPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFFFF4E6A).withValues(alpha: 0.18),
-          const Color(0xFFFF4E6A).withValues(alpha: 0.0),
-        ],
-      ).createShader(Rect.fromLTWH(leftPadding, 0, chartWidth, chartHeight));
-    canvas.drawPath(fillPath, fillPaint);
-
-    // Pink stroke
-    final strokePaint = Paint()
-      ..color = const Color(0xFFFF4E6A)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, strokePaint);
-
-    // Indicator Dot
-    final peakX = leftPadding + chartWidth * 0.98;
-    final peakY = period == 'Day' ? chartHeight * 0.22 : (period == 'Week' ? chartHeight * 0.42 : chartHeight * 0.35);
-    canvas.drawCircle(Offset(peakX, peakY), 5.5, Paint()..color = const Color(0xFFFF4E6A));
-    canvas.drawCircle(Offset(peakX, peakY), 2.5, Paint()..color = Colors.white);
-
-    // Tooltip Badge
-    final tipX = leftPadding + chartWidth * 0.60;
-    const tooltipW = 104.0;
-    const tooltipH = 26.0;
-    final tooltipRect = Rect.fromLTWH(tipX - tooltipW / 2, 4, tooltipW, tooltipH);
-
-    final tooltipRRect = RRect.fromRectAndRadius(tooltipRect, const Radius.circular(8));
-    canvas.drawRRect(tooltipRRect, Paint()..color = const Color(0xFF2D3748));
-
-    // Downward arrow pointer
-    final pointer = Path()
-      ..moveTo(tipX - 4, tooltipH + 4)
-      ..lineTo(tipX, tooltipH + 8)
-      ..lineTo(tipX + 4, tooltipH + 4)
-      ..close();
-    canvas.drawPath(pointer, Paint()..color = const Color(0xFF2D3748));
-
-    String displayVal = currentHr != '--' ? '$currentHr bpm' : '78 bpm';
-    String displaySub = period == 'Day' ? ' • Today' : (period == 'Week' ? ' • 7D Avg' : ' • Monthly');
-
-    final tText = TextPainter(
-      text: TextSpan(
-        text: displayVal,
-        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w700),
-        children: [
-          TextSpan(text: displaySub, style: const TextStyle(fontSize: 8.5, color: Color(0xFFA0AEC0), fontWeight: FontWeight.normal)),
-        ],
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: tooltipW);
-    tText.paint(canvas, Offset(tooltipRect.left + (tooltipW - tText.width) / 2, tooltipRect.top + 6));
-  }
-
-  @override
-  bool shouldRepaint(covariant _DetailedHeartRateChartPainter oldDelegate) =>
-      oldDelegate.period != period || oldDelegate.currentHr != currentHr;
 }

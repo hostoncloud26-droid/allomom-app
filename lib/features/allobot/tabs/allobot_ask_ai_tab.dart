@@ -20,6 +20,9 @@ import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
 import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class AlloBotAskAiTab extends StatefulWidget {
   final VoidCallback onOpenChat;
@@ -116,6 +119,13 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   // [toggleListening] stay public because the docked mic drives them.
 
   Future<void> startListening() async {
+    // Silence first: the mic is about to open, and the baby's own voice coming
+    // out of the speaker is the last thing speech recognition should hear.
+    if (BackgroundAudioController.isReady) {
+      await BackgroundAudioController.to.stop();
+    }
+    speak(NarrationKeys.pgAllobotListening);
+
     if (_isListening) return;
     // Whatever the baby is still saying belongs to the previous turn.
     await controller.stopCurrentTurn();
@@ -562,6 +572,8 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   /// Everything the downloaded catalogue can answer, as a tappable list.
   void _showTopicsSheet() {
+    speak(NarrationKeys.pgAllobotTopics);
+
     final triggers = controller.sampleTriggers(limit: 24);
     final prompts = triggers.isNotEmpty ? triggers : _openingSuggestions;
 

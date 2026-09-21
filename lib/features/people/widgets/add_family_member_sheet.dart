@@ -3,6 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class AddFamilyMemberSheet extends StatefulWidget {
   final String? familyID;
@@ -120,6 +122,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
       );
 
       _showMsg('Family member added successfully!', isSuccess: true);
+      speak(NarrationKeys.pgConfFamilySaved, force: true);
       widget.onMemberAdded();
       if (mounted) Navigator.pop(context);
     } catch (e) {

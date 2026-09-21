@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class ReminderSetupBottomSheet extends StatefulWidget {
   final LocalReminderType type;
@@ -68,6 +70,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
         _config = _config.copyWith(hour: picked.hour, minute: picked.minute);
       });
       await LocalReminderController.instance.updateTime(widget.type, picked.hour, picked.minute);
+      speak(NarrationKeys.pgConfReminderTime, force: true);
     }
   }
 
@@ -119,6 +122,12 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
                     _config = _config.copyWith(enabled: val);
                   });
                   await LocalReminderController.instance.toggleReminder(widget.type, val);
+                  speak(
+                    val
+                        ? NarrationKeys.pgConfReminderSet
+                        : NarrationKeys.pgConfReminderOff,
+                    force: true,
+                  );
                 },
               ),
             ],

@@ -112,6 +112,24 @@ class HealthVitalsController extends GetxController {
         v.key.toLowerCase() == 'blood_glucose',
   );
   bool get hasWeight => _weightVital != null;
+
+  /// Whether any reading at all has been recorded.
+  ///
+  /// Used to decide whether the health screen introduces itself or asks for a
+  /// first reading — a screen of empty tiles needs the second line.
+  bool get hasAnyVital =>
+      hasHeartRate ||
+      hasSteps ||
+      hasSleep ||
+      hasStress ||
+      hasHrv ||
+      hasBloodOxygen ||
+      hasBloodPressure ||
+      hasHemoglobin ||
+      hasBloodGlucose ||
+      hasWeight ||
+      hasKickCount ||
+      hasFeeding;
   bool get hasKickCount =>
       _kickCountVital != null ||
       _vitals.any(
@@ -215,22 +233,27 @@ class HealthVitalsController extends GetxController {
     return filtered;
   }
 
+  /// Average over the period alone. A period with no readings has no average,
+  /// so this returns 0 rather than borrowing an all-time figure and passing it
+  /// off as today's.
   double getAverageForVitalPeriod(String key, String period) {
     final list = getHistoryForPeriod(key, period);
-    if (list.isEmpty) return getAverageForVital(key);
+    if (list.isEmpty) return 0.0;
     final sum = list.map((e) => e.value).reduce((a, b) => a + b);
     return sum / list.length;
   }
 
+  /// Lowest reading in the period, or 0 when the period holds none.
   double getMinForVitalPeriod(String key, String period) {
     final list = getHistoryForPeriod(key, period);
-    if (list.isEmpty) return getMinForVital(key);
+    if (list.isEmpty) return 0.0;
     return list.map((e) => e.value).reduce((a, b) => a < b ? a : b);
   }
 
+  /// Highest reading in the period, or 0 when the period holds none.
   double getMaxForVitalPeriod(String key, String period) {
     final list = getHistoryForPeriod(key, period);
-    if (list.isEmpty) return getMaxForVital(key);
+    if (list.isEmpty) return 0.0;
     return list.map((e) => e.value).reduce((a, b) => a > b ? a : b);
   }
 
