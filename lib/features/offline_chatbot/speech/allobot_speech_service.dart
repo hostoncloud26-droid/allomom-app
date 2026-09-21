@@ -8,6 +8,8 @@ import 'package:record/record.dart';
 import 'package:get/get.dart';
 import 'package:whisper_ggml_plus/whisper_ggml_plus.dart';
 
+import 'package:allomom/services/app_language.dart';
+
 class AlloBotSpeechService extends GetxService {
   static AlloBotSpeechService get instance =>
       Get.isRegistered<AlloBotSpeechService>()
@@ -223,7 +225,7 @@ class AlloBotSpeechService extends GetxService {
     );
   }
 
-  Future<String> transcribe(String audioPath) async {
+  Future<String> transcribe(String audioPath, {String? language}) async {
     if (_isTranscribing) {
       debugPrint(
           'Transcription skipped because another transcription is in progress');
@@ -241,8 +243,12 @@ class AlloBotSpeechService extends GetxService {
         return '';
       }
 
+      final langCode = (language != null && language.trim().isNotEmpty)
+          ? language.trim().toLowerCase()
+          : (await AppLanguage.current());
+
       debugPrint(
-          'Transcribing audio from: $audioPath with model at: $_modelPath');
+          'Transcribing audio from: $audioPath with model at: $_modelPath, language: $langCode');
 
       if (_whisper == null) {
         final modelId = _currentModelId;
@@ -265,12 +271,12 @@ class AlloBotSpeechService extends GetxService {
       final result = await _whisper!.transcribe(
         transcribeRequest: TranscribeRequest(
           audio: audioPath,
-          language: 'en',
+          language: langCode,
         ),
         modelPath: _modelPath!,
       );
       final text = result.text.trim();
-      debugPrint('Transcription result: "$text"');
+      debugPrint('Transcription result ($langCode): "$text"');
       return text;
     } catch (e) {
       debugPrint('Allobot Transcription Error (GGML): $e');

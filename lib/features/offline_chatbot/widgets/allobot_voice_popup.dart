@@ -26,6 +26,7 @@ import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_service.dart';
+import 'package:allomom/services/app_language.dart';
 
 class AlloBotVoicePopup extends StatefulWidget {
   const AlloBotVoicePopup({
@@ -267,7 +268,13 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
 
     String heard = '';
     try {
-      heard = await AlloBotSpeechService.instance.transcribe(path);
+      final selectedLanguage = widget.controller.langCode.value.isNotEmpty
+          ? widget.controller.langCode.value
+          : await AppLanguage.current();
+      heard = await AlloBotSpeechService.instance.transcribe(
+        path,
+        language: selectedLanguage,
+      );
     } catch (e) {
       debugPrint('Ask Allo transcription failed: $e');
     } finally {
