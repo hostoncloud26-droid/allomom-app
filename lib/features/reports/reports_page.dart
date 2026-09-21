@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -6,7 +7,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/features/reports/add_report.dart';
+import 'package:allomom/features/reports/controller/reports_drive_controller.dart';
 import 'package:allomom/features/reports/view_report.dart';
+import 'package:allomom/features/reports/widgets/drive_connect_tile.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class ReportsPage extends StatefulWidget {
@@ -36,15 +39,29 @@ class _ReportsPageState extends State<ReportsPage> {
   String _summary = '';
   bool _isLoadingSummary = false;
 
+  StreamSubscription<bool>? _syncListener;
+
+  /// Brought up here rather than at app start: the Drive link is only ever
+  /// used by this screen, and asking the server about it on every launch would
+  /// be a call nobody reads.
+  late final ReportsDriveController _drive;
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _drive = ReportsDriveController.instance;
+    // A sync that lands while this screen is open has changed the rows the
+    // list is built from, so reread them the moment it finishes.
+    _syncListener = _drive.isSyncing.listen((syncing) {
+      if (!syncing && mounted) _refresh();
+    });
     _loadInitialData();
   }
 
   @override
   void dispose() {
+    _syncListener?.cancel();
     _scrollController.dispose();
     super.dispose();
   }
@@ -64,9 +81,10 @@ class _ReportsPageState extends State<ReportsPage> {
 
   String get _healthId {
     final session = MainController.instance;
-    return session.healthDataId.isNotEmpty
-        ? session.healthDataId
-        : (session.userId.isNotEmpty ? session.userId : 'health_me');
+    return ReportDbService.localHealthScope(
+      healthDataId: session.healthDataId,
+      userId: session.userId,
+    );
   }
 
   Map<String, dynamic> _rowToMap(Report r) {
@@ -396,8 +414,8 @@ class _ReportsPageState extends State<ReportsPage> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     children: [
-                      _buildSummaryCard(),
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.18),
+                      _buildHeader(),
+                      SizedBox(height: MediaQuery.of(context).size.height * 0.12),
                       Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -440,7 +458,7 @@ class _ReportsPageState extends State<ReportsPage> {
                     itemCount: _reports.length + 1 + (_hasMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index == 0) {
-                        return _buildSummaryCard();
+                        return _buildHeader();
                       }
 
                       final reportIndex = index - 1;
@@ -459,6 +477,20 @@ class _ReportsPageState extends State<ReportsPage> {
                     },
                   ),
       ),
+    );
+  }
+
+  /// Everything above the list: the Drive link, then the AI summary.
+  ///
+  /// Both are headers rather than list items, so they scroll away with the
+  /// reports instead of pinning space the list needs.
+  Widget _buildHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DriveConnectTile(onChanged: _refresh),
+        _buildSummaryCard(),
+      ],
     );
   }
 

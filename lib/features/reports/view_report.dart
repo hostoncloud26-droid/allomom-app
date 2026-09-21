@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 
+import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
+import 'package:allomom/features/reports/controller/reports_drive_controller.dart';
 import 'package:allomom/features/reports/edit_report.dart';
 
 class ViewReport extends StatefulWidget {
@@ -19,13 +21,67 @@ class ViewReport extends StatefulWidget {
 class _ViewReportState extends State<ViewReport> {
   late PageController _pageController;
   int _currentPage = 0;
-  late List<String> _files;
+  List<String> _files = const [];
+
+  /// True while files held only in the user's Drive are being fetched.
+  bool _fetchingFromDrive = false;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+    // Whatever is already on this device, immediately — the screen should not
+    // wait on the network to show a report the phone scanned itself.
     _files = _extractFiles(widget.reportDetails);
+    _resolveFiles();
+  }
+
+  /// Settles which files this report actually has, and where they are.
+  ///
+  /// The attachment rows are the real answer: `detail.files` only ever held
+  /// this device's own paths, so a report restored from Drive — or scanned on
+  /// another phone — has none of them. Anything the rows point at but this
+  /// device does not hold is pulled from Drive and cached, after which it is
+  /// an ordinary local file like any other.
+  Future<void> _resolveFiles() async {
+    final reportId = widget.reportDetails['id']?.toString() ?? '';
+    if (reportId.isEmpty) return;
+
+    List<ReportAttachment> attachments;
+    try {
+      attachments = await ReportDbService.instance.attachmentsFor(reportId);
+    } catch (e) {
+      debugPrint('ViewReport: could not read attachments: $e');
+      return;
+    }
+    // Reports saved before files were tracked as rows still have only the
+    // paths in `detail`, which is what [_files] already holds.
+    if (attachments.isEmpty) return;
+
+    final onDevice = <String>[];
+    final inDriveOnly = <ReportAttachment>[];
+    for (final attachment in attachments) {
+      if (attachment.localPath.isNotEmpty &&
+          File(attachment.localPath).existsSync()) {
+        onDevice.add(attachment.localPath);
+      } else {
+        inDriveOnly.add(attachment);
+      }
+    }
+
+    if (mounted && onDevice.isNotEmpty) {
+      setState(() => _files = onDevice);
+    }
+    if (inDriveOnly.isEmpty) return;
+
+    if (mounted) setState(() => _fetchingFromDrive = true);
+    final drive = ReportsDriveController.instance;
+    for (final attachment in inDriveOnly) {
+      final file = await drive.attachmentFile(attachment);
+      if (file == null || !mounted) continue;
+      setState(() => _files = [..._files, file.path]);
+    }
+    if (mounted) setState(() => _fetchingFromDrive = false);
   }
 
   @override
@@ -107,6 +163,10 @@ class _ViewReportState extends State<ViewReport> {
 
     try {
       await ReportDbService.instance.deleteReport(reportId);
+      // The local row is already gone, so the server has to be told
+      // separately. Queued rather than awaited: the user asked for the report
+      // to disappear, not to watch a network call.
+      ReportsDriveController.instance.queueDelete(reportId);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -477,10 +537,22 @@ class _ViewReportState extends State<ViewReport> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.description_outlined, size: 48, color: Color(0xFFCBD5E1)),
-            const SizedBox(height: 8),
+            if (_fetchingFromDrive)
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Color(0xFFFF3B5C),
+                ),
+              )
+            else
+              const Icon(Icons.description_outlined, size: 48, color: Color(0xFFCBD5E1)),
+            const SizedBox(height: 10),
             Text(
-              'No document or image attached',
+              _fetchingFromDrive
+                  ? 'Getting this report from your Google Drive…'
+                  : 'No document or image attached',
               style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF94A3B8)),
             ),
           ],

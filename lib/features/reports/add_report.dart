@@ -8,6 +8,7 @@ import 'package:open_filex/open_filex.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 
+import 'package:allomom/features/reports/controller/reports_drive_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
@@ -67,6 +68,29 @@ class _AddReportState extends State<AddReport> {
 
   bool _isPdf(String path) {
     return path.toLowerCase().endsWith('.pdf');
+  }
+
+  /// The content type the file is stored and uploaded as.
+  ///
+  /// A concrete type, never `image/*`: this is what the view screen renders
+  /// from and what the upload declares to Drive, and a wildcard is neither a
+  /// valid media type nor something a viewer can act on.
+  String _mimeTypeFor(String path) {
+    switch (path.toLowerCase().split('.').last) {
+      case 'pdf':
+        return 'application/pdf';
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'heic':
+        return 'image/heic';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      default:
+        return 'application/octet-stream';
+    }
   }
 
   String _getFileName(String path) {
@@ -140,9 +164,10 @@ class _AddReportState extends State<AddReport> {
     try {
       final session = MainController.instance;
       final userId = session.userId;
-      final healthId = session.healthDataId.isNotEmpty
-          ? session.healthDataId
-          : (userId.isNotEmpty ? userId : 'health_me');
+      final healthId = ReportDbService.localHealthScope(
+        healthDataId: session.healthDataId,
+        userId: userId,
+      );
 
       final filePaths = _selectedFiles.map((f) => f.path).toList();
       final primaryFile = filePaths.first;
@@ -184,13 +209,20 @@ class _AddReportState extends State<AddReport> {
 
       // Record every picked file as an attachment row so the report keeps
       // track of all of them, not just the primary one.
+      //
+      // The id is generated here rather than left to the database: it is also
+      // the id the file is uploaded under, so a retry after a dropped upload
+      // finds the same row instead of putting a second copy in the user's
+      // Drive. (`report_attachments.id` has no default either, so an absent
+      // one fails the insert outright.)
       for (final file in _selectedFiles) {
         await PregnancyCareDbService.instance.createReportAttachment(
           ReportAttachmentsCompanion(
+            id: drift.Value(const Uuid().v4()),
             reportId: drift.Value(reportId),
             localPath: drift.Value(file.path),
             fileName: drift.Value(file.path.split('/').last),
-            mimeType: drift.Value(_isPdf(file.path) ? 'application/pdf' : 'image/*'),
+            mimeType: drift.Value(_mimeTypeFor(file.path)),
             fileSizeBytes: drift.Value(
               file.existsSync() ? file.lengthSync() : null,
             ),
@@ -209,6 +241,11 @@ class _AddReportState extends State<AddReport> {
           DateTime.now(),
         );
       }
+
+      // The report is saved and the user is done; backing it up to Drive is
+      // not something they should wait for, and it is a no-op when no Drive is
+      // connected.
+      ReportsDriveController.instance.syncNow();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

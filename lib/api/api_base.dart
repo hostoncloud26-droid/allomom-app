@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart' show MediaType;
 
 import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/api/response.dart';
@@ -100,6 +101,115 @@ class ApiBase {
       put(endpoint, body);
   static Future<APIResponse> newDeleteRequest(String endpoint, [dynamic body]) =>
       delete(endpoint, body: body);
+
+  // ── Files ──────────────────────────────────────────────────────────────────
+
+  /// Uploads a file alongside ordinary form fields.
+  ///
+  /// Kept apart from [_send] because a multipart body cannot be replayed: the
+  /// file is streamed straight off disk, so a 401 retry has to build the whole
+  /// request again rather than resend the one that failed.
+  ///
+  /// The deadline is generous — a scan on a village connection routinely
+  /// outlasts what a JSON call is given, and giving up on an upload the server
+  /// has almost finished is worse than waiting.
+  static Future<APIResponse> multipart(
+    String endpoint, {
+    required String filePath,
+    String fileField = 'file',
+    Map<String, String> fields = const {},
+    String? fileName,
+    String? contentType,
+    bool withAuth = true,
+    Duration timeout = const Duration(minutes: 3),
+    bool isRetry = false,
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiRoutes.instance.baseUrl}$endpoint');
+      final request = http.MultipartRequest('POST', uri);
+
+      final headers = await getHeaders(withAuth: withAuth);
+      // The multipart encoder sets its own Content-Type, boundary included.
+      headers.remove('Content-Type');
+      request.headers.addAll(headers);
+      request.fields.addAll(fields);
+
+      request.files.add(await http.MultipartFile.fromPath(
+        fileField,
+        filePath,
+        filename: fileName,
+        contentType:
+            contentType == null ? null : MediaType.parse(contentType),
+      ));
+
+      final streamed = await request.send().timeout(timeout);
+      final response = await http.Response.fromStream(streamed);
+
+      if (response.statusCode == 401 && withAuth && !isRetry) {
+        final refreshed = await _refreshToken();
+        if (refreshed) {
+          return multipart(
+            endpoint,
+            filePath: filePath,
+            fileField: fileField,
+            fields: fields,
+            fileName: fileName,
+            contentType: contentType,
+            withAuth: withAuth,
+            timeout: timeout,
+            isRetry: true,
+          );
+        }
+      }
+
+      return _handleResponse(response);
+    } catch (e) {
+      debugPrint('❌ [POST(multipart) $endpoint] $e');
+      return APIResponse(
+        success: false,
+        map: {'detail': 'Network error or server unreachable'},
+        networkError: true,
+      );
+    }
+  }
+
+  /// A response body as raw bytes, for endpoints that answer with a file
+  /// rather than JSON. Null on any failure — a caller showing a document has
+  /// nothing useful to do with an error body.
+  static Future<Uint8List?> getBytes(
+    String endpoint, {
+    bool withAuth = true,
+    Duration timeout = const Duration(minutes: 2),
+    bool isRetry = false,
+  }) async {
+    try {
+      final uri = Uri.parse('${ApiRoutes.instance.baseUrl}$endpoint');
+      final response = await http
+          .get(uri, headers: await getHeaders(withAuth: withAuth))
+          .timeout(timeout);
+
+      if (response.statusCode == 401 && withAuth && !isRetry) {
+        final refreshed = await _refreshToken();
+        if (refreshed) {
+          return getBytes(
+            endpoint,
+            withAuth: withAuth,
+            timeout: timeout,
+            isRetry: true,
+          );
+        }
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint('❌ [GET(bytes) $endpoint] ${response.statusCode}');
+        return null;
+      }
+      return response.bodyBytes;
+    } catch (e) {
+      debugPrint('❌ [GET(bytes) $endpoint] $e');
+      return null;
+    }
+  }
 
   // ── Transport ──────────────────────────────────────────────────────────────
 
