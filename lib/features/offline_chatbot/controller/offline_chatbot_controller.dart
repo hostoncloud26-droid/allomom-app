@@ -579,32 +579,19 @@ class OfflineChatbotController extends GetxController {
         profile: offlineChatbotProfile(),
       );
 
-      // If the transcript already has messages and the last assistant message
-      // is identical to this initial step, avoid repeating the bubble while
-      // keeping the session active and active options present.
-      if (messages.isNotEmpty) {
-        OfflineChatMessage? lastAssistant;
-        for (var i = messages.length - 1; i >= 0; i--) {
-          final m = messages[i];
-          if (!m.fromUser && !m.isSystem) {
-            lastAssistant = m;
-            break;
-          }
+      // Already on screen from her last visit: keep the session and its
+      // options, but do not print the same lines a second time.
+      if (_alreadyOnScreen(_replyLines(reply))) {
+        activeOptions.assignAll(reply.options);
+        if (_delivery == delivery) isTyping.value = false;
+        // The bubbles are already there from her last visit, but she has just
+        // opened the page again — printing them twice would be noise, staying
+        // silent would mean the baby never greets her a second time.
+        if (speak) {
+          await _narrate(reply, delivery, recordedOnly: recordedOnly);
         }
-        if (lastAssistant != null &&
-            lastAssistant.text.trim() == reply.text.trim() &&
-            reply.text.trim().isNotEmpty) {
-          activeOptions.assignAll(reply.options);
-          if (_delivery == delivery) isTyping.value = false;
-          // The bubble is already there from her last visit, but she has just
-          // opened the page again — printing it twice would be noise, staying
-          // silent would mean the baby never greets her a second time.
-          if (speak) {
-            await _narrate(reply, delivery, recordedOnly: recordedOnly);
-          }
-          update();
-          return true;
-        }
+        update();
+        return true;
       }
 
       await _deliverReply(
@@ -621,8 +608,35 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
-  /// Reads [reply] out step by step without printing it — for the bubble that
-  /// is already on screen from her last visit.
+  /// The lines a turn prints, one per step, in order.
+  List<String> _replyLines(BotReply reply) => [
+    for (final segment in reply.segments)
+      for (final utterance in segment.utterances)
+        if (utterance.text.trim().isNotEmpty) utterance.text.trim(),
+  ];
+
+  /// Whether the transcript already ends with exactly [lines].
+  ///
+  /// A turn is printed one message per step, so recognising a turn that is
+  /// already on screen means comparing its whole tail rather than only the last
+  /// bubble — otherwise the greeting would be printed again every time Ask Allo
+  /// is opened.
+  bool _alreadyOnScreen(List<String> lines) {
+    if (lines.isEmpty) return false;
+    final printed = [
+      for (final message in messages)
+        if (!message.fromUser && !message.isSystem) message.text.trim(),
+    ];
+    if (printed.length < lines.length) return false;
+    final tail = printed.sublist(printed.length - lines.length);
+    for (var i = 0; i < lines.length; i++) {
+      if (tail[i] != lines[i]) return false;
+    }
+    return true;
+  }
+
+  /// Reads [reply] out step by step without printing it — for the bubbles that
+  /// are already on screen from her last visit.
   ///
   /// Each step is waited out before the next one starts, the same gate
   /// [_deliverReply] holds the printed turn behind.
@@ -829,23 +843,37 @@ class OfflineChatbotController extends GetxController {
         if (_delivery != delivery) return;
         if (segment.actions.isNotEmpty) answered = true;
 
-        if (segment.text.isNotEmpty) {
-          answered = true;
-          messages.add(
-            OfflineChatMessage(
-              text: segment.text,
-              audioUrls: segment.audioUrls,
-              options: segment.options,
-            ),
-          );
-        }
+        // One message per step, not one per bubble. Two steps that ran back to
+        // back are two things the baby said, and running them together into a
+        // paragraph loses where one ended and the next began — a greeting and
+        // the flow it redirects into should read as two messages.
+        //
+        // Printed and then read out one at a time, so the words appear as they
+        // are spoken rather than all at once ahead of the voice.
+        final spoken = [
+          for (final utterance in segment.utterances)
+            if (!utterance.isEmpty) utterance,
+        ];
+        // The choices belong to the step the flow is waiting on, so they ride
+        // on the last message this part of the turn actually prints — not on a
+        // step that only carried a recording and no words.
+        final lastPrinted = spoken.lastIndexWhere((u) => u.text.isNotEmpty);
 
-        // One step at a time, each waited out before the next starts. A bubble
-        // several steps wrote into is still one bubble, but it is read the way
-        // the flow wrote it — and every step's own recording is played, rather
-        // than the first one standing in for all of them.
-        if (speak) {
-          for (final utterance in segment.utterances) {
+        for (var i = 0; i < spoken.length; i++) {
+          final utterance = spoken[i];
+
+          if (utterance.text.isNotEmpty) {
+            answered = true;
+            messages.add(
+              OfflineChatMessage(
+                text: utterance.text,
+                audioUrls: utterance.hasAudio ? [utterance.audioUrl!] : const [],
+                options: i == lastPrinted ? segment.options : const [],
+              ),
+            );
+          }
+
+          if (speak) {
             await _speakReplyIfEnabled(
               utterance.text,
               audioUrl: utterance.audioUrl,
