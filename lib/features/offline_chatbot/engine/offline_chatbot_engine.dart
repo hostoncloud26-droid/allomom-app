@@ -401,6 +401,11 @@ class BotReply {
 /// starts a fresh conversation, exactly as the server's session manager does.
 class BotSession {
   String? intentKey;
+
+  /// The language of the intent this flow came from. A catalogue downloaded
+  /// for one language makes this the same everywhere, but a bundle holding
+  /// several is what decides which recording an `audio_key` resolves to.
+  String? intentLang;
   String? flowName;
   String? currentStepRef;
   BotFlow? flow;
@@ -410,6 +415,7 @@ class BotSession {
 
   void clear() {
     intentKey = null;
+    intentLang = null;
     flowName = null;
     currentStepRef = null;
     flow = null;
@@ -436,6 +442,68 @@ class OfflineChatbotEngine {
   /// Executes client-side actions during flow graph traversal so their results
   /// can populate session variables for subsequent steps.
   final ActionRunner? actionRunner;
+
+  /// Where the audio library is served from. A clip filed under a key lives at
+  /// `<base>/<lang_code>/<key>.mp3` — so
+  /// `https://audio.savemom.app/allomom/en/pregnant_week10_english.mp3`.
+  static const String audioLibraryBase = 'https://audio.savemom.app/allomom';
+
+  /// The language every key is expected to have a recording in, and what a
+  /// conversation in some other language falls back to. The same fallback the
+  /// server applies, so both sides pick the same clip.
+  static const String fallbackAudioLang = 'en';
+
+  /// Clips the downloaded catalogue carries, keyed `<key>|<lang>`. Built once,
+  /// on the first step that names a key — most conversations never need it.
+  Map<String, String>? _audioIndex;
+
+  /// The clip a step should play, in the language the conversation is in.
+  ///
+  /// An explicit `audio_url` wins outright: it names one file, chosen against
+  /// this one step. Failing that an `audio_key` is looked up in the catalogue's
+  /// audio library, and finally resolved by convention — a key is filed under
+  /// its language, so the URL can be built without the library having been
+  /// synced. A clip missing in the conversation's language falls back to the
+  /// English one rather than going silent, and a URL that turns out not to
+  /// play is not fatal either: [TtsService] falls back to speaking the text.
+  /// [langCode] overrides the catalogue's own language, which is what a bundle
+  /// holding several needs; left out, the engine's language is used.
+  String? stepAudio(BotStep step, {String? langCode}) {
+    final url = step.audioUrl?.trim() ?? '';
+    if (url.isNotEmpty) return url;
+
+    final key = step.audioKey?.trim() ?? '';
+    if (key.isEmpty) return null;
+
+    final lang = _audioLang(langCode ?? this.langCode);
+    final index = _audioIndex ??= {
+      for (final audio in bundle.audios)
+        if (audio.key.isNotEmpty && audio.url.isNotEmpty)
+          '${audio.key}|${audio.langCode}': audio.url,
+    };
+
+    for (final candidate in {lang, fallbackAudioLang}) {
+      final known = index['$key|$candidate'];
+      if (known != null) return known;
+    }
+    return audioUrlForKey(key, lang);
+  }
+
+  /// The library URL a key resolves to in [langCode].
+  static String audioUrlForKey(String key, String? langCode) =>
+      '$audioLibraryBase/${_audioLang(langCode)}/$key.mp3';
+
+  /// The language a clip is looked up in. "all" is the catalogue's wildcard,
+  /// not a language anything is recorded in.
+  static String _audioLang(String? code) {
+    final clean = (code ?? '').trim().toLowerCase();
+    if (clean.isEmpty || clean == 'all') return fallbackAudioLang;
+    return clean;
+  }
+
+  /// The clip for a step reached inside [session], in that flow's language.
+  String? _sessionAudio(BotStep step, BotSession session) =>
+      stepAudio(step, langCode: session.intentLang ?? langCode);
 
   /// Steps that need the network are skipped offline; their save key gets this
   /// marker so a template referencing it renders something honest rather than
@@ -681,6 +749,7 @@ class OfflineChatbotEngine {
                   target.flow!, session.data[messageKey]?.toString(), session.data);
               if (first != null) {
                 session.intentKey = target.key;
+                session.intentLang = target.langCode;
                 session.flow = target.flow;
                 session.flowName = target.flow!.name;
                 session.currentStepRef = first.ref;
@@ -694,7 +763,7 @@ class OfflineChatbotEngine {
           break;
       }
 
-      if (curr.type != 'delay') reply.addAudio(curr.audioUrl);
+      if (curr.type != 'delay') reply.addAudio(_sessionAudio(curr, session));
 
       final flow = session.flow;
       if (flow == null) return null;
@@ -749,6 +818,7 @@ class OfflineChatbotEngine {
     // seed the session before choosing an entry step.
     session.clear();
     session.intentKey = intent.key;
+    session.intentLang = intent.langCode;
     session.flow = flow;
     session.flowName = flow.name;
     session.data = {...triggerVars, ...turnContext};
@@ -768,7 +838,7 @@ class OfflineChatbotEngine {
 
     session.currentStepRef = landed.ref;
     reply.say(renderTemplate(landed.question, session.data));
-    reply.addAudio(landed.audioUrl);
+    reply.addAudio(_sessionAudio(landed, session));
     reply.setOptions(stepOptions(landed, session.data));
     return reply;
   }
@@ -823,7 +893,7 @@ class OfflineChatbotEngine {
             final reply = BotReply()
               ..say(optionMismatchMessage)
               ..say(renderTemplate(current.question, session.data))
-              ..addAudio(current.audioUrl)
+              ..addAudio(_sessionAudio(current, session))
               ..setOptions(opts);
             return reply;
           }
@@ -859,7 +929,7 @@ class OfflineChatbotEngine {
         if (landed != null) {
           session.currentStepRef = landed.ref;
           reply.say(renderTemplate(landed.question, session.data));
-          reply.addAudio(landed.audioUrl);
+          reply.addAudio(_sessionAudio(landed, session));
           reply.setOptions(stepOptions(landed, session.data));
           return reply;
         }

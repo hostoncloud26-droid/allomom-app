@@ -236,6 +236,14 @@ class BotStep {
   final String? saveKey;
   final String? questionDataType;
   final String? audioUrl;
+
+  /// The recording this step speaks, named rather than linked.
+  ///
+  /// A key is language-independent: the same `pregnant_week10` plays the Tamil
+  /// clip in a Tamil conversation and the English one in English, because the
+  /// library is filed by language. A step with an explicit [audioUrl] names
+  /// one file and overrides this.
+  final String? audioKey;
   final String? httpMethod;
   final String? httpUrl;
   final dynamic httpHeaders;
@@ -259,6 +267,7 @@ class BotStep {
     this.saveKey,
     this.questionDataType,
     this.audioUrl,
+    this.audioKey,
     this.httpMethod,
     this.httpUrl,
     this.httpHeaders,
@@ -283,6 +292,7 @@ class BotStep {
       saveKey: json['save_key'] as String?,
       questionDataType: json['question_data_type'] as String?,
       audioUrl: json['audio_url'] as String?,
+      audioKey: json['audio_key'] as String?,
       httpMethod: json['http_method'] as String?,
       httpUrl: json['http_url'] as String?,
       httpHeaders: json['http_headers'],
@@ -311,6 +321,7 @@ class BotStep {
         'save_key': saveKey,
         'question_data_type': questionDataType,
         'audio_url': audioUrl,
+        'audio_key': audioKey,
         'http_method': httpMethod,
         'http_url': httpUrl,
         'http_headers': httpHeaders,
