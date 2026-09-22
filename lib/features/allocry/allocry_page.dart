@@ -164,8 +164,11 @@ class _AlloCryPageState extends State<AlloCryPage>
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                size: 18, color: _pink),
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              size: 18,
+              color: _pink,
+            ),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -229,8 +232,8 @@ class _AlloCryPageState extends State<AlloCryPage>
             failed
                 ? _controller.modelError.value
                 : loading
-                    ? 'Preparing the listening model…'
-                    : 'Tap the mic to listen to your baby',
+                ? 'Preparing the listening model…'
+                : 'Tap the mic to listen to your baby',
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 13.5,
@@ -291,8 +294,11 @@ class _AlloCryPageState extends State<AlloCryPage>
                         ),
                       ],
                     ),
-                    child: const Icon(Icons.mic_rounded,
-                        color: Colors.white, size: 36),
+                    child: const Icon(
+                      Icons.mic_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                   ),
                 ),
               ),
@@ -307,10 +313,14 @@ class _AlloCryPageState extends State<AlloCryPage>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(Icons.offline_bolt_rounded, size: 14, color: Color(0xFF10B981)),
+        const Icon(
+          Icons.offline_bolt_rounded,
+          size: 14,
+          color: Color(0xFF10B981),
+        ),
         const SizedBox(width: 6),
         Text(
-          'Works offline · nothing leaves your phone',
+          'Every Little Cry, A Message You Wants to Understand',
           style: GoogleFonts.poppins(
             fontSize: 11.5,
             color: const Color(0xFF10B981),
@@ -458,8 +468,11 @@ class _AlloCryPageState extends State<AlloCryPage>
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(Icons.chevron_right_rounded,
-                color: Color(0xFFCBD0DC), size: 20),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: Color(0xFFCBD0DC),
+              size: 20,
+            ),
           ],
         ),
       ),

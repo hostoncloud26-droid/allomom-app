@@ -11,15 +11,18 @@ class KickCounterPage extends StatefulWidget {
 }
 
 class _KickCounterPageState extends State<KickCounterPage>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   int _kickCount = 0;
-  final int _kickGoal = 10;
   int _bestCount = 10;
   String _startTime = '--';
   final List<String> _kickTimestamps = [];
 
   late AnimationController _animController;
   late Animation<double> _scaleAnimation;
+
+  /// The ring that travels out from the button on every tap, so a kick leaves
+  /// a mark on the screen instead of only bumping a number.
+  late AnimationController _rippleController;
 
   @override
   void initState() {
@@ -32,19 +35,36 @@ class _KickCounterPageState extends State<KickCounterPage>
       vsync: this,
       duration: const Duration(milliseconds: 150),
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.94).animate(
       CurvedAnimation(parent: _animController, curve: Curves.easeInOut),
+    );
+    _rippleController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 620),
     );
   }
 
   @override
   void dispose() {
     _animController.dispose();
+    _rippleController.dispose();
     super.dispose();
   }
 
   Future<void> _saveKickSession() async {
-    if (_kickCount == 0) return;
+    if (_kickCount == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('No kicks counted yet — tap the button first'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: const Color(0xFF8B92A2),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
     await HealthVitalsController.instance.addKickCountEntry(
       count: _kickCount,
       extraData: {
@@ -73,6 +93,7 @@ class _KickCounterPageState extends State<KickCounterPage>
 
   void _onKickPressed() {
     _animController.forward().then((_) => _animController.reverse());
+    _rippleController.forward(from: 0);
     final now = TimeOfDay.now();
     final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
     final minute = now.minute.toString().padLeft(2, '0');
@@ -89,10 +110,6 @@ class _KickCounterPageState extends State<KickCounterPage>
         _bestCount = _kickCount;
       }
     });
-
-    if (_kickCount == _kickGoal) {
-      _showGoalReachedDialog();
-    }
   }
 
   void _resetKicks() {
@@ -103,172 +120,33 @@ class _KickCounterPageState extends State<KickCounterPage>
     });
   }
 
-  void _showGoalReachedDialog() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(24),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFEBF0),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.celebration_rounded,
-                  color: Color(0xFFFF4E6A),
-                  size: 40,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Goal Achieved! 🎉',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2022),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'You reached $_kickGoal kicks! Your baby is active and healthy.\n'
-                'Tap "Save Session" when you are done counting.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF4E6A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text(
-                    'Continue',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            children: [
-              _buildHeader(context),
-              const SizedBox(height: 8),
+        child: Column(
+          children: [
+            _buildHeader(context),
 
-              // Baby Hero Card
-              const Padding(
+            // The baby takes whatever the counter below does not need, so the
+            // whole screen fits without scrolling on a short phone and still
+            // fills a tall one.
+            const Expanded(
+              child: Padding(
                 padding: EdgeInsets.symmetric(horizontal: 20),
                 child: BabyHeroBanner(
                   speechText: "Let's count\ntogether! ❤️",
                   bubblePosition: SpeechBubblePosition.topCenter,
-                  height: 270,
+                  expand: true,
                 ),
               ),
+            ),
 
-              const SizedBox(height: 28),
+            const SizedBox(height: 10),
 
-              // "Today's kicks" Title
-              const Text(
-                "Today's kicks",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2229),
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // Speed Lines + Large Pink Kick Count
-              _buildKickCountDisplay(),
-
-              const SizedBox(height: 24),
-
-              // Big Pink Glowing Kick Button
-              _buildGlowingKickButton(),
-
-              const SizedBox(height: 14),
-
-              // Subtitle
-              const Text(
-                'Tap when you feel a kick',
-                style: TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFF8B92A2),
-                ),
-              ),
-
-              const SizedBox(height: 18),
-
-              // Save Session Button & Reset
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _saveKickSession,
-                        icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white, size: 18),
-                        label: const Text(
-                          'Save Session',
-                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.white),
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFFF4E6A),
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          elevation: 0,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    OutlinedButton(
-                      onPressed: _resetKicks,
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-                        side: const BorderSide(color: Color(0xFFFF4E6A)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      ),
-                      child: const Icon(Icons.refresh_rounded, color: Color(0xFFFF4E6A), size: 18),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 28),
-
-              // Bottom Stats Row Card
-              _buildBottomStatsCard(),
-
-              const SizedBox(height: 32),
-            ],
-          ),
+            _buildCounterSection(),
+          ],
         ),
       ),
     );
@@ -478,202 +356,322 @@ class _KickCounterPageState extends State<KickCounterPage>
   }
 
   // ─── KICK COUNT DISPLAY ───────────────────────────────────
+  // ─── THE TALLY ────────────────────────────────────────────
+  //
+  // The number carries the screen, so it gets the size and the only warm
+  // colour above the button. The unit sits under it in plain grey rather than
+  // being flanked by decoration.
   Widget _buildKickCountDisplay() {
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Left speed lines
-            CustomPaint(
-              size: const Size(30, 20),
-              painter: _SpeedLinesPainter(isLeft: true),
-            ),
-            const SizedBox(width: 14),
-            // Huge Pink Number
-            Text(
-              '$_kickCount',
-              style: const TextStyle(
-                fontSize: 54,
-                fontWeight: FontWeight.w800,
-                color: Color(0xFFFF3B5C),
-                height: 1.0,
-              ),
-            ),
-            const SizedBox(width: 14),
-            // Right speed lines
-            CustomPaint(
-              size: const Size(30, 20),
-              painter: _SpeedLinesPainter(isLeft: false),
-            ),
-          ],
+        Text(
+          '$_kickCount',
+          style: const TextStyle(
+            fontSize: 58,
+            fontWeight: FontWeight.w800,
+            color: Color(0xFFFF3B5C),
+            height: 1.0,
+            letterSpacing: -2,
+          ),
         ),
-        const SizedBox(height: 2),
-        const Text(
-          'KICKS',
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.5,
-            color: Color(0xFF8B92A2),
+        const SizedBox(height: 4),
+        Text(
+          _kickCount == 1 ? 'kick counted today' : 'kicks counted today',
+          style: const TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w500,
+            color: Color(0xFF9AA1AE),
           ),
         ),
       ],
     );
   }
 
-  // ─── GLOWING KICK BUTTON ──────────────────────────────────
-  Widget _buildGlowingKickButton() {
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: GestureDetector(
-        onTap: _onKickPressed,
-        child: Container(
-          width: 136,
-          height: 136,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: const Color(0xFFFF4E6A).withValues(alpha: 0.18),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFFFF4E6A).withValues(alpha: 0.35),
-                blurRadius: 30,
-                spreadRadius: 6,
+  // ─── KICK BUTTON ──────────────────────────────────────────
+  //
+  // Two hairline rings and a solid core, instead of the blurred halo that used
+  // to sit behind it — a wide blur over a translucent disc left a visible edge
+  // partway through the glow. Each tap sends one ring outwards and fades it.
+  Widget _buildKickButton() {
+    const accent = Color(0xFFFF3B5C);
+
+    return SizedBox(
+      width: 150,
+      height: 150,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          _ring(142, accent.withValues(alpha: 0.10)),
+          _ring(121, accent.withValues(alpha: 0.18)),
+
+          // The ring a tap sends out.
+          AnimatedBuilder(
+            animation: _rippleController,
+            builder: (context, _) {
+              final t = _rippleController.value;
+              if (t == 0 || t == 1) return const SizedBox.shrink();
+              final eased = Curves.easeOutCubic.transform(t);
+              return _ring(
+                100 + 50 * eased,
+                accent.withValues(alpha: 0.5 * (1 - t)),
+                width: 2,
+              );
+            },
+          ),
+
+          // The core.
+          ScaleTransition(
+            scale: _scaleAnimation,
+            child: GestureDetector(
+              onTap: _onKickPressed,
+              child: Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFFF7189), accent],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: accent.withValues(alpha: 0.30),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: const Center(
+                  child: Text(
+                    'KICK',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 1.4,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _ring(double size, Color color, {double width = 1}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: width),
+      ),
+    );
+  }
+
+  // ─── COUNTER SECTION ──────────────────────────────────────
+  //
+  // Flat on the page: a quiet section label, the tally, the button, the two
+  // actions and the three numbers. The pink is spent on the count and the
+  // button alone, so everything else can be grey and let those two carry it.
+  Widget _buildCounterSection() {
+    final hasKicks = _kickCount > 0;
+    final lastKick = _kickTimestamps.isEmpty ? '--' : _kickTimestamps.first;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Section label and the live state of the session.
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  "TODAY'S KICKS",
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                    color: Color(0xFF9AA1AE),
+                  ),
+                ),
+              ),
+              _buildSessionPill(hasKicks),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          _buildKickCountDisplay(),
+
+          const SizedBox(height: 10),
+
+          _buildKickButton(),
+
+          const SizedBox(height: 6),
+
+          const Text(
+            'Tap when you feel a kick',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12.5, color: Color(0xFF9AA1AE)),
+          ),
+
+          const SizedBox(height: 16),
+
+          // Save & Reset — one filled action, one quiet one.
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _saveKickSession,
+                    icon: const Icon(
+                      Icons.cloud_upload_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    label: const Text(
+                      'Save',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF3B5C),
+                      padding: EdgeInsets.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                height: 48,
+                width: 48,
+                child: OutlinedButton(
+                  onPressed: _resetKicks,
+                  style: OutlinedButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    side: const BorderSide(color: Color(0xFFE6E8EE)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.refresh_rounded,
+                    color: Color(0xFF6B7280),
+                    size: 19,
+                  ),
+                ),
               ),
             ],
           ),
-          child: Center(
-            child: Container(
-              width: 110,
-              height: 110,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFFFF627C),
-                    Color(0xFFFF3B5C),
-                  ],
+
+          const SizedBox(height: 16),
+
+          Container(height: 1, color: const Color(0xFFF0F1F5)),
+
+          const SizedBox(height: 14),
+
+          // ─── SESSION STATS ───
+          IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: _buildStatColumn(label: 'STARTED', value: _startTime),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFFFF3B5C).withValues(alpha: 0.45),
-                    blurRadius: 16,
-                    offset: const Offset(0, 6),
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Color(0xFFF0F1F5),
+                ),
+                Expanded(
+                  child: _buildStatColumn(label: 'LAST KICK', value: lastKick),
+                ),
+                const VerticalDivider(
+                  width: 1,
+                  thickness: 1,
+                  color: Color(0xFFF0F1F5),
+                ),
+                Expanded(
+                  child: _buildStatColumn(
+                    label: 'BEST',
+                    value: '$_bestCount kicks',
                   ),
-                ],
-              ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.pets_rounded,
-                    color: Colors.white,
-                    size: 32,
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'KICK',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  // ─── BOTTOM STATS CARD ────────────────────────────────────
-  Widget _buildBottomStatsCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFFF9FA),
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFFFEDF0), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+  /// Says what the session is doing right now, next to its title.
+  Widget _buildSessionPill(bool hasKicks) {
+    final label = hasKicks ? 'Counting' : 'Ready';
+    final color =
+        hasKicks ? const Color(0xFFFF4E6A) : const Color(0xFF8B92A2);
+    final background =
+        hasKicks ? const Color(0xFFFFE4E9) : const Color(0xFFF1F3F6);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: color,
             ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Started At
-            Expanded(
-              child: _buildStatColumn(
-                icon: Icons.access_time_rounded,
-                label: 'STARTED AT',
-                value: _startTime,
-              ),
-            ),
-            Container(width: 1, height: 36, color: const Color(0xFFFFE0E6)),
-            // Goal
-            Expanded(
-              child: _buildStatColumn(
-                icon: Icons.bolt_rounded,
-                label: 'GOAL',
-                value: '$_kickGoal kicks',
-              ),
-            ),
-            Container(width: 1, height: 36, color: const Color(0xFFFFE0E6)),
-            // Best Count
-            Expanded(
-              child: _buildStatColumn(
-                icon: Icons.groups_rounded,
-                label: 'BEST COUNT',
-                value: '$_bestCount kicks',
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildStatColumn({
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
+  Widget _buildStatColumn({required String label, required String value}) {
     return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Container(
-          padding: const EdgeInsets.all(6),
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFEBF0),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, size: 16, color: const Color(0xFFFF4E6A)),
-        ),
-        const SizedBox(height: 6),
         Text(
           label,
           style: const TextStyle(
-            fontSize: 9.5,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF8B92A2),
-            letterSpacing: 0.5,
+            letterSpacing: 0.7,
+            color: Color(0xFFA7ADBA),
           ),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: 4),
         Text(
           value,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1E2229),
           ),
@@ -681,54 +679,4 @@ class _KickCounterPageState extends State<KickCounterPage>
       ],
     );
   }
-}
-
-class _SpeedLinesPainter extends CustomPainter {
-  final bool isLeft;
-  _SpeedLinesPainter({required this.isLeft});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFFFFB3C1)
-      ..strokeWidth = 2.5
-      ..strokeCap = StrokeCap.round;
-
-    if (isLeft) {
-      canvas.drawLine(
-        Offset(size.width, size.height * 0.2),
-        Offset(0, size.height * 0.05),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(size.width, size.height * 0.5),
-        Offset(size.width * 0.2, size.height * 0.5),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(size.width, size.height * 0.8),
-        Offset(0, size.height * 0.95),
-        paint,
-      );
-    } else {
-      canvas.drawLine(
-        Offset(0, size.height * 0.2),
-        Offset(size.width, size.height * 0.05),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(0, size.height * 0.5),
-        Offset(size.width * 0.8, size.height * 0.5),
-        paint,
-      );
-      canvas.drawLine(
-        Offset(0, size.height * 0.8),
-        Offset(size.width, size.height * 0.95),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
