@@ -102,6 +102,19 @@ class OfflineChatbotController extends GetxController {
   final RxString langCode = ''.obs;
   final Rxn<DateTime> lastSynced = Rxn<DateTime>();
 
+  /// The intent key to automatically trigger on app open if present in the
+  /// downloaded intents for the active language. Defaults to 'inital'.
+  // ignore: non_constant_identifier_names
+  String inital_intent_key = 'initial';
+
+  /// Aliases for convenience and standard naming conventions.
+  // ignore: non_constant_identifier_names
+  String get initial_intent_key => inital_intent_key;
+  // ignore: non_constant_identifier_names
+  set initial_intent_key(String val) => inital_intent_key = val;
+  String get initialIntentKey => inital_intent_key;
+  set initialIntentKey(String val) => inital_intent_key = val;
+
   /// Options the step the flow is waiting on offers, as tappable chips.
   final RxList<String> activeOptions = <String>[].obs;
 
@@ -151,13 +164,23 @@ class OfflineChatbotController extends GetxController {
 
   Map<String, dynamic> get sessionData => _session.data;
 
+  /// The catalogue being read off the phone (or downloaded), so a screen that
+  /// opens before it is ready can wait for it instead of finding no engine.
+  Future<void>? _bootstrapFuture;
+
+  /// Completes once there is a catalogue to answer from, if there is going to
+  /// be one. Awaiting it is what lets Ask Allo open on the week's message even
+  /// when the page is the first thing the app shows.
+  Future<void> get ready => _bootstrapFuture ?? Future<void>.value();
+
   @override
   void onInit() {
     super.onInit();
     _tts.init();
     _tts.isSpeakingNotifier.addListener(_onSpeakingChanged);
     _tts.isGeneratingNotifier.addListener(_onGeneratingChanged);
-    unawaited(_bootstrap());
+    _bootstrapFuture = _bootstrap();
+    unawaited(_bootstrapFuture!);
   }
 
   @override
@@ -185,7 +208,8 @@ class OfflineChatbotController extends GetxController {
   }
 
   void _onSpeakingChanged() => isSpeaking.value = _tts.isSpeakingNotifier.value;
-  void _onGeneratingChanged() => isGenerating.value = _tts.isGeneratingNotifier.value;
+  void _onGeneratingChanged() =>
+      isGenerating.value = _tts.isGeneratingNotifier.value;
 
   /// Reads the cached catalogue and transcript, then downloads a fresh
   /// catalogue if there is none.
@@ -203,7 +227,7 @@ class OfflineChatbotController extends GetxController {
     // that is the point of caching it. A refresh then runs behind the screen,
     // because otherwise a phone that synced once would answer from that
     // download for ever, and intents added since would never reach her.
-    _greet();
+    await _startInitialFlowOrGreet();
     unawaited(sync(quiet: true));
   }
 
@@ -276,12 +300,20 @@ class OfflineChatbotController extends GetxController {
       // A half-walked flow belongs to the catalogue that is being replaced, so
       // it is dropped. What was said is not: a sync is housekeeping, and it has
       // no business throwing away the conversation the mother is in.
-      _delivery++;
-      _pending.clear();
-      isTyping.value = false;
-      _session.clear();
-      activeOptions.clear();
-      _greet();
+      //
+      // The opening flow is the exception. It runs off the cached catalogue
+      // before the refresh has landed, and it is the app's own doing rather
+      // than anything she asked for — so leaving it alone meant a flow edited
+      // in the builder took two launches to show up: the first downloaded it,
+      // the second ran it. It is restarted on the catalogue that just arrived.
+      if (!quiet || !_session.isActive || _isInitialIntent(_session.intentKey)) {
+        _delivery++;
+        _pending.clear();
+        isTyping.value = false;
+        _session.clear();
+        activeOptions.clear();
+        await _startInitialFlowOrGreet();
+      }
     } catch (e) {
       if (!quiet) error.value = 'Could not download AlloBot: $e';
     } finally {
@@ -363,7 +395,9 @@ class OfflineChatbotController extends GetxController {
         : spoken;
 
     return recent
-        .map((m) => {'role': m.fromUser ? 'user' : 'assistant', 'content': m.text})
+        .map(
+          (m) => {'role': m.fromUser ? 'user' : 'assistant', 'content': m.text},
+        )
         .toList();
   }
 
@@ -445,6 +479,170 @@ class OfflineChatbotController extends GetxController {
     return '$salutation\nHow can I support you today?';
   }
 
+  /// If [inital_intent_key] is present in the intents for the current language,
+  /// starts that intent flow. Otherwise falls back to [_greet].
+  Future<void> _startInitialFlowOrGreet() async {
+    // Silent here. This runs while the app is starting up, which may be with
+    // the mother still on the home screen — the week's message is spoken when
+    // she opens Ask Allo and can see who is talking. See [openConversation].
+    final started = await startInitialIntentFlow();
+    if (!started) {
+      _greet();
+    }
+  }
+
+  /// Opens Ask Allo on the week's message, and lets the baby say it out loud.
+  ///
+  /// Called every time the page opens, not once per app run: the message is a
+  /// greeting, and a greeting that only ever happened during a launch the
+  /// mother never saw is one nobody was greeted by. When the bubble is already
+  /// on screen from her last visit it is not printed twice — only spoken.
+  ///
+  /// Spoken out of the step's own recording alone. A clip someone recorded for
+  /// week 1 is the baby talking; the phone's synthesised voice reading the
+  /// screen aloud the moment a page opens is not, so a step with no clip
+  /// simply opens quietly.
+  Future<void> openConversation() async {
+    await ready;
+
+    // Mid-flow on something else — she asked a question last visit and the
+    // flow is waiting on her answer. Restarting the week's message here would
+    // throw that away, so the conversation is left exactly where she left it.
+    if (_session.isActive && !_isInitialIntent(_session.intentKey)) return;
+
+    await startInitialIntentFlow(speak: true, recordedOnly: true);
+  }
+
+  /// Whether [key] names the intent the page opens on, allowing for the
+  /// `inital`/`initial` spelling [startIntentByKey] also tolerates.
+  bool _isInitialIntent(String? key) {
+    if (key == null) return false;
+    final target = inital_intent_key.trim();
+    return key == target || (target == 'inital' && key == 'initial');
+  }
+
+  /// Starts the intent flow for [inital_intent_key] if present for the current language.
+  Future<bool> startInitialIntentFlow({
+    bool speak = false,
+    bool recordedOnly = false,
+  }) => startIntentByKey(
+    inital_intent_key,
+    speak: speak,
+    recordedOnly: recordedOnly,
+  );
+
+  /// Starts the intent flow with the given [key] if it exists in the catalogue
+  /// for the current language.
+  ///
+  /// Returns true if the intent was found and started, false otherwise.
+  /// [recordedOnly] limits [speak] to the clip a step names, leaving the reply
+  /// silent when there is no recording rather than synthesising one.
+  Future<bool> startIntentByKey(
+    String key, {
+    bool speak = false,
+    bool recordedOnly = false,
+  }) async {
+    final engine = _engine;
+    final trimmedKey = key.trim();
+    if (engine == null || trimmedKey.isEmpty) return false;
+
+    final lang = langCode.value.isEmpty ? null : langCode.value;
+    final catalogue = bundle?.forLanguage(lang) ?? const <BotIntent>[];
+
+    BotIntent? targetIntent;
+    for (final intent in catalogue) {
+      if (intent.key == trimmedKey) {
+        targetIntent = intent;
+        break;
+      }
+    }
+    // Defensive fallback: if 'inital' was searched but authored as 'initial'
+    if (targetIntent == null && trimmedKey == 'inital') {
+      for (final intent in catalogue) {
+        if (intent.key == 'initial') {
+          targetIntent = intent;
+          break;
+        }
+      }
+    }
+
+    if (targetIntent == null) return false;
+
+    final delivery = ++_delivery;
+    activeOptions.clear();
+    isTyping.value = true;
+
+    try {
+      final reply = await engine.runIntent(
+        targetIntent,
+        session: _session,
+        profile: offlineChatbotProfile(),
+      );
+
+      // If the transcript already has messages and the last assistant message
+      // is identical to this initial step, avoid repeating the bubble while
+      // keeping the session active and active options present.
+      if (messages.isNotEmpty) {
+        OfflineChatMessage? lastAssistant;
+        for (var i = messages.length - 1; i >= 0; i--) {
+          final m = messages[i];
+          if (!m.fromUser && !m.isSystem) {
+            lastAssistant = m;
+            break;
+          }
+        }
+        if (lastAssistant != null &&
+            lastAssistant.text.trim() == reply.text.trim() &&
+            reply.text.trim().isNotEmpty) {
+          activeOptions.assignAll(reply.options);
+          if (_delivery == delivery) isTyping.value = false;
+          // The bubble is already there from her last visit, but she has just
+          // opened the page again — printing it twice would be noise, staying
+          // silent would mean the baby never greets her a second time.
+          if (speak) {
+            await _narrate(reply, delivery, recordedOnly: recordedOnly);
+          }
+          update();
+          return true;
+        }
+      }
+
+      await _deliverReply(
+        reply,
+        delivery,
+        speak: speak,
+        recordedOnly: recordedOnly,
+      );
+      return true;
+    } catch (e) {
+      if (_delivery == delivery) isTyping.value = false;
+      debugPrint('OfflineChatbotController: failed to run intent "$key": $e');
+      return false;
+    }
+  }
+
+  /// Reads [reply] out step by step without printing it — for the bubble that
+  /// is already on screen from her last visit.
+  ///
+  /// Each step is waited out before the next one starts, the same gate
+  /// [_deliverReply] holds the printed turn behind.
+  Future<void> _narrate(
+    BotReply reply,
+    int delivery, {
+    bool recordedOnly = false,
+  }) async {
+    for (final segment in reply.segments) {
+      for (final utterance in segment.utterances) {
+        await _speakReplyIfEnabled(
+          utterance.text,
+          audioUrl: utterance.audioUrl,
+          recordedOnly: recordedOnly,
+        );
+        if (_delivery != delivery) return;
+      }
+    }
+  }
+
   void _greet() {
     if (messages.isNotEmpty) return;
     messages.add(OfflineChatMessage(text: greetingLine()));
@@ -463,7 +661,7 @@ class OfflineChatbotController extends GetxController {
         OfflineChatMessage(text: 'Conversation reset.', isSystem: true),
       );
     }
-    _greet();
+    unawaited(_startInitialFlowOrGreet());
     unawaited(_persistTranscript());
   }
 
@@ -490,6 +688,17 @@ class OfflineChatbotController extends GetxController {
     isTyping.value = false;
     unawaited(_tts.stop());
     await _persistTranscript();
+  }
+
+  /// Silences the line being read without abandoning the turn.
+  ///
+  /// The counterpart to [stopCurrentTurn]: that one throws the whole reply
+  /// away, this one only cuts the narration short. The delivery loop is gated
+  /// on the voice stopping, however it stopped, so this moves the flow on to
+  /// its next step rather than leaving it stuck behind a line she has heard
+  /// enough of.
+  Future<void> skipNarration() async {
+    await _tts.stop();
   }
 
   /// Messages sent while the previous one was still being answered, oldest
@@ -568,18 +777,43 @@ class OfflineChatbotController extends GetxController {
     activeOptions.clear();
     isTyping.value = true;
 
-    // Whether this turn put anything on screen or did anything at all. A flow
-    // that runs out mid-graph can return a reply with no text in it, and the
-    // turn would then end in silence.
-    var answered = false;
-
     try {
       final reply = await engine.respond(
         message: message,
         session: _session,
         profile: offlineChatbotProfile(),
       );
+      await _deliverReply(reply, delivery, speak: speak);
+    } catch (e) {
+      messages.add(
+        OfflineChatMessage(
+          text: 'Something went wrong answering that: $e',
+          isSystem: true,
+        ),
+      );
+      if (_delivery == delivery) isTyping.value = false;
+      await _persistTranscript();
+      update();
+    }
+  }
 
+  /// Delivers a [BotReply]'s segments, pauses, and actions to the transcript.
+  ///
+  /// One step at a time, and the next one does not start until the current
+  /// one has finished being read aloud. A flow that redirects or chains steps
+  /// produces several segments in a single turn, and printing them all at once
+  /// meant each new line cut the last one off mid-word — every [TtsService]
+  /// utterance stops the one before it — so only the last bubble of a turn was
+  /// ever heard. See [TtsService.speakAndWait]; a manual stop opens that gate
+  /// as well, so nothing here waits on a voice the mother has silenced.
+  Future<void> _deliverReply(
+    BotReply reply,
+    int delivery, {
+    bool speak = false,
+    bool recordedOnly = false,
+  }) async {
+    var answered = false;
+    try {
       for (final segment in reply.segments) {
         if (segment.delay > 0) {
           await Future.delayed(
@@ -604,13 +838,22 @@ class OfflineChatbotController extends GetxController {
               options: segment.options,
             ),
           );
-          if (speak) {
+        }
+
+        // One step at a time, each waited out before the next starts. A bubble
+        // several steps wrote into is still one bubble, but it is read the way
+        // the flow wrote it — and every step's own recording is played, rather
+        // than the first one standing in for all of them.
+        if (speak) {
+          for (final utterance in segment.utterances) {
             await _speakReplyIfEnabled(
-              segment.text,
-              audioUrl: segment.audioUrls.isEmpty
-                  ? null
-                  : segment.audioUrls.first,
+              utterance.text,
+              audioUrl: utterance.audioUrl,
+              recordedOnly: recordedOnly,
             );
+            // She may have sent something else, or reset, while it was being
+            // read; the rest of this reply belongs to a turn she has left.
+            if (_delivery != delivery) return;
           }
         }
         for (final url in segment.imageUrls) {
@@ -622,7 +865,9 @@ class OfflineChatbotController extends GetxController {
       if (_delivery != delivery) return;
       if (!answered) {
         messages.add(OfflineChatMessage(text: _nothingToSayMessage));
-        if (speak) await _speakReplyIfEnabled(_nothingToSayMessage);
+        if (speak && !recordedOnly) {
+          await _speakReplyIfEnabled(_nothingToSayMessage);
+        }
       }
       activeOptions.assignAll(reply.options);
     } catch (e) {
@@ -649,16 +894,26 @@ class OfflineChatbotController extends GetxController {
   /// [audioUrl] is the recording the intent was authored with; [TtsService]
   /// prefers it over anything synthesised and falls back on its own when the
   /// clip cannot be played.
-  Future<void> _speakReplyIfEnabled(String text, {String? audioUrl}) async {
+  Future<void> _speakReplyIfEnabled(
+    String text, {
+    String? audioUrl,
+    bool recordedOnly = false,
+  }) async {
     if (BackgroundAudioController.isReady &&
         !BackgroundAudioController.to.isVoiceEnabled.value) {
       debugPrint('Chatbot: Voice is disabled in BackgroundAudioController');
       return;
     }
     if (_isSystemOrErrorText(text)) return;
+    final clip = _absoluteAudioUrl(audioUrl);
+    if (recordedOnly && clip == null) return;
     lastSpokenText = text;
-    debugPrint('Chatbot: Speaking reply: "$text"');
-    await _tts.speak(text, audioUrl: _absoluteAudioUrl(audioUrl));
+    debugPrint(
+      'Chatbot: Speaking reply: "$text"${clip == null ? '' : ' (clip $clip)'}',
+    );
+    // Returns when the line has actually been said, not when it started being
+    // said, so the caller can hold the flow until then.
+    await _tts.speakAndWait(text, audioUrl: clip, recordedOnly: recordedOnly);
   }
 
   /// Absolutises a clip path from the catalogue.

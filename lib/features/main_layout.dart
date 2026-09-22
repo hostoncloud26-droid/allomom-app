@@ -71,7 +71,7 @@ class _MainLayoutState extends State<MainLayout> {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => const AlloBotPage(autoStartListening: true),
+              builder: (_) => const AlloBotPage(autoStartListening: false),
             ),
           );
         },

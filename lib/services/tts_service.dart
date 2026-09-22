@@ -25,6 +25,11 @@ class TtsService {
   final ValueNotifier<bool> isSpeakingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isGeneratingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> currentSpeakingText = ValueNotifier<String?>(null);
+
+  /// Opens when the line being spoken stops sounding, however it stopped.
+  /// Held here rather than passed around so [stop] can release it too — a
+  /// cancelled utterance reports nothing through its completion handler.
+  Completer<void>? _speechGate;
   bool _isInitialized = false;
   bool _isPluginAvailable = true;
 
@@ -172,11 +177,88 @@ class TtsService {
   ///    pointed at a server.
   /// 3. The phone's own engine, which is also where 1 and 2 land if the
   ///    server is unreachable or the clip refuses to play.
+  ///
+  /// [recordedOnly] keeps voices 2 and 3 out of it: the recording plays or
+  /// nothing does. For the replies that arrive without the mother having asked
+  /// for them — the flow the page opens on — where a real voice is welcome but
+  /// a synthesised one reading the screen aloud is not.
   Future<void> speak(
     String text, {
     VoidCallback? onComplete,
     String? language,
     String? audioUrl,
+    bool recordedOnly = false,
+  }) async {
+    await _speak(
+      text,
+      onComplete: onComplete,
+      language: language,
+      audioUrl: audioUrl,
+      recordedOnly: recordedOnly,
+    );
+  }
+
+  /// Speaks [text] and returns only once the voice has actually stopped —
+  /// because it reached the end of the line, or because something stopped it.
+  ///
+  /// The gate a conversation advances on. [speak] returns as soon as playback
+  /// *starts*, which is right for a one-off line but wrong for a flow: the
+  /// next step would print and start speaking over the step before it, and
+  /// since every [speak] begins by stopping the last one, only the final
+  /// bubble of a multi-step turn was ever heard.
+  ///
+  /// A manual [stop] opens the gate too, so tapping "stop talking" moves the
+  /// flow on rather than stranding it behind a voice nobody is listening to.
+  Future<void> speakAndWait(
+    String text, {
+    VoidCallback? onComplete,
+    String? language,
+    String? audioUrl,
+    bool recordedOnly = false,
+  }) async {
+    final Completer<void> gate;
+    try {
+      gate = await _speak(
+        text,
+        onComplete: onComplete,
+        language: language,
+        audioUrl: audioUrl,
+        recordedOnly: recordedOnly,
+      );
+    } catch (e) {
+      // Nothing is sounding, so there is nothing to wait for.
+      debugPrint('TtsService: could not start speaking: $e');
+      return;
+    }
+    if (gate.isCompleted) return;
+
+    // A backstop, not the mechanism: every voice here reports its own end, but
+    // a player that neither completes nor errors would otherwise hold the
+    // whole conversation open. Scaled to the line, since a long paragraph read
+    // slowly is minutes rather than seconds.
+    final limit = Duration(
+      seconds: (text.length / 5).clamp(30, 300).round(),
+    );
+    await gate.future.timeout(
+      limit,
+      onTimeout: () => debugPrint(
+        'TtsService: narration did not report its end within '
+        '${limit.inSeconds}s — moving on',
+      ),
+    );
+  }
+
+  /// Starts the voice and hands back the gate that opens when it stops.
+  ///
+  /// A [Completer] rather than its future, because Dart flattens a returned
+  /// `Future<Future<void>>` and the gate would be indistinguishable from this
+  /// method's own completion.
+  Future<Completer<void>> _speak(
+    String text, {
+    VoidCallback? onComplete,
+    String? language,
+    String? audioUrl,
+    bool recordedOnly = false,
   }) async {
     // stop() bumps _speakGeneration, so the token for this call has to be
     // taken *after* it. Taking it first made every later `generation ==
@@ -185,11 +267,22 @@ class TtsService {
     await stop();
     final generation = ++_speakGeneration;
 
+    // The gate for this line. `stop()` above already released the previous
+    // one, so nothing is left waiting on a voice that has been superseded.
+    final gate = Completer<void>();
+    _speechGate = gate;
+
+    void done() {
+      if (identical(_speechGate, gate)) _speechGate = null;
+      if (!gate.isCompleted) gate.complete();
+      onComplete?.call();
+    }
+
     final cleanText = cleanForSpeech(text);
     final recordedUrl = audioUrl?.trim() ?? '';
-    if (cleanText.isEmpty && recordedUrl.isEmpty) {
-      onComplete?.call();
-      return;
+    if (recordedUrl.isEmpty && (cleanText.isEmpty || recordedOnly)) {
+      done();
+      return gate;
     }
 
     currentSpeakingText.value = text;
@@ -197,10 +290,17 @@ class TtsService {
 
     // 1. The recorded clip the answer came with.
     if (recordedUrl.isNotEmpty) {
-      final started = await _playNetworkAudio(recordedUrl, generation, onComplete);
-      if (started) return;
-      if (generation != _speakGeneration) return;
+      final started = await _playNetworkAudio(recordedUrl, generation, done);
+      if (started) return gate;
+      if (generation != _speakGeneration) return gate;
       debugPrint('Intent audio unplayable, falling back: $recordedUrl');
+      if (recordedOnly) {
+        isGeneratingNotifier.value = false;
+        isSpeakingNotifier.value = false;
+        currentSpeakingText.value = null;
+        done();
+        return gate;
+      }
     }
 
     // 2. The online voice, only when it has been switched on and pointed
@@ -208,12 +308,12 @@ class TtsService {
     // timeout before the phone's own voice got its turn.
     if (cleanText.isNotEmpty) {
       final online = await _synthesiseOnline(cleanText, language);
-      if (generation != _speakGeneration) return;
+      if (generation != _speakGeneration) return gate;
 
       if (online != null && online.isNotEmpty) {
-        final started = await _playNetworkAudio(online, generation, onComplete);
-        if (started) return;
-        if (generation != _speakGeneration) return;
+        final started = await _playNetworkAudio(online, generation, done);
+        if (started) return gate;
+        if (generation != _speakGeneration) return gate;
       }
     }
 
@@ -222,10 +322,11 @@ class TtsService {
     if (cleanText.isEmpty) {
       isSpeakingNotifier.value = false;
       currentSpeakingText.value = null;
-      onComplete?.call();
-      return;
+      done();
+      return gate;
     }
-    await _speakWithDeviceTts(cleanText, generation, language, onComplete);
+    await _speakWithDeviceTts(cleanText, generation, language, done);
+    return gate;
   }
 
   /// Asks the configured server for a clip, or returns null when the online
@@ -438,10 +539,21 @@ class TtsService {
     }
   }
 
+  /// Opens the gate [speakAndWait] is holding, if one is held.
+  void _releaseSpeechGate() {
+    final gate = _speechGate;
+    _speechGate = null;
+    if (gate != null && !gate.isCompleted) gate.complete();
+  }
+
   Future<void> stop() async {
     _speakGeneration++;
     _flutterTtsOnComplete = null;
     isGeneratingNotifier.value = false;
+    // Whatever was waiting on this voice is released: stopping is an ending,
+    // and a flow gated on narration would otherwise wait for a line that is
+    // never going to finish.
+    _releaseSpeechGate();
     _playerCompleteSub?.cancel();
     _playerCompleteSub = null;
     _playerErrorSub?.cancel();

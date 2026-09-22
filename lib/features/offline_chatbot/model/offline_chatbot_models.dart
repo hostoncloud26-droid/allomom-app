@@ -82,6 +82,20 @@ class BotBundle {
     return intents.where((i) => i.langCode == langCode).toList();
   }
 
+  /// The intent a redirect points at, by the id the Builder stored on the step.
+  ///
+  /// Exact where [intentByRef] guesses: a key is unique only within a language,
+  /// so a catalogue holding the same flow in English and Tamil has two intents
+  /// answering to `check_breakfast`, and only the id says which one the author
+  /// drew the arrow to.
+  BotIntent? intentById(String id) {
+    if (id.isEmpty) return null;
+    for (final intent in intents) {
+      if (intent.id == id) return intent;
+    }
+    return null;
+  }
+
   BotIntent? intentByRef(String key, String langCode) {
     for (final intent in intents) {
       if (intent.key == key && intent.langCode == langCode) return intent;
@@ -108,6 +122,13 @@ class BotLanguage {
 }
 
 class BotIntent {
+  /// The id this intent has in the catalogue it was downloaded from.
+  ///
+  /// How an `intent` step's redirect finds its target: the Flow Builder stores
+  /// the target by id, so the id is what resolves it exactly. Empty for a
+  /// hand-built intent or a bundle downloaded before ids travelled, which is
+  /// why [BotBundle.intentByRef] is still there to fall back on.
+  final String id;
   final String key;
   final String name;
   final List<String> examples;
@@ -120,6 +141,7 @@ class BotIntent {
   final BotFlow? flow;
 
   const BotIntent({
+    this.id = '',
     required this.key,
     required this.name,
     this.examples = const [],
@@ -131,6 +153,7 @@ class BotIntent {
   });
 
   factory BotIntent.fromJson(Map<String, dynamic> json) => BotIntent(
+        id: (json['id'] ?? '').toString(),
         key: (json['key'] ?? '').toString(),
         name: (json['name'] ?? '').toString(),
         examples: ((json['examples'] as List?) ?? const [])
@@ -148,6 +171,7 @@ class BotIntent {
       );
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'key': key,
         'name': name,
         'examples': examples,
@@ -257,6 +281,12 @@ class BotStep {
   final List<String> options;
 
   /// An "intent" step hands the conversation to another intent.
+  ///
+  /// [nextIntentId] is what the Flow Builder actually stored and is resolved
+  /// first; the key and language are the fallback, for a bundle exported
+  /// before ids travelled or imported into a different database, where the
+  /// ids are someone else's.
+  final String? nextIntentId;
   final String? nextIntentKey;
   final String? nextIntentLang;
 
@@ -279,6 +309,7 @@ class BotStep {
     this.actionName,
     this.actionData,
     this.options = const [],
+    this.nextIntentId,
     this.nextIntentKey,
     this.nextIntentLang,
   });
@@ -307,6 +338,7 @@ class BotStep {
           .map((e) => e.toString())
           .where((e) => e.trim().isNotEmpty)
           .toList(),
+      nextIntentId: json['next_intent_id']?.toString(),
       nextIntentKey:
           nextIntent is Map ? nextIntent['key']?.toString() : null,
       nextIntentLang:
@@ -333,6 +365,7 @@ class BotStep {
         'action_name': actionName,
         'action_data': actionData,
         'options': options,
+        'next_intent_id': nextIntentId,
         'next_intent_ref': nextIntentKey == null
             ? null
             : {'key': nextIntentKey, 'lang_code': nextIntentLang ?? 'en'},

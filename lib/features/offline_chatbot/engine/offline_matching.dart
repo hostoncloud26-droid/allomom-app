@@ -21,6 +21,11 @@ const int tierTemplateFull = 1;
 const int tierLiteralSubstring = 2;
 const int tierTemplateLoose = 3;
 
+/// The user said only *part* of a trigger phrase: "good" against the trigger
+/// "Which fruits are good to eat during pregnancy?". The loosest tier there is,
+/// and the one a flow waiting on a free-text answer refuses — see [maxTier].
+const int tierLiteralFragment = 4;
+
 /// Punctuation trimmed from both the incoming message and captured values.
 const String _trailingPunct = ' \t\n\r.,!?;:"\'“”‘’।';
 
@@ -177,9 +182,16 @@ ExampleMatch? matchExample(String example, String message) {
     // belongs to "hi there" but not to the "hi" buried in "thing".
     final msgWords = wordTokens(msgClean);
     final exWords = wordTokens(exClean);
-    if (_containsTokenRun(msgWords, exWords) ||
-        _containsTokenRun(exWords, msgWords)) {
+    // The user said the trigger and more besides ("hi there" for "hi").
+    if (_containsTokenRun(msgWords, exWords)) {
       return const ExampleMatch(tierLiteralSubstring, {});
+    }
+    // The other way round: what the user said is buried inside a longer
+    // trigger. A real hit when she types "foods to avoid", and a false one for
+    // every one-word answer a flow ever asks for, so it is tiered apart from
+    // the above rather than sharing its confidence.
+    if (_containsTokenRun(exWords, msgWords)) {
+      return const ExampleMatch(tierLiteralFragment, {});
     }
     return null;
   }
@@ -251,6 +263,9 @@ _Candidate? _matchIntent(BotIntent intent, String message, {int? maxTier}) {
 /// [maxTier] caps how loose a match may be — pass [tierTemplateFull] when a
 /// stray match would be costly, e.g. while a step is waiting on one of its
 /// options, where the substring tier would let "hi" fire on the word "thing".
+/// [tierTemplateLoose] is the cap for a step waiting on a free-text answer:
+/// enough for a real question to interrupt the flow, not so much that
+/// answering "good" counts as asking about fruit.
 IntentMatch? findBestIntent(List<BotIntent> intents, String message,
     {int? maxTier}) {
   _Candidate? bestCandidate;

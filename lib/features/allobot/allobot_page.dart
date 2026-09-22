@@ -52,17 +52,6 @@ class _AlloBotPageState extends State<AlloBotPage> {
     super.initState();
     _currentIndex = widget.initialTab;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      // What AlloBot is for, then what it can promise: offline it answers only
-      // the questions it carries on the phone, and the doctor still decides.
-      speakAll([
-        NarrationKeys.pgAllobotOpen,
-        if (!ConnectionController.instance.isInternetAvailable)
-          NarrationKeys.pgAllobotOffline,
-        NarrationKeys.pgAllobotDisclaimer,
-      ]);
-    });
-
     if (widget.autoStartListening) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _openListeningPopup();
@@ -268,7 +257,12 @@ class _AlloBotPageState extends State<AlloBotPage> {
                         : null,
                     onTap: () {
                       if (isSpeaking) {
-                        _chatbot.stopCurrentTurn();
+                        // Cuts the line short without throwing the turn away:
+                        // a flow waiting on this narration moves on to its
+                        // next step, which is what tapping "stop talking"
+                        // should do mid-flow. The sheet's own stop button is
+                        // still the way to abandon the reply outright.
+                        _chatbot.skipNarration();
                         return;
                       }
                       if (_currentIndex != 0) {

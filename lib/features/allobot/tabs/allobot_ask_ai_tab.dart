@@ -76,6 +76,16 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     super.initState();
     _openingSuggestions = _drawOpeningSuggestions();
 
+    // The page opens on the week's message and the baby says it aloud. Held to
+    // the first frame so the transcript is on screen before she starts, and
+    // not while the voice sheet is about to take over the turn.
+    if (!widget.initialListening) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(controller.openConversation());
+      });
+    }
+
     if (widget.initialListening) {
       WidgetsBinding.instance.addPostFrameCallback((_) => startListening());
     }

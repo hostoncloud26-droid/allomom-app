@@ -321,11 +321,30 @@ class AiStepRequest {
 /// it stays pure and testable, and the app decides where inference comes from.
 typedef AiResolver = Future<String?> Function(AiStepRequest request);
 
+/// One thing said, by the one step that said it: its words and the recording
+/// that step named.
+///
+/// A segment is a bubble; its utterances are the steps that filled it. They
+/// stay separate because a bubble is read out one step at a time, each waited
+/// on before the next begins — and because a step's clip belongs to that
+/// step's words, not to whatever else ended up in the same bubble.
+class BotUtterance {
+  BotUtterance({this.text = '', this.audioUrl});
+
+  String text;
+  String? audioUrl;
+
+  bool get hasAudio => (audioUrl ?? '').isNotEmpty;
+  bool get isEmpty => text.isEmpty && !hasAudio;
+}
+
 /// One message of a turn, and the pause that precedes it.
 class BotSegment {
-  String text;
   double delay;
-  final List<String> audioUrls;
+
+  /// What this bubble says, step by step, in the order the flow said it.
+  final List<BotUtterance> utterances;
+
   final List<String> imageUrls;
 
   /// Side effects this part of the turn asks the app to perform, in the order
@@ -335,16 +354,25 @@ class BotSegment {
   List<String> options;
 
   BotSegment({
-    this.text = '',
     this.delay = 0,
-    List<String>? audioUrls,
+    List<BotUtterance>? utterances,
     List<String>? imageUrls,
     List<Map<String, dynamic>>? actions,
     List<String>? options,
-  })  : audioUrls = audioUrls ?? [],
+  })  : utterances = utterances ?? [],
         imageUrls = imageUrls ?? [],
         actions = actions ?? [],
         options = options ?? [];
+
+  /// The bubble's words — every step that spoke into it, run together.
+  String get text => utterances
+      .where((u) => u.text.isNotEmpty)
+      .map((u) => u.text)
+      .join('\n\n');
+
+  /// Every clip this bubble carries, in order.
+  List<String> get audioUrls =>
+      [for (final u in utterances) if (u.hasAudio) u.audioUrl!];
 }
 
 /// A turn's answer, as the ordered parts the UI should deliver.
@@ -361,24 +389,55 @@ class BotReply {
 
   void wait(double seconds) => _pendingDelay += seconds;
 
+  /// The utterance the step currently running is filling. [endStep] closes it,
+  /// so the next step's words and clip cannot land on the step before it.
+  BotUtterance? _open;
+
   BotSegment _current() {
     if (segments.isEmpty || _pendingDelay > 0) {
       segments.add(BotSegment(delay: _pendingDelay));
       _pendingDelay = 0;
+      _open = null;
     }
     return segments.last;
   }
 
-  void say(String? text) {
-    if (text == null || text.isEmpty) return;
-    final current = _current();
-    current.text =
-        current.text.isEmpty ? text : '${current.text}\n\n$text';
+  BotUtterance _openUtterance() {
+    final part = _open;
+    if (part != null) return part;
+    final fresh = BotUtterance();
+    _current().utterances.add(fresh);
+    _open = fresh;
+    return fresh;
   }
 
-  void addAudio(String? url) {
-    if (url != null && url.isNotEmpty) _current().audioUrls.add(url);
+  /// Adds what the running step says. Its own utterance, so it is read out on
+  /// its own even when it shares a bubble with the step before it.
+  void say(String? text) {
+    if (text == null || text.isEmpty) return;
+    final part = _openUtterance();
+    part.text = part.text.isEmpty ? text : '${part.text}\n\n$text';
   }
+
+  /// Attaches the running step's clip to what it said. A step naming a second
+  /// clip gets a second utterance rather than losing one.
+  void addAudio(String? url) {
+    if (url == null || url.isEmpty) return;
+    final part = _openUtterance();
+    if (!part.hasAudio) {
+      part.audioUrl = url;
+      return;
+    }
+    _open = null;
+    _openUtterance().audioUrl = url;
+  }
+
+  /// Marks the end of one step's contribution.
+  ///
+  /// Without it, a step that says nothing but names a clip would hang that
+  /// clip on the previous step's words — and the clip wins over the text, so
+  /// that step's line would go unread.
+  void endStep() => _open = null;
 
   void addImage(String? url) {
     if (url != null && url.isNotEmpty) _current().imageUrls.add(url);
@@ -654,12 +713,23 @@ class OfflineChatbotEngine {
     BotStep? start,
     BotReply reply,
   ) async {
+    // Keyed by flow *and* ref, not ref alone. A step's ref is only unique
+    // inside its own flow — every flow numbers its steps s1, s2, s3 — so an
+    // `intent` step handing over to another flow used to land on that flow's
+    // s1, find "s1" already visited from the flow it just left, and stop dead:
+    // the redirect appeared to do nothing at all. Scoping the key to the flow
+    // keeps the loop guard (a flow that redirects back into itself still stops
+    // at the step it has already run) without one flow shadowing another.
     final visited = <String>{};
     var curr = start;
 
     while (curr != null && curr.isAutomatic) {
-      if (visited.contains(curr.ref)) break;
-      visited.add(curr.ref);
+      final mark = '${identityHashCode(session.flow)}#${curr.ref}';
+      // Already walked this turn: the graph loops. The flow ends here rather
+      // than landing on the step, which would print it a second time and then
+      // leave the session waiting on a step that takes no answer.
+      if (visited.contains(mark)) return null;
+      visited.add(mark);
 
       // A step offering options waits for a selection instead of running on.
       // An ai step is exempt: its options carry the history flag, not choices.
@@ -733,10 +803,7 @@ class OfflineChatbotEngine {
           _save(session, curr.saveKey, _offlineSkipped);
           break;
         case 'intent':
-          final target = curr.nextIntentKey == null
-              ? null
-              : bundle.intentByRef(
-                  curr.nextIntentKey!, curr.nextIntentLang ?? 'en');
+          final target = _redirectTarget(curr);
           if (target != null) {
             if (target.type == 'response') {
               reply.say(renderTemplate(target.response?.message, session.data));
@@ -764,6 +831,9 @@ class OfflineChatbotEngine {
       }
 
       if (curr.type != 'delay') reply.addAudio(_sessionAudio(curr, session));
+      // This step has had its say. Whatever the next one contributes is read
+      // out as its own line, after this one has finished being read.
+      reply.endStep();
 
       final flow = session.flow;
       if (flow == null) return null;
@@ -771,6 +841,24 @@ class OfflineChatbotEngine {
     }
 
     return curr;
+  }
+
+  /// The intent an `intent` step hands over to.
+  ///
+  /// By id first — that is what the Flow Builder stored, and a key is unique
+  /// only within one language, so on a catalogue holding several languages the
+  /// key alone can land on the wrong copy of a flow. The key is the fallback,
+  /// for a bundle downloaded before ids travelled and for one imported into a
+  /// different database, where the ids belong to someone else's rows.
+  BotIntent? _redirectTarget(BotStep step) {
+    final id = step.nextIntentId;
+    if (id != null && id.isNotEmpty) {
+      final byId = bundle.intentById(id);
+      if (byId != null) return byId;
+    }
+    final key = step.nextIntentKey;
+    if (key == null || key.isEmpty) return null;
+    return bundle.intentByRef(key, step.nextIntentLang ?? 'en');
   }
 
   void _appendCompletion(BotReply reply, BotFlow? flow, BotSession session) {
@@ -783,6 +871,25 @@ class OfflineChatbotEngine {
     if (flow.action != null && flow.action!.isNotEmpty) {
       reply.say('⚙️ *Backend Action Executed:* `${flow.action}`');
     }
+  }
+
+  /// Starts or executes an intent directly (bypassing trigger phrase matching).
+  Future<BotReply> runIntent(
+    BotIntent intent, {
+    required BotSession session,
+    Map<String, dynamic> profile = const {},
+    Map<String, String> triggerVars = const {},
+    String? triggerMessage,
+  }) async {
+    final turnContext = <String, dynamic>{
+      ...profile,
+      profileKey: profile,
+      if (triggerMessage != null) ...{
+        messageKey: triggerMessage,
+        triggerMessageKey: triggerMessage,
+      },
+    };
+    return _runIntent(intent, triggerVars, turnContext, session);
   }
 
   Future<BotReply> _runIntent(
@@ -831,7 +938,11 @@ class OfflineChatbotEngine {
 
     if (landed == null) {
       // The flow finished on the turn it started (only self-driving steps).
-      _appendCompletion(reply, flow, session);
+      // `session.flow` rather than `flow`: an `intent` step may have handed
+      // over on the way, and it is the flow that actually ran out that gets to
+      // say its closing line — or none at all, when the handover cleared the
+      // session because the target was a plain response.
+      _appendCompletion(reply, session.flow, session);
       session.clear();
       return reply;
     }
@@ -878,7 +989,13 @@ class OfflineChatbotEngine {
           // While a step waits on one of its options, only a confident intent
           // match may interrupt it — a loose substring hit would let "hi" fire
           // on the word "thing".
-          final maxTier = opts.isEmpty ? null : tierTemplateFull;
+          //
+          // A step waiting on free text is capped too, just less tightly: a
+          // fragment match would have every short answer — "good", "fine",
+          // "ok" — read as a question about whichever trigger phrase happens
+          // to contain that word, and the flow she was actually in would never
+          // reach its next step.
+          final maxTier = opts.isEmpty ? tierTemplateLoose : tierTemplateFull;
           final match = findBestIntent(catalogue, trimmed, maxTier: maxTier) ??
               findBestIntent(bundle.intents, trimmed, maxTier: maxTier);
 
@@ -934,7 +1051,9 @@ class OfflineChatbotEngine {
           return reply;
         }
 
-        _appendCompletion(reply, flow, session);
+        // The flow that ran out, which is not `flow` when an `intent` step
+        // handed the conversation over mid-traversal.
+        _appendCompletion(reply, session.flow, session);
         session.clear();
 
         if (reply.text.isEmpty) {
