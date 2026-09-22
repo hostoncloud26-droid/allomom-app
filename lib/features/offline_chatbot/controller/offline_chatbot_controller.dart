@@ -874,7 +874,7 @@ class OfflineChatbotController extends GetxController {
           }
 
           if (speak) {
-            await _speakReplyIfEnabled(
+            final saidAloud = await _speakReplyIfEnabled(
               utterance.text,
               audioUrl: utterance.audioUrl,
               recordedOnly: recordedOnly,
@@ -882,6 +882,14 @@ class OfflineChatbotController extends GetxController {
             // She may have sent something else, or reset, while it was being
             // read; the rest of this reply belongs to a turn she has left.
             if (_delivery != delivery) return;
+
+            // Nothing was heard — the voice is off, or this step has no
+            // recording to play. The step still gets its moment, so the turn
+            // reads as a conversation rather than arriving all at once.
+            if (!saidAloud && utterance.text.isNotEmpty) {
+              await Future.delayed(_readingPause(utterance.text));
+              if (_delivery != delivery) return;
+            }
           }
         }
         for (final url in segment.imageUrls) {
@@ -917,12 +925,17 @@ class OfflineChatbotController extends GetxController {
   @visibleForTesting
   String? lastSpokenText;
 
-  /// Says a reply aloud, handing the voice the clip this answer carries.
+  /// Says a reply aloud, handing the voice the clip this answer carries, and
+  /// reports whether it was read at all.
   ///
   /// [audioUrl] is the recording the intent was authored with; [TtsService]
   /// prefers it over anything synthesised and falls back on its own when the
   /// clip cannot be played.
-  Future<void> _speakReplyIfEnabled(
+  ///
+  /// A caller pacing a turn by its voice needs the return value: a line nobody
+  /// heard leaves nothing to wait for, and the step after it would otherwise
+  /// arrive in the same frame.
+  Future<bool> _speakReplyIfEnabled(
     String text, {
     String? audioUrl,
     bool recordedOnly = false,
@@ -930,11 +943,11 @@ class OfflineChatbotController extends GetxController {
     if (BackgroundAudioController.isReady &&
         !BackgroundAudioController.to.isVoiceEnabled.value) {
       debugPrint('Chatbot: Voice is disabled in BackgroundAudioController');
-      return;
+      return false;
     }
-    if (_isSystemOrErrorText(text)) return;
+    if (_isSystemOrErrorText(text)) return false;
     final clip = _absoluteAudioUrl(audioUrl);
-    if (recordedOnly && clip == null) return;
+    if (recordedOnly && clip == null) return false;
     lastSpokenText = text;
     debugPrint(
       'Chatbot: Speaking reply: "$text"${clip == null ? '' : ' (clip $clip)'}',
@@ -942,6 +955,18 @@ class OfflineChatbotController extends GetxController {
     // Returns when the line has actually been said, not when it started being
     // said, so the caller can hold the flow until then.
     await _tts.speakAndWait(text, audioUrl: clip, recordedOnly: recordedOnly);
+    return true;
+  }
+
+  /// How long a step stays on its own when there is no voice to pace it.
+  ///
+  /// Ask Allo shows the latest line and nothing else, so a step that is not
+  /// read out would otherwise be replaced by the next one in the same frame
+  /// and the mother would only ever see the last of them. Roughly a reading
+  /// pace, bounded so a long line does not stall the turn.
+  static Duration _readingPause(String text) {
+    final words = text.trim().split(RegExp(r'\s+')).length;
+    return Duration(milliseconds: (words * 180).clamp(900, 4000));
   }
 
   /// Absolutises a clip path from the catalogue.
