@@ -662,7 +662,14 @@ class OfflineChatbotController extends GetxController {
     messages.add(OfflineChatMessage(text: greetingLine()));
   }
 
-  void resetConversation({bool announce = true}) {
+  /// Clears the conversation: the transcript, the flow she was in, and
+  /// whatever was still being said.
+  ///
+  /// [announce] leaves a note saying so. [restart] decides whether the opening
+  /// flow is run into the empty transcript — which is right when the app is
+  /// starting the conversation itself, and wrong when the mother asked for a
+  /// blank page.
+  void resetConversation({bool announce = true, bool restart = true}) {
     _delivery++;
     _tts.stop();
     _pending.clear();
@@ -675,13 +682,20 @@ class OfflineChatbotController extends GetxController {
         OfflineChatMessage(text: 'Conversation reset.', isSystem: true),
       );
     }
-    unawaited(_startInitialFlowOrGreet());
+    if (restart) {
+      unawaited(_startInitialFlowOrGreet());
+    }
     unawaited(_persistTranscript());
   }
 
-  /// Starts a fresh transcript.
+  /// Starts a fresh transcript, and leaves it empty.
+  ///
+  /// New Chat is the mother asking for a blank page, so the opening flow is not
+  /// replayed into it — she gets the empty state and says the first thing. Ask
+  /// Allo still opens on the week's message when she goes there, because that
+  /// is the page opening rather than a chat she has just cleared.
   Future<void> createNewChat() async {
-    resetConversation(announce: false);
+    resetConversation(announce: false, restart: false);
   }
 
   /// Abandons the turn being answered: whatever segments are still queued
