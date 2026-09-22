@@ -340,20 +340,31 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   Widget _buildVoiceView() {
     return Obx(() {
+      // Thinking is the wait before the turn says anything at all. Once it
+      // has, the baby is either reading a line out or between two of them —
+      // never thinking — so a clip loading mid-flow no longer flips her back
+      // and forth on every step.
       final isTyping = controller.isTyping.value;
-      final isGenerating = controller.isGenerating.value;
       final isSpeaking = controller.isSpeaking.value;
-      final isThinking = isTyping || isGenerating;
 
-      // The latest thing the bot said, which is what the card below the baby
-      // shows. A fresh conversation falls back to the greeting, so the card is
-      // never blank.
-      OfflineChatMessage? latest;
-      for (var i = controller.messages.length - 1; i >= 0; i--) {
-        final message = controller.messages[i];
-        if (!message.fromUser && !message.isSystem && message.text.isNotEmpty) {
-          latest = message;
-          break;
+      // The line the baby is on, which is what the card below her shows.
+      //
+      // Deliberately not the end of the transcript. A turn restored from her
+      // last visit is read out again without being reprinted, so the whole of
+      // it is already in the transcript while she is still on its first line —
+      // following the transcript put the last line on screen the moment she
+      // started speaking the first. The controller publishes the line being
+      // said; the transcript stays the log behind it.
+      String? spoken = controller.currentLine.value?.trim();
+      if (spoken != null && spoken.isEmpty) spoken = null;
+
+      if (spoken == null) {
+        for (var i = controller.messages.length - 1; i >= 0; i--) {
+          final message = controller.messages[i];
+          if (!message.fromUser && !message.isSystem && message.text.isNotEmpty) {
+            spoken = message.text;
+            break;
+          }
         }
       }
 
@@ -401,7 +412,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                         height: babyHeight,
                         speechText: bubbleText,
                         speakingOverride: isSpeaking,
-                        thinkingOverride: isThinking,
+                        thinkingOverride: isTyping,
                         bubblePosition: SpeechBubblePosition.topCenter,
                       ),
                     ),
@@ -415,7 +426,11 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                           constraints: BoxConstraints(
                             maxHeight: _replyCardCap(context),
                           ),
-                          child: _buildReplyCard(latest, isThinking),
+                          // The card shows the line the baby is on. Once a
+                          // turn has said something there is a line to read,
+                          // and it must not blank back to "Thinking…" — that
+                          // hid every line of a flow but the last.
+                          child: _buildReplyCard(spoken, isTyping),
                         ),
                       ),
                     ),
@@ -467,10 +482,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     return controller.greetingLine().split('\n').first;
   }
 
-  Widget _buildReplyCard(OfflineChatMessage? message, bool isTyping) {
-    final text = (message?.text ?? '').trim().isEmpty
-        ? controller.greetingLine()
-        : message!.text;
+  /// The card under the baby: the line she is on, or the greeting when the
+  /// conversation has not started, so it is never blank.
+  Widget _buildReplyCard(String? line, bool isTyping) {
+    final text = (line ?? '').trim().isEmpty ? controller.greetingLine() : line!;
 
     return Container(
       width: double.infinity,

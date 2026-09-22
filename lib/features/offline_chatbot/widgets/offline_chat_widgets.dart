@@ -763,7 +763,10 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
                 ),
               const SizedBox(width: 4),
               Obx(() {
-                final canSend = !widget.controller.isTyping.value && _hasText;
+                // `isBusy`, not `isTyping`: the button stays down for the
+                // whole turn, as it always has. `isTyping` now ends at the
+                // turn's first line, with the rest still to be said.
+                final canSend = !widget.controller.isBusy.value && _hasText;
 
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 200),

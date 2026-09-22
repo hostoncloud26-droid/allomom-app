@@ -97,7 +97,29 @@ class OfflineChatbotController extends GetxController {
 
   final RxList<OfflineChatMessage> messages = <OfflineChatMessage>[].obs;
   final RxBool isSyncing = false.obs;
+  /// Whether the bot has yet to say anything this turn — the waiting
+  /// indicator, and nothing more.
+  ///
+  /// It ends the moment the turn's first line is on screen. What follows is
+  /// delivered line by line behind the voice, and each of those lines is
+  /// something to show rather than something to wait for.
   final RxBool isTyping = false.obs;
+
+  /// Whether a turn is still being worked out or delivered.
+  ///
+  /// Outlives [isTyping]: it stays up until the last line has been said, so
+  /// anything she sends meanwhile queues behind the turn instead of racing it.
+  final RxBool isBusy = false.obs;
+
+  /// The line the baby is on — the one being read out, or the last one she
+  /// said.
+  ///
+  /// What Ask Allo shows, because the end of the transcript is a different
+  /// thing: a turn restored from her last visit is read out again without
+  /// being reprinted, and a screen following the transcript would sit on that
+  /// turn's last line while the baby is still on its first. The transcript is
+  /// the log; this is what is being said.
+  final RxnString currentLine = RxnString();
   final RxString error = ''.obs;
   final RxString langCode = ''.obs;
   final Rxn<DateTime> lastSynced = Rxn<DateTime>();
@@ -309,7 +331,7 @@ class OfflineChatbotController extends GetxController {
       if (!quiet || !_session.isActive || _isInitialIntent(_session.intentKey)) {
         _delivery++;
         _pending.clear();
-        isTyping.value = false;
+        _endTurn();
         _session.clear();
         activeOptions.clear();
         await _startInitialFlowOrGreet();
@@ -571,6 +593,7 @@ class OfflineChatbotController extends GetxController {
     final delivery = ++_delivery;
     activeOptions.clear();
     isTyping.value = true;
+    isBusy.value = true;
 
     try {
       final reply = await engine.runIntent(
@@ -583,7 +606,7 @@ class OfflineChatbotController extends GetxController {
       // options, but do not print the same lines a second time.
       if (_alreadyOnScreen(_replyLines(reply))) {
         activeOptions.assignAll(reply.options);
-        if (_delivery == delivery) isTyping.value = false;
+        if (_delivery == delivery) _endTurn();
         // The bubbles are already there from her last visit, but she has just
         // opened the page again — printing them twice would be noise, staying
         // silent would mean the baby never greets her a second time.
@@ -602,10 +625,29 @@ class OfflineChatbotController extends GetxController {
       );
       return true;
     } catch (e) {
-      if (_delivery == delivery) isTyping.value = false;
+      if (_delivery == delivery) _endTurn();
       debugPrint('OfflineChatbotController: failed to run intent "$key": $e');
       return false;
     }
+  }
+
+  /// Prints a line of a reply and makes it the line the screen is on.
+  void _show(OfflineChatMessage message) {
+    messages.add(message);
+    _speaking(message.text);
+    isTyping.value = false;
+  }
+
+  /// Moves the screen onto [text], the line now being said.
+  void _speaking(String? text) {
+    final line = (text ?? '').trim();
+    if (line.isNotEmpty) currentLine.value = text;
+  }
+
+  /// Drops both waiting indicators at the end of a turn.
+  void _endTurn() {
+    isTyping.value = false;
+    isBusy.value = false;
   }
 
   /// The lines a turn prints, one per step, in order.
@@ -646,20 +688,40 @@ class OfflineChatbotController extends GetxController {
     bool recordedOnly = false,
   }) async {
     for (final segment in reply.segments) {
+      if (segment.delay > 0) {
+        await Future.delayed(
+          Duration(milliseconds: (segment.delay * 1000).round()),
+        );
+        if (_delivery != delivery) return;
+      }
+
       for (final utterance in segment.utterances) {
-        await _speakReplyIfEnabled(
+        if (utterance.isEmpty) continue;
+
+        // The screen moves onto the line before it is read, exactly as
+        // printing one does. Without this the bubbles would all be on screen
+        // from her last visit while the baby worked through them from the
+        // top, and Ask Allo — which shows one line — would sit on the last.
+        _speaking(utterance.text);
+
+        final saidAloud = await _speakReplyIfEnabled(
           utterance.text,
           audioUrl: utterance.audioUrl,
           recordedOnly: recordedOnly,
         );
         if (_delivery != delivery) return;
+
+        if (!saidAloud && utterance.text.isNotEmpty) {
+          await Future.delayed(_readingPause(utterance.text));
+          if (_delivery != delivery) return;
+        }
       }
     }
   }
 
   void _greet() {
     if (messages.isNotEmpty) return;
-    messages.add(OfflineChatMessage(text: greetingLine()));
+    _show(OfflineChatMessage(text: greetingLine()));
   }
 
   /// Clears the conversation: the transcript, the flow she was in, and
@@ -673,9 +735,10 @@ class OfflineChatbotController extends GetxController {
     _delivery++;
     _tts.stop();
     _pending.clear();
-    isTyping.value = false;
+    _endTurn();
     _session.clear();
     activeOptions.clear();
+    currentLine.value = null;
     messages.clear();
     if (announce) {
       messages.add(
@@ -705,7 +768,7 @@ class OfflineChatbotController extends GetxController {
   /// flight cannot be recalled, so its answer is dropped when it lands rather
   /// than printed into a conversation the mother has moved on from.
   Future<void> stopCurrentTurn() async {
-    if (!isTyping.value) {
+    if (!isBusy.value) {
       // Nothing being generated — the stop is only about the voice.
       unawaited(_tts.stop());
       return;
@@ -713,7 +776,7 @@ class OfflineChatbotController extends GetxController {
 
     _delivery++;
     _pending.clear();
-    isTyping.value = false;
+    _endTurn();
     unawaited(_tts.stop());
     await _persistTranscript();
   }
@@ -762,7 +825,7 @@ class OfflineChatbotController extends GetxController {
     // The message appears the moment she sends it, answered now or queued.
     messages.add(OfflineChatMessage(text: message, fromUser: true));
 
-    if (isTyping.value) {
+    if (isBusy.value) {
       _pending.add((text: message, speak: speak));
       return;
     }
@@ -776,7 +839,7 @@ class OfflineChatbotController extends GetxController {
   /// A loop rather than recursion through [send]: the user's message is
   /// already in the transcript, and a long queue should not nest.
   Future<void> _drainPending() async {
-    while (_pending.isNotEmpty && !isTyping.value) {
+    while (_pending.isNotEmpty && !isBusy.value) {
       final next = _pending.removeAt(0);
       await _answer(next.text, speak: next.speak);
     }
@@ -792,7 +855,7 @@ class OfflineChatbotController extends GetxController {
     final engine = _engine;
     if (engine == null) {
       _pending.clear();
-      messages.add(
+      _show(
         OfflineChatMessage(
           text: 'AlloBot is not downloaded yet. Tap sync to fetch it.',
           isSystem: true,
@@ -804,6 +867,7 @@ class OfflineChatbotController extends GetxController {
     final delivery = ++_delivery;
     activeOptions.clear();
     isTyping.value = true;
+    isBusy.value = true;
 
     try {
       final reply = await engine.respond(
@@ -813,13 +877,13 @@ class OfflineChatbotController extends GetxController {
       );
       await _deliverReply(reply, delivery, speak: speak);
     } catch (e) {
-      messages.add(
+      _show(
         OfflineChatMessage(
           text: 'Something went wrong answering that: $e',
           isSystem: true,
         ),
       );
-      if (_delivery == delivery) isTyping.value = false;
+      if (_delivery == delivery) _endTurn();
       await _persistTranscript();
       update();
     }
@@ -841,6 +905,16 @@ class OfflineChatbotController extends GetxController {
     bool recordedOnly = false,
   }) async {
     var answered = false;
+
+    // Printing anything ends the wait. From here the turn arrives line by line
+    // behind the voice, and the screen has to show those lines — Ask Allo
+    // shows the latest one and nothing else, so leaving the waiting indicator
+    // up would hide every line but the last.
+    void show(OfflineChatMessage message) {
+      _show(message);
+      answered = true;
+    }
+
     try {
       for (final segment in reply.segments) {
         if (segment.delay > 0) {
@@ -877,8 +951,7 @@ class OfflineChatbotController extends GetxController {
           final utterance = spoken[i];
 
           if (utterance.text.isNotEmpty) {
-            answered = true;
-            messages.add(
+            show(
               OfflineChatMessage(
                 text: utterance.text,
                 audioUrls: utterance.hasAudio ? [utterance.audioUrl!] : const [],
@@ -907,28 +980,27 @@ class OfflineChatbotController extends GetxController {
           }
         }
         for (final url in segment.imageUrls) {
-          answered = true;
-          messages.add(OfflineChatMessage(text: '', imageUrl: url));
+          show(OfflineChatMessage(text: '', imageUrl: url));
         }
       }
 
       if (_delivery != delivery) return;
       if (!answered) {
-        messages.add(OfflineChatMessage(text: _nothingToSayMessage));
+        show(OfflineChatMessage(text: _nothingToSayMessage));
         if (speak && !recordedOnly) {
           await _speakReplyIfEnabled(_nothingToSayMessage);
         }
       }
       activeOptions.assignAll(reply.options);
     } catch (e) {
-      messages.add(
+      _show(
         OfflineChatMessage(
           text: 'Something went wrong answering that: $e',
           isSystem: true,
         ),
       );
     } finally {
-      if (_delivery == delivery) isTyping.value = false;
+      if (_delivery == delivery) _endTurn();
       await _persistTranscript();
       update();
     }
