@@ -108,6 +108,14 @@ dynamic resolveConditionPath(String? path, Map<String, dynamic>? sessionData) {
   return current;
 }
 
+bool _isTruthy(dynamic val) {
+  if (val == null) return false;
+  if (val is bool) return val;
+  if (val is num) return val != 0;
+  final s = val.toString().trim().toLowerCase();
+  return s == 'true' || s == '1' || s == 'yes' || s == 'y' || s == 't';
+}
+
 bool _evaluateClause(
   Map<String, dynamic> clause,
   BotStep? currentStep,
@@ -141,6 +149,8 @@ bool _evaluateClause(
   final hasValue = valToTest != null && valToTest.toString().trim().isNotEmpty;
   if (op == 'is_set') return hasValue;
   if (op == 'is_empty') return !hasValue;
+  if (op == 'is_true') return _isTruthy(valToTest);
+  if (op == 'is_false') return !_isTruthy(valToTest);
   if (valToTest == null) return false;
 
   final target = clause['value'] ?? '';
@@ -169,6 +179,16 @@ bool _evaluateClause(
 
   final strTest = valToTest.toString().trim().toLowerCase();
   final strTarget = target.toString().trim().toLowerCase();
+
+  // Compare as booleans whenever target or test value represents a boolean
+  if (valToTest is bool || strTarget == 'true' || strTarget == 'false') {
+    final boolTest = _isTruthy(valToTest);
+    final boolTarget = strTarget == 'true'
+        ? true
+        : (strTarget == 'false' ? false : _isTruthy(target));
+    if (op == 'equals') return boolTest == boolTarget;
+    if (op == 'not_equals') return boolTest != boolTarget;
+  }
 
   switch (op) {
     case 'equals':

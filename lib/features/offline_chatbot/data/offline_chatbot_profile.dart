@@ -15,8 +15,10 @@
 /// authoring.
 library;
 
+import 'package:get/get.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/controllers/family_controller.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/vitals_controller.dart';
 
@@ -330,6 +332,86 @@ bool _activeToday() {
   return false;
 }
 
+/// Whether meals or hydration have been recorded today.
+Map<String, dynamic> _todayNutrition() {
+  final now = DateTime.now();
+  final startOfToday = DateTime(now.year, now.month, now.day);
+  final endOfToday = startOfToday.add(const Duration(days: 1));
+  final twoHoursAgo = now.subtract(const Duration(hours: 2));
+
+  bool hadBreakfast = false;
+  bool hadLunch = false;
+  bool hadDinner = false;
+  bool hadWaterWithin2Hrs = false;
+
+  try {
+    if (Get.isRegistered<HealthVitalsController>()) {
+      for (final v in HealthVitalsController.instance.vitals) {
+        final k = v.key.toLowerCase().trim();
+        final at = v.createdAt;
+        final isToday =
+            (at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
+                at.isBefore(endOfToday);
+        if (isToday) {
+          if (k == 'breakfast' || k == 'break_fast') hadBreakfast = true;
+          if (k == 'lunch') hadLunch = true;
+          if (k == 'dinner') hadDinner = true;
+        }
+        if (k == 'water') {
+          if (at.isAfter(twoHoursAgo) &&
+              at.isBefore(now.add(const Duration(minutes: 1)))) {
+            hadWaterWithin2Hrs = true;
+          }
+        }
+      }
+    }
+  } catch (_) {}
+
+  try {
+    if (Get.isRegistered<VitalsController>()) {
+      final vc = VitalsController.instance;
+      for (final row in [
+        ...vc.readings('breakfast'),
+        ...vc.readings('break_fast')
+      ]) {
+        final at = row.createdAt;
+        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
+            at.isBefore(endOfToday)) {
+          hadBreakfast = true;
+        }
+      }
+      for (final row in vc.readings('lunch')) {
+        final at = row.createdAt;
+        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
+            at.isBefore(endOfToday)) {
+          hadLunch = true;
+        }
+      }
+      for (final row in vc.readings('dinner')) {
+        final at = row.createdAt;
+        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
+            at.isBefore(endOfToday)) {
+          hadDinner = true;
+        }
+      }
+      for (final row in vc.readings('water')) {
+        final at = row.createdAt;
+        if (at.isAfter(twoHoursAgo) &&
+            at.isBefore(now.add(const Duration(minutes: 1)))) {
+          hadWaterWithin2Hrs = true;
+        }
+      }
+    }
+  } catch (_) {}
+
+  return <String, dynamic>{
+    'had_breakfast': hadBreakfast,
+    'had_lunch': hadLunch,
+    'had_dinner': hadDinner,
+    'had_water_within_2_hrs': hadWaterWithin2Hrs,
+  };
+}
+
 /// How many babies are already here.
 int _babyCount(MainController main) {
   try {
@@ -375,6 +457,7 @@ Map<String, dynamic> offlineChatbotProfile() {
     'babies': _babies(),
     'baby_count': _babyCount(main),
     'active_today': _activeToday(),
+    'today_nutrition': _todayNutrition(),
 
     'current_date': now.day,
     'current_month': now.month,
