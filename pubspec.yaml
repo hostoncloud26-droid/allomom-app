@@ -70,6 +70,9 @@ dependencies:
   permission_handler: ^12.0.0+1
   flutter_markdown: ^0.7.7+1
   whisper_ggml_plus: ^1.5.2
+  # Family QR: qr_flutter renders the invite code, mobile_scanner reads it back.
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^6.0.2
 
 dev_dependencies:
   flutter_test:
