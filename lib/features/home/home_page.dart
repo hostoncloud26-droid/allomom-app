@@ -753,7 +753,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
 
                     // Due Date
                     Expanded(
@@ -778,7 +778,7 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
 
                     // Days Remaining
                     Expanded(
@@ -869,26 +869,29 @@ class _HomePageState extends State<HomePage> {
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(
               color: context.palette.card,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor, size: 15),
+            child: Icon(icon, color: iconColor, size: 14),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 15.5,
+              fontSize: 14.5,
               fontWeight: FontWeight.w800,
               color: context.palette.textPrimary,
             ),
@@ -896,8 +899,10 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 2),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 11,
+              fontSize: 10.5,
               color: context.palette.textMuted,
               fontWeight: FontWeight.w500,
             ),

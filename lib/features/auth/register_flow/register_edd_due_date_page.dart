@@ -1,16 +1,11 @@
-import 'package:allomom/config/app_theme.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
-import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
-import 'package:allomom/features/auth/register_flow/family_details_page.dart';
-import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/data/narration_flow.dart';
+import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
+import 'package:allomom/features/auth/register_flow/register_flow_page.dart';
 
-class RegisterEddDueDatePage extends StatefulWidget {
+class RegisterEddDueDatePage extends StatelessWidget {
   final String userName;
   final String status;
   final DateTime lmpDate;
@@ -37,23 +32,36 @@ class RegisterEddDueDatePage extends StatefulWidget {
   });
 
   @override
-  State<RegisterEddDueDatePage> createState() => _RegisterEddDueDatePageState();
+  Widget build(BuildContext context) {
+    return RegisterFlowPage(
+      initialStep: RegisterStep.edd,
+      userName: userName,
+      status: status,
+      lmpDate: lmpDate,
+      eddDate: eddDate,
+      phone: phone,
+      countryCode: countryCode,
+      selectedRole: selectedRole,
+      partnerName: partnerName,
+      partnerPhone: partnerPhone,
+      registerPregnancyForPartner: registerPregnancyForPartner,
+    );
+  }
 }
 
-class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
-  AppPalette get _p => context.palette;
+class RegisterEddStepView extends StatelessWidget {
+  final DateTime eddDate;
+  final String narrationKey;
+  final ValueChanged<String> onHintSelected;
+  final VoidCallback onConfirm;
 
-  /// The line on the baby head card: the cheer about the date, or whichever
-  /// side-question she taps.
-  String _narrationKey = NarrationKeys.pregEddBubble;
-
-  void _say(String key) {
-    if (!mounted) return;
-    setState(() => _narrationKey = key);
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(key, force: true);
-    }
-  }
+  const RegisterEddStepView({
+    super.key,
+    required this.eddDate,
+    required this.narrationKey,
+    required this.onHintSelected,
+    required this.onConfirm,
+  });
 
   String _formatEddDate(DateTime date) {
     const months = [
@@ -75,306 +83,148 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final eddString = _formatEddDate(widget.eddDate);
-    final daysRemaining = widget.eddDate
+    final eddString = _formatEddDate(eddDate);
+    final daysRemaining = eddDate
         .difference(DateTime.now())
         .inDays
         .clamp(0, 280);
 
-    return Scaffold(
-      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Fills the viewport so the Spacer can push the card to the
-            // bottom, and scrolls instead of overflowing when the content or
-            // an open keyboard needs more room than the screen has.
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
-                children: [
-                  // ─── TOP APP BAR ───
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ESTIMATED DUE DATE (EDD)',
+                  style: GoogleFonts.poppins(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF8E95A5),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+                const SizedBox(height: 10),
+
+                // Due Date Display Box
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => narratedPop(context),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: _p.card,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _p.pick(Colors.black12, _p.shadow),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Your Due Date',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 40),
-                      ],
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFFFFD1DC),
+                      width: 1.5,
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  // ─── BABY SPEECH AVATAR ───
-                  Expanded(
-                    child: BabyHeroBanner(
-                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      expand: true,
-                      narrationKey: _narrationKey,
-                      speechText:
-                          'Yay! I can\'t wait to meet you on\n$eddString! 👶🎉',
-                    ),
-                  ),
-
-                  // ─── BOTTOM DUE DATE CARD CONTAINER ───
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      24,
-                      24,
-                      24 + MediaQuery.paddingOf(context).bottom,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _p.card,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(32),
+                  child: Column(
+                    children: [
+                      Text(
+                        eddString,
+                        style: GoogleFonts.outfit(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF1E2024),
+                        ),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _p.pick(Colors.black12, _p.shadow),
-                          blurRadius: 20,
-                          offset: Offset(0, -4),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 3,
                         ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'ESTIMATED DUE DATE (EDD)',
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFF4E6A),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          '$daysRemaining Days to go!',
                           style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
-                            letterSpacing: 0.8,
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 14),
+                      ),
+                    ],
+                  ),
+                ),
 
-                        // Due Date Display Box
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            gradient: _p.pick(
-                              const LinearGradient(
-                                colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              LinearGradient(
-                                colors: [
-                                  Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.22), _p.card),
-                                  Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.12), _p.card),
-                                ],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                            ),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: _p.pick(const Color(0xFFFFD1DC), _p.accentBorder),
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 56,
-                                height: 56,
-                                decoration: BoxDecoration(
-                                  color: _p.card,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: _p.pick(Colors.black12, _p.shadow),
-                                      blurRadius: 10,
-                                      offset: Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.cake_rounded,
-                                  color: Color(0xFFFF4E6A),
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                eddString,
-                                style: GoogleFonts.outfit(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.bold,
-                                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 4,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFF4E6A),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  '$daysRemaining Days to go!',
-                                  style: GoogleFonts.poppins(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                const SizedBox(height: 10),
 
-                        const SizedBox(height: 16),
-                        NarrationHintChips(
-                          selectedKey: _narrationKey,
-                          onSelected: _say,
-                          padding: const EdgeInsets.only(bottom: 16),
-                          hints: [
-                            const NarrationHint(
-                              'What are these days?',
-                              NarrationKeys.pregEddDays,
-                            ),
-                            NarrationHint(
-                              'How long is that?',
-                              countdownNarrationKey(daysRemaining),
-                            ),
-                            const NarrationHint(
-                              'Doctor said another date',
-                              NarrationKeys.pregEddDoctorDate,
-                            ),
-                          ],
-                        ),
+                NarrationHintChips(
+                  selectedKey: narrationKey,
+                  onSelected: onHintSelected,
+                  padding: const EdgeInsets.only(bottom: 4),
+                  hints: [
+                    const NarrationHint(
+                      'What are these days?',
+                      NarrationKeys.pregEddDays,
+                    ),
+                    NarrationHint(
+                      'How long is that?',
+                      countdownNarrationKey(daysRemaining),
+                    ),
+                    const NarrationHint(
+                      'Doctor said another date',
+                      NarrationKeys.pregEddDoctorDate,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
 
-                        // ─── CONFIRM DUE DATE BUTTON ───
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              speak(NarrationKeys.pregEddSaved, force: true);
-                              if (widget.selectedRole.trim().toLowerCase() ==
-                                  'dad') {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => FamilyDetailsPage(
-                                      userName: widget.userName,
-                                      status: 'pregnant',
-                                      eddDate: widget.eddDate,
-                                      lmpDate: widget.lmpDate,
-                                      phone: widget.phone,
-                                      countryCode: widget.countryCode,
-                                      selectedRole: 'Dad',
-                                      partnerName: widget.partnerName,
-                                      partnerPhone: widget.partnerPhone,
-                                      registerPregnancyForPartner: true,
-                                    ),
-                                  ),
-                                );
-                              } else {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => RegisterPartnerDetailsPage(
-                                      userName: widget.userName,
-                                      status: widget.status,
-                                      eddDate: widget.eddDate,
-                                      lmpDate: widget.lmpDate,
-                                      phone: widget.phone,
-                                      countryCode: widget.countryCode,
-                                      selectedRole: widget.selectedRole,
-                                    ),
-                                  ),
-                                );
-                              }
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF5277),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    'Confirm & Next',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Icon(
-                                  Icons.arrow_forward_rounded,
-                                  color: Colors.white,
-                                  size: 20,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+        const SizedBox(height: 12),
+
+        // ─── CONFIRM DUE DATE BUTTON ───
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: onConfirm,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5277),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: 0,
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    'Confirm & Next',
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
                     ),
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ],
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }

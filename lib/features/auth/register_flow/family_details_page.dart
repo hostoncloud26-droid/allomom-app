@@ -1,24 +1,10 @@
-// ignore_for_file: unused_import, unused_local_variable, unused_field
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/config/app_theme.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
-import 'package:allomom/features/main_layout.dart';
-import 'package:allomom/api/api_base.dart';
-import 'package:allomom/repositories/pregnancy_state.dart';
-import 'package:allomom/controllers/main_controller.dart';
-import 'package:allomom/controllers/pregnancy_controller.dart';
-import 'package:allomom/services/sync/sync_codec.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/auth/register_flow/register_flow_page.dart';
 
-class FamilyDetailsPage extends StatefulWidget {
+class FamilyDetailsPage extends StatelessWidget {
   final String userName;
   final String status;
-
-  /// Null when the mother is not pregnant — there is no due date to carry.
   final DateTime? eddDate;
   final DateTime? lmpDate;
   final int? averageCycleLength;
@@ -47,392 +33,201 @@ class FamilyDetailsPage extends StatefulWidget {
   });
 
   @override
-  State<FamilyDetailsPage> createState() => _FamilyDetailsPageState();
+  Widget build(BuildContext context) {
+    return RegisterFlowPage(
+      initialStep: RegisterStep.family,
+      userName: userName,
+      status: status,
+      eddDate: eddDate,
+      lmpDate: lmpDate,
+      partnerName: partnerName,
+      partnerPhone: partnerPhone,
+      phone: phone,
+      countryCode: countryCode,
+      selectedRole: selectedRole,
+      familyCode: familyCode,
+      registerPregnancyForPartner: registerPregnancyForPartner,
+    );
+  }
 }
 
-class _FamilyDetailsPageState extends State<FamilyDetailsPage> {
-  AppPalette get _p => context.palette;
+class FamilyDetailsStepView extends StatelessWidget {
+  final bool hasKids;
+  final ValueChanged<bool> onHasKidsChanged;
+  final bool isLoading;
+  final VoidCallback onNext;
 
-  bool _hasKids = false; // default to No unless user taps Yes
-  bool _isLoading = false;
-
-  /// The journey she is on, which decides how the siblings question is asked
-  /// and which "come, let's go home" plays at the end.
-  late final NarrationFlow _flow = NarrationFlowKeys.of(widget.status);
-
-  /// The line on the baby head card: the question, then the reaction to the
-  /// answer she taps.
-  late String _narrationKey = _flow.kids;
-
-  Future<void> _handleNext() async {
-    if (_hasKids) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => KidsDetailsPage(
-            userName: widget.userName,
-            status: widget.status,
-            eddDate: widget.eddDate,
-            averageCycleLength: widget.averageCycleLength,
-            lmpDate: widget.lmpDate,
-            partnerName: widget.partnerName,
-            partnerPhone: widget.partnerPhone,
-            phone: widget.phone,
-            countryCode: widget.countryCode,
-            selectedRole: widget.selectedRole,
-            familyCode: widget.familyCode,
-            registerPregnancyForPartner: widget.registerPregnancyForPartner,
-          ),
-        ),
-      );
-    } else {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        // The account already exists — it was created when the OTP was
-        // verified — so this completes the profile rather than signing up.
-        // Partner details are deliberately not persisted: allomom-api-new has
-        // no column for them.
-        final isDad = widget.selectedRole.trim().toLowerCase() == 'dad';
-        final main = MainController.instance;
-
-        await main.saveRegistration(
-          name: widget.userName,
-          gender: isDad ? 'male' : 'female',
-          markRegistered: false,
-        );
-
-        final isPregnant =
-            pregnancyStatusForRegistration(
-              widget.status,
-              isDad: isDad,
-              registeringForPartner: widget.registerPregnancyForPartner,
-            ) ==
-            pregnantStatus;
-
-        if (isPregnant && widget.lmpDate != null) {
-          // The server seeds the ANC, vaccination and report schedules off
-          // this LMP.
-          await PregnancyController.instance.createPregnancy(
-            lmpDate: widget.lmpDate!,
-            eddDate: widget.eddDate,
-          );
-        } else if (widget.lmpDate != null) {
-          await main.updateHealthData({
-            'lmp_date': SyncCodec.isoUtc(widget.lmpDate!),
-          });
-        }
-
-        // Flipped last, so an interrupted run resumes the flow next sign-in
-        // instead of landing on a home screen with no profile behind it.
-        await main.completeRegistration();
-
-        if (!mounted) return;
-        // Plays across the jump to the home screen, which then greets her.
-        speak(_flow.setupDone, force: true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Welcome, ${widget.userName}! Your family profile is ready.',
-            ),
-            backgroundColor: const Color(0xFFFF4E6A),
-            duration: const Duration(seconds: 2),
-          ),
-        );
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const MainLayout()),
-          (route) => false,
-        );
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error completing registration: $e'),
-              backgroundColor: Colors.red.shade700,
-            ),
-          );
-        }
-      } finally {
-        if (mounted) {
-          setState(() {
-            _isLoading = false;
-          });
-        }
-      }
-    }
-  }
+  const FamilyDetailsStepView({
+    super.key,
+    required this.hasKids,
+    required this.onHasKidsChanged,
+    required this.isLoading,
+    required this.onNext,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
-      body: SafeArea(
-        bottom: false,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Fills the viewport so the baby can expand into whatever the card
-            // below does not claim, and scrolls instead of overflowing when the
-            // card needs more room than the screen has.
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Column(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Do you have other children?',
+                style: GoogleFonts.outfit(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF1E2024),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Yes / No Choice Cards Row
+              Row(
                 children: [
-                  // ─── TOP APP BAR ───
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () => narratedPop(context),
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: _p.card,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _p.pick(Colors.black12, _p.shadow),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              Icons.chevron_left_rounded,
-                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                              size: 24,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            'Family Details',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.outfit(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 40),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ─── BABY SPEECH AVATAR ───
+                  // YES Card
                   Expanded(
-                    child: BabyHeroBanner(
-                      margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                      expand: true,
-                      narrationKey: _narrationKey,
-                      speechText:
-                          'Do you already have sweet little\nbrothers or sisters for me? 👶',
+                    child: _buildChoiceCard(
+                      title: 'Yes',
+                      subtitle: 'I have kids',
+                      isSelected: hasKids,
+                      onTap: () => onHasKidsChanged(true),
+                      icon: Icons.child_friendly_rounded,
+                      iconBg: const Color(0xFFFFF0F3),
+                      iconColor: const Color(0xFFFF4E6A),
                     ),
                   ),
+                  const SizedBox(width: 12),
 
-                  // ─── BOTTOM CARD CONTAINER ───
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(
-                      24,
-                      24,
-                      24,
-                      24 + MediaQuery.paddingOf(context).bottom,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _p.card,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: _p.pick(Colors.black12, _p.shadow),
-                          blurRadius: 20,
-                          offset: Offset(0, -4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'DO YOU HAVE KIDS?',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Option 1: Yes
-                        _buildKidOption(
-                          title: 'Yes',
-                          subtitle: 'I have other children',
-                          isSelected: _hasKids,
-                          icon: Icons.child_care_rounded,
-                          onTap: () => setState(() {
-                            _hasKids = true;
-                            _narrationKey = NarrationKeys.pregKidsYes;
-                          }),
-                        ),
-                        const SizedBox(height: 12),
-
-                        // Option 2: No
-                        _buildKidOption(
-                          title: 'No',
-                          subtitle: 'This is my first baby 💕',
-                          isSelected: !_hasKids,
-                          icon: Icons.favorite_rounded,
-                          onTap: () => setState(() {
-                            _hasKids = false;
-                            _narrationKey = NarrationKeys.pregKidsNo;
-                          }),
-                        ),
-
-                        const SizedBox(height: 24),
-
-                        // ─── NEXT BUTTON ───
-                        SizedBox(
-                          width: double.infinity,
-                          height: 54,
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _handleNext,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF5277),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.5,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    _hasKids
-                                        ? 'Next (Add Kids Details)'
-                                        : 'Finish Setup',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      ],
+                  // NO Card
+                  Expanded(
+                    child: _buildChoiceCard(
+                      title: 'No',
+                      subtitle: 'This is my first',
+                      isSelected: !hasKids,
+                      onTap: () => onHasKidsChanged(false),
+                      icon: Icons.favorite_border_rounded,
+                      iconBg: const Color(0xFFEFF6FF),
+                      iconColor: const Color(0xFF3B82F6),
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+
+        const SizedBox(height: 12),
+
+        // ─── NEXT / FINISH BUTTON ───
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton(
+            onPressed: isLoading ? null : onNext,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5277),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              elevation: 0,
+            ),
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          hasKids ? 'Add Children Details' : 'Complete Setup',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildKidOption({
+  Widget _buildChoiceCard({
     required String title,
     required String subtitle,
     required bool isSelected,
-    required IconData icon,
     required VoidCallback onTap,
+    required IconData icon,
+    required Color iconBg,
+    required Color iconColor,
   }) {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3))
-              : _p.card,
-          borderRadius: BorderRadius.circular(18),
+          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFFFF4E6A)
-                : _p.border,
-            width: isSelected ? 2 : 1.5,
+            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+            width: isSelected ? 2 : 1.2,
           ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: const Color(0xFFFF4E6A).withValues(alpha: 0.12),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : [],
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFFFF4E6A).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Row(
+        child: Column(
           children: [
             Container(
               width: 44,
               height: 44,
-              decoration: BoxDecoration(
-                color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFD8E0)),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: const Color(0xFFFF4E6A), size: 22),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
-                    ),
-                  ),
-                ],
+              decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
+              child: Center(
+                child: Icon(icon, color: iconColor, size: 24),
               ),
             ),
-            Container(
-              width: 22,
-              height: 22,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: isSelected
-                      ? const Color(0xFFFF4E6A)
-                      : _p.pick(const Color(0xFFD1D5DB), _p.border),
-                  width: 2,
-                ),
-                color: isSelected
-                    ? const Color(0xFFFF4E6A)
-                    : Colors.transparent,
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
               ),
-              child: isSelected
-                  ? const Icon(Icons.check, size: 14, color: Colors.white)
-                  : null,
+            ),
+            Text(
+              subtitle,
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                color: const Color(0xFF8E95A5),
+              ),
             ),
           ],
         ),

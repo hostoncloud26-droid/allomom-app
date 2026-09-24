@@ -109,9 +109,6 @@ class BabyHeroBanner extends StatelessWidget {
   /// unchanged and only the slack above it is new.
   static const expandedBabyExtent = 140.0;
 
-  /// The card's pink wash, dimmed to a rose-tinted dark for dark mode.
-  static const _darkWash = Color(0xFF2A1D21);
-
   @override
   Widget build(BuildContext context) {
     final key = narrationKey;
@@ -151,7 +148,6 @@ class BabyHeroBanner extends StatelessWidget {
     final showBubble =
         bubblePosition != SpeechBubblePosition.none && text.isNotEmpty;
     final compact = !expand && height < compactHeight && showBubble;
-    final p = context.palette;
 
     return GestureDetector(
       onTap: onTap,
@@ -288,10 +284,10 @@ class BabyHeroBanner extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: p.pick(const Color(0xFF1E2024), p.textPrimary),
+                          color: Color(0xFF1E2024),
                         ),
                       ),
                     ],
@@ -305,26 +301,15 @@ class BabyHeroBanner extends StatelessWidget {
     );
   }
 
-  /// The still baby, or the Lottie one while a clip is playing or thinking.
+  /// The animated baby using Lottie.
   ///
   /// Mouth moves only while there is sound ([BabyAnimations.speaking]).
   /// While thinking / generating, plays the breathing and blinking clip
   /// ([BabyAnimations.idle]).
   Widget _buildBaby(bool speaking, bool thinking) {
-    // The square re-frame of AlloMombaby.png, not the original.
-    //
-    // The Lottie clips are drawn on a 1024² canvas with the baby filling 75%
-    // of the height; the original still is a 1508x1043 frame with the same
-    // baby filling 75% of the height but only 41% of the width. Fitted into
-    // the same box, `contain` therefore drew the still 1.44x smaller than the
-    // clip, so the baby lurched larger the moment it started talking. The
-    // square copy carries the same framing as the clips — 75% height, 11.7%
-    // gap under the feet — so the swap is invisible.
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
       fit: BoxFit.contain,
-      // Grounded on the card's floor rather than floating
-      // in the middle of the leftover space.
       alignment: Alignment.bottomCenter,
       errorBuilder: (context, error, stackTrace) {
         return const FittedBox(
@@ -373,16 +358,15 @@ class BabyHeroBanner extends StatelessWidget {
     VoidCallback? speakerTap,
     bool speaking,
   ) {
-    final p = context.palette;
     final label = Text(
       text,
       textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
       maxLines: 4,
-      style: TextStyle(
+      style: const TextStyle(
         fontSize: 13.5,
         fontWeight: FontWeight.w500,
-        color: p.pick(const Color(0xFF2D3142), p.textPrimary),
+        color: Color(0xFF2D3142),
         height: 1.45,
         letterSpacing: 0.1,
       ),
@@ -393,11 +377,8 @@ class BabyHeroBanner extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       child: CustomPaint(
         painter: _ChatBubbleTailPainter(
-          color: p.card,
-          shadowColor: p.pick(
-            const Color(0xFFFF8A9E).withValues(alpha: 0.16),
-            Colors.black.withValues(alpha: 0.5),
-          ),
+          color: Colors.white,
+          shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
         ),
         child: Container(
           padding: EdgeInsets.fromLTRB(
@@ -455,12 +436,7 @@ class NarrationSpeakerButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: speaking
-              ? const Color(0xFFFF4E6A)
-              : context.palette.tint(
-                  const Color(0xFFFF4E6A),
-                  const Color(0xFFFFF0F3),
-                ),
+          color: speaking ? const Color(0xFFFF4E6A) : const Color(0xFFFFF0F3),
           shape: BoxShape.circle,
         ),
         child: Icon(
@@ -513,10 +489,8 @@ class _ChatBubbleTailPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
-  // Repaints when the theme swaps the fill between light and dark.
   @override
-  bool shouldRepaint(covariant _ChatBubbleTailPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.shadowColor != shadowColor;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Slim version of [BabyHeroBanner] for when the keyboard is open.
@@ -556,9 +530,7 @@ class BabyPromptBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final key = narrationKey;
-    if (key == null) {
-      return _buildBar(context, text, onSpeakerTap, speakingOverride);
-    }
+    if (key == null) return _buildBar(text, onSpeakerTap, speakingOverride);
 
     return BabyNarration(
       narrationKey: key,
@@ -567,36 +539,27 @@ class BabyPromptBar extends StatelessWidget {
       bindText: bindNarrationText,
       fallbackText: text,
       builder: (context, state) =>
-          _buildBar(context, state.text, state.onSpeakerTap, state.speaking),
+          _buildBar(state.text, state.onSpeakerTap, state.speaking),
     );
   }
 
-  Widget _buildBar(
-    BuildContext context,
-    String label,
-    VoidCallback? speakerTap,
-    bool speaking,
-  ) {
-    final p = context.palette;
+  Widget _buildBar(String label, VoidCallback? speakerTap, bool speaking) {
     return Container(
       key: barKey,
       margin: margin,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: p.pick(const Color(0xFFFFF2F5), BabyHeroBanner._darkWash),
+        color: const Color(0xFFFFF2F5),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: p.pick(const Color(0xFFFFE2E8), p.accentBorder),
-          width: 1.2,
-        ),
+        border: Border.all(color: const Color(0xFFFFE2E8), width: 1.2),
       ),
       child: Row(
         children: [
           Container(
             width: 42,
             height: 42,
-            decoration: BoxDecoration(
-              color: p.pick(Colors.white, p.card),
+            decoration: const BoxDecoration(
+              color: Colors.white,
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
@@ -622,10 +585,10 @@ class BabyPromptBar extends StatelessWidget {
               label.replaceAll('\n', ' '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: p.pick(const Color(0xFF2D3142), p.textPrimary),
+                color: Color(0xFF2D3142),
                 height: 1.35,
               ),
             ),
