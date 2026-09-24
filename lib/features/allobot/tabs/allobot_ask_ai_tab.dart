@@ -5,23 +5,26 @@
 /// network at all. AlloKonnect toggles between a voice view and the transcript;
 /// here the transcript is its own tab, so this screen is only the voice view.
 ///
-/// The face of it is AlloBaby's AlloBot screen, part for part — the nebula orb,
-/// the gradient greeting and the "Try asking:" card strip, all in
-/// [AlloBotWelcomeView]. Only the cards differ: AlloBaby offers pregnancy tips,
-/// and these open the app's own helpers. Everything under the surface — the
-/// voice popup, the flow options, the docked mic — is untouched.
+/// The face of it is AlloKonnect's AlloBot "Ask AI" screen, part for part —
+/// the animated Gemini orb, the gradient heading over the intro card (the
+/// reply takes the heading's place once she asks something), the "Try asking"
+/// chips and the Features slider, on a soft gradient. The pieces live in
+/// [AlloBotGeminiOrb], [AlloBotSuggestionChip] and [AlloBotFeatureSlider]; the
+/// baby sits in the orb where AlloKonnect has its bot. Everything under the
+/// surface — the voice popup, the flow options, the docked mic — is untouched.
 library;
 
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
-import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart';
+import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
+import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart'
+    show GradientText;
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
 import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.dart';
@@ -52,21 +55,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   final FocusNode _inputFocus = FocusNode();
 
   AppPalette get _p => context.palette;
-
-  /// How tall the orb is allowed to grow once a conversation is under way. It
-  /// takes the middle of the screen up to this; past it the glow is already as
-  /// big as it reads well at, and the rest is better left as air.
-  static const double _maxOrbHeight = 260;
-
-  /// The floor the orb is never squeezed below — under this the nebula behind
-  /// the glass core stops reading as one shape. On a short phone the reply card
-  /// gives up some of its room first.
-  static const double _minOrbHeight = 150;
-
-  /// How tall the reply card may get: a share of the screen, so a small phone
-  /// does not hand a third of itself to two lines of text.
-  static double _replyCardCap(BuildContext context) =>
-      (MediaQuery.sizeOf(context).height * 0.145).clamp(88.0, 118.0);
 
   /// Whether the voice popup is open, so the page's mic can show that the
   /// phone is listening.
@@ -190,7 +178,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   /// Trigger phrases from the downloaded catalogue, falling back to a curated
   /// pool while nothing has been downloaded yet.
   List<String> _drawOpeningSuggestions() {
-    final triggers = controller.sampleTriggers(limit: 6, randomize: true);
+    final triggers = controller.sampleTriggers(limit: 10, randomize: true);
     if (triggers.length >= 3) return triggers;
 
     final pool = <String>[
@@ -206,16 +194,82 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     return pool.take(6).toList();
   }
 
-  /// What to offer right now: the live quick replies of the step a flow is
-  /// waiting on, or the opening suggestions while nothing is in progress.
-  List<String> _currentSuggestions() {
-    if (controller.activeOptions.isNotEmpty) {
+  static const Set<String> _stopWords = {
+    'the',
+    'and',
+    'for',
+    'you',
+    'your',
+    'are',
+    'was',
+    'with',
+    'this',
+    'that',
+    'can',
+    'how',
+    'what',
+    'my',
+    'me',
+    'to',
+    'of',
+    'in',
+    'on',
+    'is',
+    'it',
+    'a',
+    'an',
+    'i',
+    'do',
+    'show',
+    'open',
+    'please',
+    'have',
+    'has',
+    'will',
+    'from',
+  };
+
+  Set<String> _keywords(String text) => text
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((w) => w.length > 2 && !_stopWords.contains(w))
+      .toSet();
+
+  /// "Try asking" chips, as AlloKonnect ranks them: before the first message,
+  /// the opening questions; afterwards, the options the flow is waiting on,
+  /// or else the catalogue's triggers ranked by overlap with the last turn.
+  List<String> _suggestionTexts({
+    required bool hasInteracted,
+    String? lastUserText,
+    String? lastReplyText,
+  }) {
+    if (hasInteracted && controller.activeOptions.isNotEmpty) {
       return controller.activeOptions.toList();
     }
     if (_openingSuggestions.isEmpty) {
       _openingSuggestions = _drawOpeningSuggestions();
     }
-    return _openingSuggestions;
+    if (!hasInteracted) return _openingSuggestions;
+
+    final triggers = controller.sampleTriggers(limit: 100);
+    final pool = triggers.isEmpty ? _openingSuggestions : triggers;
+    final asked = (lastUserText ?? '').trim().toLowerCase();
+    final topic = _keywords('${lastUserText ?? ''} ${lastReplyText ?? ''}');
+    final candidates = pool
+        .where((t) => t.trim().toLowerCase() != asked)
+        .toList();
+    final scores = {
+      for (final t in candidates) t: _keywords(t).intersection(topic).length,
+    };
+    // List.sort is not stable; ties keep the catalogue's order.
+    final order = {
+      for (var i = 0; i < candidates.length; i++) candidates[i]: i,
+    };
+    candidates.sort((a, b) {
+      final byScore = scores[b]!.compareTo(scores[a]!);
+      return byScore != 0 ? byScore : order[a]!.compareTo(order[b]!);
+    });
+    return candidates.take(10).toList();
   }
 
   // ── Build ────────────────────────────────────────────────────────────────
@@ -223,17 +277,49 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _buildTopAppBar(),
-            const SizedBox(height: 16),
-            Expanded(child: _buildVoiceView()),
-          ],
+      backgroundColor: Colors.transparent,
+      body: Container(
+        // AlloKonnect's soft wash: white fading into a hint of the theme
+        // colour at the bottom. Every stop is opaque — a translucent one lets
+        // the page behind show through as a hard band.
+        decoration: BoxDecoration(gradient: _backgroundGradient()),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _buildTopAppBar(),
+              const SizedBox(height: 8),
+              Expanded(child: _buildVoiceView()),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  LinearGradient _backgroundGradient() {
+    Color tint(Color base, double alpha) =>
+        Color.alphaBlend(primaryColor.withValues(alpha: alpha), base);
+    if (_p.isDark) {
+      return LinearGradient(
+        colors: [
+          const Color(0xFF161622),
+          const Color(0xFF121218),
+          tint(const Color(0xFF121218), 0.04),
+        ],
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+      );
+    }
+    return LinearGradient(
+      colors: [
+        Colors.white,
+        const Color(0xFFF8FAFC),
+        tint(const Color(0xFFF8FAFC), 0.05),
+        tint(const Color(0xFFF8FAFC), 0.15),
+      ],
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
     );
   }
 
@@ -256,7 +342,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: _p.pick(Colors.black.withValues(alpha: 0.05), _p.shadow),
+                    color: _p.pick(
+                      Colors.black.withValues(alpha: 0.05),
+                      _p.shadow,
+                    ),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -370,29 +459,76 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   }
 
   // ─── VOICE VIEW ───
+  //
+  // AlloKonnect's Ask AI layout: the orb, the heading and the intro card up
+  // top — the reply itself takes the heading's place once she has asked
+  // something — and "Try asking" plus "Features" pinned to the bottom.
 
   Widget _buildVoiceView() {
-    return Obx(() {
-      // Thinking is the wait before the turn says anything at all. Once it
-      // has, the baby is either reading a line out or between two of them —
-      // never thinking — so a clip loading mid-flow no longer flips her back
-      // and forth on every step.
-      final isTyping = controller.isTyping.value;
+    return Column(
+      children: [
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) => Obx(() {
+              // Clears the docked mic, unless the composer below already lifts
+              // the content above it.
+              final bottomGap = controller.isKeyboardMode.value ? 8.0 : 40.0;
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  bottom: bottomGap,
+                ),
+                child: ConstrainedBox(
+                  // Fill the viewport: the empty first child and spaceBetween
+                  // centre the hero in the room above the bottom block.
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - bottomGap,
+                  ),
+                  child: _buildVoiceContent(),
+                ),
+              );
+            }),
+          ),
+        ),
+        Obx(() {
+          if (!controller.isKeyboardMode.value) {
+            return const SizedBox(height: 12);
+          }
+          return OfflineChatbotComposer(
+            input: _input,
+            focusNode: _inputFocus,
+            onSend: _send,
+            controller: controller,
+            onMicTap: () {
+              HapticFeedback.mediumImpact();
+              controller.isKeyboardMode.value = false;
+              _inputFocus.unfocus();
+              startListening();
+            },
+          );
+        }),
+      ],
+    );
+  }
 
-      // The line the baby is on, which is what the card below her shows.
-      //
-      // Deliberately not the end of the transcript. A turn restored from her
-      // last visit is read out again without being reprinted, so the whole of
-      // it is already in the transcript while she is still on its first line —
-      // following the transcript put the last line on screen the moment she
-      // started speaking the first. The controller publishes the line being
-      // said; the transcript stays the log behind it.
+  Widget _buildVoiceContent() {
+    return Obx(() {
+      final isTyping = controller.isTyping.value;
+      // Rebuild once a catalogue sync lands, so its triggers show.
+      controller.isSyncing.value;
+
+      // The line the baby is on — deliberately not the end of the transcript:
+      // a turn restored from her last visit is read out again without being
+      // reprinted, so following the transcript would jump to its last line
+      // the moment she started speaking the first.
       String? spoken = controller.currentLine.value?.trim();
       if (spoken != null && spoken.isEmpty) spoken = null;
-
+      final messages = controller.messages;
       if (spoken == null) {
-        for (var i = controller.messages.length - 1; i >= 0; i--) {
-          final message = controller.messages[i];
+        for (var i = messages.length - 1; i >= 0; i--) {
+          final message = messages[i];
           if (!message.fromUser &&
               !message.isSystem &&
               message.text.isNotEmpty) {
@@ -402,139 +538,239 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         }
       }
 
-      // Until she has asked something the screen is the welcome view — the orb,
-      // the greeting and the cards that open her helpers. Her first question
-      // swaps it for the conversation view, where the same orb sits smaller
-      // over the line being read out.
-      final hasAsked = controller.messages.any((message) => message.fromUser);
-      final showWelcome = !hasAsked && !isTyping;
-
-      final suggestions = _currentSuggestions();
-
-      // Resolved here, not inside the LayoutBuilder below: that builder runs
-      // during layout, outside this Obx's tracking window, so an observable
-      // read there would never rebuild the line when it changed.
-      final headline = _headlineMessage(spoken);
+      final lastUserIndex = messages.lastIndexWhere((m) => m.fromUser);
+      final hasInteracted = lastUserIndex != -1;
+      final suggestions = _suggestionTexts(
+        hasInteracted: hasInteracted,
+        lastUserText: hasInteracted ? messages[lastUserIndex].text : null,
+        lastReplyText: spoken,
+      );
+      final isDark = _p.isDark;
+      final headerStyle = GoogleFonts.outfit(
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        color: isDark
+            ? Colors.white.withValues(alpha: 0.85)
+            : Colors.grey.shade800,
+      );
 
       return Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── 1. The orb, and what she is saying under it ──
-          //
-          // The welcome view scrolls as one piece, the way AlloBaby's does. In
-          // conversation the orb is given a fixed share of the screen and the
-          // reply card takes what is left, up to its cap — so a one-line answer
-          // reads as one line rather than a line stranded at the top of a tall
-          // white box, a longer one scrolls inside its cap, and the whole of it
-          // is always in the transcript view.
-          Expanded(
-            child: showWelcome
-                ? AlloBotWelcomeView(
-                    title: 'Hello! I am AlloBaby',
-                    message: headline,
-                    suggestions: suggestions,
-                    onSuggestionTap: _send,
-                    // A card's page may have recorded something, so the strip
-                    // is rebuilt once she comes back from it.
-                    onFeatureOpened: () {
-                      if (mounted) setState(() {});
-                    },
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      // The card's full allowance is reserved before the orb is
-                      // measured, not just its minimum — reserving the minimum
-                      // gave the orb every spare pixel and left the answer a
-                      // two-line slot on a mid-sized phone.
-                      final cardRoom = _replyCardCap(context);
-                      var orbHeight = (constraints.maxHeight - cardRoom - 10)
-                          .clamp(_minOrbHeight, _maxOrbHeight);
+          const SizedBox.shrink(),
 
-                      // On a short screen the floor alone would push the card
-                      // off the bottom, now that the cards below take a fixed
-                      // slice — so the orb gives up its floor before that.
-                      final ceiling = constraints.maxHeight * 0.55;
-                      if (orbHeight > ceiling) orbHeight = ceiling;
-
-                      // Centred as one pair. The orb has a ceiling, so on a
-                      // tall screen there is height to spare — split above and
-                      // below the two of them rather than left in a band under
-                      // the card.
-                      return Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          AlloBotOrb(size: orbHeight),
-                          const SizedBox(height: 10),
-                          // Flexible, not Expanded: it sizes to its answer, and
-                          // only shrinks when a short screen has given the orb
-                          // its floor.
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                              ),
-                              child: ConstrainedBox(
-                                constraints: BoxConstraints(
-                                  maxHeight: _replyCardCap(context),
-                                ),
-                                // The card shows the line she is on. Once a
-                                // turn has said something there is a line to
-                                // read, and it must not blank back to
-                                // "Thinking…" — that hid every line of a flow
-                                // but the last.
-                                child: _buildReplyCard(spoken, isTyping),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
+          // ── Top: orb, heading, text ──
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              children: [
+                SizedBox(
+                  width: 180,
+                  height: 180,
+                  child: FittedBox(
+                    child: AlloBotGeminiOrb(
+                      isSpeaking: controller.isSpeaking.value,
+                      isThinking: isTyping,
+                    ),
                   ),
+                ),
+                const SizedBox(height: 10),
+                _buildHeroText(
+                  isTyping: isTyping,
+                  reply: hasInteracted ? spoken : null,
+                  intro: _headlineMessage(spoken),
+                ),
+              ],
+            ),
           ),
-          // The welcome view carries its own copy, scrolling with the
-          // greeting. Here it is pinned under the reply card, so the cards and
-          // the chips are still there once a conversation has started.
-          if (!showWelcome) ...[
-            const SizedBox(height: 8),
-            AlloBotTryAskingBlock(
-              suggestions: suggestions,
-              onSuggestionTap: _send,
-              onFeatureOpened: () {
-                if (mounted) setState(() {});
-              },
-            ),
-          ],
 
-          // ── 3. Keyboard composer, or room for the docked mic ──
-          // Keyboard mode swaps in the composer; otherwise voice lives in the
-          // popup the docked mic opens, so there is nothing to put here.
-          if (controller.isKeyboardMode.value) ...[
-            const SizedBox(height: 8),
-            OfflineChatbotComposer(
-              input: _input,
-              focusNode: _inputFocus,
-              onSend: _send,
-              controller: controller,
-              onMicTap: () {
-                HapticFeedback.mediumImpact();
-                controller.isKeyboardMode.value = false;
-                _inputFocus.unfocus();
-                startListening();
-              },
-            ),
-          ],
-          const SizedBox(height: 50),
+          // ── Bottom: suggestions and features ──
+          Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Try asking:', style: headerStyle),
+              ),
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: SingleChildScrollView(
+                  key: ValueKey(suggestions.join('|')),
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  child: Row(
+                    children: [
+                      for (final text in suggestions)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: AlloBotSuggestionChip(
+                            text: text,
+                            onTap: _send,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Features', style: headerStyle),
+              ),
+              const SizedBox(height: 8),
+              AlloBotFeatureSlider(
+                // A feature's page may have recorded something, so the view
+                // is rebuilt once she comes back from it.
+                onFeatureOpened: () {
+                  if (mounted) setState(() {});
+                },
+              ),
+            ],
+          ),
         ],
       );
     });
   }
 
-  /// The grey line under the welcome view's headline.
+  static const _heroGradient = LinearGradient(
+    colors: [Color(0xFF4285F4), Color(0xFF9B51E0), Color(0xFFE25584)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Markdown markers read as noise in the heading style, and the gradient
+  /// mask flattens emoji into solid blobs, so both are dropped.
+  static final RegExp _emoji = RegExp(
+    r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]',
+    unicode: true,
+  );
+
+  static String _plain(String markdown) => markdown
+      .replaceAll(_emoji, '')
+      .replaceAll(RegExp(r'[*_`#>]+'), '')
+      .replaceAllMapped(
+        RegExp(r'\[([^\]]*)\]\([^)]*\)'),
+        (m) => m.group(1) ?? '',
+      )
+      .trim();
+
+  /// Before her first question: "Hello! I am AlloBaby" over the intro card.
+  /// Afterwards the line being read out takes the heading's place, in the
+  /// same gradient — no card.
+  Widget _buildHeroText({
+    required bool isTyping,
+    required String? reply,
+    required String intro,
+  }) {
+    final Widget content;
+    if (isTyping) {
+      content = GradientText(
+        key: const ValueKey('typing'),
+        text: 'Thinking…',
+        gradient: _heroGradient,
+        style: GoogleFonts.outfit(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          letterSpacing: -0.3,
+        ),
+      );
+    } else if (reply != null && reply.trim().isNotEmpty) {
+      final text = _plain(reply);
+      // Short replies read as a headline; longer ones step down to fit.
+      final fontSize = text.length <= 60
+          ? 24.0
+          : text.length <= 140
+          ? 20.0
+          : 17.0;
+      content = ConstrainedBox(
+        key: ValueKey(text),
+        constraints: const BoxConstraints(maxHeight: 220),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: GradientText(
+            text: text,
+            gradient: _heroGradient,
+            style: GoogleFonts.outfit(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.3,
+              height: 1.3,
+            ),
+          ),
+        ),
+      );
+    } else {
+      content = Column(
+        key: const ValueKey('intro'),
+        children: [
+          GradientText(
+            text: 'Hello! I am AlloBaby',
+            gradient: _heroGradient,
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          _buildIntroCard(_plain(intro)),
+        ],
+      );
+    }
+
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: content,
+      ),
+    );
+  }
+
+  Widget _buildIntroCard(String text) {
+    final isDark = _p.isDark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.grey.shade200,
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        maxLines: 5,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13.5,
+          color: isDark ? Colors.white60 : Colors.grey.shade600,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+
+  /// The intro card's text.
   ///
-  /// Anything the voice input needs to tell her comes first — that slot is what
-  /// used to be the baby's bubble, and it is still where a notice belongs
-  /// rather than a bar sliding over the bottom of the screen. Then that she is
-  /// listening, then whatever she was last told, and only on a screen that has
-  /// said nothing at all does the standing description show.
+  /// Anything the voice input needs to tell her comes first, then that she is
+  /// listening, then whatever she was last told, and only on a screen that
+  /// has said nothing at all does the standing description show.
   String _headlineMessage(String? spoken) {
     final notice = controller.voiceNotice.value;
     if (notice.isNotEmpty) return notice;
@@ -543,68 +779,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     if (line.isNotEmpty) return line;
     return 'Your personal maternal AI assistant. Ask me anything about your '
         'pregnancy, nutrition, or baby care.';
-  }
-
-  /// The card under the baby: the line she is on, or the greeting when the
-  /// conversation has not started, so it is never blank.
-  Widget _buildReplyCard(String? line, bool isTyping) {
-    final text = (line ?? '').trim().isEmpty
-        ? controller.greetingLine()
-        : line!;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: _p.pick(const Color(0xFFF2E4E7), _p.border),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _p.pick(Colors.black.withValues(alpha: 0.04), _p.shadow),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: isTyping
-          ? Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const OfflineChatbotTypingBubble(),
-                const SizedBox(width: 10),
-                Text(
-                  'Thinking…',
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
-                    color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
-                  ),
-                ),
-              ],
-            )
-          : SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              child: MarkdownBody(
-                data: text,
-                styleSheet: MarkdownStyleSheet(
-                  p: GoogleFonts.poppins(
-                    fontSize: 14.5,
-                    height: 1.45,
-                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                  ),
-                  strong: GoogleFonts.poppins(
-                    fontSize: 14.5,
-                    height: 1.45,
-                    fontWeight: FontWeight.w700,
-                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                  ),
-                ),
-              ),
-            ),
-    );
   }
 
   /// Everything the downloaded catalogue can answer, as a tappable list.
@@ -681,7 +855,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                           textAlign: TextAlign.center,
                           style: GoogleFonts.poppins(
                             fontSize: 13,
-                            color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
+                            color: _p.pick(
+                              const Color(0xFF8E95A5),
+                              _p.textMuted,
+                            ),
                           ),
                         ),
                       ),
@@ -725,7 +902,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
-                                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
+                                      color: _p.pick(
+                                        const Color(0xFF1E2024),
+                                        _p.textPrimary,
+                                      ),
                                     ),
                                   ),
                                 ),

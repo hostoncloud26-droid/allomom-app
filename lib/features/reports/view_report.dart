@@ -133,6 +133,33 @@ class _ViewReportState extends State<ViewReport> {
     return path.split(Platform.pathSeparator).last;
   }
 
+  PopupMenuItem<String> _menuItem(String value, IconData icon, String label, Color color) {
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: color),
+          const SizedBox(width: 12),
+          Text(
+            label,
+            style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _editReport(BuildContext context) async {
+    final updated = await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (ctx) => EditReport(reportDetails: widget.reportDetails),
+      ),
+    );
+    if (updated == true && context.mounted) {
+      Navigator.of(context).pop(true);
+    }
+  }
+
   void _deleteReport(BuildContext context) async {
     final reportId = widget.reportDetails['id']?.toString() ?? '';
     if (reportId.isEmpty) return;
@@ -239,8 +266,6 @@ class _ViewReportState extends State<ViewReport> {
       } catch (_) {}
     }
 
-    final ocrSummary = details['ocr_summary']?.toString();
-
     // Filter out internal metadata keys from test results
     final filteredResults = Map<String, dynamic>.from(details)
       ..removeWhere((k, _) => [
@@ -276,23 +301,20 @@ class _ViewReportState extends State<ViewReport> {
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-            onPressed: () => _deleteReport(context),
-          ),
-          IconButton(
-            icon: Icon(Icons.edit_outlined, color: _ink),
-            onPressed: () async {
-              final updated = await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (ctx) => EditReport(reportDetails: widget.reportDetails),
-                ),
-              );
-              if (updated == true && context.mounted) {
-                Navigator.of(context).pop(true);
-              }
+          PopupMenuButton<String>(
+            icon: Icon(Icons.more_vert_rounded, color: _ink),
+            color: _p.card,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            onSelected: (action) {
+              if (action == 'edit') _editReport(context);
+              if (action == 'delete') _deleteReport(context);
             },
+            itemBuilder: (_) => [
+              _menuItem('edit', Icons.edit_outlined, 'Edit', _ink),
+              _menuItem('delete', Icons.delete_outline_rounded, 'Delete', Colors.redAccent),
+            ],
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SingleChildScrollView(
@@ -306,7 +328,7 @@ class _ViewReportState extends State<ViewReport> {
 
             const SizedBox(height: 24),
 
-            // Report Type Heading
+            // Report Name & Description
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -324,55 +346,22 @@ class _ViewReportState extends State<ViewReport> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.medical_information_outlined, color: Color(0xFFFF3B5C), size: 20),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          reportType,
-                          style: GoogleFonts.manrope(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: _ink,
-                          ),
-                        ),
-                      ),
-                      if (_files.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _files.any((f) => _isPdf(f)) ? Icons.picture_as_pdf_outlined : Icons.attachment_rounded,
-                                size: 13,
-                                color: _slate,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_files.length} ${_files.length == 1 ? 'file' : 'files'}',
-                                style: GoogleFonts.manrope(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: _slate,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
+                  Text(
+                    'Report Name',
+                    style: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: _muted,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    reportType,
+                    style: GoogleFonts.manrope(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: _ink,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Divider(color: _p.pick(const Color(0xFFF0F1F5), _p.divider)),
@@ -397,77 +386,6 @@ class _ViewReportState extends State<ViewReport> {
                 ],
               ),
             ),
-            if (ocrSummary != null && ocrSummary.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: _p.tint(const Color(0xFF8B5CF6), const Color(0xFFF5F3FF)),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.04),
-                      blurRadius: 14,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.auto_awesome, color: Color(0xFF8B5CF6), size: 18),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          'On-Device OCR Analysis',
-                          style: GoogleFonts.manrope(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: _p.pick(const Color(0xFF7C3AED), const Color(0xFFA78BFA)),
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'Offline AI',
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF059669),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      ocrSummary,
-                      style: GoogleFonts.manrope(
-                        fontSize: 13.5,
-                        height: 1.5,
-                        fontWeight: FontWeight.w500,
-                        color: _p.pick(const Color(0xFF334155), _p.textPrimary),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-
             if (filteredResults.isNotEmpty) ...[
               const SizedBox(height: 20),
               Container(

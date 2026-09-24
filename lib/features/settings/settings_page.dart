@@ -100,27 +100,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _buildItemDivider(),
 
-                  // 2. Pregnancy Timeline & Due Date
-                  _buildListTile(
-                    icon: Icons.calendar_today_outlined,
-                    title: 'Pregnancy Timeline & Due Date',
-                    subtitle: isPregnant
-                        ? 'Week $gestationalWeek · $trimester'
-                        : session.isNewMom
-                        ? 'New Mom Journey'
-                        : 'Update status & LMP',
-                    onTap: () {
-                      speak(NarrationKeys.pgSettingsTimeline);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const PregnancyConfirmationPage(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildItemDivider(),
-
                   _buildListTile(
                     icon: Icons.qr_code_2_rounded,
                     title: 'Family Group',
