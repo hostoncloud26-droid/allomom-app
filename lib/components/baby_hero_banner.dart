@@ -260,25 +260,16 @@ class BabyHeroBanner extends StatelessWidget {
     );
   }
 
-  /// The still baby, or the Lottie one while a clip is playing or thinking.
+  /// The animated baby using Lottie.
   ///
   /// Mouth moves only while there is sound (Baby Speaking F.json).
-  /// While thinking / generating, plays idle/blinking animation (Baby Non Speaking Final.json).
+  /// While idle/non-speaking, plays idle/blinking animation (Baby Non Speaking Final.json).
+  /// [IndexedStack] is used so both animations maintain identical bounds and
+  /// transition seamlessly without any jumping or frame flicker.
   Widget _buildBaby(bool speaking, bool thinking) {
-    // The square re-frame of AlloMombaby.png, not the original.
-    //
-    // The Lottie clips are drawn on a 1024² canvas with the baby filling 75%
-    // of the height; the original still is a 1508x1043 frame with the same
-    // baby filling 75% of the height but only 41% of the width. Fitted into
-    // the same box, `contain` therefore drew the still 1.44x smaller than the
-    // clip, so the baby lurched larger the moment it started talking. The
-    // square copy carries the same framing as the clips — 75% height, 11.7%
-    // gap under the feet — so the swap is invisible.
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
       fit: BoxFit.contain,
-      // Grounded on the card's floor rather than floating
-      // in the middle of the leftover space.
       alignment: Alignment.bottomCenter,
       errorBuilder: (context, error, stackTrace) {
         return const FittedBox(
@@ -292,31 +283,27 @@ class BabyHeroBanner extends StatelessWidget {
       },
     );
 
-    if (speaking) {
-      return KeyedSubtree(
-        key: babyKey,
-        child: Lottie.asset(
-          'assets/animations/Baby Speaking F.json',
-          fit: BoxFit.contain,
-          alignment: Alignment.bottomCenter,
-          errorBuilder: (context, error, stackTrace) => still,
-        ),
-      );
-    }
-
-    if (thinking) {
-      return KeyedSubtree(
-        key: babyKey,
-        child: Lottie.asset(
-          'assets/animations/Baby Non Speaking Final.json',
-          fit: BoxFit.contain,
-          alignment: Alignment.bottomCenter,
-          errorBuilder: (context, error, stackTrace) => still,
-        ),
-      );
-    }
-
-    return KeyedSubtree(key: babyKey, child: still);
+    return KeyedSubtree(
+      key: babyKey,
+      child: IndexedStack(
+        index: speaking ? 0 : 1,
+        alignment: Alignment.bottomCenter,
+        children: [
+          Lottie.asset(
+            'assets/animations/Baby Speaking F.json',
+            fit: BoxFit.contain,
+            alignment: Alignment.bottomCenter,
+            errorBuilder: (context, error, stackTrace) => still,
+          ),
+          Lottie.asset(
+            'assets/animations/Baby Non Speaking Final.json',
+            fit: BoxFit.contain,
+            alignment: Alignment.bottomCenter,
+            errorBuilder: (context, error, stackTrace) => still,
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildSpeechBubble(
@@ -530,14 +517,24 @@ class BabyPromptBar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            child: speaking
-                ? Lottie.asset(
-                    'assets/animations/Baby Speaking F.json',
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) =>
-                        _stillBabyHead(),
-                  )
-                : _stillBabyHead(),
+            child: IndexedStack(
+              index: speaking ? 0 : 1,
+              alignment: Alignment.center,
+              children: [
+                Lottie.asset(
+                  'assets/animations/Baby Speaking F.json',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _stillBabyHead(),
+                ),
+                Lottie.asset(
+                  'assets/animations/Baby Non Speaking Final.json',
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) =>
+                      _stillBabyHead(),
+                ),
+              ],
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

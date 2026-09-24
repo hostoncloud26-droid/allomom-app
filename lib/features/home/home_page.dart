@@ -576,7 +576,7 @@ class _HomePageState extends State<HomePage> {
     return Column(
       children: [
         SizedBox(
-          height: 345,
+          height: 350,
           child: PageView(
             controller: _carouselController,
             physics: const BouncingScrollPhysics(),
@@ -610,8 +610,8 @@ class _HomePageState extends State<HomePage> {
                 width: isActive ? 24 : 6,
                 decoration: BoxDecoration(
                   color: isActive
-                      ? const Color(0xFFFF3B5C)
-                      : const Color(0xFFE2E4E9),
+                    ? const Color(0xFFFF3B5C)
+                    : const Color(0xFFE2E4E9),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -630,7 +630,7 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
@@ -645,51 +645,68 @@ class _HomePageState extends State<HomePage> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Icon(
-                  isNewMom
-                      ? Icons.child_friendly_rounded
-                      : Icons.favorite_rounded,
-                  color: const Color(0xFFFF3B5C),
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  isNewMom ? 'POSTPARTUM CARE' : 'MY HEALTH',
-                  style: GoogleFonts.poppins(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFFFF3B5C),
-                    letterSpacing: 0.8,
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              isNewMom
+                                  ? Icons.child_friendly_rounded
+                                  : Icons.favorite_rounded,
+                              color: const Color(0xFFFF3B5C),
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              isNewMom ? 'POSTPARTUM CARE' : 'MY HEALTH',
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: const Color(0xFFFF3B5C),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                            const Spacer(),
+                            if (isNewMom && days != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF0F4),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  days == 0 ? 'Day 1' : 'Day $days',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFFFF3B5C),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        const DailySummarySection(showHeading: false),
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
-                if (isNewMom && days != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0F4),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      days == 0 ? 'Day 1' : 'Day $days',
-                      style: GoogleFonts.poppins(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF3B5C),
-                      ),
-                    ),
-                  ),
-              ],
+              ),
             ),
-            const SizedBox(height: 14),
-            const DailySummarySection(showHeading: false),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Row(
               children: [
                 Expanded(
@@ -825,7 +842,7 @@ class _HomePageState extends State<HomePage> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
-        padding: const EdgeInsets.all(22),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
@@ -842,127 +859,139 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header with Red Star
-                Row(
-                  children: const [
-                    Icon(
-                      Icons.star_rounded,
-                      color: Color(0xFFFF3B5C),
-                      size: 16,
-                    ),
-                    SizedBox(width: 6),
-                    Text(
-                      'DAILY SUMMARY',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFFF3B5C),
-                        letterSpacing: 0.8,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Title & Subtitle (Static wording filled with pregnancy data)
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "You're doing well today.",
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E2024),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "You are in Week $gestationalWeek of your pregnancy ($trimester). Your estimated delivery is on $eddFormattedFull.",
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Color(0xFF6B7280),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // 3 Rounded Stat Cards Row (Pregnancy Data)
-                Row(
-                  children: [
-                    // Week of 40
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PregnancyJourneyPage(),
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                    width: constraints.maxWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Header with Red Star
+                        Row(
+                          children: const [
+                            Icon(
+                              Icons.star_rounded,
+                              color: Color(0xFFFF3B5C),
+                              size: 16,
                             ),
-                          );
-                        },
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF0F4),
-                          icon: Icons.favorite_rounded,
-                          iconColor: const Color(0xFFFF4E6A),
-                          value: 'Week $gestationalWeek',
-                          label: 'Of 40 weeks',
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-
-                    // Due Date
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PregnancyJourneyPage(),
+                            SizedBox(width: 6),
+                            Text(
+                              'DAILY SUMMARY',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFFFF3B5C),
+                                letterSpacing: 0.8,
+                              ),
                             ),
-                          );
-                        },
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFEDF6FF),
-                          icon: Icons.calendar_month_rounded,
-                          iconColor: const Color(0xFF3898EC),
-                          value: eddFormatted,
-                          label: 'Due Date',
+                          ],
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
+                        const SizedBox(height: 10),
 
-                    // Days Remaining
-                    Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const PregnancyJourneyPage(),
+                        // Title & Subtitle (Static wording filled with pregnancy data)
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "You're doing well today.",
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1E2024),
+                              ),
                             ),
-                          );
-                        },
-                        child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF6ED),
-                          icon: Icons.hourglass_bottom_rounded,
-                          iconColor: const Color(0xFFFF9438),
-                          value: '$daysLeft days',
-                          label: 'Remaining',
+                            const SizedBox(height: 4),
+                            Text(
+                              "You are in Week $gestationalWeek of your pregnancy ($trimester). Your estimated delivery is on $eddFormattedFull.",
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF6B7280),
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
+                        const SizedBox(height: 14),
+
+                        // 3 Rounded Stat Cards Row (Pregnancy Data)
+                        Row(
+                          children: [
+                            // Week of 40
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PregnancyJourneyPage(),
+                                    ),
+                                  );
+                                },
+                                child: _buildSummaryMetricChip(
+                                  bg: const Color(0xFFFFF0F4),
+                                  icon: Icons.favorite_rounded,
+                                  iconColor: const Color(0xFFFF4E6A),
+                                  value: 'Week $gestationalWeek',
+                                  label: 'Of 40 weeks',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Due Date
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PregnancyJourneyPage(),
+                                    ),
+                                  );
+                                },
+                                child: _buildSummaryMetricChip(
+                                  bg: const Color(0xFFEDF6FF),
+                                  icon: Icons.calendar_month_rounded,
+                                  iconColor: const Color(0xFF3898EC),
+                                  value: eddFormatted,
+                                  label: 'Due Date',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+
+                            // Days Remaining
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const PregnancyJourneyPage(),
+                                    ),
+                                  );
+                                },
+                                child: _buildSummaryMetricChip(
+                                  bg: const Color(0xFFFFF6ED),
+                                  icon: Icons.hourglass_bottom_rounded,
+                                  iconColor: const Color(0xFFFF9438),
+                                  value: '$daysLeft days',
+                                  label: 'Remaining',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-              ],
+              ),
             ),
+            const SizedBox(height: 10),
 
             // Bottom CTA Button: My Pregnancy Journey
             GestureDetector(
@@ -976,10 +1005,10 @@ class _HomePageState extends State<HomePage> {
               },
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFF0F4),
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -993,7 +1022,7 @@ class _HomePageState extends State<HomePage> {
                     Text(
                       'My Pregnancy Journey',
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF1E2024),
                       ),
@@ -1022,26 +1051,29 @@ class _HomePageState extends State<HomePage> {
     required String label,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
+      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(5),
             decoration: const BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor, size: 15),
+            child: Icon(icon, color: iconColor, size: 14),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 15.5,
+              fontSize: 14.5,
               fontWeight: FontWeight.w800,
               color: Color(0xFF1E2024),
             ),
@@ -1049,8 +1081,10 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 2),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 10.5,
               color: Color(0xFF8A90A0),
               fontWeight: FontWeight.w500,
             ),
