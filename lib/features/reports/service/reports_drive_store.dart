@@ -25,6 +25,8 @@ class ReportsDriveStore {
 
   String get _syncedAtKey => 'reports_drive:last_synced_at:$_scope';
   String get _deletesKey => 'reports_drive:pending_deletes:$_scope';
+  String get _attachmentDeletesKey =>
+      'reports_drive:pending_attachment_deletes:$_scope';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -70,32 +72,53 @@ class ReportsDriveStore {
   /// The local row is gone the moment they confirm — the screen must not lie
   /// about that — so this queue is the only remaining record that the server
   /// still has to be told.
-  Future<List<String>> readPendingDeletes() async {
+  Future<List<String>> readPendingDeletes() => _readQueue(_deletesKey);
+
+  Future<void> addPendingDelete(String reportId) =>
+      _addToQueue(_deletesKey, reportId);
+
+  Future<void> removePendingDeletes(Iterable<String> reportIds) =>
+      _removeFromQueue(_deletesKey, reportIds);
+
+  /// Single files the user removed from a report that is otherwise kept.
+  ///
+  /// Sent to the server ahead of the next sync, and consulted during the pull
+  /// so a file already gone from this device is not restored from Drive.
+  Future<List<String>> readPendingAttachmentDeletes() =>
+      _readQueue(_attachmentDeletesKey);
+
+  Future<void> addPendingAttachmentDelete(String attachmentId) =>
+      _addToQueue(_attachmentDeletesKey, attachmentId);
+
+  Future<void> removePendingAttachmentDeletes(Iterable<String> attachmentIds) =>
+      _removeFromQueue(_attachmentDeletesKey, attachmentIds);
+
+  Future<List<String>> _readQueue(String key) async {
     try {
-      final raw = (await _prefs).getString(_deletesKey);
+      final raw = (await _prefs).getString(key);
       if (raw == null || raw.isEmpty) return [];
       final decoded = jsonDecode(raw);
       if (decoded is! List) return [];
       return decoded.whereType<String>().toList();
     } catch (e) {
-      debugPrint('ReportsDriveStore: could not read $_deletesKey: $e');
+      debugPrint('ReportsDriveStore: could not read $key: $e');
       return [];
     }
   }
 
-  Future<void> addPendingDelete(String reportId) async {
-    final queue = await readPendingDeletes();
-    if (queue.contains(reportId)) return;
-    queue.add(reportId);
-    await (await _prefs).setString(_deletesKey, jsonEncode(queue));
+  Future<void> _addToQueue(String key, String id) async {
+    final queue = await _readQueue(key);
+    if (queue.contains(id)) return;
+    queue.add(id);
+    await (await _prefs).setString(key, jsonEncode(queue));
   }
 
-  Future<void> removePendingDeletes(Iterable<String> reportIds) async {
-    final applied = reportIds.toSet();
+  Future<void> _removeFromQueue(String key, Iterable<String> ids) async {
+    final applied = ids.toSet();
     if (applied.isEmpty) return;
-    final queue = await readPendingDeletes();
+    final queue = await _readQueue(key);
     queue.removeWhere(applied.contains);
-    await (await _prefs).setString(_deletesKey, jsonEncode(queue));
+    await (await _prefs).setString(key, jsonEncode(queue));
   }
 
   /// Drops everything for the current scope. Used on disconnect: a queued
@@ -104,5 +127,6 @@ class ReportsDriveStore {
     final prefs = await _prefs;
     await prefs.remove(_syncedAtKey);
     await prefs.remove(_deletesKey);
+    await prefs.remove(_attachmentDeletesKey);
   }
 }
