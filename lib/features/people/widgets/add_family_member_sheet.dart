@@ -10,10 +10,16 @@ class AddFamilyMemberSheet extends StatefulWidget {
   final String? familyID;
   final VoidCallback onMemberAdded;
 
+  /// Pre-selects the relationship dropdown — e.g. the chatbot's "add father"
+  /// flow opens this sheet already set to "Father" rather than making the
+  /// user pick it again.
+  final String? initialRelationship;
+
   const AddFamilyMemberSheet({
     super.key,
     this.familyID,
     required this.onMemberAdded,
+    this.initialRelationship,
   });
 
   @override
@@ -41,6 +47,20 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     'Relative',
     'Caregiver',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialRelationship;
+    if (initial != null && _relationshipOptions.contains(initial)) {
+      _selectedRelationship = initial;
+      if (initial == 'Mother' || initial == 'Wife') {
+        _selectedGender = 'Female';
+      } else if (initial == 'Father') {
+        _selectedGender = 'Male';
+      }
+    }
+  }
 
   @override
   void dispose() {

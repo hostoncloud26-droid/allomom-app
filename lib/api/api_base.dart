@@ -148,7 +148,7 @@ class ApiBase {
       if (response.statusCode == 401 && withAuth && !isRetry) {
         final refreshed = await _refreshToken();
         if (refreshed) {
-          return multipart(
+          return await multipart(
             endpoint,
             filePath: filePath,
             fileField: fileField,
@@ -191,7 +191,7 @@ class ApiBase {
       if (response.statusCode == 401 && withAuth && !isRetry) {
         final refreshed = await _refreshToken();
         if (refreshed) {
-          return getBytes(
+          return await getBytes(
             endpoint,
             withAuth: withAuth,
             timeout: timeout,
@@ -264,7 +264,7 @@ class ApiBase {
       if (response.statusCode == 401 && withAuth && !isRetry) {
         final refreshed = await _refreshToken();
         if (refreshed) {
-          return _send(
+          return await _send(
             method,
             endpoint,
             body: body,

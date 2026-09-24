@@ -174,6 +174,7 @@ class OfflineChatbotActions {
     'allocry': _openAlloCry,
     'cry': _openAlloCry,
     'cry_detection': _openAlloCry,
+    'action.tools.open_allocry': _openAlloCry,
 
     _openHealth.name: _openHealth,
     'open_health': _openHealth,
@@ -209,6 +210,9 @@ class OfflineChatbotActions {
     'pregnancy_journey': _openJourney,
     'journey': _openJourney,
     'baby_growth': _openJourney,
+    'open_pregnancy_week': _openJourney,
+    'pregnancy_week': _openJourney,
+    'action.tools.show_pregnancy_progress': _openJourney,
 
     _openFeeding.name: _openFeeding,
     'feeding_tracker': _openFeeding,

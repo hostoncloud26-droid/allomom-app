@@ -752,6 +752,7 @@ class OfflineChatbotEngine {
           reply.addImage(renderTemplate(curr.imageUrl ?? '', session.data));
           break;
         case 'action':
+        case 'custom_action':
           final payload = _actionPayload(curr, session.data);
           final runner = actionRunner ?? OfflineChatbotActions.run;
           Map<String, dynamic> resultData = const {};

@@ -6,6 +6,8 @@
 	<string>AlloBot uses speech recognition to understand what you say and assist you during your pregnancy.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>AlloBot uses the microphone to listen to your voice questions and commands.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allomom uses the camera to scan a family QR code so you can join a household.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

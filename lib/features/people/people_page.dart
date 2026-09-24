@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
+import 'package:allomom/features/people/widgets/scan_qr_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -798,36 +800,70 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildFamilyActionButtons() {
-    return Row(
+    return Column(
       children: [
-        // Add member button
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _showAddMemberBottomSheet(context),
-            icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-            label: const Text(
-              'Add member',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+        Row(
+          children: [
+            // Add member button
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _showAddMemberBottomSheet(context),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                label: const Text(
+                  'Add member',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            // Share QR button
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showShareQrModal(context),
+                icon: Icon(Icons.qr_code_2_rounded, size: 20, color: primaryColor),
+                label: Text(
+                  'Share QR',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: Colors.grey.shade200),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        // Share QR button
-        Expanded(
+        const SizedBox(height: 12),
+        // Scan QR button
+        SizedBox(
+          width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => _showShareQrModal(context),
-            icon: Icon(Icons.qr_code_2_rounded, size: 20, color: primaryColor),
+            onPressed: () => _openScanQr(context),
+            icon: Icon(
+              Icons.qr_code_scanner_rounded,
+              size: 20,
+              color: primaryColor,
+            ),
             label: Text(
-              'Share QR',
+              'Scan QR to join a family',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -847,6 +883,16 @@ class _PeoplePageState extends State<PeoplePage> {
         ),
       ],
     );
+  }
+
+  Future<void> _openScanQr(BuildContext context) async {
+    final joined = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanQrPage()),
+    );
+    if (joined == true && mounted) {
+      _loadFamilyData();
+    }
   }
 
   Widget _buildFamilyMembersHeader() {
@@ -1063,10 +1109,19 @@ class _PeoplePageState extends State<PeoplePage> {
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
-              child: const Icon(
-                Icons.qr_code_2_rounded,
+              child: QrImageView(
+                data: code,
+                version: QrVersions.auto,
                 size: 160,
-                color: textDark,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: textDark,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: textDark,
+                ),
               ),
             ),
             const SizedBox(height: 16),
