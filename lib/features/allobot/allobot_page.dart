@@ -92,7 +92,11 @@ class _AlloBotPageState extends State<AlloBotPage> {
     final p = context.palette;
 
     return Scaffold(
-      backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
+      // Ask Allo paints its own gradient; the status-bar strip above it takes
+      // the gradient's top colour so the two meet without a seam.
+      backgroundColor: _currentIndex == 0
+          ? (p.isDark ? const Color(0xFF161622) : Colors.white)
+          : p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: Column(

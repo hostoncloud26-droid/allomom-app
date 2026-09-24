@@ -243,6 +243,12 @@ class ReportDbService {
         .write(ReportAttachmentsCompanion(localPath: Value(localPath)));
   }
 
+  Future<void> deleteAttachment(String id) async {
+    final db = await SqLiteService().database;
+    await (db.delete(db.reportAttachments)..where((a) => a.id.equals(id)))
+        .go();
+  }
+
   /// Drops the attachment rows for reports that are no longer here.
   Future<void> deleteAttachmentsFor(String reportId) async {
     final db = await SqLiteService().database;

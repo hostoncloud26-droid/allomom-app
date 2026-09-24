@@ -3,13 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:drift/drift.dart' as drift;
 import 'package:uuid/uuid.dart';
 
 import 'package:allomom/features/reports/controller/reports_drive_controller.dart';
+import 'package:allomom/features/reports/widgets/report_file_picker.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
@@ -21,11 +20,7 @@ class AddReport extends StatefulWidget {
   final String? checklistId;
   final String? checklistName;
 
-  const AddReport({
-    super.key,
-    this.checklistId,
-    this.checklistName,
-  });
+  const AddReport({super.key, this.checklistId, this.checklistName});
 
   @override
   State<AddReport> createState() => _AddReportState();
@@ -33,7 +28,7 @@ class AddReport extends StatefulWidget {
 
 class _AddReportState extends State<AddReport> {
   final List<File> _selectedFiles = [];
-  String? reportType;
+  final TextEditingController reportName = TextEditingController();
   bool isSubmitting = false;
   bool _isAnalyzing = false;
   ParsedReportResult? _parsedResult;
@@ -71,34 +66,12 @@ class _AddReportState extends State<AddReport> {
   @override
   void dispose() {
     description.dispose();
+    reportName.dispose();
     super.dispose();
   }
 
   bool _isPdf(String path) {
     return path.toLowerCase().endsWith('.pdf');
-  }
-
-  /// The content type the file is stored and uploaded as.
-  ///
-  /// A concrete type, never `image/*`: this is what the view screen renders
-  /// from and what the upload declares to Drive, and a wildcard is neither a
-  /// valid media type nor something a viewer can act on.
-  String _mimeTypeFor(String path) {
-    switch (path.toLowerCase().split('.').last) {
-      case 'pdf':
-        return 'application/pdf';
-      case 'png':
-        return 'image/png';
-      case 'webp':
-        return 'image/webp';
-      case 'heic':
-        return 'image/heic';
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      default:
-        return 'application/octet-stream';
-    }
   }
 
   String _getFileName(String path) {
@@ -123,7 +96,9 @@ class _AddReportState extends State<AddReport> {
     try {
       // Analyze the most recently selected file
       final targetFile = _selectedFiles.last;
-      final parsed = await OnDeviceReportParser.instance.parseReport(targetFile);
+      final parsed = await OnDeviceReportParser.instance.parseReport(
+        targetFile,
+      );
 
       if (!mounted) return;
 
@@ -131,9 +106,11 @@ class _AddReportState extends State<AddReport> {
         _parsedResult = parsed;
         _isAnalyzing = false;
 
-        // Auto-select detected report type if matching
-        if (parsed.detectedReportType.isNotEmpty && reportTypes.contains(parsed.detectedReportType)) {
-          reportType = parsed.detectedReportType;
+        // Auto-fill detected report name if the user hasn't typed one
+        if (reportName.text.trim().isEmpty &&
+            parsed.detectedReportType.isNotEmpty &&
+            reportTypes.contains(parsed.detectedReportType)) {
+          reportName.text = parsed.detectedReportType;
         }
 
         // Auto-fill description with the generated clinical summary
@@ -157,10 +134,10 @@ class _AddReportState extends State<AddReport> {
       return;
     }
 
-    if (reportType == null || reportType!.isEmpty) {
+    if (reportName.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Please select a report type'),
+          content: Text('Please enter a report name'),
           backgroundColor: Colors.redAccent,
           behavior: SnackBarBehavior.floating,
         ),
@@ -190,8 +167,10 @@ class _AddReportState extends State<AddReport> {
         detailData['ocr_summary'] = _parsedResult!.summary;
         detailData['raw_ocr_text'] = _parsedResult!.rawText;
         detailData['detected_type'] = _parsedResult!.detectedReportType;
-        if (_parsedResult!.date != null) detailData['report_date'] = _parsedResult!.date;
-        if (_parsedResult!.patientName != null) detailData['patient_name'] = _parsedResult!.patientName;
+        if (_parsedResult!.date != null)
+          detailData['report_date'] = _parsedResult!.date;
+        if (_parsedResult!.patientName != null)
+          detailData['patient_name'] = _parsedResult!.patientName;
 
         // Structured parameters for Test Results view
         _parsedResult!.testResults.forEach((key, val) {
@@ -203,7 +182,7 @@ class _AddReportState extends State<AddReport> {
       final reportId = const Uuid().v4();
       final rRow = ReportsCompanion(
         id: drift.Value(reportId),
-        reportType: drift.Value(reportType!),
+        reportType: drift.Value(reportName.text.trim()),
         description: drift.Value(description.text.trim()),
         imageUrl: drift.Value(primaryFile),
         detail: drift.Value(jsonEncode(detailData)),
@@ -230,7 +209,7 @@ class _AddReportState extends State<AddReport> {
             reportId: drift.Value(reportId),
             localPath: drift.Value(file.path),
             fileName: drift.Value(file.path.split('/').last),
-            mimeType: drift.Value(_mimeTypeFor(file.path)),
+            mimeType: drift.Value(reportMimeTypeFor(file.path)),
             fileSizeBytes: drift.Value(
               file.existsSync() ? file.lengthSync() : null,
             ),
@@ -280,197 +259,11 @@ class _AddReportState extends State<AddReport> {
     }
   }
 
-  void _showImageSourceSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: context.palette.card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: _p.pick(const Color(0xFFE2E8F0), _p.divider),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Text(
-                'Upload Report Files',
-                style: GoogleFonts.manrope(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 17,
-                  color: _ink,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Choose photos or PDF documents',
-                style: GoogleFonts.manrope(
-                  fontSize: 12.5,
-                  color: _muted,
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildSourceButton(
-                    icon: Icons.camera_alt_rounded,
-                    label: 'Camera',
-                    sublabel: 'Take photo',
-                    color: const Color(0xFFFF3B5C),
-                    onTap: () {
-                      Navigator.pop(sheetCtx);
-                      _pickFromCamera();
-                    },
-                  ),
-                  _buildSourceButton(
-                    icon: Icons.photo_library_rounded,
-                    label: 'Gallery',
-                    sublabel: 'Multi images',
-                    color: const Color(0xFF3898EC),
-                    onTap: () {
-                      Navigator.pop(sheetCtx);
-                      _pickFromGallery();
-                    },
-                  ),
-                  _buildSourceButton(
-                    icon: Icons.picture_as_pdf_rounded,
-                    label: 'PDF / Docs',
-                    sublabel: 'Upload files',
-                    color: const Color(0xFFE11D48),
-                    onTap: () {
-                      Navigator.pop(sheetCtx);
-                      _pickPdfDocument();
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSourceButton({
-    required IconData icon,
-    required String label,
-    required String sublabel,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 30),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w700,
-              fontSize: 13.5,
-              color: _ink,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            sublabel,
-            style: GoogleFonts.manrope(
-              fontWeight: FontWeight.w500,
-              fontSize: 11,
-              color: _muted,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _pickFromCamera() async {
-    try {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-      if (picked != null) {
-        setState(() {
-          _selectedFiles.add(File(picked.path));
-        });
-        _runOnDeviceAnalysis();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error capturing photo: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _pickFromGallery() async {
-    try {
-      final picker = ImagePicker();
-      final pickedList = await picker.pickMultiImage(imageQuality: 85);
-      if (pickedList.isNotEmpty) {
-        setState(() {
-          for (final item in pickedList) {
-            _selectedFiles.add(File(item.path));
-          }
-        });
-        _runOnDeviceAnalysis();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting images: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _pickPdfDocument() async {
-    try {
-      final result = await FilePicker.pickFiles(
-        allowMultiple: true,
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
-      );
-      if (result != null && result.files.isNotEmpty) {
-        final newFiles = result.files
-            .where((f) => f.path != null)
-            .map((f) => File(f.path!))
-            .toList();
-        if (newFiles.isNotEmpty) {
-          setState(() {
-            _selectedFiles.addAll(newFiles);
-          });
-          _runOnDeviceAnalysis();
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error selecting document: $e')),
-        );
-      }
-    }
+  Future<void> _showImageSourceSheet() async {
+    final picked = await pickReportFiles(context);
+    if (picked.isEmpty || !mounted) return;
+    setState(() => _selectedFiles.addAll(picked));
+    _runOnDeviceAnalysis();
   }
 
   void _removeFile(int index) {
@@ -516,9 +309,14 @@ class _AddReportState extends State<AddReport> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
+                  color: _p.tint(
+                    const Color(0xFFFF3B5C),
+                    const Color(0xFFFFECEF),
+                  ),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: const Color(0xFFFF3B5C).withValues(alpha: 0.3),
+                  ),
                 ),
                 child: Column(
                   children: [
@@ -551,43 +349,19 @@ class _AddReportState extends State<AddReport> {
             else
               _buildSelectedFilesSection(),
 
-            // On-Device OCR Analysis Status / Results Card
-            if (_isAnalyzing)
-              _buildScanningCard()
-            else if (_parsedResult != null)
-              _buildOcrInsightsCard(),
+            // On-Device OCR Analysis Status
+            if (_isAnalyzing) _buildScanningCard(),
 
             const SizedBox(height: 24),
 
-            // Report Type Selector
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Report Type',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _body,
-                  ),
-                ),
-                if (_parsedResult != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: _p.tint(const Color(0xFF059669), const Color(0xFFECFDF5)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      'Auto-detected by OCR',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF059669),
-                      ),
-                    ),
-                  ),
-              ],
+            // Report Name Selector
+            Text(
+              'Report Name',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _body,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -597,64 +371,32 @@ class _AddReportState extends State<AddReport> {
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: _line, width: 1.2),
               ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: reportType,
-                  hint: Text(
-                    'Select Type of Report',
-                    style: GoogleFonts.manrope(color: _muted, fontSize: 14),
-                  ),
-                  isExpanded: true,
-                  dropdownColor: _p.card,
-                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: _slate),
-                  items: reportTypes.map((t) {
-                    return DropdownMenuItem<String>(
-                      value: t,
-                      child: Text(
-                        t,
-                        style: GoogleFonts.manrope(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: _ink,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (val) => setState(() => reportType = val),
+              child: TextFormField(
+                controller: reportName,
+                textCapitalization: TextCapitalization.words,
+                style: GoogleFonts.manrope(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: _ink,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Enter report name',
+                  hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
             const SizedBox(height: 20),
 
             // Description / Clinical Notes
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Description / Clinical Notes',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _body,
-                  ),
-                ),
-                if (_parsedResult != null)
-                  GestureDetector(
-                    onTap: () {
-                      setState(() {
-                        description.text = _parsedResult!.summary;
-                      });
-                    },
-                    child: Text(
-                      'Reset to AI Summary',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF3B5C),
-                      ),
-                    ),
-                  ),
-              ],
+            Text(
+              'Description / Clinical Notes',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _body,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -668,44 +410,70 @@ class _AddReportState extends State<AddReport> {
                 maxLines: 4,
                 style: GoogleFonts.manrope(fontSize: 14, color: _ink),
                 decoration: InputDecoration(
-                  hintText: 'Enter clinical observations, lab values, or doctor remarks...',
+                  hintText:
+                      'Enter clinical observations, lab values, or doctor remarks...',
                   hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 13),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-
-            // Submit Button
-            SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF3B5C),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  elevation: 0,
-                ),
-                onPressed: isSubmitting ? null : submit,
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : Text(
-                        'ADD REPORT',
-                        style: GoogleFonts.manrope(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-              ),
-            ),
           ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    final hasFiles = _selectedFiles.isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+      decoration: BoxDecoration(
+        color: _p.card,
+        boxShadow: [
+          BoxShadow(
+            color: _p.pick(Colors.black.withValues(alpha: 0.06), _p.shadow),
+            blurRadius: 16,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          width: double.infinity,
+          height: 54,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF3B5C),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              elevation: 0,
+            ),
+            onPressed: isSubmitting
+                ? null
+                : (hasFiles ? submit : _showImageSourceSheet),
+            child: isSubmitting
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : Text(
+                    hasFiles ? 'ADD REPORT' : 'UPLOAD REPORT',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+          ),
         ),
       ),
     );
@@ -718,14 +486,19 @@ class _AddReportState extends State<AddReport> {
       decoration: BoxDecoration(
         color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.25)),
+        border: Border.all(
+          color: const Color(0xFFFF3B5C).withValues(alpha: 0.25),
+        ),
       ),
       child: Row(
         children: [
           const SizedBox(
             width: 22,
             height: 22,
-            child: CircularProgressIndicator(color: Color(0xFFFF3B5C), strokeWidth: 2.2),
+            child: CircularProgressIndicator(
+              color: Color(0xFFFF3B5C),
+              strokeWidth: 2.2,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -743,140 +516,11 @@ class _AddReportState extends State<AddReport> {
                 const SizedBox(height: 2),
                 Text(
                   'Extracting medical values and analyzing report offline',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11.5,
-                    color: _slate,
-                  ),
+                  style: GoogleFonts.manrope(fontSize: 11.5, color: _slate),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOcrInsightsCard() {
-    final res = _parsedResult!;
-    return Container(
-      margin: const EdgeInsets.only(top: 16),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25), width: 1.3),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.auto_awesome, color: Color(0xFF8B5CF6), size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'On-Device OCR Insights',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: _p.pick(const Color(0xFF7C3AED), const Color(0xFFA78BFA)),
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'Offline AI',
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF059669),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              GestureDetector(
-                onTap: _runOnDeviceAnalysis,
-                child: Icon(Icons.refresh_rounded, size: 18, color: _slate),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.check_circle_rounded, color: Color(0xFF10B981), size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  'Identified Report: ${res.detectedReportType}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            res.summary,
-            style: GoogleFonts.manrope(
-              fontSize: 12.5,
-              height: 1.45,
-              fontWeight: FontWeight.w500,
-              color: _p.pick(const Color(0xFF334155), _p.textPrimary),
-            ),
-          ),
-          if (res.testResults.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: res.testResults.entries.map((entry) {
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.3)),
-                  ),
-                  child: Text(
-                    '${entry.key} = ${entry.value}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFFF3B5C),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
         ],
       ),
     );
@@ -906,69 +550,29 @@ class _AddReportState extends State<AddReport> {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
+                color: _p.tint(
+                  const Color(0xFFFF3B5C),
+                  const Color(0xFFFFECEF),
+                ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.cloud_upload_rounded, size: 36, color: Color(0xFFFF3B5C)),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Upload Medical Report or PDF',
-              style: GoogleFonts.manrope(
-                fontWeight: FontWeight.w800,
-                fontSize: 16,
-                color: _ink,
+              child: const Icon(
+                Icons.cloud_upload_rounded,
+                size: 36,
+                color: Color(0xFFFF3B5C),
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Tap to choose camera, multi-images or PDF files\nAI On-Device OCR extracts test findings automatically',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                height: 1.4,
-                color: _muted,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildTypeBadge(Icons.camera_alt_outlined, 'Camera'),
-                const SizedBox(width: 8),
-                _buildTypeBadge(Icons.photo_library_outlined, 'Multi-Images'),
-                const SizedBox(width: 8),
-                _buildTypeBadge(Icons.picture_as_pdf_outlined, 'PDFs'),
-              ],
-            ),
+            // const SizedBox(height: 14),
+            // Text(
+            //   'Upload Report',
+            //   style: GoogleFonts.manrope(
+            //     fontWeight: FontWeight.w800,
+            //     fontSize: 16,
+            //     color: _ink,
+            //   ),
+            // ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTypeBadge(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: _p.pick(const Color(0xFFF8FAFC), _p.inputFill),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _p.pick(const Color(0xFFE2E8F0), _p.border)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: _slate),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w600,
-              color: _slate,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -978,58 +582,31 @@ class _AddReportState extends State<AddReport> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Text(
-                  'Attached Files',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _body,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '${_selectedFiles.length}',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFFFF3B5C),
-                    ),
-                  ),
-                ),
-              ],
+            Text(
+              'Attached Files',
+              style: GoogleFonts.manrope(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: _body,
+              ),
             ),
-            GestureDetector(
-              onTap: _showImageSourceSheet,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF3B5C).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: _p.tint(
+                  const Color(0xFFFF3B5C),
+                  const Color(0xFFFFECEF),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.add_rounded, size: 16, color: Color(0xFFFF3B5C)),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Add More',
-                      style: GoogleFonts.manrope(
-                        fontSize: 12.5,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF3B5C),
-                      ),
-                    ),
-                  ],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${_selectedFiles.length}',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: const Color(0xFFFF3B5C),
                 ),
               ),
             ),
@@ -1040,6 +617,30 @@ class _AddReportState extends State<AddReport> {
           _buildSingleFilePreview(_selectedFiles[0], 0)
         else
           _buildMultiFilesPreview(),
+        const SizedBox(height: 14),
+        SizedBox(
+          width: double.infinity,
+          height: 50,
+          child: OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFFFF3B5C),
+              backgroundColor: const Color(0xFFFF3B5C).withValues(alpha: 0.08),
+              side: const BorderSide(color: Color(0xFFFF3B5C), width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+            onPressed: _showImageSourceSheet,
+            icon: const Icon(Icons.add_rounded, size: 20),
+            label: Text(
+              'Add More',
+              style: GoogleFonts.manrope(
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1056,7 +657,10 @@ class _AddReportState extends State<AddReport> {
         decoration: BoxDecoration(
           color: _p.card,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE11D48).withValues(alpha: 0.4), width: 1.5),
+          border: Border.all(
+            color: const Color(0xFFE11D48).withValues(alpha: 0.4),
+            width: 1.5,
+          ),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -1073,10 +677,17 @@ class _AddReportState extends State<AddReport> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
+                    color: _p.tint(
+                      const Color(0xFFE11D48),
+                      const Color(0xFFFFE4E6),
+                    ),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 36),
+                  child: const Icon(
+                    Icons.picture_as_pdf_rounded,
+                    color: Color(0xFFE11D48),
+                    size: 36,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1125,14 +736,19 @@ class _AddReportState extends State<AddReport> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFFE11D48),
                   side: const BorderSide(color: Color(0xFFE11D48)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 10),
                 ),
                 onPressed: () => OpenFilex.open(file.path),
                 icon: const Icon(Icons.visibility_outlined, size: 16),
                 label: Text(
                   'Preview PDF',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
+                  style: GoogleFonts.manrope(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ),
@@ -1172,7 +788,11 @@ class _AddReportState extends State<AddReport> {
                   color: Colors.black54,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                child: const Icon(
+                  Icons.close_rounded,
+                  color: Colors.white,
+                  size: 18,
+                ),
               ),
             ),
           ),
@@ -1193,7 +813,11 @@ class _AddReportState extends State<AddReport> {
                 fileName,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.manrope(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                style: GoogleFonts.manrope(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -1208,48 +832,9 @@ class _AddReportState extends State<AddReport> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(),
-        itemCount: _selectedFiles.length + 1,
+        itemCount: _selectedFiles.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
         itemBuilder: (context, index) {
-          if (index == _selectedFiles.length) {
-            return GestureDetector(
-              onTap: _showImageSourceSheet,
-              child: Container(
-                width: 120,
-                decoration: BoxDecoration(
-                  color: _p.card,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: _p.pick(const Color(0xFFCBD5E1), _p.border),
-                    width: 1.2,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.add_rounded, size: 24, color: Color(0xFFFF3B5C)),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Add More',
-                      style: GoogleFonts.manrope(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                        color: _slate,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-
           final file = _selectedFiles[index];
           final isPdf = _isPdf(file.path);
           final fileName = _getFileName(file.path);
@@ -1261,7 +846,9 @@ class _AddReportState extends State<AddReport> {
               color: _p.card,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isPdf ? const Color(0xFFE11D48).withValues(alpha: 0.5) : _line,
+                color: isPdf
+                    ? const Color(0xFFE11D48).withValues(alpha: 0.5)
+                    : _line,
                 width: 1.2,
               ),
               boxShadow: [
@@ -1282,14 +869,24 @@ class _AddReportState extends State<AddReport> {
                       child: isPdf
                           ? Container(
                               width: double.infinity,
-                              color: _p.pick(const Color(0xFFFFE4E6).withValues(alpha: 0.5), const Color(0xFFE11D48).withValues(alpha: 0.12)),
+                              color: _p.pick(
+                                const Color(0xFFFFE4E6).withValues(alpha: 0.5),
+                                const Color(0xFFE11D48).withValues(alpha: 0.12),
+                              ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 36),
+                                  const Icon(
+                                    Icons.picture_as_pdf_rounded,
+                                    color: Color(0xFFE11D48),
+                                    size: 36,
+                                  ),
                                   const SizedBox(height: 4),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFE11D48),
                                       borderRadius: BorderRadius.circular(6),
@@ -1352,7 +949,11 @@ class _AddReportState extends State<AddReport> {
                         color: Colors.black.withValues(alpha: 0.6),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 14),
+                      child: const Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                   ),
                 ),

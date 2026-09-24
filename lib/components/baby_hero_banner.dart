@@ -1,6 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
+import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/material.dart';
+
+import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 enum SpeechBubblePosition { left, right, topCenter, none }
@@ -58,6 +61,12 @@ class BabyHeroBanner extends StatelessWidget {
   /// Growing the card instead keeps the page full at any screen height.
   final bool expand;
 
+  /// Whether the baby sits on its pink card — the wash, the hearts-and-stars
+  /// pattern, the border and the shadow. False on Home, where the baby and
+  /// its bubble stand straight on the page, over a soft glow in the theme's
+  /// colours (the Ask Allo orb's nebula, recoloured).
+  final bool showBackground;
+
   const BabyHeroBanner({
     super.key,
     this.speechText = '',
@@ -75,6 +84,7 @@ class BabyHeroBanner extends StatelessWidget {
     this.speakingOverride = false,
     this.thinkingOverride = false,
     this.expand = false,
+    this.showBackground = true,
   });
 
   /// Keys so layout tests can assert the bubble and the baby never overlap.
@@ -145,39 +155,70 @@ class BabyHeroBanner extends StatelessWidget {
         margin: margin,
         height: expand ? null : height,
         width: double.infinity,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(28),
-          color: const Color(0xFFFFF2F5),
-          border: Border.all(color: const Color(0xFFFFE2E8), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFFFF8A9E).withValues(alpha: 0.10),
-              blurRadius: 20,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
+        decoration: !showBackground
+            ? null
+            : BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                color: p.pick(const Color(0xFFFFF2F5), _darkWash),
+                border: Border.all(
+                  color: p.pick(const Color(0xFFFFE2E8), p.accentBorder),
+                  width: 1.2,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: p.pick(
+                      const Color(0xFFFF8A9E).withValues(alpha: 0.10),
+                      p.shadow,
+                    ),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(28),
+          // Without the card there is no edge to clip to, and clipping would
+          // cut the glow off square instead of letting it fade out.
+          clipBehavior: showBackground ? Clip.antiAlias : Clip.none,
           child: Stack(
             fit: StackFit.expand,
+            clipBehavior: showBackground ? Clip.hardEdge : Clip.none,
             children: [
               // Background pattern image with hearts/clouds
-              Image.asset(
-                'assets/allobaby/AllomomBg.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFF5F7), Color(0xFFFFE6ED)],
+              if (showBackground)
+                Image.asset(
+                  'assets/allobaby/AllomomBg.png',
+                  fit: BoxFit.cover,
+                  // Dark mode multiplies the pink wash and its hearts/stars
+                  // down to a dim rose, so the pattern still reads at night.
+                  color: p.isDark ? const Color(0xFF45333A) : null,
+                  colorBlendMode: p.isDark ? BlendMode.modulate : null,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: p.pick(
+                            const [Color(0xFFFFF5F7), Color(0xFFFFE6ED)],
+                            const [Color(0xFF2E2024), Color(0xFF24181B)],
+                          ),
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
+                    );
+                  },
+                ),
+
+              // No card: a glow behind the baby instead, under the bubble so
+              // it never tints it. The baby takes the lower part of the card.
+              if (!showBackground)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  height: (expand ? 320.0 : height) * 0.72,
+                  child: const _ThemeNebula(),
+                ),
 
               // Bubble on top, baby filling whatever room is left below it.
               //
@@ -262,10 +303,9 @@ class BabyHeroBanner extends StatelessWidget {
 
   /// The animated baby using Lottie.
   ///
-  /// Mouth moves only while there is sound (Baby Speaking F.json).
-  /// While idle/non-speaking, plays idle/blinking animation (Baby Non Speaking Final.json).
-  /// [IndexedStack] is used so both animations maintain identical bounds and
-  /// transition seamlessly without any jumping or frame flicker.
+  /// Mouth moves only while there is sound ([BabyAnimations.speaking]).
+  /// While thinking / generating, plays the breathing and blinking clip
+  /// ([BabyAnimations.idle]).
   Widget _buildBaby(bool speaking, bool thinking) {
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
@@ -283,27 +323,33 @@ class BabyHeroBanner extends StatelessWidget {
       },
     );
 
-    return KeyedSubtree(
-      key: babyKey,
-      child: IndexedStack(
-        index: speaking ? 0 : 1,
-        alignment: Alignment.bottomCenter,
-        children: [
-          Lottie.asset(
-            'assets/animations/Baby Speaking F.json',
-            fit: BoxFit.contain,
-            alignment: Alignment.bottomCenter,
-            errorBuilder: (context, error, stackTrace) => still,
-          ),
-          Lottie.asset(
-            'assets/animations/Baby Non Speaking Final.json',
-            fit: BoxFit.contain,
-            alignment: Alignment.bottomCenter,
-            errorBuilder: (context, error, stackTrace) => still,
-          ),
-        ],
-      ),
-    );
+    if (speaking) {
+      return KeyedSubtree(
+        key: babyKey,
+        child: Image.asset(
+          BabyAnimations.speaking,
+          fit: BoxFit.contain,
+          alignment: Alignment.bottomCenter,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) => still,
+        ),
+      );
+    }
+
+    if (thinking) {
+      return KeyedSubtree(
+        key: babyKey,
+        child: Image.asset(
+          BabyAnimations.idle,
+          fit: BoxFit.contain,
+          alignment: Alignment.bottomCenter,
+          gaplessPlayback: true,
+          errorBuilder: (context, error, stackTrace) => still,
+        ),
+      );
+    }
+
+    return KeyedSubtree(key: babyKey, child: still);
   }
 
   Widget _buildSpeechBubble(
@@ -517,24 +563,21 @@ class BabyPromptBar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            child: IndexedStack(
-              index: speaking ? 0 : 1,
-              alignment: Alignment.center,
-              children: [
-                Lottie.asset(
-                  'assets/animations/Baby Speaking F.json',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _stillBabyHead(),
-                ),
-                Lottie.asset(
-                  'assets/animations/Baby Non Speaking Final.json',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) =>
-                      _stillBabyHead(),
-                ),
-              ],
-            ),
+            child: speaking
+                // Zoomed onto the face: the clip is the full-body frame, and
+                // at this size only the face reads.
+                ? Transform.scale(
+                    scale: 2.0,
+                    alignment: const Alignment(0, -0.3),
+                    child: Image.asset(
+                      BabyAnimations.speaking,
+                      fit: BoxFit.cover,
+                      gaplessPlayback: true,
+                      errorBuilder: (context, error, stackTrace) =>
+                          _stillBabyHead(),
+                    ),
+                  )
+                : _stillBabyHead(),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -656,6 +699,90 @@ class BabyPrompt extends StatelessWidget {
       speechText: label,
       onSpeakerTap: speakerTap,
       speakingOverride: speaking,
+    );
+  }
+}
+
+/// The glow behind the baby when it has no card: four discs in the theme's
+/// pinks, blurred until they read as one wash — the Ask Allo orb's nebula in
+/// Allomom's own colours.
+class _ThemeNebula extends StatelessWidget {
+  const _ThemeNebula();
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = context.palette.isDark;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Wider than the baby, so the glow fades out around it rather than
+        // ending at its edges. Drawn against the orb's 200px original.
+        final extent = constraints.biggest.shortestSide * 1.35;
+        final scale = extent / 200;
+        final opacity = dark ? 0.8 : 0.85;
+
+        // Min sizes zeroed: the slot hands down tight constraints as wide as
+        // the card, which would otherwise override the glow's own size.
+        return OverflowBox(
+          minWidth: 0,
+          minHeight: 0,
+          maxWidth: extent,
+          maxHeight: extent,
+          child: IgnorePointer(
+            child: SizedBox(
+              width: extent,
+              height: extent,
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(
+                  sigmaX: 32.0 * scale,
+                  sigmaY: 32.0 * scale,
+                ),
+                child: Stack(
+                  children: [
+                    _blob(
+                      const Alignment(-0.5, -0.5),
+                      90 * scale,
+                      const Color(0xFFFF626F),
+                      opacity,
+                    ),
+                    _blob(
+                      const Alignment(0.5, 0.5),
+                      85 * scale,
+                      const Color(0xFFB983FF),
+                      opacity,
+                    ),
+                    _blob(
+                      const Alignment(0.5, -0.5),
+                      80 * scale,
+                      const Color(0xFFE25584),
+                      opacity,
+                    ),
+                    _blob(
+                      const Alignment(-0.5, 0.5),
+                      75 * scale,
+                      const Color(0xFFFFA38A),
+                      opacity * 0.9,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _blob(Alignment alignment, double size, Color color, double opacity) {
+    return Align(
+      alignment: alignment,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: color.withValues(alpha: opacity),
+        ),
+      ),
     );
   }
 }

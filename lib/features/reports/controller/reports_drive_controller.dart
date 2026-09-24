@@ -293,6 +293,10 @@ class ReportsDriveController extends GetxController {
     isSyncing.value = true;
     syncError.value = null;
     try {
+      await _sendAttachmentDeletes();
+      final pendingFileDeletes =
+          (await _store.readPendingAttachmentDeletes()).toSet();
+
       final dirty = await ReportDbService.instance.unsyncedReports();
       final queuedDeletes = await _store.readPendingDeletes();
 
@@ -326,7 +330,7 @@ class ReportsDriveController extends GetxController {
         dirty.map((r) => r.id).where((id) => !lost.contains(id)),
       );
 
-      await _applyPulled(item);
+      await _applyPulled(item, skipAttachments: pendingFileDeletes);
       await _uploadPendingFiles();
 
       final syncedAt = DateTime.tryParse(item['synced_at'] as String? ?? '');
@@ -364,7 +368,13 @@ class ReportsDriveController extends GetxController {
   }
 
   /// Writes what the server changed into the local database.
-  Future<void> _applyPulled(Map<String, dynamic> payload) async {
+  ///
+  /// [skipAttachments] are files the user removed that the server has not
+  /// yet confirmed deleting; they are left out rather than brought back.
+  Future<void> _applyPulled(
+    Map<String, dynamic> payload, {
+    Set<String> skipAttachments = const {},
+  }) async {
     final scope = _healthScope;
 
     for (final raw in (payload['reports'] as List? ?? []).whereType<Map>()) {
@@ -388,6 +398,7 @@ class ReportsDriveController extends GetxController {
         final file = Map<String, dynamic>.from(rawFile);
         final fileId = file['id']?.toString();
         if (fileId == null || fileId.isEmpty) continue;
+        if (skipAttachments.contains(fileId)) continue;
 
         await ReportDbService.instance.upsertAttachmentFromServer(
           id: fileId,
@@ -480,6 +491,39 @@ class ReportsDriveController extends GetxController {
     if (_isOnline) {
       await syncNow();
     }
+  }
+
+  /// Removes one file from a report: the local row now, the Drive copy on
+  /// the next sync.
+  ///
+  /// A file that never reached Drive has nothing to delete remotely, so only
+  /// uploaded ones are queued.
+  Future<void> deleteAttachment(ReportAttachment attachment) async {
+    await ReportDbService.instance.deleteAttachment(attachment.id);
+    if (attachment.cloudUrl != null || attachment.synced == 1) {
+      await _store.addPendingAttachmentDelete(attachment.id);
+    }
+    await refreshPendingCounts();
+  }
+
+  /// Tells the server about removed files.
+  ///
+  /// A network failure leaves the rest of the queue for next time. A rejection
+  /// — most often a file the server no longer has — is logged and dropped,
+  /// like a rejected upload, rather than retried on every sync.
+  Future<void> _sendAttachmentDeletes() async {
+    final queue = await _store.readPendingAttachmentDeletes();
+    final applied = <String>[];
+    for (final id in queue) {
+      final response = await ReportApi.deleteAttachment(id);
+      if (response.networkError) break;
+      if (!response.success) {
+        debugPrint('ReportsDriveController: attachment delete rejected for '
+            '$id: ${response.detail}');
+      }
+      applied.add(id);
+    }
+    await _store.removePendingAttachmentDeletes(applied);
   }
 
   // ── File contents ──────────────────────────────────────────────────────────
