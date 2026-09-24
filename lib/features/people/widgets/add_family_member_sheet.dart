@@ -44,6 +44,8 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     'Children',
     'Brother',
     'Sister',
+    'Grandmother',
+    'Grandfather',
     'Relative',
     'Caregiver',
   ];
@@ -54,9 +56,9 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     final initial = widget.initialRelationship;
     if (initial != null && _relationshipOptions.contains(initial)) {
       _selectedRelationship = initial;
-      if (initial == 'Mother' || initial == 'Wife') {
+      if (initial == 'Mother' || initial == 'Wife' || initial == 'Grandmother') {
         _selectedGender = 'Female';
-      } else if (initial == 'Father') {
+      } else if (initial == 'Father' || initial == 'Grandfather') {
         _selectedGender = 'Male';
       }
     }
@@ -423,9 +425,9 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
               onChanged: (val) {
                 setState(() {
                   _selectedRelationship = val;
-                  if (val == 'Mother' || val == 'Wife') {
+                  if (val == 'Mother' || val == 'Wife' || val == 'Grandmother') {
                     _selectedGender = 'Female';
-                  } else if (val == 'Father') {
+                  } else if (val == 'Father' || val == 'Grandfather') {
                     _selectedGender = 'Male';
                   }
                 });

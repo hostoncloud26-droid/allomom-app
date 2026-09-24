@@ -13,11 +13,20 @@ import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class PeoplePage extends StatefulWidget {
-  const PeoplePage({super.key, this.initialTab = 0});
+  const PeoplePage({
+    super.key,
+    this.initialTab = 0,
+    this.pendingAddMemberRelationship,
+  });
 
   /// 0: Family, 1: Community — lets a caller (the offline chatbot's
   /// `open_community` action) land directly on the Community tab.
   final int initialTab;
+
+  /// Opens the Add Member sheet pre-selected to this relationship as soon as
+  /// the page loads — how the offline chatbot's "add father" style actions
+  /// land here instead of popping the sheet directly over the chat.
+  final String? pendingAddMemberRelationship;
 
   @override
   State<PeoplePage> createState() => _PeoplePageState();
@@ -35,6 +44,12 @@ class _PeoplePageState extends State<PeoplePage> {
   void initState() {
     super.initState();
     _loadFamilyData();
+    final pending = widget.pendingAddMemberRelationship;
+    if (pending != null && pending.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showAddMemberBottomSheet(context, initialRelationship: pending);
+      });
+    }
   }
 
   /// Loads the family and its members, local-first.
@@ -1241,7 +1256,10 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   // ─── ADD MEMBER BOTTOM SHEET ────────────────────────────────
-  void _showAddMemberBottomSheet(BuildContext context) {
+  void _showAddMemberBottomSheet(
+    BuildContext context, {
+    String? initialRelationship,
+  }) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1250,6 +1268,7 @@ class _PeoplePageState extends State<PeoplePage> {
         return AddFamilyMemberSheet(
           familyID: _familyData?['id']?.toString(),
           onMemberAdded: _loadFamilyData,
+          initialRelationship: initialRelationship,
         );
       },
     );
