@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_animations.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:allomom/config/app_theme.dart';
@@ -203,7 +203,8 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
     }
 
     // Check if speech relates to baby kicking or kick counter
-    final isKickTrigger = lower.contains('kick') ||
+    final isKickTrigger =
+        lower.contains('kick') ||
         lower.contains('kicking') ||
         lower.contains('baby is moving') ||
         lower.contains('baby move') ||
@@ -247,12 +248,16 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
       _botMessage = botPrompt;
     });
 
-    _ttsService.speak(botPrompt, onComplete: () {
-      if (mounted && _state == VoiceAssistantState.botAskingKickConfirmation) {
-        // Resume listening for the "Yes" confirmation
-        _startListening();
-      }
-    });
+    _ttsService.speak(
+      botPrompt,
+      onComplete: () {
+        if (mounted &&
+            _state == VoiceAssistantState.botAskingKickConfirmation) {
+          // Resume listening for the "Yes" confirmation
+          _startListening();
+        }
+      },
+    );
   }
 
   void _onConfirmKickCounter() {
@@ -447,9 +452,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               height: 140 * scale,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFFFF4E6A).withValues(
-                  alpha: 0.08 * (1.0 - _animController.value),
-                ),
+                color: const Color(
+                  0xFFFF4E6A,
+                ).withValues(alpha: 0.08 * (1.0 - _animController.value)),
               ),
             );
           },
@@ -488,10 +493,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            border: Border.all(
-              color: const Color(0xFFFF4E6A),
-              width: 2.2,
-            ),
+            border: Border.all(color: const Color(0xFFFF4E6A), width: 2.2),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFFF4E6A).withValues(alpha: 0.25),
@@ -504,11 +506,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             child: SizedBox(
               width: 85,
               height: 85,
-              child: Lottie.asset(
-                isBotTalking
-                    ? 'assets/animations/Baby Speaking F.json'
-                    : 'assets/animations/Baby Non Speaking Final.json',
+              child: Image.asset(
+                isBotTalking ? BabyAnimations.speaking : BabyAnimations.idle,
                 fit: BoxFit.contain,
+                gaplessPlayback: true,
                 errorBuilder: (context, error, stackTrace) {
                   return Image.asset(
                     'assets/allobaby/AlloMombaby.png',
@@ -553,7 +554,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           decoration: BoxDecoration(
             color: _p.pick(const Color(0xFFFFF5F7), _p.accentSoft),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder)),
+            border: Border.all(
+              color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder),
+            ),
           ),
           child: Column(
             children: [
@@ -594,20 +597,30 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           spacing: 8,
           runSpacing: 8,
           children: _quickSuggestions.map((suggestion) {
-            final cleanText = suggestion.replaceAll(RegExp(r'[^\w\s]'), '').trim();
+            final cleanText = suggestion
+                .replaceAll(RegExp(r'[^\w\s]'), '')
+                .trim();
             return GestureDetector(
               onTap: () {
                 _processUserSpeech(cleanText);
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: _p.card,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _p.pick(const Color(0xFFE5E7EB), _p.border)),
+                  border: Border.all(
+                    color: _p.pick(const Color(0xFFE5E7EB), _p.border),
+                  ),
                   boxShadow: [
                     BoxShadow(
-                      color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
+                      color: _p.pick(
+                        Colors.black.withValues(alpha: 0.02),
+                        _p.shadow,
+                      ),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -719,7 +732,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 onPressed: _onDeclineKickCounter,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: BorderSide(color: _p.pick(const Color(0xFFD1D5DB), _p.border)),
+                  side: BorderSide(
+                    color: _p.pick(const Color(0xFFD1D5DB), _p.border),
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -881,7 +896,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         style: GoogleFonts.outfit(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
+                          color: _p.pick(
+                            const Color(0xFF1E2024),
+                            _p.textPrimary,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -889,7 +907,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         'Track active hours & record baby movements',
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
-                          color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
+                          color: _p.pick(
+                            const Color(0xFF6B7280),
+                            _p.textSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -955,7 +976,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           decoration: BoxDecoration(
             color: _p.pick(const Color(0xFFFFF5F7), _p.accentSoft),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder)),
+            border: Border.all(
+              color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -981,7 +1004,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9)),
+                        color: _p.tint(
+                          const Color(0xFFFF4E6A),
+                          const Color(0xFFFFE4E9),
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -1115,8 +1141,13 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               ),
             ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
-              side: BorderSide(color: _p.pick(const Color(0xFFD1D5DB), _p.border)),
+              foregroundColor: _p.pick(
+                const Color(0xFF4B5563),
+                _p.textSecondary,
+              ),
+              side: BorderSide(
+                color: _p.pick(const Color(0xFFD1D5DB), _p.border),
+              ),
               padding: const EdgeInsets.symmetric(vertical: 13),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),

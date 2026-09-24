@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_animations.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lottie/lottie.dart';
 import 'package:allomom/config/app_theme.dart';
 
 class BabySpeechAvatar extends StatelessWidget {
@@ -38,7 +38,10 @@ class BabySpeechAvatar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: p.pick(Colors.black.withValues(alpha: 0.04), p.shadow),
+                    color: p.pick(
+                      Colors.black.withValues(alpha: 0.04),
+                      p.shadow,
+                    ),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -64,7 +67,10 @@ class BabySpeechAvatar extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
+                        color: p.tint(
+                          const Color(0xFFFF4E6A),
+                          const Color(0xFFFFF0F3),
+                        ),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -117,9 +123,10 @@ class BabySpeechAvatar extends StatelessWidget {
               child: SizedBox(
                 width: avatarSize * (150 / 190),
                 height: avatarSize * (150 / 190),
-                child: Lottie.asset(
-                  'assets/animations/Baby Speaking F.json',
+                child: Image.asset(
+                  BabyAnimations.speaking,
                   fit: BoxFit.contain,
+                  gaplessPlayback: true,
                   errorBuilder: (_, __, ___) => Image.asset(
                     'assets/allobaby/Baby3D.png',
                     fit: BoxFit.contain,

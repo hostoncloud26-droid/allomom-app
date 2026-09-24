@@ -307,6 +307,7 @@ class _HomePageState extends State<HomePage> {
                           greetingText: "",
                           bubblePosition: SpeechBubblePosition.topCenter,
                           height: 270,
+                          showBackground: false,
                           onSpeakerTap: _homeNarrationKey != null
                               ? null
                               : (_voice.isVisible ? _voice.toggleSpeech : null),
