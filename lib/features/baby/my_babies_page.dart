@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/baby/baby_detail_page.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
@@ -22,6 +23,18 @@ class MyBabiesPage extends StatefulWidget {
 
 class _MyBabiesPageState extends State<MyBabiesPage> {
   static final _dateFmt = DateFormat('dd MMM yyyy');
+
+  // Neutral ink and surfaces follow light / dark mode.
+  Color get _ink =>
+      context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary);
+  Color get _inkSoft => context.palette.pick(
+    const Color(0xFF6B707B),
+    context.palette.textSecondary,
+  );
+  Color get _pinkWash => context.palette.tint(
+    const Color(0xFFFF3B5C),
+    const Color(0xFFFFF0F4),
+  );
 
   final _repo = BabyRepository.instance;
   final _db = BabyDbService.instance;
@@ -129,16 +142,16 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: context.palette.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: context.palette.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E2024),
+            color: _ink,
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
@@ -148,7 +161,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _ink,
           ),
         ),
       ),
@@ -191,8 +204,8 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
           Container(
             width: 80,
             height: 80,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF0F4),
+            decoration: BoxDecoration(
+              color: _pinkWash,
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -208,7 +221,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
             style: GoogleFonts.outfit(
               fontSize: 18,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF1E2024),
+              color: _ink,
             ),
           ),
           const SizedBox(height: 8),
@@ -219,7 +232,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: const Color(0xFF6B707B),
+              color: _inkSoft,
               height: 1.45,
             ),
           ),
@@ -236,9 +249,9 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFEEEFF4)),
+        border: Border.all(color: context.palette.divider),
       ),
       child: Material(
         color: Colors.transparent,
@@ -262,8 +275,8 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
                     Container(
                       width: 46,
                       height: 46,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFF0F4),
+                      decoration: BoxDecoration(
+                        color: _pinkWash,
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -286,7 +299,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
                                   style: GoogleFonts.outfit(
                                     fontSize: 16.5,
                                     fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF1E2024),
+                                    color: _ink,
                                   ),
                                 ),
                               ),
@@ -298,7 +311,10 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFD1FAE5),
+                                    color: context.palette.tint(
+                                      const Color(0xFF10B981),
+                                      const Color(0xFFD1FAE5),
+                                    ),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
@@ -322,17 +338,17 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
                             ].where((s) => s.isNotEmpty && s != '—').join('  ·  '),
                             style: GoogleFonts.poppins(
                               fontSize: 12,
-                              color: const Color(0xFF6B707B),
+                              color: _inkSoft,
                             ),
                           ),
                         ],
                       ),
                     ),
                     PopupMenuButton<String>(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.more_vert_rounded,
                         size: 20,
-                        color: Color(0xFF9CA3AF),
+                        color: context.palette.textMuted,
                       ),
                       onSelected: (v) {
                         if (v == 'edit') _editBaby(baby);
@@ -407,7 +423,7 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: background,
+        color: context.palette.tint(color, background),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -420,14 +436,14 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
             style: GoogleFonts.outfit(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF1E2024),
+              color: _ink,
             ),
           ),
           Text(
             label,
             style: GoogleFonts.poppins(
               fontSize: 10.5,
-              color: const Color(0xFF6B707B),
+              color: _inkSoft,
             ),
           ),
         ],

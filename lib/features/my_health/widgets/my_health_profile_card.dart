@@ -1,215 +1,313 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:allomom/api/secure_token_api.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/features/my_health/widgets/health_info_editor_sheet.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/my_health/widgets/health_info_editor_sheet.dart';
 
-class MyHealthProfileCard extends StatelessWidget {
-  const MyHealthProfileCard({super.key});
+/// Port of AlloConnect's `MyHealthProfileCard`: a full-bleed gradient header
+/// with an ECG backdrop, the user's avatar + Name / Age / Blood group on the
+/// left and the health records QR on the right.
+///
+/// The QR carries a short-lived secure token, as AlloConnect's does, so the
+/// link stops working 15 minutes after it was issued. The token is cached for
+/// 14 minutes so the card does not ask for a new one on every rebuild.
+///
+/// Designed as a `SliverAppBar(expandedHeight: 230)` flexibleSpace background:
+/// it pads itself by the status-bar inset and is 278px tall when unconstrained.
+/// Tapping it opens [HealthInfoEditorSheet] unless [onTap] is given.
+class MyHealthProfileCard extends StatefulWidget {
+  final VoidCallback? onTap;
+
+  const MyHealthProfileCard({super.key, this.onTap});
+
+  /// Where a scanned QR lands, followed by the token.
+  static const String healthProfileUrlBase =
+      'https://allokonnect.com/health-profile/';
+
+  @override
+  State<MyHealthProfileCard> createState() => _MyHealthProfileCardState();
+}
+
+class _MyHealthProfileCardState extends State<MyHealthProfileCard> {
+  static const _ink = Color(0xFF1F3D4D);
+  static const _cacheToken = 'last_health_qr_data';
+  static const _cacheAt = 'last_health_qr_generated_at';
+  static const _cacheFor = Duration(minutes: 14);
+
+  String? _token;
+  bool _loadingToken = false;
+
+  /// True once a request has failed — the panel says so instead of showing a
+  /// code that leads nowhere.
+  bool _tokenFailed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadToken();
+  }
+
+  Future<void> _loadToken({bool force = false}) async {
+    if (_loadingToken) return;
+    setState(() {
+      _loadingToken = true;
+      _tokenFailed = false;
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (!force) {
+        final cached = prefs.getString(_cacheToken);
+        final at = DateTime.tryParse(prefs.getString(_cacheAt) ?? '');
+        if (cached != null &&
+            cached.isNotEmpty &&
+            at != null &&
+            DateTime.now().difference(at) < _cacheFor) {
+          if (mounted) setState(() => _token = cached);
+          return;
+        }
+      }
+
+      final response = await SecureTokenApi.create(type: 'health-profile');
+      final item = response.item;
+      final token = item is String
+          ? item
+          : (item is Map ? item['token']?.toString() : null);
+
+      if (response.success && token != null && token.isNotEmpty) {
+        await prefs.setString(_cacheToken, token);
+        await prefs.setString(_cacheAt, DateTime.now().toIso8601String());
+        if (mounted) setState(() => _token = token);
+      } else {
+        if (mounted) setState(() => _tokenFailed = true);
+      }
+    } catch (e) {
+      debugPrint('MyHealthProfileCard: could not create QR token: $e');
+      if (mounted) setState(() => _tokenFailed = true);
+    } finally {
+      if (mounted) setState(() => _loadingToken = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final onTap = widget.onTap;
     return AnimatedBuilder(
-      animation: Listenable.merge([MainController.instance, HealthVitalsController.instance]),
+      animation: Listenable.merge(
+          [MainController.instance, HealthVitalsController.instance]),
       builder: (context, _) {
         final session = MainController.instance;
         final vitals = HealthVitalsController.instance;
 
-        final name = session.userName;
-        final week = session.currentGestationalWeek;
-        final trimester = session.currentTrimester;
-        final bg = session.bloodGroup ?? vitals.bloodGroupVital?.unit ?? '--';
-        final heightVal = vitals.heightVital?.value ?? 162.0;
-        final weightVal = vitals.weightVital?.value ?? 62.5;
+        final primaryColor = Theme.of(context).primaryColor;
+        final topPadding = MediaQuery.of(context).padding.top;
+        final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Color(0xFF2D3142),
-                Color(0xFF1E2024),
-              ],
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.12),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Avatar
-                  Container(
-                    width: 52,
-                    height: 52,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFFFF5277), Color(0xFFFF3B5C)],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFFF3B5C).withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+        final userName = session.userName.trim();
+        final userImage = session.profilePicture?.trim() ?? '';
+        final hasImage = userImage.startsWith('http');
+
+        final bgRaw = session.bloodGroup ?? vitals.bloodGroupVital?.unit;
+        final bloodGroup =
+            (bgRaw != null && bgRaw.trim().isNotEmpty) ? bgRaw.trim() : '--';
+        final double? height = vitals.heightVital?.value;
+        final double? weight = vitals.hasWeight ? vitals.weightValue : null;
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap ??
+                () => HealthInfoEditorSheet.show(
+                      context: context,
+                      userId: session.userId,
+                      height: height,
+                      weight: weight,
+                      bloodGroup: bloodGroup == '--' ? null : bloodGroup,
+                      primaryColor: primaryColor,
                     ),
-                    child: Center(
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : 'A',
-                        style: GoogleFonts.manrope(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
+            child: Container(
+              width: double.infinity,
+              height: 278,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    isDark ? Colors.black : const Color(0xFFF7FAFC),
+                    primaryColor.withValues(alpha: 0.23),
+                  ],
+                ),
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _HeartBeatWavePainter(color: primaryColor),
                     ),
                   ),
-                  const SizedBox(width: 14),
-
-                  // Name & Gestational Week
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                  Padding(
+                    padding: EdgeInsets.fromLTRB(16, topPadding + 20, 16, 20),
+                    child: Row(
                       children: [
-                        Text(
-                          name,
-                          style: GoogleFonts.manrope(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: Colors.white,
+                        // Left column: avatar and data rows
+                        Expanded(
+                          flex: 5,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: primaryColor.withValues(alpha: 0.35),
+                                    width: 1.4,
+                                  ),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 50,
+                                  backgroundColor: Colors.white,
+                                  backgroundImage:
+                                      hasImage ? NetworkImage(userImage) : null,
+                                  child: hasImage
+                                      ? null
+                                      : Icon(
+                                          Icons.person_rounded,
+                                          size: 50,
+                                          color: primaryColor.withValues(
+                                              alpha: 0.6),
+                                        ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _dataRow('Name',
+                                  userName.isEmpty ? '--' : userName, isDark),
+                              const SizedBox(height: 4),
+                              _dataRow('Age', _age(session.dob), isDark),
+                              const SizedBox(height: 4),
+                              _dataRow('Blood group', bloodGroup, isDark),
+                              const Spacer(),
+                            ],
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          'Week $week • $trimester',
-                          style: GoogleFonts.manrope(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFFF8FA3),
+                        // Right column: highlight panel + caption
+                        Expanded(
+                          flex: 4,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                flex: 10,
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(16),
+                                      border: Border.all(
+                                        color: primaryColor.withValues(
+                                            alpha: 0.3),
+                                        width: 1.5,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: primaryColor.withValues(
+                                              alpha: 0.1),
+                                          blurRadius: 15,
+                                          offset: const Offset(0, 5),
+                                        ),
+                                      ],
+                                    ),
+                                    child: _qrPanel(primaryColor),
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              Text(
+                                'Scan for health records',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w800,
+                                  color: isDark ? Colors.white : _ink,
+                                  letterSpacing: -0.2,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 8),
+                              const Spacer(),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-
-                  // Edit button
-                  IconButton(
-                    onPressed: () {
-                      HealthInfoEditorSheet.show(
-                        context: context,
-                        userId: session.userId,
-                        height: heightVal,
-                        weight: weightVal,
-                        bloodGroup: bg != '--' ? bg : null,
-                        primaryColor: const Color(0xFFFF3B5C),
-                      );
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.edit_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 18),
-
-              // Metric chips (Blood Group, Height, Weight)
-              Row(
-                children: [
-                  _buildMetricPill(
-                    icon: Icons.bloodtype_rounded,
-                    iconColor: const Color(0xFFFF4E6A),
-                    label: 'Blood',
-                    value: bg,
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricPill(
-                    icon: Icons.height_rounded,
-                    iconColor: const Color(0xFF38BDF8),
-                    label: 'Height',
-                    value: '${heightVal.toStringAsFixed(0)} cm',
-                  ),
-                  const SizedBox(width: 8),
-                  _buildMetricPill(
-                    icon: Icons.monitor_weight_outlined,
-                    iconColor: const Color(0xFF34D399),
-                    label: 'Weight',
-                    value: '${weightVal.toStringAsFixed(1)} kg',
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         );
       },
     );
   }
 
-  Widget _buildMetricPill({
-    required IconData icon,
-    required Color iconColor,
-    required String label,
-    required String value,
-  }) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 0.8),
+  /// The code, a spinner while the token is on its way, or — when the server
+  /// could not issue one — a note and a retry, never a code that goes nowhere.
+  Widget _qrPanel(Color primaryColor) {
+    final token = _token;
+    if (token != null && token.isNotEmpty) {
+      return QrImageView(
+        padding: const EdgeInsets.all(2),
+        data: '${MyHealthProfileCard.healthProfileUrlBase}$token',
+        version: QrVersions.auto,
+        backgroundColor: Colors.white,
+        eyeStyle: const QrEyeStyle(
+          eyeShape: QrEyeShape.square,
+          color: Colors.black,
         ),
-        child: Row(
+        dataModuleStyle: const QrDataModuleStyle(
+          dataModuleShape: QrDataModuleShape.square,
+          color: Colors.black,
+        ),
+      );
+    }
+    if (_loadingToken || !_tokenFailed) {
+      return Center(
+        child: SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
+        ),
+      );
+    }
+    return GestureDetector(
+      onTap: () => _loadToken(force: true),
+      behavior: HitTestBehavior.opaque,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: iconColor),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: const Color(0xFF94A3B8),
-                    ),
-                  ),
-                  Text(
-                    value,
-                    style: GoogleFonts.manrope(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+            Icon(Icons.qr_code_2_rounded, size: 34, color: _ink.withValues(alpha: 0.35)),
+            const SizedBox(height: 4),
+            Text(
+              'QR unavailable',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: _ink.withValues(alpha: 0.7),
+              ),
+            ),
+            Text(
+              'Tap to retry',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
               ),
             ),
           ],
@@ -217,4 +315,128 @@ class MyHealthProfileCard extends StatelessWidget {
       ),
     );
   }
+
+  Widget _dataRow(String label, String value, bool isDark) {
+    return Row(
+      children: [
+        Text(
+          '$label: ',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            color: isDark ? Colors.white.withValues(alpha: 0.9) : _ink,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: isDark ? Colors.white70 : _ink.withValues(alpha: 0.7),
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static String _age(DateTime? dob) {
+    if (dob == null) return '--';
+    final now = DateTime.now();
+    int age = now.year - dob.year;
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
+      age--;
+    }
+    return age.toString();
+  }
+}
+
+/// Static ECG backdrop (AlloConnect's `HeartBeatWavePainter`, progress 0).
+class _HeartBeatWavePainter extends CustomPainter {
+  final Color color;
+
+  const _HeartBeatWavePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color.withValues(alpha: 0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path();
+    final width = size.width;
+    final centerY = size.height * 0.55;
+    const cycleWidth = 200.0;
+
+    for (double x = -cycleWidth; x < width + cycleWidth; x += 1) {
+      final relX = x % cycleWidth;
+      double y = centerY;
+
+      if (relX < 20) {
+        y = centerY;
+      } else if (relX < 35) {
+        final t = (relX - 20) / 15;
+        y = centerY - (10 * (1 - (2 * t - 1).abs()));
+      } else if (relX < 50) {
+        y = centerY;
+      } else if (relX < 55) {
+        final t = (relX - 50) / 5;
+        y = centerY + (8 * t);
+      } else if (relX < 65) {
+        final t = (relX - 55) / 10;
+        y = centerY + 8 - (88 * t);
+      } else if (relX < 75) {
+        final t = (relX - 65) / 10;
+        y = (centerY - 80) + (88 * t);
+      } else if (relX < 80) {
+        final t = (relX - 75) / 5;
+        y = centerY + (8 * (1 - t));
+      } else if (relX < 100) {
+        y = centerY;
+      } else if (relX < 130) {
+        final t = (relX - 100) / 30;
+        y = centerY - (18 * (1 - (2 * t - 1).abs()));
+      }
+
+      if (x == -cycleWidth) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(path, paint);
+
+    final backgroundPaint = Paint()
+      ..color = color.withValues(alpha: 0.04)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final backgroundPath = Path();
+    const bgCycleWidth = 280.0;
+    for (double x = -bgCycleWidth; x < width + bgCycleWidth; x += 2) {
+      final relX = x % bgCycleWidth;
+      double y = centerY + 25;
+      if (relX >= 40 && relX < 70) {
+        final t = (relX - 40) / 30;
+        y -= 20 * (1 - (2 * t - 1).abs());
+      }
+      if (x == -bgCycleWidth) {
+        backgroundPath.moveTo(x, y);
+      } else {
+        backgroundPath.lineTo(x, y);
+      }
+    }
+    canvas.drawPath(backgroundPath, backgroundPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _HeartBeatWavePainter oldDelegate) =>
+      oldDelegate.color != color;
 }

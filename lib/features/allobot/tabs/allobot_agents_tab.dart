@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allobot/data/agent_catalog.dart';
 
@@ -15,6 +16,8 @@ class AlloBotAgentsTab extends StatefulWidget {
 
 class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
   String _searchQuery = '';
+
+  AppPalette get _p => context.palette;
 
   @override
   void initState() {
@@ -63,7 +66,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                       ),
                     ),
                   ),
@@ -75,7 +78,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                 'Every feature is its own helper. Tap one, or ask AlloBot to open it.',
                 style: GoogleFonts.poppins(
                   fontSize: 12.5,
-                  color: const Color(0xFF6B7280),
+                  color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                 ),
               ),
               const SizedBox(height: 18),
@@ -109,7 +112,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFE4E9),
+          color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9)),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -139,12 +142,12 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: _p.pick(const Color(0xFFE5E7EB), _p.border)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -152,9 +155,9 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.search_rounded,
-            color: Color(0xFF9CA3AF),
+            color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -163,13 +166,13 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
               onChanged: (val) => setState(() => _searchQuery = val),
               style: GoogleFonts.poppins(
                 fontSize: 13.5,
-                color: const Color(0xFF1E2024),
+                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
               decoration: InputDecoration(
                 hintText: 'Search specialized agents...',
                 hintStyle: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: const Color(0xFF9CA3AF),
+                  color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                 ),
                 border: InputBorder.none,
               ),
@@ -193,7 +196,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                 style: GoogleFonts.poppins(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
               ),
               const SizedBox(height: 2),
@@ -201,7 +204,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                 group.subtitle,
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
-                  color: const Color(0xFF9CA3AF),
+                  color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                 ),
               ),
             ],
@@ -210,7 +213,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
           decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
+            color: _p.pick(const Color(0xFFF1F5F9), _p.inputFill),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Text(
@@ -218,7 +221,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF64748B),
+              color: _p.pick(const Color(0xFF64748B), _p.textSecondary),
             ),
           ),
         ),
@@ -247,10 +250,10 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
       child: Center(
         child: Column(
           children: [
-            const Icon(
+            Icon(
               Icons.search_off_rounded,
               size: 34,
-              color: Color(0xFFCBD5E1),
+              color: _p.pick(const Color(0xFFCBD5E1), _p.textMuted),
             ),
             const SizedBox(height: 10),
             Text(
@@ -258,7 +261,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF6B7280),
+                color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
               ),
             ),
             const SizedBox(height: 3),
@@ -266,7 +269,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
               'Try "water", "sleep" or "kicks"',
               style: GoogleFonts.poppins(
                 fontSize: 11.5,
-                color: const Color(0xFF9CA3AF),
+                color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
               ),
             ),
           ],
@@ -279,7 +282,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
     final status = agent.status;
 
     return Material(
-      color: Colors.white,
+      color: _p.card,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () => _openAgent(agent),
@@ -287,12 +290,12 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
         child: Ink(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: _p.card,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: _p.pick(const Color(0xFFE5E7EB), _p.border)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
+                color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
                 blurRadius: 10,
                 offset: const Offset(0, 3),
               ),
@@ -309,7 +312,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: agent.iconBackground,
+                      color: _p.tint(agent.iconColor, agent.iconBackground),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Icon(
@@ -324,7 +327,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                       vertical: 3,
                     ),
                     decoration: BoxDecoration(
-                      color: status.background,
+                      color: _p.tint(status.color, status.background),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -344,7 +347,10 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                           style: GoogleFonts.poppins(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
-                            color: status.color,
+                            color: _p.pick(
+                              status.color,
+                              Color.lerp(status.color, Colors.white, 0.3)!,
+                            ),
                           ),
                         ),
                       ],
@@ -362,7 +368,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
               ),
               const SizedBox(height: 2),
@@ -377,14 +383,14 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
                       overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: const Color(0xFF8E95A5),
+                        color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                       ),
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 11,
-                    color: Color(0xFFCBD5E1),
+                    color: _p.pick(const Color(0xFFCBD5E1), _p.textMuted),
                   ),
                 ],
               ),

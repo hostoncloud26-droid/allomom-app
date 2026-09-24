@@ -113,7 +113,9 @@ class BabyDbService {
         .write(record.copyWith(synced: const Value(0)));
   }
 
-  Future<void> markImmunizationGiven(String id, DateTime receivedDate) async {
+  /// Records when a dose was given, or clears it when [receivedDate] is null —
+  /// the list has a tick box, and a mis-tap has to be undoable.
+  Future<void> markImmunizationGiven(String id, DateTime? receivedDate) async {
     final db = await _db;
     await (db.update(db.babyImmunizationRecords)..where((v) => v.id.equals(id)))
         .write(

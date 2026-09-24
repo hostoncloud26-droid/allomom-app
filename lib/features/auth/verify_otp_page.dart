@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/controllers/auth_controller.dart';
@@ -29,6 +30,8 @@ class VerifyOtpPage extends StatefulWidget {
 }
 
 class _VerifyOtpPageState extends State<VerifyOtpPage> {
+  AppPalette get _p => context.palette;
+
   final List<TextEditingController> _controllers = List.generate(
     6,
     (_) => TextEditingController(),
@@ -202,7 +205,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -234,20 +237,20 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: _p.card,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: _p.pick(Colors.black12, _p.shadow),
                                     blurRadius: 8,
-                                    offset: Offset(0, 2),
+                                    offset: const Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.chevron_left_rounded,
-                                color: Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 size: 24,
                               ),
                             ),
@@ -259,7 +262,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               ),
                             ),
                           ),
@@ -291,16 +294,16 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                         (isKeyboardOpen ? 16 : 24) +
                             MediaQuery.paddingOf(context).bottom,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.vertical(
+                      decoration: BoxDecoration(
+                        color: _p.card,
+                        borderRadius: const BorderRadius.vertical(
                           top: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black12,
+                            color: _p.pick(Colors.black12, _p.shadow),
                             blurRadius: 20,
-                            offset: Offset(0, -4),
+                            offset: const Offset(0, -4),
                           ),
                         ],
                       ),
@@ -313,7 +316,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF5A5D64),
+                                color: _p.pick(const Color(0xFF5A5D64), _p.textSecondary),
                               ),
                               children: [
                                 TextSpan(
@@ -321,7 +324,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1E2024),
+                                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                   ),
                                 ),
                               ],
@@ -346,7 +349,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                                   vertical: 4,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF0F3),
+                                  color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: const Color(0xFFFF8FA3),
@@ -388,7 +391,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
                                   "Didn't receive the code?",
                                   style: GoogleFonts.poppins(
                                     fontSize: 12.5,
-                                    color: const Color(0xFF6B7280),
+                                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                   ),
                                 ),
                               ),
@@ -461,14 +464,14 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
       width: 48,
       height: 54,
       decoration: BoxDecoration(
-        color: isFocused ? Colors.white : const Color(0xFFF9FAFB),
+        color: isFocused ? _p.card : _p.inputFill,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isFocused
               ? const Color(0xFFFF5277)
               : isFilled
               ? const Color(0xFFFF8FA3)
-              : const Color(0xFFE5E7EB),
+              : _p.border,
           width: isFocused ? 2 : 1.5,
         ),
       ),
@@ -482,7 +485,7 @@ class _VerifyOtpPageState extends State<VerifyOtpPage> {
           style: GoogleFonts.outfit(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF1E2024),
+            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
           ),
           decoration: const InputDecoration(
             counterText: '',

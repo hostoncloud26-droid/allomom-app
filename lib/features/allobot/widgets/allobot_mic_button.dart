@@ -9,6 +9,8 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 class AlloBotMicButton extends StatefulWidget {
   const AlloBotMicButton({
     super.key,
@@ -85,6 +87,7 @@ class _AlloBotMicButtonState extends State<AlloBotMicButton>
   @override
   Widget build(BuildContext context) {
     final ringExtent = widget.size * 1.9;
+    final p = context.palette;
 
     // The rings paint outside the button but must not take up space: this sits
     // in a Scaffold's docked FAB slot, and reporting a 120px size there would
@@ -125,7 +128,10 @@ class _AlloBotMicButtonState extends State<AlloBotMicButton>
                   child: CircularProgressIndicator(
                     value: widget.progress,
                     strokeWidth: 3,
-                    backgroundColor: Colors.black.withValues(alpha: 0.06),
+                    backgroundColor: p.pick(
+                      Colors.black.withValues(alpha: 0.06),
+                      Colors.white.withValues(alpha: 0.10),
+                    ),
                     valueColor: AlwaysStoppedAnimation<Color>(widget.color),
                   ),
                 ),
@@ -141,7 +147,7 @@ class _AlloBotMicButtonState extends State<AlloBotMicButton>
                   gradient: widget.enabled ? widget.gradient : null,
                   color: widget.enabled
                       ? (widget.gradient == null ? widget.color : null)
-                      : const Color(0xFFD9DBE1),
+                      : p.pick(const Color(0xFFD9DBE1), const Color(0xFF4A4C55)),
                   boxShadow: [
                     BoxShadow(
                       color: (widget.enabled ? widget.color : Colors.black)

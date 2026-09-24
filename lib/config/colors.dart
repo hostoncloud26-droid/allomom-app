@@ -20,6 +20,11 @@ const Color warningAmber = Color(0xffFFA726);
 const Color infoCyan = Color(0xff26C6DA);
 const Color dangerRed = Color(0xffEF5350);
 
+// Dark mode surfaces, shared with AlloConnect's dark theme.
+const Color darkBackground = Color(0xff121212);
+const Color darkCard = Color(0xff1E1E1E);
+const Color darkSurface = Color(0xff2A2A2A);
+
 LinearGradient get primaryGradient => const LinearGradient(
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,

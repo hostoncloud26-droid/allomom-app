@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -115,18 +117,19 @@ class _CareMealSheetState extends State<CareMealSheet> {
   }
 
   InputDecoration _fieldDecoration(String hint) {
-    const border = OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(14)),
-      borderSide: BorderSide(color: Color(0xFFE2E8F0)),
+    final p = context.palette;
+    final border = OutlineInputBorder(
+      borderRadius: const BorderRadius.all(Radius.circular(14)),
+      borderSide: BorderSide(color: p.pick(const Color(0xFFE2E8F0), p.border)),
     );
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.manrope(
         fontSize: 13,
-        color: const Color(0xFF94A3B8),
+        color: p.pick(const Color(0xFF94A3B8), p.textMuted),
       ),
       filled: true,
-      fillColor: const Color(0xFFF8FAFC),
+      fillColor: p.pick(const Color(0xFFF8FAFC), p.inputFill),
       isDense: true,
       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       border: border,
@@ -147,9 +150,9 @@ class _CareMealSheetState extends State<CareMealSheet> {
         24,
         MediaQuery.of(context).viewInsets.bottom + 28,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(32),
           topRight: Radius.circular(32),
         ),
@@ -164,7 +167,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
                 width: 44,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: context.palette.pick(
+                    const Color(0xFFE2E8F0),
+                    context.palette.divider,
+                  ),
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
@@ -199,7 +205,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
                         style: GoogleFonts.manrope(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E2024),
+                          color: context.palette.pick(
+                            const Color(0xFF1E2024),
+                            context.palette.textPrimary,
+                          ),
                         ),
                       ),
                       if (widget.suggestion != null) ...[
@@ -209,7 +218,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF64748B),
+                            color: context.palette.pick(
+                              const Color(0xFF64748B),
+                              context.palette.textSecondary,
+                            ),
                             height: 1.3,
                           ),
                         ),
@@ -226,7 +238,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF475569),
+                color: context.palette.pick(
+                  const Color(0xFF475569),
+                  context.palette.textSecondary,
+                ),
               ),
             ),
             const SizedBox(height: 8),
@@ -241,13 +256,22 @@ class _CareMealSheetState extends State<CareMealSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: _selectedPortion == i
-                              ? widget.color.withValues(alpha: 0.12)
-                              : const Color(0xFFF8FAFC),
+                              ? context.palette.tint(
+                                  widget.color,
+                                  widget.color.withValues(alpha: 0.12),
+                                )
+                              : context.palette.pick(
+                                  const Color(0xFFF8FAFC),
+                                  context.palette.inputFill,
+                                ),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
                             color: _selectedPortion == i
                                 ? widget.color
-                                : const Color(0xFFE2E8F0),
+                                : context.palette.pick(
+                                    const Color(0xFFE2E8F0),
+                                    context.palette.border,
+                                  ),
                             width: _selectedPortion == i ? 1.4 : 1,
                           ),
                         ),
@@ -265,7 +289,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
                                 fontWeight: FontWeight.w700,
                                 color: _selectedPortion == i
                                     ? widget.color
-                                    : const Color(0xFF475569),
+                                    : context.palette.pick(
+                                        const Color(0xFF475569),
+                                        context.palette.textSecondary,
+                                      ),
                               ),
                             ),
                             Text(
@@ -273,7 +300,10 @@ class _CareMealSheetState extends State<CareMealSheet> {
                               style: GoogleFonts.manrope(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w500,
-                                color: const Color(0xFF94A3B8),
+                                color: context.palette.pick(
+                                  const Color(0xFF94A3B8),
+                                  context.palette.textMuted,
+                                ),
                               ),
                             ),
                           ],
@@ -292,13 +322,19 @@ class _CareMealSheetState extends State<CareMealSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF475569),
+                color: context.palette.pick(
+                  const Color(0xFF475569),
+                  context.palette.textSecondary,
+                ),
               ),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: _detailsController,
-              style: GoogleFonts.manrope(fontSize: 13.5),
+              style: GoogleFonts.manrope(
+                fontSize: 13.5,
+                color: context.palette.pick(null, context.palette.textPrimary),
+              ),
               decoration: _fieldDecoration(
                 'e.g. Oats porridge with almonds & milk',
               ),
@@ -315,14 +351,20 @@ class _CareMealSheetState extends State<CareMealSheet> {
                         ? Icons.keyboard_arrow_down_rounded
                         : Icons.keyboard_arrow_right_rounded,
                     size: 20,
-                    color: const Color(0xFF64748B),
+                    color: context.palette.pick(
+                      const Color(0xFF64748B),
+                      context.palette.textSecondary,
+                    ),
                   ),
                   Text(
                     'Enter exact calories',
                     style: GoogleFonts.manrope(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF475569),
+                      color: context.palette.pick(
+                        const Color(0xFF475569),
+                        context.palette.textSecondary,
+                      ),
                     ),
                   ),
                 ],
@@ -333,13 +375,22 @@ class _CareMealSheetState extends State<CareMealSheet> {
               TextField(
                 controller: _caloriesController,
                 keyboardType: TextInputType.number,
-                style: GoogleFonts.manrope(fontSize: 13.5),
+                style: GoogleFonts.manrope(
+                  fontSize: 13.5,
+                  color: context.palette.pick(
+                    null,
+                    context.palette.textPrimary,
+                  ),
+                ),
                 decoration: _fieldDecoration('e.g. 350').copyWith(
                   suffixText: 'kcal',
                   suffixStyle: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF64748B),
+                    color: context.palette.pick(
+                      const Color(0xFF64748B),
+                      context.palette.textSecondary,
+                    ),
                   ),
                 ),
               ),

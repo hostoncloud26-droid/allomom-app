@@ -56,8 +56,9 @@ class NutritionSummary {
     this.todayDrinkCounts = const {},
   });
 
-  factory NutritionSummary.empty(int dayCount) {
-    final today = _startOfDay(DateTime.now());
+  /// [endDate] is the last day of the window; today when omitted.
+  factory NutritionSummary.empty(int dayCount, {DateTime? endDate}) {
+    final today = _startOfDay(endDate ?? DateTime.now());
     return NutritionSummary(
       days: List.generate(
         dayCount,
@@ -94,11 +95,19 @@ const double kDailyCalorieGoal = 2200;
 const _breakfastKeys = ['breakfast', 'break_fast'];
 
 /// Loads the last [dayCount] days (today last) of meals, snacks, drinks and water.
-Future<NutritionSummary> loadNutritionSummary({int dayCount = 1}) async {
+///
+/// [endDate] moves the window so it ends on that day instead of today; the
+/// "today" notes and drink counts then describe that day.
+Future<NutritionSummary> loadNutritionSummary({
+  int dayCount = 1,
+  DateTime? endDate,
+}) async {
   final userId = MainController.instance.userId;
-  if (userId.isEmpty) return NutritionSummary.empty(dayCount);
+  if (userId.isEmpty) {
+    return NutritionSummary.empty(dayCount, endDate: endDate);
+  }
 
-  final today = _startOfDay(DateTime.now());
+  final today = _startOfDay(endDate ?? DateTime.now());
   final from = today.subtract(Duration(days: dayCount - 1));
   final to = today.add(const Duration(days: 1)).subtract(const Duration(milliseconds: 1));
 
@@ -108,7 +117,8 @@ Future<NutritionSummary> loadNutritionSummary({int dayCount = 1}) async {
   final dinner = List<double>.filled(dayCount, 0);
   final snacks = List<double>.filled(dayCount, 0);
   final drinks = List<double>.filled(dayCount, 0);
-  final water = List<int>.filled(dayCount, 0);
+  // Doubles until the end: water can be logged in part-glasses.
+  final water = List<double>.filled(dayCount, 0);
   final snackCount = List<int>.filled(dayCount, 0);
   final drinkCount = List<int>.filled(dayCount, 0);
 
@@ -197,7 +207,7 @@ Future<NutritionSummary> loadNutritionSummary({int dayCount = 1}) async {
     final when = _dateOf(row);
     final slot = when == null ? null : slotOf(when);
     if (slot == null) continue;
-    water[slot] += (_numOf(row['value']) ?? 0).round();
+    water[slot] += (_numOf(row['value']) ?? 0).toDouble();
   }
 
   return NutritionSummary(
@@ -209,7 +219,7 @@ Future<NutritionSummary> loadNutritionSummary({int dayCount = 1}) async {
         dinnerKcal: dinner[i],
         snacksKcal: snacks[i],
         drinksKcal: drinks[i],
-        waterGlasses: water[i] < 0 ? 0 : water[i],
+        waterGlasses: water[i] < 0 ? 0 : water[i].round(),
         snackCount: snackCount[i] < 0 ? 0 : snackCount[i],
         drinkCount: drinkCount[i] < 0 ? 0 : drinkCount[i],
       );

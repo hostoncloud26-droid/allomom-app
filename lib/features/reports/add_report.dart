@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -38,6 +39,13 @@ class _AddReportState extends State<AddReport> {
   ParsedReportResult? _parsedResult;
 
   final TextEditingController description = TextEditingController();
+
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _slate => _p.pick(const Color(0xFF64748B), _p.textSecondary);
+  Color get _body => _p.pick(const Color(0xFF475569), _p.textSecondary);
+  Color get _muted => _p.pick(const Color(0xFF94A3B8), _p.textMuted);
+  Color get _line => _p.pick(const Color(0xFFF0F1F5), _p.border);
 
   final List<String> reportTypes = [
     'Hemoglobin (Hb) Report',
@@ -275,7 +283,7 @@ class _AddReportState extends State<AddReport> {
   void _showImageSourceSheet() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.palette.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -290,7 +298,7 @@ class _AddReportState extends State<AddReport> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: _p.pick(const Color(0xFFE2E8F0), _p.divider),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -299,7 +307,7 @@ class _AddReportState extends State<AddReport> {
                 style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w800,
                   fontSize: 17,
-                  color: const Color(0xFF1E2024),
+                  color: _ink,
                 ),
               ),
               const SizedBox(height: 4),
@@ -307,7 +315,7 @@ class _AddReportState extends State<AddReport> {
                 'Choose photos or PDF documents',
                 style: GoogleFonts.manrope(
                   fontSize: 12.5,
-                  color: const Color(0xFF94A3B8),
+                  color: _muted,
                 ),
               ),
               const SizedBox(height: 24),
@@ -380,7 +388,7 @@ class _AddReportState extends State<AddReport> {
             style: GoogleFonts.manrope(
               fontWeight: FontWeight.w700,
               fontSize: 13.5,
-              color: const Color(0xFF1E2024),
+              color: _ink,
             ),
           ),
           const SizedBox(height: 2),
@@ -389,7 +397,7 @@ class _AddReportState extends State<AddReport> {
             style: GoogleFonts.manrope(
               fontWeight: FontWeight.w500,
               fontSize: 11,
-              color: const Color(0xFF94A3B8),
+              color: _muted,
             ),
           ),
         ],
@@ -477,14 +485,14 @@ class _AddReportState extends State<AddReport> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
         title: Text(
           'Add Report',
           style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 18,
-            color: const Color(0xFF1E2024),
+            color: _ink,
           ),
         ),
         centerTitle: true,
@@ -492,7 +500,7 @@ class _AddReportState extends State<AddReport> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E2024), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _ink, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -508,7 +516,7 @@ class _AddReportState extends State<AddReport> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFECEF),
+                  color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.3)),
                 ),
@@ -528,7 +536,7 @@ class _AddReportState extends State<AddReport> {
                       style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                        color: _ink,
                       ),
                     ),
                   ],
@@ -560,14 +568,14 @@ class _AddReportState extends State<AddReport> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _body,
                   ),
                 ),
                 if (_parsedResult != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFECFDF5),
+                      color: _p.tint(const Color(0xFF059669), const Color(0xFFECFDF5)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -585,19 +593,20 @@ class _AddReportState extends State<AddReport> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _p.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                border: Border.all(color: _line, width: 1.2),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: reportType,
                   hint: Text(
                     'Select Type of Report',
-                    style: GoogleFonts.manrope(color: const Color(0xFF94A3B8), fontSize: 14),
+                    style: GoogleFonts.manrope(color: _muted, fontSize: 14),
                   ),
                   isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Color(0xFF64748B)),
+                  dropdownColor: _p.card,
+                  icon: Icon(Icons.keyboard_arrow_down_rounded, color: _slate),
                   items: reportTypes.map((t) {
                     return DropdownMenuItem<String>(
                       value: t,
@@ -606,7 +615,7 @@ class _AddReportState extends State<AddReport> {
                         style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1E2024),
+                          color: _ink,
                         ),
                       ),
                     );
@@ -626,7 +635,7 @@ class _AddReportState extends State<AddReport> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _body,
                   ),
                 ),
                 if (_parsedResult != null)
@@ -650,17 +659,17 @@ class _AddReportState extends State<AddReport> {
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _p.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                border: Border.all(color: _line, width: 1.2),
               ),
               child: TextFormField(
                 controller: description,
                 maxLines: 4,
-                style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF1E2024)),
+                style: GoogleFonts.manrope(fontSize: 14, color: _ink),
                 decoration: InputDecoration(
                   hintText: 'Enter clinical observations, lab values, or doctor remarks...',
-                  hintStyle: GoogleFonts.manrope(color: const Color(0xFF94A3B8), fontSize: 13),
+                  hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 13),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -707,7 +716,7 @@ class _AddReportState extends State<AddReport> {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFECEF),
+        color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.25)),
       ),
@@ -736,7 +745,7 @@ class _AddReportState extends State<AddReport> {
                   'Extracting medical values and analyzing report offline',
                   style: GoogleFonts.manrope(
                     fontSize: 11.5,
-                    color: const Color(0xFF64748B),
+                    color: _slate,
                   ),
                 ),
               ],
@@ -753,7 +762,7 @@ class _AddReportState extends State<AddReport> {
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25), width: 1.3),
         boxShadow: [
@@ -784,7 +793,7 @@ class _AddReportState extends State<AddReport> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF7C3AED),
+                    color: _p.pick(const Color(0xFF7C3AED), const Color(0xFFA78BFA)),
                   ),
                 ),
               ),
@@ -806,7 +815,7 @@ class _AddReportState extends State<AddReport> {
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: _runOnDeviceAnalysis,
-                child: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                child: Icon(Icons.refresh_rounded, size: 18, color: _slate),
               ),
             ],
           ),
@@ -814,7 +823,7 @@ class _AddReportState extends State<AddReport> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -827,7 +836,7 @@ class _AddReportState extends State<AddReport> {
                   style: GoogleFonts.manrope(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
+                    color: _ink,
                   ),
                 ),
               ],
@@ -840,7 +849,7 @@ class _AddReportState extends State<AddReport> {
               fontSize: 12.5,
               height: 1.45,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF334155),
+              color: _p.pick(const Color(0xFF334155), _p.textPrimary),
             ),
           ),
           if (res.testResults.isNotEmpty) ...[
@@ -852,7 +861,7 @@ class _AddReportState extends State<AddReport> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFECEF),
+                    color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.3)),
                   ),
@@ -880,9 +889,9 @@ class _AddReportState extends State<AddReport> {
         padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(color: _line, width: 1.2),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -896,8 +905,8 @@ class _AddReportState extends State<AddReport> {
           children: [
             Container(
               padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFECEF),
+              decoration: BoxDecoration(
+                color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.cloud_upload_rounded, size: 36, color: Color(0xFFFF3B5C)),
@@ -908,7 +917,7 @@ class _AddReportState extends State<AddReport> {
               style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 16,
-                color: const Color(0xFF1E2024),
+                color: _ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -918,7 +927,7 @@ class _AddReportState extends State<AddReport> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 height: 1.4,
-                color: const Color(0xFF94A3B8),
+                color: _muted,
               ),
             ),
             const SizedBox(height: 16),
@@ -942,21 +951,21 @@ class _AddReportState extends State<AddReport> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _p.pick(const Color(0xFFF8FAFC), _p.inputFill),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _p.pick(const Color(0xFFE2E8F0), _p.border)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: const Color(0xFF64748B)),
+          Icon(icon, size: 13, color: _slate),
           const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.manrope(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF64748B),
+              color: _slate,
             ),
           ),
         ],
@@ -978,14 +987,14 @@ class _AddReportState extends State<AddReport> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _body,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFECEF),
+                    color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -1045,7 +1054,7 @@ class _AddReportState extends State<AddReport> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFE11D48).withValues(alpha: 0.4), width: 1.5),
           boxShadow: [
@@ -1064,7 +1073,7 @@ class _AddReportState extends State<AddReport> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE4E6),
+                    color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 36),
@@ -1081,7 +1090,7 @@ class _AddReportState extends State<AddReport> {
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w800,
                           fontSize: 14.5,
-                          color: const Color(0xFF1E2024),
+                          color: _ink,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -1090,7 +1099,7 @@ class _AddReportState extends State<AddReport> {
                         style: GoogleFonts.manrope(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
-                          color: const Color(0xFF94A3B8),
+                          color: _muted,
                         ),
                       ),
                     ],
@@ -1100,11 +1109,11 @@ class _AddReportState extends State<AddReport> {
                   onTap: () => _removeFile(index),
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1F5F9),
+                    decoration: BoxDecoration(
+                      color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                    child: Icon(Icons.close_rounded, size: 18, color: _slate),
                   ),
                 ),
               ],
@@ -1136,7 +1145,7 @@ class _AddReportState extends State<AddReport> {
       height: 220,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFFFF3B5C), width: 1.5),
         boxShadow: [
@@ -1208,10 +1217,10 @@ class _AddReportState extends State<AddReport> {
               child: Container(
                 width: 120,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _p.card,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFFCBD5E1),
+                    color: _p.pick(const Color(0xFFCBD5E1), _p.border),
                     width: 1.2,
                   ),
                 ),
@@ -1220,8 +1229,8 @@ class _AddReportState extends State<AddReport> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFECEF),
+                      decoration: BoxDecoration(
+                        color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.add_rounded, size: 24, color: Color(0xFFFF3B5C)),
@@ -1232,7 +1241,7 @@ class _AddReportState extends State<AddReport> {
                       style: GoogleFonts.manrope(
                         fontWeight: FontWeight.w700,
                         fontSize: 12,
-                        color: const Color(0xFF64748B),
+                        color: _slate,
                       ),
                     ),
                   ],
@@ -1249,10 +1258,10 @@ class _AddReportState extends State<AddReport> {
           return Container(
             width: 140,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _p.card,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isPdf ? const Color(0xFFE11D48).withValues(alpha: 0.5) : const Color(0xFFF0F1F5),
+                color: isPdf ? const Color(0xFFE11D48).withValues(alpha: 0.5) : _line,
                 width: 1.2,
               ),
               boxShadow: [
@@ -1273,7 +1282,7 @@ class _AddReportState extends State<AddReport> {
                       child: isPdf
                           ? Container(
                               width: double.infinity,
-                              color: const Color(0xFFFFE4E6).withValues(alpha: 0.5),
+                              color: _p.pick(const Color(0xFFFFE4E6).withValues(alpha: 0.5), const Color(0xFFE11D48).withValues(alpha: 0.12)),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -1314,7 +1323,7 @@ class _AddReportState extends State<AddReport> {
                             style: GoogleFonts.manrope(
                               fontWeight: FontWeight.w700,
                               fontSize: 11,
-                              color: const Color(0xFF1E2024),
+                              color: _ink,
                             ),
                           ),
                           if (fileSize.isNotEmpty) ...[
@@ -1323,7 +1332,7 @@ class _AddReportState extends State<AddReport> {
                               fileSize,
                               style: GoogleFonts.manrope(
                                 fontSize: 10,
-                                color: const Color(0xFF94A3B8),
+                                color: _muted,
                               ),
                             ),
                           ],

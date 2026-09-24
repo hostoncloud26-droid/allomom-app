@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -36,6 +36,13 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
   DateTime? _selectedLmp;
   DateTime? _selectedEdd;
   bool _isSaving = false;
+
+  // Accent colours stay fixed; the page, fields and neutral text follow
+  // light / dark.
+  AppPalette get _p => context.palette;
+  Color get _textStrong => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _labelColor => _p.pick(const Color(0xFF475569), _p.textSecondary);
+  Color get _fieldBorder => _p.pick(const Color(0xFFE2E8F0), _p.border);
 
   @override
   void initState() {
@@ -88,13 +95,20 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       firstDate: DateTime(1960),
       lastDate: DateTime.now().add(const Duration(days: 300)),
       builder: (context, child) {
+        final p = context.palette;
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFFF3B5C),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF1E2024),
-            ),
+            colorScheme: p.isDark
+                ? Theme.of(context).colorScheme.copyWith(
+                    primary: const Color(0xFFFF3B5C),
+                    onPrimary: Colors.white,
+                    onSurface: p.textPrimary,
+                  )
+                : const ColorScheme.light(
+                    primary: Color(0xFFFF3B5C),
+                    onPrimary: Colors.white,
+                    onSurface: Color(0xFF1E2024),
+                  ),
           ),
           child: child!,
         );
@@ -195,22 +209,22 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
     final session = MainController.instance;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _p.pick(const Color(0xFF2D3142), _p.textPrimary), size: 20),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
           'Health Profile',
-          style: GoogleFonts.manrope(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _textStrong,
           ),
         ),
       ),
@@ -245,7 +259,7 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
                       child: Center(
                         child: Text(
                           session.userName.isNotEmpty ? session.userName[0].toUpperCase() : 'A',
-                          style: GoogleFonts.manrope(
+                          style: TextStyle(
                             fontSize: 34,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -272,17 +286,17 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
               Center(
                 child: Text(
                   session.userName,
-                  style: GoogleFonts.manrope(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
+                    color: _textStrong,
                   ),
                 ),
               ),
               Center(
                 child: Text(
                   'Week ${session.currentGestationalWeek} • ${session.currentTrimester}',
-                  style: GoogleFonts.manrope(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFFFF3B5C),
@@ -321,33 +335,35 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
               // Blood Group
               Text(
                 'Blood Group',
-                style: GoogleFonts.manrope(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF475569),
+                  color: _labelColor,
                 ),
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedBloodGroup,
-                hint: const Text('Select Blood Group'),
+                hint: Text('Select Blood Group', style: TextStyle(color: _p.textMuted)),
+                dropdownColor: _p.card,
+                style: TextStyle(color: _p.textPrimary),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.bloodtype_rounded, color: Color(0xFFFF3B5C), size: 20),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: _p.card,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: _fieldBorder),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: BorderSide(color: _fieldBorder),
                   ),
                 ),
                 items: _bloodGroups.map((bg) {
                   return DropdownMenuItem(
                     value: bg,
-                    child: Text(bg, style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+                    child: Text(bg, style: TextStyle(fontWeight: FontWeight.w600, color: _p.textPrimary)),
                   );
                 }).toList(),
                 onChanged: (val) => setState(() => _selectedBloodGroup = val),
@@ -437,7 +453,7 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
                         )
                       : Text(
                           'Save Profile',
-                          style: GoogleFonts.manrope(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
@@ -456,10 +472,10 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: GoogleFonts.manrope(
+      style: TextStyle(
         fontSize: 16,
         fontWeight: FontWeight.w800,
-        color: const Color(0xFF1E2024),
+        color: _textStrong,
       ),
     );
   }
@@ -476,28 +492,29 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       children: [
         Text(
           label,
-          style: GoogleFonts.manrope(
+          style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF475569),
+            color: _labelColor,
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          style: TextStyle(color: _p.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            prefixIcon: Icon(icon, color: const Color(0xFF94A3B8), size: 20),
+            prefixIcon: Icon(icon, color: _p.pick(const Color(0xFF94A3B8), _p.textMuted), size: 20),
             filled: true,
-            fillColor: Colors.white,
+            fillColor: _p.card,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: _fieldBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: _fieldBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
@@ -520,9 +537,9 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: _fieldBorder),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -533,10 +550,10 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
                 const SizedBox(width: 6),
                 Text(
                   label,
-                  style: GoogleFonts.manrope(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
+                    color: _p.pick(const Color(0xFF64748B), _p.textSecondary),
                   ),
                 ),
               ],
@@ -544,10 +561,10 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
             const SizedBox(height: 6),
             Text(
               date != null ? '${date.day}/${date.month}/${date.year}' : 'Not set',
-              style: GoogleFonts.manrope(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
+                color: _textStrong,
               ),
             ),
           ],

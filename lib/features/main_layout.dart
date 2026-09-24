@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/components/bottom_navigation.dart';
+import 'package:allomom/components/custom_app_bar.dart';
 import 'package:allomom/features/home/home_page.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/feeds/feeds_page.dart';
@@ -28,6 +30,10 @@ class _MainLayoutState extends State<MainLayout> {
     const SettingsPage(),
   ];
 
+  /// What the shell's app bar says on each tab: the product name on Home,
+  /// the tab's own name everywhere else.
+  static const _titles = ['Allomom', 'Feeds', 'People', 'Settings'];
+
   Worker? _offlineWatcher;
 
   @override
@@ -54,6 +60,11 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Scaffold(
       extendBody: true,
+      backgroundColor: context.palette.background,
+      // One app bar for the whole shell: the tabs underneath keep their own
+      // scroll views, but the title and her three shortcuts stay put. The tabs
+      // do not repeat the title themselves.
+      appBar: CustomAppBar(title: _titles[_currentIndex]),
       body: _pages[_currentIndex],
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,

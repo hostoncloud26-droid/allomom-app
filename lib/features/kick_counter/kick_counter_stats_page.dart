@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
@@ -64,7 +65,7 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFAF6F7),
+          backgroundColor: context.palette.pick(const Color(0xFFFAF6F7), context.palette.scaffoldSoft),
           body: SafeArea(
             child: Column(
               children: [
@@ -75,20 +76,20 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
-                          color: Color(0xFF1E2024),
+                          color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                           size: 24,
                         ),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Center(
                           child: Text(
                             'Kick Counter',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF1E2024),
+                              color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                             ),
                           ),
                         ),
@@ -105,7 +106,7 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFFFFEBF0),
+                          backgroundColor: context.palette.tint(const Color(0xFFFF4E6A), const Color(0xFFFFEBF0)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         ),
@@ -138,11 +139,11 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: context.palette.card,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
+                            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
                             blurRadius: 14,
                             offset: const Offset(0, 4),
                           ),
@@ -153,8 +154,8 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                           Container(
                             width: 50,
                             height: 50,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFE4E6),
+                            decoration: BoxDecoration(
+                              color: context.palette.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E6)),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -173,20 +174,20 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                                 children: [
                                   Text(
                                     '$totalMovements',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF1E2024),
+                                      color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                                       height: 1.0,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
-                                  const Text(
+                                  Text(
                                     'movements',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1E2024),
+                                      color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                                     ),
                                   ),
                                 ],
@@ -194,17 +195,17 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                               const SizedBox(height: 2),
                               Text(
                                 periodLabel,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF8C93A3),
+                                  color: context.palette.pick(const Color(0xFF8C93A3), context.palette.textMuted),
                                 ),
                               ),
                             ],
                           ),
                           const Spacer(),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right_rounded,
-                            color: Color(0xFF8C93A3),
+                            color: context.palette.pick(const Color(0xFF8C93A3), context.palette.textMuted),
                             size: 24,
                           ),
                         ],
@@ -222,11 +223,11 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                     height: 44,
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.palette.card,
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
+                          color: context.palette.pick(Colors.black.withValues(alpha: 0.02), context.palette.shadow),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -256,11 +257,11 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.palette.card,
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
                               blurRadius: 14,
                               offset: const Offset(0, 4),
                             ),
@@ -272,9 +273,9 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                             Text(
                               dateSubheader,
                               textAlign: TextAlign.right,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF8C93A3),
+                                color: context.palette.pick(const Color(0xFF8C93A3), context.palette.textMuted),
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
@@ -310,7 +311,7 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0F4),
+                          color: context.palette.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F4)),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -328,10 +329,10 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
                                 totalMovements > 0
                                     ? "Your baby's movements are\nwithin your usual range."
                                     : "No movements counted $periodLabel.\nTap Log when you feel a kick.",
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E2024),
+                                  color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                                   height: 1.35,
                                 ),
                               ),
@@ -407,7 +408,7 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFFFE4E6) : Colors.transparent,
+            color: isSelected ? context.palette.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E6)) : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
@@ -416,7 +417,7 @@ class _KickCounterStatsPageState extends State<KickCounterStatsPage> {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF6B7280),
+                color: isSelected ? const Color(0xFFFF4E6A) : context.palette.pick(const Color(0xFF6B7280), context.palette.textSecondary),
               ),
             ),
           ),

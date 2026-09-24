@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_cycle_prediction_page.dart';
 import 'package:allomom/features/auth/register_flow/register_edd_due_date_page.dart';
@@ -38,6 +39,8 @@ class RegisterLmpTimelinePage extends StatefulWidget {
 }
 
 class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
+  AppPalette get _p => context.palette;
+
   late DateTime _selectedDate;
 
   /// True only for a mother who is currently pregnant. 'Pre Pregnancy' also
@@ -147,7 +150,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -173,20 +176,20 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -198,7 +201,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -229,14 +232,14 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                       20,
                       18 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -255,7 +258,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                               style: GoogleFonts.poppins(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
-                                color: const Color(0xFF8E95A5),
+                                color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                                 letterSpacing: 0.8,
                               ),
                             ),
@@ -305,7 +308,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0F3),
+                            color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: const Color(0xFFFF4E6A),
@@ -335,7 +338,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                   style: GoogleFonts.poppins(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1E2024),
+                                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                   ),
                                 ),
                               ),
@@ -369,9 +372,9 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                             vertical: 10,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFFAF6F7),
+                            color: _p.pick(const Color(0xFFFAF6F7), _p.surface),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFFF0E5E7)),
+                            border: Border.all(color: _p.pick(const Color(0xFFF0E5E7), _p.border)),
                           ),
                           child: Column(
                             children: [
@@ -386,7 +389,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                       style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF8E95A5),
+                                        color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                                         letterSpacing: 1.0,
                                       ),
                                     ),
@@ -399,7 +402,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                       style: GoogleFonts.poppins(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF8E95A5),
+                                        color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                                         letterSpacing: 1.0,
                                       ),
                                     ),
@@ -422,7 +425,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                           horizontal: 4,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: const Color(0xFFFFF0F3),
+                                          color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
                                           borderRadius: BorderRadius.circular(
                                             14,
                                           ),
@@ -496,7 +499,7 @@ class _RegisterLmpTimelinePageState extends State<RegisterLmpTimelinePage> {
                                         Container(
                                           width: 1,
                                           height: 90,
-                                          color: const Color(0xFFEFE8E9),
+                                          color: _p.pick(const Color(0xFFEFE8E9), _p.divider),
                                         ),
 
                                         // ─── MONTH WHEEL ───

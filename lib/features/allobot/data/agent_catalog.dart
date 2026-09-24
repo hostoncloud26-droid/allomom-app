@@ -14,17 +14,21 @@ import 'package:allomom/features/allobot/pages/daily_activity_page.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
-import 'package:allomom/features/my_health/details/blood_glucose_detail_page.dart';
-import 'package:allomom/features/my_health/details/blood_oxygen_detail_page.dart';
-import 'package:allomom/features/my_health/details/blood_pressure_detail_page.dart';
-import 'package:allomom/features/my_health/details/bmi_tracker_detail_page.dart';
-import 'package:allomom/features/my_health/details/heart_rate_detail_page.dart';
-import 'package:allomom/features/my_health/details/hemoglobin_detail_page.dart';
-import 'package:allomom/features/my_health/details/hrv_detail_page.dart';
-import 'package:allomom/features/my_health/details/sleep_detail_page.dart';
-import 'package:allomom/features/my_health/details/steps_detail_page.dart';
-import 'package:allomom/features/my_health/details/stress_detail_page.dart';
-import 'package:allomom/features/overview_section/nutrition/nutrition_detail_page.dart';
+import 'package:allomom/features/my_health/vitals/blood_glucose/blood_glucose_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/blood_pressure/blood_pressure_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/body_composition/body_composition_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/heart_rate/heart_rate_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/hemoglobin/hemoglobin_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/hrv/hrv_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/sleep/sleep_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/steps/steps_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/stress/stress_summary_screen.dart';
+import 'package:allomom/features/my_health/vitals/drinks/drinks_overview_screen.dart';
+import 'package:allomom/features/my_health/vitals/meals/meal_kind.dart';
+import 'package:allomom/features/my_health/vitals/meals/meal_overview_screen.dart';
+import 'package:allomom/features/my_health/vitals/meals/snacks_overview_screen.dart';
+import 'package:allomom/features/my_health/vitals/water/water_overview_screen.dart';
 
 /// The bands the grid is split into, in the order they are shown.
 enum AgentGroup {
@@ -413,27 +417,27 @@ abstract final class AgentCatalog {
   static Widget _kickCounter(BuildContext _) => const KickCounterPage();
   static Widget _feedingTracker(BuildContext _) => const FeedingTrackerPage();
   static Widget _dailyActivity(BuildContext _) => const DailyActivityPage();
-  static Widget _steps(BuildContext _) => const StepsDetailPage();
-  static Widget _heartRate(BuildContext _) => const HeartRateDetailPage();
-  static Widget _hrv(BuildContext _) => const HrvDetailPage();
-  static Widget _bloodOxygen(BuildContext _) => const BloodOxygenDetailPage();
-  static Widget _stress(BuildContext _) => const StressDetailPage();
-  static Widget _sleep(BuildContext _) => const SleepDetailPage();
+  static Widget _steps(BuildContext _) => const StepsSummaryScreen();
+  static Widget _heartRate(BuildContext _) => const HeartRateSummaryScreen();
+  static Widget _hrv(BuildContext _) => const HrvSummaryScreen();
+  static Widget _bloodOxygen(BuildContext _) => const BloodOxygenSummaryScreen();
+  static Widget _stress(BuildContext _) => const StressSummaryScreen();
+  static Widget _sleep(BuildContext _) => const SleepSummaryScreen();
   static Widget _bloodPressure(BuildContext _) =>
-      const BloodPressureDetailPage();
-  static Widget _hemoglobin(BuildContext _) => const HemoglobinDetailPage();
-  static Widget _bloodGlucose(BuildContext _) => const BloodGlucoseDetailPage();
-  static Widget _weight(BuildContext _) => const BmiTrackerDetailPage();
+      const BloodPressureSummaryScreen();
+  static Widget _hemoglobin(BuildContext _) => const HemoglobinSummaryScreen();
+  static Widget _bloodGlucose(BuildContext _) => const BloodGlucoseSummaryScreen();
+  static Widget _weight(BuildContext _) => const BodyCompositionSummaryScreen();
   static Widget _water(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.water);
+      const WaterOverviewScreen();
   static Widget _breakfast(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.breakfast);
+      const MealOverviewScreen(meal: MealKind.breakfast);
   static Widget _lunch(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.lunch);
+      const MealOverviewScreen(meal: MealKind.lunch);
   static Widget _dinner(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.dinner);
+      const MealOverviewScreen(meal: MealKind.dinner);
   static Widget _snacks(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.snacks);
+      const SnacksOverviewScreen();
   static Widget _drinks(BuildContext _) =>
-      const NutritionDetailPage(metric: NutritionMetric.drinks);
+      const DrinksOverviewScreen();
 }

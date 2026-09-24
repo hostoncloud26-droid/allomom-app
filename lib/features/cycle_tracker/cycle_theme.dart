@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/services/cycle_predictor.dart';
 
 /// Colours shared by the cycle card, the tracker screen and the setup sheet,
@@ -37,6 +38,22 @@ class CycleColors {
     CyclePhase.luteal => lutealSoft,
     CyclePhase.late => overdueSoft,
   };
+
+  // Theme-aware versions of the neutrals and washes above: identical to the
+  // constants in light mode, palette colours in dark mode.
+  static Color inkOn(BuildContext context) =>
+      context.palette.pick(ink, context.palette.textPrimary);
+  static Color mutedOn(BuildContext context) =>
+      context.palette.pick(muted, context.palette.textSecondary);
+  static Color hairlineOn(BuildContext context) =>
+      context.palette.pick(hairline, context.palette.divider);
+
+  /// [soft] in light mode, a low-alpha wash of [color] in dark mode.
+  static Color softOn(BuildContext context, Color color, Color soft) =>
+      context.palette.tint(color, soft);
+
+  static Color phaseSoftOn(BuildContext context, CyclePhase phase) =>
+      context.palette.tint(of(phase), softOf(phase));
 
   static IconData iconOf(CyclePhase phase) => switch (phase) {
     CyclePhase.menstrual => Icons.water_drop_rounded,

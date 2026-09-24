@@ -17,15 +17,16 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
 import 'package:allomom/config/colors.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/omnivoice_service.dart';
 import 'package:allomom/services/online_tts_settings.dart';
 
-const Color _ink = Color(0xFF1E2024);
-const Color _muted = Color(0xFF8E95A5);
-const Color _cardBorder = Color(0xFFF2E4E7);
+const Color _inkLight = Color(0xFF1E2024);
+const Color _mutedLight = Color(0xFF8E95A5);
+const Color _cardBorderLight = Color(0xFFF2E4E7);
 
 /// What a language code is called, for codes the server ships without a name.
 const Map<String, String> _languageNames = {
@@ -49,6 +50,12 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
   final OfflineChatbotController chatbot = OfflineChatbotController.instance;
   final AlloBotSpeechController speech = AlloBotSpeechController.instance;
   final OnlineTtsSettings onlineVoice = OnlineTtsSettings.instance;
+
+  // Surfaces and neutral text follow light / dark mode.
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(_inkLight, _p.textPrimary);
+  Color get _muted => _p.pick(_mutedLight, _p.textMuted);
+  Color get _cardBorder => _p.pick(_cardBorderLight, _p.border);
 
   final TextEditingController _baseUrlField = TextEditingController();
   final FocusNode _baseUrlFocus = FocusNode();
@@ -137,7 +144,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFFAF6F7),
+      color: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
         children: [
@@ -280,11 +287,11 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
       title = 'Training Speech';
       subtitle = 'Downloading Whisper Base model… $percent%';
       borderColor = primaryColor;
-      bgColor = accentLight;
+      bgColor = _p.accentSoft;
       titleColor = primaryColor;
       iconData = Icons.graphic_eq_rounded;
       iconColor = primaryColor;
-      iconBgColor = Colors.white;
+      iconBgColor = _p.card;
       trailingWidget = Text(
         '$percent%',
         style: GoogleFonts.poppins(
@@ -298,11 +305,11 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
       title = 'Speech Ready';
       subtitle = 'Whisper Base (145 MB) is active on this phone';
       borderColor = const Color(0xFF10B981);
-      bgColor = const Color(0xFFF0FDF4);
-      titleColor = const Color(0xFF065F46);
+      bgColor = _p.tint(const Color(0xFF10B981), const Color(0xFFF0FDF4));
+      titleColor = _p.pick(const Color(0xFF065F46), const Color(0xFF6EE7B7));
       iconData = Icons.check_circle_rounded;
       iconColor = const Color(0xFF10B981);
-      iconBgColor = const Color(0xFFD1FAE5);
+      iconBgColor = _p.tint(const Color(0xFF10B981), const Color(0xFFD1FAE5));
       trailingWidget = const Icon(
         Icons.check_circle_rounded,
         size: 22,
@@ -316,12 +323,14 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
           : 'Tap to download Whisper Base (145 MB)';
       borderColor = error.isNotEmpty
           ? dangerRed.withValues(alpha: 0.5)
-          : dividerColor;
-      bgColor = error.isNotEmpty ? const Color(0xFFFEF2F2) : Colors.white;
+          : _p.divider;
+      bgColor = error.isNotEmpty
+          ? _p.tint(dangerRed, const Color(0xFFFEF2F2))
+          : _p.card;
       titleColor = error.isNotEmpty ? dangerRed : _ink;
       iconData = Icons.mic_off_rounded;
       iconColor = error.isNotEmpty ? dangerRed : _muted;
-      iconBgColor = const Color(0xFFF3F4F6);
+      iconBgColor = _p.pick(const Color(0xFFF3F4F6), _p.surface);
       trailingWidget = Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
@@ -424,7 +433,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
                   child: LinearProgressIndicator(
                     value: progress <= 0 ? null : progress,
                     minHeight: 6,
-                    backgroundColor: Colors.white,
+                    backgroundColor: _p.card,
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       primaryColor,
                     ),
@@ -490,18 +499,20 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 filled: true,
-                fillColor: enabled ? Colors.white : const Color(0xFFF7F7F9),
+                fillColor: enabled
+                    ? _p.card
+                    : _p.pick(const Color(0xFFF7F7F9), _p.surface),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: dividerColor),
+                  borderSide: BorderSide(color: _p.divider),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: dividerColor),
+                  borderSide: BorderSide(color: _p.divider),
                 ),
                 disabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
-                  borderSide: const BorderSide(color: dividerColor),
+                  borderSide: BorderSide(color: _p.divider),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -581,10 +592,10 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
       decoration: BoxDecoration(
-        color: value ? accentLight : Colors.white,
+        color: value ? _p.accentSoft : _p.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: value ? primaryColor : dividerColor,
+          color: value ? primaryColor : _p.divider,
           width: value ? 1.4 : 1,
         ),
       ),
@@ -726,12 +737,12 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _cardBorder),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -746,7 +757,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: accentLight,
+                  color: _p.accentSoft,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 18, color: primaryColor),
@@ -802,10 +813,10 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
-              color: selected ? accentLight : Colors.white,
+              color: selected ? _p.accentSoft : _p.card,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: selected ? primaryColor : dividerColor,
+                color: selected ? primaryColor : _p.divider,
                 width: selected ? 1.4 : 1,
               ),
             ),
@@ -839,7 +850,9 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
                       ? Icons.check_circle_rounded
                       : Icons.circle_outlined,
                   size: 20,
-                  color: selected ? primaryColor : const Color(0xFFCFD3DC),
+                  color: selected
+                      ? primaryColor
+                      : _p.pick(const Color(0xFFCFD3DC), _p.textMuted),
                 ),
               ],
             ),

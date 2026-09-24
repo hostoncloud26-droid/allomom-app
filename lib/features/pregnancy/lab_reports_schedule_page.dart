@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+
+import 'package:allomom/config/app_theme.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
@@ -25,11 +25,6 @@ class LabReportsSchedulePage extends StatefulWidget {
 }
 
 class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
-  static final _dateFmt = DateFormat('dd MMM yyyy');
-
-  /// 0: All, 1: Pending, 2: Done
-  int _filter = 0;
-
   bool _isLoading = true;
   String? _pregnancyId;
   List<PregnancyReportChecklist> _reports = const [];
@@ -61,10 +56,20 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
               pregnancy.id,
             );
 
+      final sorted = [...reports]
+        ..sort((a, b) {
+          final da = a.scheduledDateRangeFrom ?? a.dueDate;
+          final db = b.scheduledDateRangeFrom ?? b.dueDate;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return da.compareTo(db);
+        });
+
       if (!mounted) return;
       setState(() {
         _pregnancyId = pregnancy?.id;
-        _reports = reports;
+        _reports = sorted;
         _isLoading = false;
       });
     } catch (e) {
@@ -89,63 +94,56 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     }
   }
 
-  /// Opens the report uploader pre-tagged with this checklist entry, which
-  /// closes the entry out once the file is saved.
-  Future<void> _uploadResult(PregnancyReportChecklist report) async {
+  /// Opens the report uploader pre-tagged with this test. When the test has a
+  /// checklist row, saving the file also ticks that row off.
+  Future<void> _uploadResult(_Entry entry) async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) =>
-            AddReport(checklistId: report.id, checklistName: report.reportName),
+        builder: (_) => AddReport(
+          checklistId: entry.row?.id,
+          checklistName: entry.plan.name,
+        ),
       ),
     );
     if (added == true) await _load();
   }
 
-  List<PregnancyReportChecklist> get _filtered => switch (_filter) {
-    1 => _reports.where((r) => r.status != 'done').toList(),
-    2 => _reports.where((r) => r.status == 'done').toList(),
-    _ => _reports,
-  };
-
-  int get _doneCount => _reports.where((r) => r.status == 'done').length;
-
-  /// Filtered rows bucketed by pregnancy month, months in order.
-  Map<int, List<PregnancyReportChecklist>> get _byMonth {
-    final grouped = <int, List<PregnancyReportChecklist>>{};
-    for (final report in _filtered) {
-      grouped.putIfAbsent(report.pregnancyMonth ?? 0, () => []).add(report);
-    }
-    return Map.fromEntries(
-      grouped.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     final week = MainController.instance.currentGestationalWeek;
-    final grouped = _byMonth;
+
+    final p = context.palette;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E2024),
+            color: Color(0xFFFF3B5C),
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'About reports',
+            icon: Icon(Icons.info_outline_rounded, color: p.textPrimary),
+            onPressed: _showInfo,
+          ),
+          const SizedBox(width: 4),
+        ],
         title: Text(
-          'Lab Tests & Scans',
-          style: GoogleFonts.outfit(
+          'Reports & Scans',
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
           ),
         ),
       ),
@@ -172,14 +170,14 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                       narrationKey: _narrationKey,
                       bindNarrationText: false,
                       speechText:
-                          "Am $week weeks, Amma! 🧪\nLet's keep our tests on track.",
-                      bubblePosition: SpeechBubblePosition.topCenter,
-                      height: 270,
+                          "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.left,
+                      height: 230,
                       greetingText: '',
                     ),
                     const SizedBox(height: 16),
 
-                    if (_pregnancyId == null || _reports.isEmpty)
+                    if (_pregnancyId == null)
                       CareScheduleEmpty(
                         icon: Icons.science_rounded,
                         title: 'No lab tests scheduled',
@@ -189,44 +187,18 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                         onRegistered: _load,
                       )
                     else ...[
-                      CareProgressHeader(
-                        done: _doneCount,
-                        total: _reports.length,
-                        label: 'Antenatal investigations',
-                      ),
+                      for (final month in _months)
+                        ..._monthGroup(month, p),
                       const SizedBox(height: 14),
-                      CareFilterTabs(
-                        labels: [
-                          'All (${_reports.length})',
-                          'Pending (${_reports.length - _doneCount})',
-                          'Done ($_doneCount)',
-                        ],
-                        selected: _filter,
-                        onSelected: (i) => setState(() => _filter = i),
+                      CareFooterNote(
+                        icon: Icons.description_outlined,
+                        title: 'Upload any report (image or PDF).',
+                        subtitle: "We'll identify and organize it for you.",
+                        accent: const Color(0xFF7C5CFC),
+                        lightBackground: const Color(0xFFF3EFFF),
+                        onTap: _uploadAny,
                       ),
-                      const SizedBox(height: 16),
-                      if (grouped.isEmpty)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 28),
-                          child: Text(
-                            'Nothing here yet.',
-                            textAlign: TextAlign.center,
-                            style: GoogleFonts.poppins(
-                              fontSize: 13,
-                              color: const Color(0xFF6B7280),
-                            ),
-                          ),
-                        )
-                      else
-                        for (final entry in grouped.entries) ...[
-                          _buildMonthHeader(entry.key, entry.value),
-                          const SizedBox(height: 10),
-                          for (final report in entry.value) ...[
-                            _buildReportCard(report),
-                            const SizedBox(height: 10),
-                          ],
-                          const SizedBox(height: 8),
-                        ],
+                      const SizedBox(height: 24),
                     ],
                   ],
                 ),
@@ -235,221 +207,232 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     );
   }
 
-  Widget _buildMonthHeader(int month, List<PregnancyReportChecklist> reports) {
-    final due = reports.first.dueDate;
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: const Color(0xFFEDF6FF),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            month == 0 ? 'Unscheduled' : monthLabel(month),
-            style: GoogleFonts.poppins(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: const Color(0xFF3898EC),
-            ),
-          ),
+  /// The tests in the order of the clinical plan, each with the checklist row
+  /// that tracks it, if one was synced.
+  ///
+  /// The list on screen is the plan itself, so it always shows every test due
+  /// that month under the name the plan gives it. The rows only say whether a
+  /// result has been uploaded.
+  List<_Entry> get _entries {
+    final unused = [..._reports];
+    PregnancyReportChecklist? take(bool Function(PregnancyReportChecklist) f) {
+      for (final r in unused) {
+        if (f(r)) {
+          unused.remove(r);
+          return r;
+        }
+      }
+      return null;
+    }
+
+    return [
+      for (final plan in reportSchedule)
+        _Entry(
+          plan,
+          // The same name first; failing that, the same test without its
+          // "3rd Month" prefix in the same month.
+          take((r) => _norm(r.reportName) == _norm(plan.name)) ??
+              take(
+                (r) =>
+                    _norm(_stripMonth(r.reportName)) ==
+                        _norm(_stripMonth(plan.name)) &&
+                    _rowMonth(r) == plan.month,
+              ),
         ),
-        const SizedBox(width: 8),
-        if (due != null)
-          Text(
-            _dateFmt.format(due),
-            style: GoogleFonts.poppins(
-              fontSize: 11.5,
-              color: const Color(0xFF6B7280),
-            ),
-          ),
-        const Spacer(),
-        Text(
-          '${reports.length} test${reports.length == 1 ? '' : 's'}',
-          style: GoogleFonts.poppins(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF9CA3AF),
-          ),
-        ),
-      ],
-    );
+    ];
   }
 
-  Widget _buildReportCard(PregnancyReportChecklist report) {
-    final status = CareStatus.resolve(
-      status: report.status,
-      date: report.dueDate,
-    );
+  static final _monthPrefix = RegExp(
+    r'^(\d{1,2})(?:st|nd|rd|th)\s+Month\s+',
+    caseSensitive: false,
+  );
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: status.needsAttention ? status.color : const Color(0xFFF0F1F5),
-          width: status.needsAttention ? 1.6 : 1.2,
-        ),
+  static String _norm(String s) => s.trim().toLowerCase();
+
+  static String _stripMonth(String s) =>
+      s.trim().replaceFirst(_monthPrefix, '');
+
+  static int? _rowMonth(PregnancyReportChecklist r) {
+    final m = _monthPrefix.firstMatch(r.reportName.trim());
+    return m != null ? int.parse(m.group(1)!) : r.pregnancyMonth;
+  }
+
+  List<int> get _months =>
+      reportSchedule.map((r) => r.month).toSet().toList()..sort();
+
+  List<Widget> _monthGroup(int month, AppPalette p) {
+    final entries = _entries.where((e) => e.plan.month == month).toList();
+    if (entries.isEmpty) return const [];
+    return [
+      CareSectionLabel(
+        monthLabel(month),
+        color: p.pick(const Color(0xFF2F6FE4), const Color(0xFF6EA2FF)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      for (final e in entries) ...[
+        _reportCard(e, p),
+        const SizedBox(height: 10),
+      ],
+    ];
+  }
+
+  Widget _reportCard(_Entry e, AppPalette p) {
+    final row = e.row;
+    final done = row?.isDone ?? false;
+    return CareCard(
+      onTap: () => done ? _openDetails(e) : _uploadResult(e),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: status.background,
-                  borderRadius: BorderRadius.circular(12),
+          CareMarkerIcon(
+            marker: done ? CareMarker.done : CareMarker.later,
+            size: 28,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  e.plan.name,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: p.textPrimary,
+                  ),
                 ),
-                child: Icon(
-                  _iconForCategory(report.category),
-                  size: 16,
-                  color: status.color,
+                const SizedBox(height: 2),
+                Text(
+                  e.plan.purpose,
+                  style: TextStyle(fontSize: 12, color: p.textSecondary),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+                const SizedBox(height: 4),
+                if (done)
+                  Text.rich(
+                    TextSpan(
                       children: [
-                        Flexible(
-                          child: Text(
-                            report.reportName,
-                            style: GoogleFonts.outfit(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
-                              height: 1.25,
-                            ),
+                        const TextSpan(
+                          text: 'Uploaded',
+                          style: TextStyle(
+                            color: Color(0xFF10B981),
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (!report.isRequired) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Optional',
-                              style: GoogleFonts.poppins(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF64748B),
-                              ),
-                            ),
+                        if (row!.completedDate != null)
+                          TextSpan(
+                            text: '  ${careDateFmt.format(row.completedDate!)}',
+                            style: TextStyle(color: p.textMuted),
                           ),
-                        ],
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              CareStatusChip(status: status),
-            ],
-          ),
-
-          if (report.completedDate != null) ...[
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                const Icon(
-                  Icons.check_circle_outline_rounded,
-                  size: 14,
-                  color: Color(0xFF10B981),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Done ${_dateFmt.format(report.completedDate!)}',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF10B981),
+                    style: const TextStyle(fontSize: 12),
+                  )
+                else
+                  Text(
+                    e.plan.isRequired
+                        ? 'Not uploaded · Required'
+                        : 'Not uploaded · Optional',
+                    style: TextStyle(fontSize: 12, color: p.textMuted),
                   ),
-                ),
               ],
             ),
-          ],
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: OutlinedButton(
-                    onPressed: () => _toggleDone(report),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: status.isDone
-                          ? const Color(0xFF6B7280)
-                          : const Color(0xFF10B981),
-                      side: BorderSide(
-                        color: status.isDone
-                            ? const Color(0xFFE5E7EB)
-                            : const Color(0xFF10B981),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      status.isDone ? 'Undo' : 'Mark done',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SizedBox(
-                  height: 38,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _uploadResult(report),
-                    icon: const Icon(Icons.upload_file_rounded, size: 15),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3898EC),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: EdgeInsets.zero,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    label: Text(
-                      'Add result',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          ),
+          const SizedBox(width: 10),
+          CareOutlineButton(
+            label: done ? 'View' : 'Upload',
+            radius: 8,
+            onTap: () => done ? _openDetails(e) : _uploadResult(e),
           ),
         ],
       ),
     );
   }
 
-  static IconData _iconForCategory(String? category) => switch (category) {
-    'blood' => Icons.bloodtype_outlined,
-    'urine' => Icons.science_outlined,
-    'screening' => Icons.health_and_safety_outlined,
-    'monitoring' => Icons.monitor_heart_outlined,
-    _ => Icons.description_outlined,
+  void _openDetails(_Entry e) {
+    final row = e.row!;
+    final status = CareStatus.resolve(status: row.status, date: row.dueDate);
+    showCareDetailSheet(
+      context,
+      eyebrow: [
+        ?_categoryLabel(e.plan.category),
+        e.plan.isRequired ? 'Required' : 'Optional',
+      ].join(' · '),
+      title: e.plan.name,
+      status: status,
+      statusLabel: status.isDone ? 'Uploaded' : null,
+      facts: [
+        (Icons.info_outline_rounded, e.plan.purpose),
+        (Icons.calendar_view_month_rounded, monthLabel(e.plan.month)),
+        if (row.dueDate != null)
+          (Icons.event_rounded, 'Due ${careDateFmt.format(row.dueDate!)}'),
+        if (row.completedDate != null)
+          (
+            Icons.cloud_done_rounded,
+            'Uploaded ${careDateFmt.format(row.completedDate!)}',
+          ),
+      ],
+      primaryLabel: 'Upload again',
+      primaryIcon: Icons.upload_file_rounded,
+      onPrimary: () => _uploadResult(e),
+      secondaryLabel: 'Mark as not uploaded',
+      secondaryIcon: Icons.undo_rounded,
+      onSecondary: () => _toggleDone(row),
+    );
+  }
+
+  /// A report that is not on the checklist — filed with her other reports.
+  Future<void> _uploadAny() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => const AddReport()),
+    );
+    if (added == true) await _load();
+  }
+
+  void _showInfo() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.palette.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Reports & scans',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'Every test and scan for your pregnancy, month by month. Upload the '
+          'result when you get it and the test is ticked off.',
+          style: TextStyle(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFFFF3B5C),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// The stored category as something readable — the table shows it under the
+  /// test name, where the card used to show it as an icon.
+  static String? _categoryLabel(String? category) => switch (category) {
+    'blood' => 'Blood test',
+    'urine' => 'Urine test',
+    'screening' => 'Screening',
+    'monitoring' => 'Monitoring',
+    _ => null,
   };
+}
+
+/// One test from the plan, with the checklist row tracking it if there is one.
+class _Entry {
+  const _Entry(this.plan, this.row);
+
+  final ScheduledReport plan;
+  final PregnancyReportChecklist? row;
 }

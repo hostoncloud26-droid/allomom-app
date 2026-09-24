@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/features/auth/register_flow/family_details_page.dart';
@@ -42,6 +43,8 @@ class RegisterPartnerDetailsPage extends StatefulWidget {
 
 class _RegisterPartnerDetailsPageState
     extends State<RegisterPartnerDetailsPage> {
+  AppPalette get _p => context.palette;
+
   final TextEditingController _partnerNameController = TextEditingController();
   final TextEditingController _partnerPhoneController = TextEditingController();
   final String _countryCode = '+91';
@@ -109,8 +112,8 @@ class _RegisterPartnerDetailsPageState
       builder: (ctx) {
         return Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: _p.card,
             borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
           ),
           child: Column(
@@ -120,8 +123,8 @@ class _RegisterPartnerDetailsPageState
               Container(
                 width: 60,
                 height: 60,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFCE7F0),
+                decoration: BoxDecoration(
+                  color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFCE7F0)),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -137,7 +140,7 @@ class _RegisterPartnerDetailsPageState
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
               ),
               const SizedBox(height: 10),
@@ -146,7 +149,7 @@ class _RegisterPartnerDetailsPageState
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 13.5,
-                  color: const Color(0xFF6B7280),
+                  color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                   height: 1.5,
                 ),
               ),
@@ -221,7 +224,7 @@ class _RegisterPartnerDetailsPageState
                     style: GoogleFonts.poppins(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF6B7280),
+                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                     ),
                   ),
                 ),
@@ -390,7 +393,7 @@ class _RegisterPartnerDetailsPageState
             style: GoogleFonts.poppins(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF8E95A5),
+              color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
               letterSpacing: 0.8,
             ),
           ),
@@ -425,15 +428,15 @@ class _RegisterPartnerDetailsPageState
       Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF5F8),
+          color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF5F8)),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFFCD9E3), width: 1.2),
+          border: Border.all(color: _p.pick(const Color(0xFFFCD9E3), _p.accentBorder), width: 1.2),
         ),
         child: Row(
           children: [
             CircleAvatar(
               radius: 26,
-              backgroundColor: const Color(0xFFFCE7F0),
+              backgroundColor: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFCE7F0)),
               backgroundImage: photo == null || photo.isEmpty
                   ? null
                   : NetworkImage(photo),
@@ -463,7 +466,7 @@ class _RegisterPartnerDetailsPageState
                     style: GoogleFonts.outfit(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -479,7 +482,7 @@ class _RegisterPartnerDetailsPageState
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF6B7280),
+                            color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                           ),
                         ),
                       ),
@@ -489,10 +492,10 @@ class _RegisterPartnerDetailsPageState
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.phone_rounded,
                           size: 13,
-                          color: Color(0xFF9CA3AF),
+                          color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                         ),
                         const SizedBox(width: 5),
                         Text(
@@ -500,7 +503,7 @@ class _RegisterPartnerDetailsPageState
                           style: GoogleFonts.poppins(
                             fontSize: 12.5,
                             fontWeight: FontWeight.w500,
-                            color: const Color(0xFF6B7280),
+                            color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                           ),
                         ),
                       ],
@@ -570,7 +573,7 @@ class _RegisterPartnerDetailsPageState
         style: GoogleFonts.poppins(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF8E95A5),
+          color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
           letterSpacing: 0.8,
         ),
       ),
@@ -580,9 +583,9 @@ class _RegisterPartnerDetailsPageState
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+          border: Border.all(color: _p.border, width: 1.5),
         ),
         child: Row(
           children: [
@@ -598,12 +601,12 @@ class _RegisterPartnerDetailsPageState
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
                 decoration: InputDecoration(
                   hintText: nameHint,
                   hintStyle: GoogleFonts.poppins(
-                    color: const Color(0xFF9CA3AF),
+                    color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                     fontSize: 14.5,
                   ),
                   border: InputBorder.none,
@@ -622,7 +625,7 @@ class _RegisterPartnerDetailsPageState
         style: GoogleFonts.poppins(
           fontSize: 11,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF8E95A5),
+          color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
           letterSpacing: 0.8,
         ),
       ),
@@ -632,9 +635,9 @@ class _RegisterPartnerDetailsPageState
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE5E7EB), width: 1.5),
+          border: Border.all(color: _p.border, width: 1.5),
         ),
         child: Row(
           children: [
@@ -643,11 +646,11 @@ class _RegisterPartnerDetailsPageState
               style: GoogleFonts.poppins(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E2024),
+                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
             ),
             const SizedBox(width: 8),
-            Container(width: 1, height: 24, color: const Color(0xFFE5E7EB)),
+            Container(width: 1, height: 24, color: _p.border),
             const SizedBox(width: 10),
             Expanded(
               child: TextField(
@@ -656,12 +659,12 @@ class _RegisterPartnerDetailsPageState
                 style: GoogleFonts.poppins(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
                 decoration: InputDecoration(
                   hintText: '9876543210',
                   hintStyle: GoogleFonts.poppins(
-                    color: const Color(0xFF9CA3AF),
+                    color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                     fontSize: 14.5,
                   ),
                   border: InputBorder.none,
@@ -692,7 +695,7 @@ class _RegisterPartnerDetailsPageState
                     ? _cancelEdit
                     : _goToFamilyDetails,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+                  side: BorderSide(color: _p.border, width: 1.5),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -702,7 +705,7 @@ class _RegisterPartnerDetailsPageState
                   style: GoogleFonts.poppins(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF6B7280),
+                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                   ),
                 ),
               ),
@@ -718,7 +721,7 @@ class _RegisterPartnerDetailsPageState
                 onPressed: _isSaving ? null : _onNext,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF5277),
-                  disabledBackgroundColor: const Color(0xFFFFA8BC),
+                  disabledBackgroundColor: _p.pick(const Color(0xFFFFA8BC), const Color(0xFF7A3A48)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(22),
                   ),
@@ -764,7 +767,7 @@ class _RegisterPartnerDetailsPageState
         : 'PARTNER MOBILE NUMBER';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -794,20 +797,20 @@ class _RegisterPartnerDetailsPageState
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: _p.card,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: _p.pick(Colors.black12, _p.shadow),
                                     blurRadius: 8,
                                     offset: Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.chevron_left_rounded,
-                                color: Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 size: 24,
                               ),
                             ),
@@ -819,7 +822,7 @@ class _RegisterPartnerDetailsPageState
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               ),
                             ),
                           ),
@@ -849,14 +852,14 @@ class _RegisterPartnerDetailsPageState
                         24,
                         24 + MediaQuery.paddingOf(context).bottom,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _p.card,
                         borderRadius: BorderRadius.vertical(
                           top: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black12,
+                            color: _p.pick(Colors.black12, _p.shadow),
                             blurRadius: 20,
                             offset: Offset(0, -4),
                           ),

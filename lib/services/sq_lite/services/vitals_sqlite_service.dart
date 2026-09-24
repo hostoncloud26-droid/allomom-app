@@ -291,8 +291,22 @@ class VitalsSqLiteService {
 
   /// Soft delete, so the removal reaches the server. A hard delete would be
   /// re-pulled on the next sync.
+  ///
+  /// A row the server has never seen — logged and undone before a sync ran —
+  /// has nothing to delete upstream, so it is removed outright rather than
+  /// queued as a deletion of an id the server does not know.
   Future<void> deleteVital(String id) async {
     final db = await SqLiteService().database;
+    final row = await (db.select(db.vitalsStreamTable)
+          ..where((tbl) => tbl.id.equals(id)))
+        .getSingleOrNull();
+    if (row == null) return;
+    if (row.syncedAt == null) {
+      await (db.delete(db.vitalsStreamTable)..where((tbl) => tbl.id.equals(id)))
+          .go();
+      return;
+    }
+
     final now = DateTime.now();
     await (db.update(db.vitalsStreamTable)..where((tbl) => tbl.id.equals(id)))
         .write(

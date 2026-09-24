@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +24,8 @@ class CryHistoryPage extends StatefulWidget {
 
 class _CryHistoryPageState extends State<CryHistoryPage> {
   static const Color _pink = Color(0xFFFF4E6A);
+
+  AppPalette get _p => context.palette;
 
   final CryController _controller = CryController.instance;
 
@@ -50,7 +53,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Keep', style: GoogleFonts.poppins(color: const Color(0xFF6B7280))),
+            child: Text('Keep', style: GoogleFonts.poppins(color: _p.pick(const Color(0xFF6B7280), _p.textSecondary))),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -75,9 +78,9 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _p.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _p.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: _pink),
@@ -145,7 +148,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
               style: GoogleFonts.outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: const Color(0xFF1E2229),
+                color: _p.pick(const Color(0xFF1E2229), _p.textPrimary),
               ),
             ),
             const SizedBox(height: 8),
@@ -156,7 +159,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 height: 1.6,
-                color: const Color(0xFF8C93A3),
+                color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
               ),
             ),
           ],
@@ -172,9 +175,9 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF6F7),
+        color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF6F7)),
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFFFE3E8)),
+        border: Border.all(color: _p.pick(const Color(0xFFFFE3E8), _p.accentBorder)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +191,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                 style: GoogleFonts.outfit(
                   fontSize: 15.5,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C2F38),
+                  color: _p.pick(const Color(0xFF2C2F38), _p.textPrimary),
                 ),
               ),
             ],
@@ -199,7 +202,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
             'most often ${mostCommon.key.toLowerCase()}',
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: const Color(0xFF4A4E5A),
+              color: _p.pick(const Color(0xFF4A4E5A), _p.textSecondary),
             ),
           ),
           const SizedBox(height: 14),
@@ -211,7 +214,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _p.card,
                   borderRadius: BorderRadius.circular(30),
                   border: Border.all(color: type.color.withValues(alpha: 0.25)),
                 ),
@@ -249,7 +252,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF9EA3B0),
+                color: _p.pick(const Color(0xFF9EA3B0), _p.textMuted),
               ),
             ),
           ),
@@ -277,9 +280,9 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFEEF0F4)),
+        border: Border.all(color: _p.pick(const Color(0xFFEEF0F4), _p.border)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.02),
@@ -317,7 +320,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                         style: GoogleFonts.poppins(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF1E2229),
+                          color: _p.pick(const Color(0xFF1E2229), _p.textPrimary),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -326,7 +329,7 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                         ' · ${record.confidenceLabel} match',
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
-                          color: const Color(0xFF9EA3B0),
+                          color: _p.pick(const Color(0xFF9EA3B0), _p.textMuted),
                         ),
                       ),
                     ],
@@ -341,8 +344,8 @@ class _CryHistoryPageState extends State<CryHistoryPage> {
                 IconButton(
                   tooltip: 'Delete',
                   onPressed: () => _confirmDelete(record),
-                  icon: const Icon(Icons.delete_outline_rounded,
-                      size: 19, color: Color(0xFFCBD0DC)),
+                  icon: Icon(Icons.delete_outline_rounded,
+                      size: 19, color: _p.pick(const Color(0xFFCBD0DC), _p.textMuted)),
                 ),
               ],
             ),

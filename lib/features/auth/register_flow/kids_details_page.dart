@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
@@ -55,6 +56,8 @@ class KidsDetailsPage extends StatefulWidget {
 }
 
 class _KidsDetailsPageState extends State<KidsDetailsPage> {
+  AppPalette get _p => context.palette;
+
   static const _pink = Color(0xFFFF4E6A);
 
   /// The children already on the account.
@@ -218,7 +221,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -233,20 +236,20 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                     child: Container(
                       width: 40,
                       height: 40,
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _p.card,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black12,
+                            color: _p.pick(Colors.black12, _p.shadow),
                             blurRadius: 8,
                             offset: Offset(0, 2),
                           ),
                         ],
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.chevron_left_rounded,
-                        color: Color(0xFF1E2024),
+                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                         size: 24,
                       ),
                     ),
@@ -258,7 +261,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                       style: GoogleFonts.outfit(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                       ),
                     ),
                   ),
@@ -299,12 +302,12 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                   24,
                   16 + MediaQuery.paddingOf(context).bottom,
                 ),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
+                decoration: BoxDecoration(
+                  color: _p.card,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black12,
+                      color: _p.pick(Colors.black12, _p.shadow),
                       blurRadius: 20,
                       offset: Offset(0, -4),
                     ),
@@ -328,7 +331,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                         onPressed: _isLoading ? null : _finishSetup,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF5277),
-                          disabledBackgroundColor: const Color(0xFFFFC9D4),
+                          disabledBackgroundColor: _p.pick(const Color(0xFFFFC9D4), const Color(0xFF7A3A48)),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(25),
                           ),
@@ -373,8 +376,8 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
           Container(
             width: 72,
             height: 72,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFF0F4),
+            decoration: BoxDecoration(
+              color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F4)),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.child_care_rounded, size: 34, color: _pink),
@@ -385,7 +388,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             style: GoogleFonts.outfit(
               fontSize: 17,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF1E2024),
+              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
             ),
           ),
           const SizedBox(height: 6),
@@ -396,7 +399,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
             style: GoogleFonts.poppins(
               fontSize: 12.5,
               height: 1.5,
-              color: const Color(0xFF8E95A5),
+              color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
             ),
           ),
           const SizedBox(height: 20),
@@ -437,7 +440,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF8E95A5),
+                color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                 letterSpacing: 0.8,
               ),
             ),
@@ -483,17 +486,17 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: _p.inputFill,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: _p.border),
       ),
       child: Row(
         children: [
           Container(
             width: 36,
             height: 36,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFD8E0),
+            decoration: BoxDecoration(
+              color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFD8E0)),
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.face_rounded, color: _pink, size: 20),
@@ -508,7 +511,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                   style: GoogleFonts.poppins(
                     fontSize: 14.5,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1E2024),
+                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                   ),
                 ),
                 Text(
@@ -516,7 +519,7 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
                   '${babyAgeLabel(child.deliveryDate)}',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: const Color(0xFF6B7280),
+                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                   ),
                 ),
               ],
@@ -524,10 +527,10 @@ class _KidsDetailsPageState extends State<KidsDetailsPage> {
           ),
           GestureDetector(
             onTap: () => _removeChild(child),
-            child: const Icon(
+            child: Icon(
               Icons.delete_outline_rounded,
               size: 20,
-              color: Color(0xFF9CA3AF),
+              color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
             ),
           ),
         ],

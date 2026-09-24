@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -52,6 +53,8 @@ class FeedsPage extends StatefulWidget {
 }
 
 class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
+  AppPalette get _p => context.palette;
+
   late PageController _pageController;
 
   // Active audio speech reading state
@@ -224,9 +227,9 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
             top: 16,
             bottom: MediaQuery.of(context).viewInsets.bottom + 16,
           ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          decoration: BoxDecoration(
+            color: _p.card,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,7 +239,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: _p.pick(Colors.grey.shade300, _p.divider),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -250,7 +253,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                     style: GoogleFonts.outfit(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                     ),
                   ),
                   IconButton(
@@ -275,7 +278,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                         children: [
                           CircleAvatar(
                             radius: 18,
-                            backgroundColor: const Color(0xFFFFE4E9),
+                            backgroundColor: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9)),
                             child: Text(
                               c['user']![0],
                               style: GoogleFonts.poppins(
@@ -296,7 +299,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                       style: GoogleFonts.poppins(
                                         fontSize: 13.5,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF1E2024),
+                                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -304,7 +307,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                       c['time']!,
                                       style: GoogleFonts.poppins(
                                         fontSize: 11,
-                                        color: Colors.grey,
+                                        color: _p.pick(Colors.grey, _p.textMuted),
                                       ),
                                     ),
                                   ],
@@ -314,7 +317,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                   c['text']!,
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
-                                    color: const Color(0xFF4B5563),
+                                    color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                                   ),
                                 ),
                               ],
@@ -333,13 +336,19 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                   Expanded(
                     child: TextField(
                       controller: commentController,
+                      style: TextStyle(color: _p.textPrimary),
                       decoration: InputDecoration(
                         hintText: 'Add a helpful comment...',
-                        hintStyle: GoogleFonts.poppins(fontSize: 13, color: Colors.grey),
+                        hintStyle: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: _p.pick(Colors.grey, _p.textMuted),
+                        ),
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(24),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+                          borderSide: BorderSide(
+                            color: _p.pick(Colors.grey.shade300, _p.border),
+                          ),
                         ),
                       ),
                     ),
@@ -414,7 +423,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
     final isReadingThis = _currentlyReadingId == item.id;
 
     return Container(
-      color: Colors.white,
+      color: _p.card,
       child: Column(
         children: [
           // Top Visual Section (Night/Forest illustration)
@@ -462,7 +471,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-              color: Colors.white,
+              color: _p.card,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -470,7 +479,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0F3),
+                      color: _p.pick(const Color(0xFFFFF0F3), _p.accentSoft),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
@@ -491,7 +500,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                     style: GoogleFonts.outfit(
                       fontSize: 18.5,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                       height: 1.25,
                     ),
                   ),
@@ -502,7 +511,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                     item.body,
                     style: GoogleFonts.poppins(
                       fontSize: 12.5,
-                      color: const Color(0xFF5A5D64),
+                      color: _p.pick(const Color(0xFF5A5D64), _p.textSecondary),
                       height: 1.4,
                     ),
                   ),
@@ -514,7 +523,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
                         value: _readingProgress,
-                        backgroundColor: const Color(0xFFFFF0F3),
+                        backgroundColor: _p.pick(const Color(0xFFFFF0F3), _p.accentSoft),
                         valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF4E6A)),
                         minHeight: 4,
                       ),
@@ -536,10 +545,10 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                           decoration: BoxDecoration(
                             color: isReadingThis
                                 ? const Color(0xFFFF4E6A)
-                                : const Color(0xFFFFF0F3),
+                                : _p.pick(const Color(0xFFFFF0F3), _p.accentSoft),
                             borderRadius: BorderRadius.circular(20),
                             border: Border.all(
-                              color: const Color(0xFFFFD2DC),
+                              color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder),
                               width: 1,
                             ),
                           ),
@@ -581,7 +590,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                       : Icons.favorite_border_rounded,
                                   color: item.isLiked
                                       ? const Color(0xFFFF4E6A)
-                                      : const Color(0xFF6B7280),
+                                      : _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                   size: 19,
                                 ),
                                 const SizedBox(width: 4),
@@ -590,7 +599,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF6B7280),
+                                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                   ),
                                 ),
                               ],
@@ -603,9 +612,9 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                             onTap: () => _showCommentsModal(context, item),
                             child: Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.chat_bubble_outline_rounded,
-                                  color: Color(0xFF6B7280),
+                                  color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                   size: 18,
                                 ),
                                 const SizedBox(width: 4),
@@ -614,7 +623,7 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
                                   style: GoogleFonts.poppins(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w500,
-                                    color: const Color(0xFF6B7280),
+                                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                   ),
                                 ),
                               ],

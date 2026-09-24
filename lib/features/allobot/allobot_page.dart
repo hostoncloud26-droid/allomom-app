@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/tabs/allobot_ask_ai_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_agents_tab.dart';
@@ -88,9 +89,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
     // AlloKonnect's shell does, so the composer is the only thing at the
     // bottom of the screen while she is typing.
     final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+    final p = context.palette;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -109,20 +111,20 @@ class _AlloBotPageState extends State<AlloBotPage> {
                       child: Container(
                         width: 35,
                         height: 35,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
+                        decoration: BoxDecoration(
+                          color: p.card,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black12,
+                              color: p.pick(Colors.black12, p.shadow),
                               blurRadius: 8,
                               offset: Offset(0, 2),
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.chevron_left_rounded,
-                          color: Color(0xFF1E2024),
+                          color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                           size: 24,
                         ),
                       ),
@@ -132,10 +134,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
                       _currentIndex == 1
                           ? 'Specialized Agents'
                           : 'AlloBot Settings',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E2024),
+                        color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                       ),
                     ),
                   ],
@@ -176,7 +178,8 @@ class _AlloBotPageState extends State<AlloBotPage> {
       bottomNavigationBar: isKeyboardOpen
           ? null
           : BottomAppBar(
-              color: Colors.white,
+              color: p.card,
+              surfaceTintColor: Colors.transparent,
               elevation: 8,
               shape: const CircularNotchedRectangle(),
               notchMargin: 6,
@@ -300,7 +303,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
           children: [
             Icon(
               isSelected ? activeIcon : inactiveIcon,
-              color: isSelected ? primaryColor : Colors.grey,
+              color: isSelected ? primaryColor : context.palette.navInactive,
               size: 24,
             ),
             const SizedBox(height: 2),
@@ -309,7 +312,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
               maxLines: 1,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? primaryColor : Colors.grey,
+                color: isSelected ? primaryColor : context.palette.navInactive,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),

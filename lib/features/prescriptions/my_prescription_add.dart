@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:open_filex/open_filex.dart';
@@ -25,6 +26,8 @@ class MyPrescriptionAdd extends StatefulWidget {
 
 class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
     with TickerProviderStateMixin {
+  AppPalette get _pal => context.palette;
+
   final List<File> _selectedFiles = [];
   bool isSubmitting = false;
   bool _isAnalyzing = false;
@@ -38,16 +41,16 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
   // Design Tokens
   Color get primaryColor => const Color(0xFFFF3B5C);
   Color get primaryGradientEnd => const Color(0xFFFF5277);
-  Color get bgColor => const Color(0xFFFBFBFC);
-  Color get surfaceLow => const Color(0xFFF1F5F9);
-  Color get surfaceLowest => Colors.white;
-  Color get surfaceHighest => const Color(0xFFE2E8F0);
-  Color get onSurface => const Color(0xFF1E2024);
-  Color get onSurfaceVar => const Color(0xFF64748B);
+  Color get bgColor => _pal.scaffoldSoft;
+  Color get surfaceLow => _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill);
+  Color get surfaceLowest => _pal.card;
+  Color get surfaceHighest => _pal.pick(const Color(0xFFE2E8F0), _pal.border);
+  Color get onSurface => _pal.textPrimary;
+  Color get onSurfaceVar => _pal.pick(const Color(0xFF64748B), _pal.textSecondary);
   static const double radiusXL = 28.0;
 
   BoxShadow get ambientShadow => BoxShadow(
-        color: Colors.black.withValues(alpha: 0.04),
+        color: _pal.pick(Colors.black.withValues(alpha: 0.04), _pal.shadow),
         blurRadius: 20,
         offset: const Offset(0, 6),
       );
@@ -348,7 +351,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
+                  color: _pal.pick(const Color(0xFFE2E8F0), _pal.divider),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -553,11 +556,18 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: primaryColor,
-              onPrimary: Colors.white,
-              onSurface: onSurface,
-            ),
+            colorScheme: _pal.isDark
+                ? ColorScheme.dark(
+                    primary: primaryColor,
+                    onPrimary: Colors.white,
+                    surface: _pal.card,
+                    onSurface: onSurface,
+                  )
+                : ColorScheme.light(
+                    primary: primaryColor,
+                    onPrimary: Colors.white,
+                    onSurface: onSurface,
+                  ),
           ),
           child: child!,
         );
@@ -723,7 +733,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECFDF5),
+                  color: _pal.tint(const Color(0xFF10B981), const Color(0xFFECFDF5)),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                 ),
@@ -737,7 +747,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                         style: GoogleFonts.manrope(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF065F46),
+                          color: _pal.pick(const Color(0xFF065F46), const Color(0xFF6EE7B7)),
                         ),
                       ),
                     ),
@@ -761,7 +771,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       decoration: BoxDecoration(
         color: surfaceLowest,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F1F5)),
+        border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border)),
         boxShadow: [ambientShadow],
       ),
       child: Row(
@@ -805,7 +815,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFECEF),
+        color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: primaryColor.withValues(alpha: 0.25)),
       ),
@@ -851,7 +861,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       margin: const EdgeInsets.only(top: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _pal.card,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25), width: 1.3),
         boxShadow: [
@@ -904,7 +914,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               const SizedBox(width: 6),
               GestureDetector(
                 onTap: _runOnDeviceAnalysis,
-                child: const Icon(Icons.refresh_rounded, size: 18, color: Color(0xFF64748B)),
+                child: Icon(Icons.refresh_rounded, size: 18, color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary)),
               ),
             ],
           ),
@@ -912,7 +922,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
+              color: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -940,7 +950,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               fontSize: 12.5,
               height: 1.45,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF334155),
+              color: _pal.pick(const Color(0xFF334155), _pal.textSecondary),
             ),
           ),
           if (res.medicines.isNotEmpty) ...[
@@ -952,7 +962,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFECEF),
+                    color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: primaryColor.withValues(alpha: 0.3)),
                   ),
@@ -990,7 +1000,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           color: surfaceLowest,
           borderRadius: BorderRadius.circular(radiusXL),
           boxShadow: [ambientShadow],
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1043,21 +1053,21 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _pal.pick(const Color(0xFFF8FAFC), _pal.inputFill),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _pal.pick(const Color(0xFFE2E8F0), _pal.border)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: const Color(0xFF64748B)),
+          Icon(icon, size: 13, color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary)),
           const SizedBox(width: 5),
           Text(
             label,
             style: GoogleFonts.manrope(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF64748B),
+              color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
             ),
           ),
         ],
@@ -1079,7 +1089,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1159,7 +1169,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFE4E6),
+                    color: _pal.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 36),
@@ -1195,11 +1205,11 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   onTap: () => _removeFile(index),
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF1F5F9),
+                    decoration: BoxDecoration(
+                      color: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                    child: Icon(Icons.close_rounded, size: 18, color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary)),
                   ),
                 ),
               ],
@@ -1300,7 +1310,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   color: surfaceLowest,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: const Color(0xFFCBD5E1),
+                    color: _pal.pick(const Color(0xFFCBD5E1), _pal.border),
                     width: 1.2,
                   ),
                 ),
@@ -1341,12 +1351,12 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               color: surfaceLowest,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isPdf ? const Color(0xFFE11D48).withValues(alpha: 0.5) : const Color(0xFFF0F1F5),
+                color: isPdf ? const Color(0xFFE11D48).withValues(alpha: 0.5) : _pal.pick(const Color(0xFFF0F1F5), _pal.border),
                 width: 1.2,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
+                  color: _pal.pick(Colors.black.withValues(alpha: 0.03), _pal.shadow),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -1362,7 +1372,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                       child: isPdf
                           ? Container(
                               width: double.infinity,
-                              color: const Color(0xFFFFE4E6).withValues(alpha: 0.5),
+                              color: _pal.pick(const Color(0xFFFFE4E6).withValues(alpha: 0.5), const Color(0xFFE11D48).withValues(alpha: 0.12)),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -1453,7 +1463,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
         borderRadius: const BorderRadius.vertical(top: Radius.circular(radiusXL)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: _pal.pick(Colors.black.withValues(alpha: 0.05), _pal.shadow),
             blurRadius: 20,
             offset: const Offset(0, -5),
           )
@@ -1574,7 +1584,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF475569),
+                color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
               ),
             ),
             if (_parsedResult != null)
@@ -1600,7 +1610,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           decoration: BoxDecoration(
             color: surfaceLowest,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+            border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
           ),
           child: TextFormField(
             controller: description,
@@ -1608,7 +1618,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
             style: GoogleFonts.manrope(fontSize: 14, color: onSurface),
             decoration: InputDecoration(
               hintText: 'Doctor remarks, clinic name, or notes...',
-              hintStyle: GoogleFonts.manrope(color: const Color(0xFF94A3B8), fontSize: 13),
+              hintStyle: GoogleFonts.manrope(color: _pal.textMuted, fontSize: 13),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.all(16),
             ),
@@ -1620,7 +1630,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           style: GoogleFonts.manrope(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF475569),
+            color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
           ),
         ),
         const SizedBox(height: 8),
@@ -1631,7 +1641,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
             decoration: BoxDecoration(
               color: surfaceLowest,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+              border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
             ),
             child: Row(
               children: [
@@ -1673,7 +1683,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       decoration: BoxDecoration(
         color: surfaceLowest,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
         boxShadow: [ambientShadow],
       ),
       child: Column(
@@ -1709,7 +1719,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFECEF),
+                      color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(Icons.delete_outline_rounded, color: primaryColor, size: 18),
@@ -1720,7 +1730,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           const SizedBox(height: 16),
           Text(
             'Medicine Name & Strength',
-            style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+            style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: _pal.pick(const Color(0xFF475569), _pal.textSecondary)),
           ),
           const SizedBox(height: 6),
           _customTextField(
@@ -1737,7 +1747,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   children: [
                     Text(
                       'Dosage / Meal',
-                      style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+                      style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: _pal.pick(const Color(0xFF475569), _pal.textSecondary)),
                     ),
                     const SizedBox(height: 6),
                     _customTextField(
@@ -1755,7 +1765,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
                   children: [
                     Text(
                       'Days',
-                      style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+                      style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: _pal.pick(const Color(0xFF475569), _pal.textSecondary)),
                     ),
                     const SizedBox(height: 6),
                     _customTextField(
@@ -1771,7 +1781,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
           const SizedBox(height: 16),
           Text(
             'Daily Dosage Timings (${item.times.length} times/day)',
-            style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: const Color(0xFF475569)),
+            style: GoogleFonts.manrope(fontSize: 12.5, fontWeight: FontWeight.w700, color: _pal.pick(const Color(0xFF475569), _pal.textSecondary)),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1908,7 +1918,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
         style: GoogleFonts.manrope(fontSize: 13.5, fontWeight: FontWeight.w600, color: onSurface),
         decoration: InputDecoration(
           hintText: label,
-          hintStyle: GoogleFonts.manrope(fontSize: 12.5, color: const Color(0xFF94A3B8)),
+          hintStyle: GoogleFonts.manrope(fontSize: 12.5, color: _pal.textMuted),
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         ),

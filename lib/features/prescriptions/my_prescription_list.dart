@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/prescription_timing.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
@@ -15,6 +16,8 @@ class MyPrescriptionList extends StatefulWidget {
 }
 
 class _MyPrescriptionListState extends State<MyPrescriptionList> {
+  AppPalette get _pal => context.palette;
+
   List<PrescriptionModel> _prescriptions = [];
   bool _isLoading = true;
 
@@ -73,14 +76,14 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _pal.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _pal.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _pal.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -88,7 +91,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _pal.textPrimary,
           ),
         ),
       ),
@@ -145,8 +148,8 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
             Container(
               width: 80,
               height: 80,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFECEF),
+              decoration: BoxDecoration(
+                color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                 shape: BoxShape.circle,
               ),
               child: const Center(
@@ -159,7 +162,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
               style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
+                color: _pal.textPrimary,
               ),
             ),
             const SizedBox(height: 6),
@@ -169,7 +172,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: const Color(0xFF64748B),
+                color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                 height: 1.4,
               ),
             ),
@@ -220,12 +223,12 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _pal.card,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: _pal.pick(Colors.black.withValues(alpha: 0.03), _pal.shadow),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),
@@ -243,8 +246,8 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                       Container(
                         width: 40,
                         height: 40,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFECEF),
+                        decoration: BoxDecoration(
+                          color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
@@ -261,7 +264,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                               style: GoogleFonts.manrope(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _pal.textPrimary,
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -271,7 +274,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                               style: GoogleFonts.manrope(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
+                                color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                               ),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -286,7 +289,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE6F9F0),
+                    color: _pal.tint(const Color(0xFF10B981), const Color(0xFFE6F9F0)),
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text(
@@ -310,9 +313,9 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                   return Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
+                      color: _pal.pick(const Color(0xFFF8FAFC), _pal.inputFill),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: _pal.pick(const Color(0xFFE2E8F0), _pal.border)),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -324,7 +327,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF334155),
+                            color: _pal.pick(const Color(0xFF334155), _pal.textSecondary),
                           ),
                         ),
                       ],
@@ -335,7 +338,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
               const SizedBox(height: 12),
             ],
 
-            const Divider(color: Color(0xFFF1F5F9), height: 1),
+            Divider(color: _pal.pick(const Color(0xFFF1F5F9), _pal.divider), height: 1),
             const SizedBox(height: 10),
 
             Row(
@@ -346,7 +349,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
+                    color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                   ),
                 ),
                 Text(
@@ -354,7 +357,7 @@ class _MyPrescriptionListState extends State<MyPrescriptionList> {
                   style: GoogleFonts.manrope(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF94A3B8),
+                    color: _pal.textMuted,
                   ),
                 ),
               ],

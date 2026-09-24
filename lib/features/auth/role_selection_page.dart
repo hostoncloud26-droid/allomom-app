@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_name_page.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -26,6 +27,8 @@ class RoleSelectionPage extends StatefulWidget {
 }
 
 class _RoleSelectionPageState extends State<RoleSelectionPage> {
+  AppPalette get _p => context.palette;
+
   String _selectedRole = 'Mom'; // 'Mom' or 'Dad'
 
   /// The question until she answers it, then the baby's delight at the answer.
@@ -34,7 +37,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -60,20 +63,20 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -85,7 +88,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -114,14 +117,14 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                       24,
                       24 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -135,7 +138,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                           style: GoogleFonts.outfit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E2024),
+                            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -147,7 +150,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                             Expanded(
                               child: _buildRoleCard(
                                 role: 'Mom',
-                                iconBg: const Color(0xFFFFE4E9),
+                                iconBg: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9)),
                                 avatarColor: const Color(0xFFFF4E6A),
                                 isFemale: true,
                               ),
@@ -158,7 +161,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                             Expanded(
                               child: _buildRoleCard(
                                 role: 'Dad',
-                                iconBg: const Color(0xFFDBEAFE),
+                                iconBg: _p.tint(const Color(0xFF2563EB), const Color(0xFFDBEAFE)),
                                 avatarColor: const Color(0xFF2563EB),
                                 isFemale: false,
                               ),
@@ -251,19 +254,21 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 22),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
+          color: isSelected
+              ? _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3))
+              : _p.card,
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFFFF4E6A)
-                : const Color(0xFFE5E7EB),
+                : _p.border,
             width: isSelected ? 2 : 1.2,
           ),
           boxShadow: [
             BoxShadow(
               color: isSelected
                   ? const Color(0xFFFF4E6A).withValues(alpha: 0.08)
-                  : Colors.black.withValues(alpha: 0.02),
+                  : _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -292,7 +297,7 @@ class _RoleSelectionPageState extends State<RoleSelectionPage> {
                 fontWeight: FontWeight.w800,
                 color: isSelected
                     ? const Color(0xFFFF4E6A)
-                    : const Color(0xFF1E2024),
+                    : _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
             ),
           ],

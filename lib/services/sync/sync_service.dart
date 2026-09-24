@@ -245,8 +245,10 @@ class SyncService {
     final watermark = await watermarkFor(module);
 
     List<Map<String, dynamic>> changes;
+    List<String> localDeletes;
     try {
       changes = await mapper.dirtyRows(db);
+      localDeletes = await mapper.pendingDeletes(db);
     } catch (e) {
       await _recordFailure(module, 'collect: $e');
       return false;
@@ -256,6 +258,7 @@ class SyncService {
       module,
       syncedAt: watermark,
       changes: changes,
+      deletedIds: localDeletes,
     );
 
     if (!response.success) {
@@ -290,6 +293,11 @@ class SyncService {
         if (deleted.isNotEmpty) {
           await mapper.deleteRows(db, deleted);
           changed = true;
+        }
+
+        // The server has our deletions now; the soft-deleted rows can go.
+        if (localDeletes.isNotEmpty) {
+          await mapper.deleteRows(db, localDeletes);
         }
 
         // Rows the server accepted are clean now.

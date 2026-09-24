@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -35,6 +36,8 @@ class JoinFamilyCodePage extends StatefulWidget {
 }
 
 class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
+  AppPalette get _p => context.palette;
+
   static const _primaryColor = Color(0xFFFF5277);
 
   final TextEditingController _codeController = TextEditingController();
@@ -169,7 +172,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
     final canJoin = preview != null && !preview.hasOtherFamily && !_isJoining;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -195,20 +198,20 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -220,7 +223,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -259,14 +262,14 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                       24,
                       24 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -280,7 +283,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                           style: GoogleFonts.poppins(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF8E95A5),
+                            color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                             letterSpacing: 0.8,
                           ),
                         ),
@@ -293,14 +296,14 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _p.card,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
                               color: _errorMessage != null
                                   ? Colors.redAccent
                                   : (preview != null
                                         ? const Color(0xFF10B981)
-                                        : const Color(0xFFE5E7EB)),
+                                        : _p.border),
                               width: 1.5,
                             ),
                           ),
@@ -324,13 +327,13 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                                     fontSize: 18,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 4,
-                                    color: const Color(0xFF1E2024),
+                                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                   ),
                                   decoration: InputDecoration(
                                     counterText: '',
                                     hintText: 'e.g. A9B2X1',
                                     hintStyle: GoogleFonts.outfit(
-                                      color: const Color(0xFF9CA3AF),
+                                      color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                                       fontSize: 16,
                                       letterSpacing: 2,
                                     ),
@@ -386,8 +389,8 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                                       ? null
                                       : () => Navigator.pop(context),
                                   style: OutlinedButton.styleFrom(
-                                    side: const BorderSide(
-                                      color: Color(0xFFE5E7EB),
+                                    side: BorderSide(
+                                      color: _p.border,
                                       width: 1.5,
                                     ),
                                     shape: RoundedRectangleBorder(
@@ -399,7 +402,7 @@ class _JoinFamilyCodePageState extends State<JoinFamilyCodePage> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 14.5,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF6B7280),
+                                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                     ),
                                   ),
                                 ),

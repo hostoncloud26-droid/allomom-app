@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 import 'package:allomom/features/cycle_tracker/widgets/stepper_row.dart';
 import 'package:allomom/repositories/cycle_repository.dart';
@@ -71,11 +72,18 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
       lastDate: now,
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: CycleColors.accent,
-            onPrimary: Colors.white,
-            onSurface: CycleColors.ink,
-          ),
+          colorScheme: context.palette.isDark
+              ? ColorScheme.dark(
+                  primary: CycleColors.accent,
+                  onPrimary: Colors.white,
+                  surface: context.palette.card,
+                  onSurface: context.palette.textPrimary,
+                )
+              : ColorScheme.light(
+                  primary: CycleColors.accent,
+                  onPrimary: Colors.white,
+                  onSurface: CycleColors.inkOn(context),
+                ),
         ),
         child: child!,
       ),
@@ -122,9 +130,9 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
         child: SafeArea(
@@ -139,7 +147,10 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
                     width: 48,
                     height: 5,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFE2E4E9),
+                      color: context.palette.pick(
+                        const Color(0xFFE2E4E9),
+                        context.palette.divider,
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                   ),
@@ -152,7 +163,7 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
                   style: GoogleFonts.outfit(
                     fontSize: 23,
                     fontWeight: FontWeight.w800,
-                    color: CycleColors.ink,
+                    color: CycleColors.inkOn(context),
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -164,7 +175,7 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
                   textAlign: TextAlign.center,
                   style: GoogleFonts.poppins(
                     fontSize: 13,
-                    color: CycleColors.muted,
+                    color: CycleColors.mutedOn(context),
                     height: 1.4,
                   ),
                 ),
@@ -228,7 +239,10 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
                     onPressed: canSave ? _save : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: CycleColors.accent,
-                      disabledBackgroundColor: const Color(0xFFF1F5F9),
+                      disabledBackgroundColor: context.palette.pick(
+                        const Color(0xFFF1F5F9),
+                        context.palette.surface,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -252,7 +266,10 @@ class _CycleSetupSheetState extends State<CycleSetupSheet> {
                               fontWeight: FontWeight.w700,
                               color: canSave
                                   ? Colors.white
-                                  : const Color(0xFFA0A7B4),
+                                  : context.palette.pick(
+                                      const Color(0xFFA0A7B4),
+                                      context.palette.textMuted,
+                                    ),
                             ),
                           ),
                   ),
@@ -278,7 +295,7 @@ class _SectionLabel extends StatelessWidget {
       style: GoogleFonts.poppins(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: CycleColors.muted,
+        color: CycleColors.mutedOn(context),
         letterSpacing: 0.8,
       ),
     );
@@ -299,9 +316,14 @@ class _DateTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: CycleColors.accentSoft,
+          color: CycleColors.softOn(context, CycleColors.accent, CycleColors.accentSoft),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFFFFDCE4)),
+          border: Border.all(
+            color: context.palette.pick(
+              const Color(0xFFFFDCE4),
+              context.palette.accentBorder,
+            ),
+          ),
         ),
         child: Row(
           children: [
@@ -317,7 +339,7 @@ class _DateTile extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: CycleColors.ink,
+                  color: CycleColors.inkOn(context),
                 ),
               ),
             ),
@@ -355,10 +377,15 @@ class _ChoiceCard extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: selected ? CycleColors.accentSoft : Colors.white,
+          color: selected ? CycleColors.softOn(context, CycleColors.accent, CycleColors.accentSoft) : context.palette.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: selected ? CycleColors.accent : const Color(0xFFE2E4E9),
+            color: selected
+                ? CycleColors.accent
+                : context.palette.pick(
+                    const Color(0xFFE2E4E9),
+                    context.palette.border,
+                  ),
             width: selected ? 1.6 : 1.2,
           ),
         ),
@@ -371,7 +398,7 @@ class _ChoiceCard extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: selected ? CycleColors.accent : CycleColors.ink,
+                color: selected ? CycleColors.accent : CycleColors.inkOn(context),
               ),
             ),
           ],

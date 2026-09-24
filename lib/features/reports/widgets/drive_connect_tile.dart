@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/features/reports/controller/reports_drive_controller.dart';
 
 const Color _accent = Color(0xFFFF3B5C);
-const Color _ink = Color(0xFF1E2024);
-const Color _muted = Color(0xFF64748B);
 const Color _warn = Color(0xFFB45309);
+
+Color _ink(AppPalette p) => p.pick(const Color(0xFF1E2024), p.textPrimary);
+Color _muted(AppPalette p) => p.pick(const Color(0xFF64748B), p.textSecondary);
+
+/// The amber used for "reconnect" text and icons, lifted in dark mode so it
+/// stays readable on the dark card.
+Color _warnText(AppPalette p) => p.pick(_warn, const Color(0xFFFBBF24));
 
 /// The header of My Reports: the state of the user's Google Drive link.
 ///
@@ -81,14 +87,15 @@ class _ConnectInviteTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final pending = controller.pendingReports.value;
+    final p = context.palette;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border), width: 1.2),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -105,7 +112,7 @@ class _ConnectInviteTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFECEF),
+                  color: p.tint(_accent, const Color(0xFFFFECEF)),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: const Icon(Icons.cloud_upload_outlined,
@@ -121,7 +128,7 @@ class _ConnectInviteTile extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
-                        color: _ink,
+                        color: _ink(p),
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -135,7 +142,7 @@ class _ConnectInviteTile extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 12.5,
                         height: 1.4,
-                        color: _muted,
+                        color: _muted(p),
                       ),
                     ),
                   ],
@@ -260,17 +267,21 @@ class _ConnectedTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final needsReconnect = controller.needsReconnect.value;
     final account = controller.account.value;
+    final p = context.palette;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
       decoration: BoxDecoration(
-        color: needsReconnect ? const Color(0xFFFFFBEB) : Colors.white,
+        color: needsReconnect
+            ? p.tint(const Color(0xFFF59E0B), const Color(0xFFFFFBEB))
+            : p.card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: needsReconnect
-              ? const Color(0xFFFCD34D)
-              : const Color(0xFFF0F1F5),
+              ? p.pick(const Color(0xFFFCD34D),
+                  const Color(0xFFF59E0B).withValues(alpha: 0.4))
+              : p.pick(const Color(0xFFF0F1F5), p.border),
           width: 1.2,
         ),
       ),
@@ -280,15 +291,15 @@ class _ConnectedTile extends StatelessWidget {
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: needsReconnect
-                  ? const Color(0xFFFEF3C7)
-                  : const Color(0xFFECFDF5),
+                  ? p.tint(const Color(0xFFF59E0B), const Color(0xFFFEF3C7))
+                  : p.tint(const Color(0xFF059669), const Color(0xFFECFDF5)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
               needsReconnect
                   ? Icons.warning_amber_rounded
                   : Icons.cloud_done_outlined,
-              color: needsReconnect ? _warn : const Color(0xFF059669),
+              color: needsReconnect ? _warnText(p) : const Color(0xFF059669),
               size: 20,
             ),
           ),
@@ -306,7 +317,7 @@ class _ConnectedTile extends StatelessWidget {
                   style: GoogleFonts.manrope(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800,
-                    color: needsReconnect ? _warn : _ink,
+                    color: needsReconnect ? _warnText(p) : _ink(p),
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -318,7 +329,7 @@ class _ConnectedTile extends StatelessWidget {
                   style: GoogleFonts.manrope(
                     fontSize: 11.5,
                     height: 1.35,
-                    color: needsReconnect ? _warn.withValues(alpha: 0.9) : _muted,
+                    color: needsReconnect ? _warnText(p).withValues(alpha: 0.9) : _muted(p),
                   ),
                 ),
               ],
@@ -337,7 +348,7 @@ class _ConnectedTile extends StatelessWidget {
                 style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w800,
                   fontSize: 12.5,
-                  color: _warn,
+                  color: _warnText(p),
                 ),
               ),
             )
@@ -353,14 +364,14 @@ class _ConnectedTile extends StatelessWidget {
           else
             IconButton(
               tooltip: 'Back up now',
-              icon: const Icon(Icons.sync_rounded, size: 20, color: _muted),
+              icon: Icon(Icons.sync_rounded, size: 20, color: _muted(p)),
               onPressed: () async {
                 await controller.syncNow();
                 onChanged?.call();
               },
             ),
           PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert_rounded, size: 20, color: _muted),
+            icon: Icon(Icons.more_vert_rounded, size: 20, color: _muted(p)),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             onSelected: (value) async {

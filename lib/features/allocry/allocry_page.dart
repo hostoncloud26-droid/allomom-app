@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -32,6 +33,8 @@ class AlloCryPage extends StatefulWidget {
 class _AlloCryPageState extends State<AlloCryPage>
     with SingleTickerProviderStateMixin {
   static const Color _pink = Color(0xFFFF4E6A);
+
+  AppPalette get _p => context.palette;
 
   final CryController _controller = CryController.instance;
 
@@ -104,7 +107,7 @@ class _AlloCryPageState extends State<AlloCryPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _p.background,
       body: SafeArea(
         child: GetBuilder<HealthVitalsController>(
           init: HealthVitalsController.instance,
@@ -158,7 +161,7 @@ class _AlloCryPageState extends State<AlloCryPage>
           IconButton(
             onPressed: () => Navigator.maybePop(context),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: _p.card,
               elevation: 1,
               shadowColor: Colors.black.withValues(alpha: 0.1),
               shape: const CircleBorder(),
@@ -186,7 +189,7 @@ class _AlloCryPageState extends State<AlloCryPage>
                   "Understand your baby's cry",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: const Color(0xFF8C93A3),
+                    color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                   ),
                 ),
               ],
@@ -199,7 +202,7 @@ class _AlloCryPageState extends State<AlloCryPage>
               await _controller.refreshHistory();
             },
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: _p.card,
               elevation: 1,
               shadowColor: Colors.black.withValues(alpha: 0.1),
               shape: const CircleBorder(),
@@ -220,7 +223,7 @@ class _AlloCryPageState extends State<AlloCryPage>
           style: GoogleFonts.outfit(
             fontSize: 22,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFF1E2229),
+            color: _p.pick(const Color(0xFF1E2229), _p.textPrimary),
           ),
         ),
         const SizedBox(height: 6),
@@ -237,7 +240,7 @@ class _AlloCryPageState extends State<AlloCryPage>
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 13.5,
-              color: failed ? _pink : const Color(0xFF8B92A2),
+              color: failed ? _pink : _p.pick(const Color(0xFF8B92A2), _p.textMuted),
             ),
           );
         }),
@@ -337,9 +340,9 @@ class _AlloCryPageState extends State<AlloCryPage>
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF6F7),
+          color: _p.tint(_pink, const Color(0xFFFFF6F7)),
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFFFE3E8)),
+          border: Border.all(color: _p.pick(const Color(0xFFFFE3E8), _p.accentBorder)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -353,7 +356,7 @@ class _AlloCryPageState extends State<AlloCryPage>
                   style: GoogleFonts.outfit(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF2C2F38),
+                    color: _p.pick(const Color(0xFF2C2F38), _p.textPrimary),
                   ),
                 ),
                 const Spacer(),
@@ -384,7 +387,7 @@ class _AlloCryPageState extends State<AlloCryPage>
                   style: GoogleFonts.poppins(
                     fontSize: 12.5,
                     height: 1.55,
-                    color: const Color(0xFF8C93A3),
+                    color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                   ),
                 ),
               )
@@ -408,7 +411,7 @@ class _AlloCryPageState extends State<AlloCryPage>
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
@@ -439,14 +442,14 @@ class _AlloCryPageState extends State<AlloCryPage>
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF1E2229),
+                      color: _p.pick(const Color(0xFF1E2229), _p.textPrimary),
                     ),
                   ),
                   Text(
                     _relativeTime(record.recordedAt),
                     style: GoogleFonts.poppins(
                       fontSize: 11,
-                      color: const Color(0xFF9EA3B0),
+                      color: _p.pick(const Color(0xFF9EA3B0), _p.textMuted),
                     ),
                   ),
                 ],
@@ -468,9 +471,9 @@ class _AlloCryPageState extends State<AlloCryPage>
               ),
             ),
             const SizedBox(width: 6),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: Color(0xFFCBD0DC),
+              color: _p.pick(const Color(0xFFCBD0DC), _p.textMuted),
               size: 20,
             ),
           ],
@@ -506,7 +509,7 @@ class _AlloCryPageState extends State<AlloCryPage>
                 style: GoogleFonts.outfit(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C2F38),
+                  color: _p.pick(const Color(0xFF2C2F38), _p.textPrimary),
                 ),
               ),
             ],
@@ -538,9 +541,9 @@ class _AlloCryPageState extends State<AlloCryPage>
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFEEF0F4)),
+          border: Border.all(color: _p.pick(const Color(0xFFEEF0F4), _p.border)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.02),
@@ -570,7 +573,7 @@ class _AlloCryPageState extends State<AlloCryPage>
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF1E2229),
+                color: _p.pick(const Color(0xFF1E2229), _p.textPrimary),
               ),
             ),
             const SizedBox(height: 3),
@@ -581,7 +584,7 @@ class _AlloCryPageState extends State<AlloCryPage>
               style: GoogleFonts.poppins(
                 fontSize: 10.5,
                 height: 1.4,
-                color: const Color(0xFF9EA3B0),
+                color: _p.pick(const Color(0xFF9EA3B0), _p.textMuted),
               ),
             ),
           ],

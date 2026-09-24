@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 enum SpeechBubblePosition { left, right, topCenter, none }
@@ -99,6 +100,9 @@ class BabyHeroBanner extends StatelessWidget {
   /// unchanged and only the slack above it is new.
   static const expandedBabyExtent = 140.0;
 
+  /// The card's pink wash, dimmed to a rose-tinted dark for dark mode.
+  static const _darkWash = Color(0xFF2A1D21);
+
   @override
   Widget build(BuildContext context) {
     final key = narrationKey;
@@ -138,6 +142,7 @@ class BabyHeroBanner extends StatelessWidget {
     final showBubble =
         bubblePosition != SpeechBubblePosition.none && text.isNotEmpty;
     final compact = !expand && height < compactHeight && showBubble;
+    final p = context.palette;
 
     return GestureDetector(
       onTap: onTap,
@@ -147,11 +152,17 @@ class BabyHeroBanner extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(28),
-          color: const Color(0xFFFFF2F5),
-          border: Border.all(color: const Color(0xFFFFE2E8), width: 1.2),
+          color: p.pick(const Color(0xFFFFF2F5), _darkWash),
+          border: Border.all(
+            color: p.pick(const Color(0xFFFFE2E8), p.accentBorder),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF8A9E).withValues(alpha: 0.10),
+              color: p.pick(
+                const Color(0xFFFF8A9E).withValues(alpha: 0.10),
+                p.shadow,
+              ),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -166,13 +177,20 @@ class BabyHeroBanner extends StatelessWidget {
               Image.asset(
                 'assets/allobaby/AllomomBg.png',
                 fit: BoxFit.cover,
+                // Dark mode multiplies the pink wash and its hearts/stars
+                // down to a dim rose, so the pattern still reads at night.
+                color: p.isDark ? const Color(0xFF45333A) : null,
+                colorBlendMode: p.isDark ? BlendMode.modulate : null,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [Color(0xFFFFF5F7), Color(0xFFFFE6ED)],
+                        colors: p.pick(
+                          const [Color(0xFFFFF5F7), Color(0xFFFFE6ED)],
+                          const [Color(0xFF2E2024), Color(0xFF24181B)],
+                        ),
                       ),
                     ),
                   );
@@ -243,10 +261,10 @@ class BabyHeroBanner extends StatelessWidget {
                         textAlign: TextAlign.center,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E2024),
+                          color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                         ),
                       ),
                     ],
@@ -325,15 +343,16 @@ class BabyHeroBanner extends StatelessWidget {
     VoidCallback? speakerTap,
     bool speaking,
   ) {
+    final p = context.palette;
     final label = Text(
       text,
       textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
       maxLines: 4,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13.5,
         fontWeight: FontWeight.w500,
-        color: Color(0xFF2D3142),
+        color: p.pick(const Color(0xFF2D3142), p.textPrimary),
         height: 1.45,
         letterSpacing: 0.1,
       ),
@@ -344,8 +363,11 @@ class BabyHeroBanner extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       child: CustomPaint(
         painter: _ChatBubbleTailPainter(
-          color: Colors.white,
-          shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
+          color: p.card,
+          shadowColor: p.pick(
+            const Color(0xFFFF8A9E).withValues(alpha: 0.16),
+            Colors.black.withValues(alpha: 0.5),
+          ),
         ),
         child: Container(
           padding: EdgeInsets.fromLTRB(
@@ -403,7 +425,12 @@ class NarrationSpeakerButton extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: speaking ? const Color(0xFFFF4E6A) : const Color(0xFFFFF0F3),
+          color: speaking
+              ? const Color(0xFFFF4E6A)
+              : context.palette.tint(
+                  const Color(0xFFFF4E6A),
+                  const Color(0xFFFFF0F3),
+                ),
           shape: BoxShape.circle,
         ),
         child: Icon(
@@ -456,8 +483,10 @@ class _ChatBubbleTailPainter extends CustomPainter {
     canvas.drawPath(path, paint);
   }
 
+  // Repaints when the theme swaps the fill between light and dark.
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChatBubbleTailPainter oldDelegate) =>
+      oldDelegate.color != color || oldDelegate.shadowColor != shadowColor;
 }
 
 /// Slim version of [BabyHeroBanner] for when the keyboard is open.
@@ -497,7 +526,9 @@ class BabyPromptBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final key = narrationKey;
-    if (key == null) return _buildBar(text, onSpeakerTap, speakingOverride);
+    if (key == null) {
+      return _buildBar(context, text, onSpeakerTap, speakingOverride);
+    }
 
     return BabyNarration(
       narrationKey: key,
@@ -506,27 +537,36 @@ class BabyPromptBar extends StatelessWidget {
       bindText: bindNarrationText,
       fallbackText: text,
       builder: (context, state) =>
-          _buildBar(state.text, state.onSpeakerTap, state.speaking),
+          _buildBar(context, state.text, state.onSpeakerTap, state.speaking),
     );
   }
 
-  Widget _buildBar(String label, VoidCallback? speakerTap, bool speaking) {
+  Widget _buildBar(
+    BuildContext context,
+    String label,
+    VoidCallback? speakerTap,
+    bool speaking,
+  ) {
+    final p = context.palette;
     return Container(
       key: barKey,
       margin: margin,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF2F5),
+        color: p.pick(const Color(0xFFFFF2F5), BabyHeroBanner._darkWash),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFE2E8), width: 1.2),
+        border: Border.all(
+          color: p.pick(const Color(0xFFFFE2E8), p.accentBorder),
+          width: 1.2,
+        ),
       ),
       child: Row(
         children: [
           Container(
             width: 42,
             height: 42,
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: p.pick(Colors.white, p.card),
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
@@ -545,10 +585,10 @@ class BabyPromptBar extends StatelessWidget {
               label.replaceAll('\n', ' '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF2D3142),
+                color: p.pick(const Color(0xFF2D3142), p.textPrimary),
                 height: 1.35,
               ),
             ),

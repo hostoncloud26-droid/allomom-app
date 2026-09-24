@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
@@ -15,6 +16,8 @@ class FeedingTrackerPage extends StatefulWidget {
 }
 
 class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
+  AppPalette get _p => context.palette;
+
   int _selectedFeedType = 0; // 0: Breast, 1: Bottle, 2: Solids
   bool _isLeftTimerRunning = false;
   bool _isRightTimerRunning = false;
@@ -183,7 +186,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         child: Column(
           children: [
@@ -250,16 +253,16 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
           IconButton(
             onPressed: () => Navigator.maybePop(context),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: _p.card,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: _p.pick(Colors.black.withValues(alpha: 0.1), _p.shadow),
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFFFF4E6A)),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Column(
               children: [
                 Text(
@@ -274,7 +277,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                   'Log breast, bottle & solid feeds',
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF8C93A3),
+                    color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                   ),
                 ),
               ],
@@ -288,9 +291,9 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
               );
             },
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: _p.card,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: _p.pick(Colors.black.withValues(alpha: 0.1), _p.shadow),
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
@@ -310,11 +313,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -342,7 +345,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                       Icon(
                         icons[i],
                         size: 16,
-                        color: isSelected ? Colors.white : const Color(0xFF8C93A3),
+                        color: isSelected ? Colors.white : _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -350,7 +353,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? Colors.white : const Color(0xFF4A4E5A),
+                          color: isSelected ? Colors.white : _p.pick(const Color(0xFF4A4E5A), _p.textSecondary),
                         ),
                       ),
                     ],
@@ -370,11 +373,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),
@@ -463,10 +466,12 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         decoration: BoxDecoration(
-          color: isRunning ? const Color(0xFFFFF0F3) : const Color(0xFFF9FAFB),
+          color: isRunning
+              ? _p.pick(const Color(0xFFFFF0F3), _p.accentSoft)
+              : _p.pick(const Color(0xFFF9FAFB), _p.inputFill),
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isRunning ? const Color(0xFFFF4E6A) : const Color(0xFFF0F1F5),
+            color: isRunning ? const Color(0xFFFF4E6A) : _p.pick(const Color(0xFFF0F1F5), _p.border),
             width: 1.5,
           ),
         ),
@@ -477,7 +482,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: isRunning ? const Color(0xFFFF4E6A) : const Color(0xFF6B7280),
+                color: isRunning ? const Color(0xFFFF4E6A) : _p.pick(const Color(0xFF6B7280), _p.textSecondary),
               ),
             ),
             const SizedBox(height: 8),
@@ -486,19 +491,19 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: isRunning ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
+                color: isRunning ? const Color(0xFFFF4E6A) : _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
             ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isRunning ? const Color(0xFFFF4E6A) : Colors.white,
+                color: isRunning ? const Color(0xFFFF4E6A) : _p.card,
                 shape: BoxShape.circle,
                 boxShadow: [
                   if (!isRunning)
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
+                      color: _p.pick(Colors.black.withValues(alpha: 0.05), _p.shadow),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -522,11 +527,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),
@@ -534,9 +539,9 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
         ),
         child: Column(
           children: [
-            const Text(
+            Text(
               'Amount Fed',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Color(0xFF6B7280)),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _p.pick(const Color(0xFF6B7280), _p.textSecondary)),
             ),
             const SizedBox(height: 6),
             Text(
@@ -550,7 +555,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
               max: 300,
               divisions: 27,
               activeColor: const Color(0xFFFF4E6A),
-              inactiveColor: const Color(0xFFFFE0E6),
+              inactiveColor: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE0E6)),
               onChanged: (v) {
                 setState(() {
                   _bottleAmountMl = v.round();
@@ -583,11 +588,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
               blurRadius: 14,
               offset: const Offset(0, 4),
             ),
@@ -597,15 +602,15 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
           children: [
             const Icon(Icons.restaurant_menu_rounded, size: 48, color: Color(0xFFFF4E6A)),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Solid Foods',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E2024)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _p.pick(const Color(0xFF1E2024), _p.textPrimary)),
             ),
             const SizedBox(height: 6),
-            const Text(
+            Text(
               'Fruit purees, mashed veggies, oats porridge',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Color(0xFF8C93A3)),
+              style: TextStyle(fontSize: 13, color: _p.pick(const Color(0xFF8C93A3), _p.textMuted)),
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -732,9 +737,9 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Recent Feeds',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1E2024)),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: _p.pick(const Color(0xFF1E2024), _p.textPrimary)),
                   ),
                   GestureDetector(
                     onTap: () {
@@ -756,11 +761,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _p.card,
                     borderRadius: BorderRadius.circular(18),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.02),
+                        color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
                         blurRadius: 8,
                         offset: const Offset(0, 2),
                       ),
@@ -770,8 +775,8 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.all(12),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFEBF0),
+                        decoration: BoxDecoration(
+                          color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFEBF0)),
                           shape: BoxShape.circle,
                         ),
                         child: const Icon(
@@ -781,12 +786,12 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'No feeds recorded yet',
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E2024),
+                          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -795,7 +800,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12.5,
-                          color: Colors.grey.shade500,
+                          color: _p.pick(Colors.grey.shade500, _p.textMuted),
                         ),
                       ),
                     ],
@@ -806,11 +811,11 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                       margin: const EdgeInsets.only(bottom: 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _p.card,
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.02),
+                            color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -833,12 +838,12 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                               children: [
                                 Text(
                                   f['type'] as String,
-                                  style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: Color(0xFF1E2024)),
+                                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: _p.pick(const Color(0xFF1E2024), _p.textPrimary)),
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
                                   f['detail'] as String,
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF8C93A3)),
+                                  style: TextStyle(fontSize: 12, color: _p.pick(const Color(0xFF8C93A3), _p.textMuted)),
                                 ),
                               ],
                             ),
@@ -853,7 +858,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                               const SizedBox(height: 2),
                               Text(
                                 f['time'] as String,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF8C93A3)),
+                                style: TextStyle(fontSize: 11, color: _p.pick(const Color(0xFF8C93A3), _p.textMuted)),
                               ),
                             ],
                           ),

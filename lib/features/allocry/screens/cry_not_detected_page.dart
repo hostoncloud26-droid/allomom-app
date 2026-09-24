@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -22,8 +23,9 @@ class CryNotDetectedPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: p.background,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -66,7 +68,7 @@ class CryNotDetectedPage extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 25,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E2229),
+                  color: p.pick(const Color(0xFF1E2229), p.textPrimary),
                 ),
               ),
               const SizedBox(height: 10),
@@ -77,16 +79,16 @@ class CryNotDetectedPage extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 13.5,
                   height: 1.6,
-                  color: const Color(0xFF6B7280),
+                  color: p.pick(const Color(0xFF6B7280), p.textSecondary),
                 ),
               ),
               const SizedBox(height: 24),
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF6F7),
+                  color: p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF6F7)),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFFFE3E8)),
+                  border: Border.all(color: p.pick(const Color(0xFFFFE3E8), p.accentBorder)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -101,7 +103,7 @@ class CryNotDetectedPage extends StatelessWidget {
                           style: GoogleFonts.outfit(
                             fontSize: 15,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF2C2F38),
+                            color: p.pick(const Color(0xFF2C2F38), p.textPrimary),
                           ),
                         ),
                       ],
@@ -124,7 +126,7 @@ class CryNotDetectedPage extends StatelessWidget {
                                 style: GoogleFonts.poppins(
                                   fontSize: 12.5,
                                   height: 1.5,
-                                  color: const Color(0xFF4A4E5A),
+                                  color: p.pick(const Color(0xFF4A4E5A), p.textSecondary),
                                 ),
                               ),
                             ),
@@ -166,7 +168,7 @@ class CryNotDetectedPage extends StatelessWidget {
                   style: GoogleFonts.poppins(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8C93A3),
+                    color: p.pick(const Color(0xFF8C93A3), p.textMuted),
                   ),
                 ),
               ),

@@ -23,6 +23,10 @@ abstract class SyncMapper {
   /// Rows edited locally and not yet accepted by the server.
   Future<List<Map<String, dynamic>>> dirtyRows(AppDriftDatabase db);
 
+  /// Ids of rows deleted on this phone that the server still has, sent as
+  /// `deleted_ids`. Modules that never delete locally leave this empty.
+  Future<List<String>> pendingDeletes(AppDriftDatabase db) async => const [];
+
   /// Marks rows clean once the server has confirmed them.
   Future<void> markSynced(
     AppDriftDatabase db,
@@ -277,8 +281,9 @@ class VitalsMapper extends _UuidKeyedMapper {
 
   @override
   Future<List<Map<String, dynamic>>> dirtyRows(AppDriftDatabase db) async {
+    // Deleted rows go up as `deleted_ids`, not as edits.
     final rows = await (db.select(db.vitalsStreamTable)
-          ..where((v) => v.synced.equals(0))).get();
+          ..where((v) => v.synced.equals(0) & v.deletedAt.isNull())).get();
     return rows
         .map(
           (v) => <String, dynamic>{
@@ -292,6 +297,14 @@ class VitalsMapper extends _UuidKeyedMapper {
           },
         )
         .toList();
+  }
+
+  /// A tick undone, a reading removed: soft-deleted here, still on the server.
+  @override
+  Future<List<String>> pendingDeletes(AppDriftDatabase db) async {
+    final rows = await (db.select(db.vitalsStreamTable)
+          ..where((v) => v.synced.equals(0) & v.deletedAt.isNotNull())).get();
+    return rows.map((v) => v.id).toList();
   }
 }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/google_auth_service.dart';
@@ -29,6 +30,8 @@ class RegisterNamePage extends StatefulWidget {
 }
 
 class _RegisterNamePageState extends State<RegisterNamePage> {
+  AppPalette get _p => context.palette;
+
   final TextEditingController _nameController = TextEditingController();
 
   /// What Google gave back, shown under the field so she can see which account
@@ -117,7 +120,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -147,20 +150,20 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: _p.card,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: _p.pick(Colors.black12, _p.shadow),
                                     blurRadius: 8,
                                     offset: Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.chevron_left_rounded,
-                                color: Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 size: 24,
                               ),
                             ),
@@ -172,7 +175,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               ),
                             ),
                           ),
@@ -202,14 +205,14 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                         24,
                         24 + MediaQuery.paddingOf(context).bottom,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _p.card,
                         borderRadius: BorderRadius.vertical(
                           top: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black12,
+                            color: _p.pick(Colors.black12, _p.shadow),
                             blurRadius: 20,
                             offset: Offset(0, -4),
                           ),
@@ -223,7 +226,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                             style: GoogleFonts.poppins(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF8E95A5),
+                              color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                               letterSpacing: 0.8,
                             ),
                           ),
@@ -236,10 +239,10 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                               vertical: 4,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: _p.card,
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color(0xFFE5E7EB),
+                                color: _p.border,
                                 width: 1.5,
                               ),
                             ),
@@ -257,12 +260,12 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 15.5,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF1E2024),
+                                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                     ),
                                     decoration: InputDecoration(
                                       hintText: 'e.g. Tamilselvi',
                                       hintStyle: GoogleFonts.poppins(
-                                        color: const Color(0xFF9CA3AF),
+                                        color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                                         fontSize: 15,
                                       ),
                                       border: InputBorder.none,
@@ -284,7 +287,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                               children: [
                                 CircleAvatar(
                                   radius: 14,
-                                  backgroundColor: const Color(0xFFFDE7EC),
+                                  backgroundColor: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFDE7EC)),
                                   backgroundImage: _googlePhotoUrl == null
                                       ? null
                                       : NetworkImage(_googlePhotoUrl!),
@@ -305,7 +308,7 @@ class _RegisterNamePageState extends State<RegisterNamePage> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w500,
-                                      color: const Color(0xFF6B7280),
+                                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                     ),
                                   ),
                                 ),

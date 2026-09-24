@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -52,11 +53,13 @@ class _DailySummarySectionState extends State<DailySummarySection> {
         'water',
         fromDate: DateTime(now.year, now.month, now.day),
       );
-      var total = 0;
+      // Summed before rounding, so part-glasses (100 ml = 0.4) still count.
+      var total = 0.0;
       for (final row in rows) {
-        total += ((row['value'] as num?)?.toDouble() ?? 0).round();
+        total += (row['value'] as num?)?.toDouble() ?? 0;
       }
-      if (mounted) setState(() => _waterGlasses = total < 0 ? 0 : total);
+      final glasses = total.round();
+      if (mounted) setState(() => _waterGlasses = glasses < 0 ? 0 : glasses);
     } catch (e) {
       debugPrint('DailySummarySection: could not read water vitals: $e');
     }
@@ -79,12 +82,15 @@ class _DailySummarySectionState extends State<DailySummarySection> {
                 style: GoogleFonts.outfit(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: textDark,
+                  color: context.palette.textPrimary,
                 ),
               ),
               Text(
                 _dayFmt.format(DateTime.now()),
-                style: GoogleFonts.poppins(fontSize: 12, color: textLight),
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: context.palette.textMuted,
+                ),
               ),
             ],
           ),
@@ -94,7 +100,7 @@ class _DailySummarySectionState extends State<DailySummarySection> {
           _summaryLine(session, vitals),
           style: GoogleFonts.poppins(
             fontSize: 13,
-            color: textMedium,
+            color: context.palette.textSecondary,
             height: 1.5,
           ),
         ),
@@ -104,7 +110,7 @@ class _DailySummarySectionState extends State<DailySummarySection> {
           style: GoogleFonts.poppins(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: textMuted,
+            color: context.palette.textMuted,
             letterSpacing: 1.2,
           ),
         ),
@@ -186,7 +192,10 @@ class _DailySummarySectionState extends State<DailySummarySection> {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
               decoration: BoxDecoration(
-                color: tile.color.withValues(alpha: 0.06),
+                color: context.palette.tint(
+                  tile.color,
+                  tile.color.withValues(alpha: 0.06),
+                ),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -205,7 +214,10 @@ class _DailySummarySectionState extends State<DailySummarySection> {
                   Text(
                     tile.label,
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.poppins(fontSize: 10, color: textLight),
+                    style: GoogleFonts.poppins(
+                      fontSize: 10,
+                      color: context.palette.textMuted,
+                    ),
                   ),
                 ],
               ),

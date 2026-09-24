@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -45,16 +46,17 @@ class _LanguageSelectorState extends State<LanguageSelector> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: p.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: p.pick(Colors.black.withValues(alpha: 0.03), p.shadow),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -69,8 +71,8 @@ class _LanguageSelectorState extends State<LanguageSelector> {
               Container(
                 width: 36,
                 height: 36,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFE6FFFA),
+                decoration: BoxDecoration(
+                  color: p.tint(const Color(0xFF0D9488), const Color(0xFFE6FFFA)),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -89,7 +91,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                       style: GoogleFonts.poppins(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2024),
+                        color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -97,7 +99,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                       'Choose what you read and what I speak',
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: const Color(0xFF8E95A5),
+                        color: p.pick(const Color(0xFF8E95A5), p.textMuted),
                       ),
                     ),
                   ],
@@ -106,7 +108,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: Color(0xFFF3F4F6), height: 1),
+          Divider(color: p.pick(const Color(0xFFF3F4F6), p.divider), height: 1),
           const SizedBox(height: 16),
 
           // ─── 1. APP LANGUAGE ───
@@ -115,7 +117,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             style: GoogleFonts.poppins(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF8E95A5),
+              color: p.pick(const Color(0xFF8E95A5), p.textMuted),
               letterSpacing: 0.8,
             ),
           ),
@@ -145,7 +147,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
           ),
 
           const SizedBox(height: 20),
-          const Divider(color: Color(0xFFF3F4F6), height: 1),
+          Divider(color: p.pick(const Color(0xFFF3F4F6), p.divider), height: 1),
           const SizedBox(height: 16),
 
           // ─── 2. SPEECH LANGUAGE ───
@@ -154,7 +156,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             style: GoogleFonts.poppins(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
-              color: const Color(0xFF8E95A5),
+              color: p.pick(const Color(0xFF8E95A5), p.textMuted),
               letterSpacing: 0.8,
             ),
           ),
@@ -177,7 +179,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
           ),
 
           const SizedBox(height: 18),
-          const Divider(color: Color(0xFFF3F4F6), height: 1),
+          Divider(color: p.pick(const Color(0xFFF3F4F6), p.divider), height: 1),
           const SizedBox(height: 14),
 
           // ─── 3. AUTO-DETECT DIALECT ───
@@ -192,14 +194,14 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                       style: GoogleFonts.poppins(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E2024),
+                        color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                       ),
                     ),
                     Text(
                       'Understand mixed language questions (Tanglish/Hinglish)',
                       style: GoogleFonts.poppins(
                         fontSize: 11,
-                        color: const Color(0xFF8E95A5),
+                        color: p.pick(const Color(0xFF8E95A5), p.textMuted),
                       ),
                     ),
                   ],
@@ -230,6 +232,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
     required bool isSelected,
     required VoidCallback onTap,
   }) {
+    final p = context.palette;
     return GestureDetector(
       onTap: onTap,
       child: Column(
@@ -239,10 +242,12 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             width: 54,
             height: 54,
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFFFF0F3) : const Color(0xFFF9FAFB),
+              color: isSelected
+                  ? p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3))
+                  : p.inputFill,
               shape: BoxShape.circle,
               border: Border.all(
-                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+                color: isSelected ? const Color(0xFFFF4E6A) : p.border,
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: [
@@ -260,7 +265,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF374151),
+                  color: isSelected ? const Color(0xFFFF4E6A) : p.pick(const Color(0xFF374151), p.textSecondary),
                 ),
               ),
             ),
@@ -271,7 +276,7 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF6B7280),
+              color: isSelected ? const Color(0xFFFF4E6A) : p.textSecondary,
             ),
           ),
         ],

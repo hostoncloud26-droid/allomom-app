@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+
+import 'package:allomom/config/app_theme.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
@@ -24,8 +24,6 @@ class VaccinationSchedulePage extends StatefulWidget {
 }
 
 class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
-  static final _dateFmt = DateFormat('dd MMM yyyy');
-
   bool _isLoading = true;
   String? _pregnancyId;
   List<PregnancyImmunizationRecord> _vaccines = const [];
@@ -53,14 +51,24 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
 
       final vaccines = pregnancy == null
           ? const <PregnancyImmunizationRecord>[]
-          : await PregnancyCareDbService.instance.getVaccinations(
-              pregnancy.id,
-            );
+          : await PregnancyCareDbService.instance.getVaccinations(pregnancy.id);
+
+      // By due date, undated doses last: the list reads top to bottom as the
+      // order she will take them in.
+      final sorted = [...vaccines]
+        ..sort((a, b) {
+          final da = a.scheduledDateRangeFrom ?? a.scheduledDate;
+          final db = b.scheduledDateRangeFrom ?? b.scheduledDate;
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return da.compareTo(db);
+        });
 
       if (!mounted) return;
       setState(() {
         _pregnancyId = pregnancy?.id;
-        _vaccines = vaccines;
+        _vaccines = sorted;
         _isLoading = false;
       });
     } catch (e) {
@@ -84,35 +92,49 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     }
   }
 
-  int get _doneCount => _vaccines.where((v) => v.status == 'done').length;
+  List<PregnancyImmunizationRecord> get _completed =>
+      _vaccines.where((v) => v.isDone).toList();
+
+  List<PregnancyImmunizationRecord> get _pending =>
+      _vaccines.where((v) => !v.isDone).toList();
 
   @override
   Widget build(BuildContext context) {
     final week = MainController.instance.currentGestationalWeek;
 
+    final p = context.palette;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E2024),
+            color: Color(0xFFFF3B5C),
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'PregnancyImmunizationRecord Schedule',
-          style: GoogleFonts.outfit(
+          'Vaccinations',
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
           ),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'About vaccinations',
+            icon: Icon(Icons.info_outline_rounded, color: p.textPrimary),
+            onPressed: _showInfo,
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       body: SafeArea(
         child: _isLoading
@@ -137,9 +159,9 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
                       narrationKey: _narrationKey,
                       bindNarrationText: false,
                       speechText:
-                          "Am $week weeks, Amma! 💉\nOur vaccines keep us both safe.",
-                      bubblePosition: SpeechBubblePosition.topCenter,
-                      height: 270,
+                          "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
+                      bubblePosition: SpeechBubblePosition.left,
+                      height: 230,
                       greetingText: '',
                     ),
                     const SizedBox(height: 16),
@@ -154,16 +176,35 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
                         onRegistered: _load,
                       )
                     else ...[
-                      CareProgressHeader(
-                        done: _doneCount,
+                      CareProgressCard(
+                        done: _completed.length,
                         total: _vaccines.length,
-                        label: 'Maternal vaccines',
                       ),
-                      const SizedBox(height: 14),
-                      for (final vaccine in _vaccines) ...[
-                        _buildVaccineCard(vaccine),
-                        const SizedBox(height: 14),
+                      if (_completed.isNotEmpty) ...[
+                        const CareSectionLabel('Completed'),
+                        for (final v in _completed) ...[
+                          _completedCard(v, p),
+                          const SizedBox(height: 10),
+                        ],
                       ],
+                      if (_pending.isNotEmpty) ...[
+                        const CareSectionLabel('Next'),
+                        _nextCard(_pending.first, p),
+                      ],
+                      if (_pending.length > 1) ...[
+                        const CareSectionLabel('Coming later'),
+                        for (final v in _pending.skip(1)) ...[
+                          _laterCard(v, p),
+                          const SizedBox(height: 10),
+                        ],
+                      ],
+                      const SizedBox(height: 14),
+                      const CareFooterNote(
+                        icon: Icons.notifications_none_rounded,
+                        title: "We'll remind you",
+                        subtitle: "when it's time for your next vaccine.",
+                      ),
+                      const SizedBox(height: 24),
                     ],
                   ],
                 ),
@@ -172,134 +213,206 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     );
   }
 
-  Widget _buildVaccineCard(PregnancyImmunizationRecord vaccine) {
-    final status = CareStatus.resolve(
-      status: vaccine.status,
-      date: vaccine.scheduledDate,
-    );
-    final month = vaccine.pregnancyMonth;
+  String? _weekOf(PregnancyImmunizationRecord v) =>
+      careWeekLabel(v.scheduledDateRangeFrom ?? v.scheduledDate, v.scheduledDateRangeTo);
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: status.needsAttention ? status.color : const Color(0xFFF0F1F5),
-          width: status.needsAttention ? 1.8 : 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+  TextStyle _titleStyle(AppPalette p) => TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w700,
+    color: p.textPrimary,
+  );
+
+  TextStyle _subStyle(AppPalette p) =>
+      TextStyle(fontSize: 12.5, color: p.textMuted);
+
+  Widget _completedCard(PregnancyImmunizationRecord v, AppPalette p) {
+    final week = _weekOf(v);
+    return CareCard(
+      onTap: () => _openDetails(v),
+      child: Row(
+        children: [
+          const CareMarkerIcon(marker: CareMarker.done),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(v.vaccineName, style: _titleStyle(p)),
+                if (week != null) ...[
+                  const SizedBox(height: 3),
+                  Text(week, style: _subStyle(p)),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (v.administeredDate != null)
+                Text(
+                  careDateFmt.format(v.administeredDate!),
+                  style: TextStyle(fontSize: 12.5, color: p.textSecondary),
+                ),
+              const SizedBox(height: 4),
+              const Text(
+                'Completed',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF10B981),
+                ),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _nextCard(PregnancyImmunizationRecord v, AppPalette p) {
+    final week = _weekOf(v);
+    final date = v.scheduledDate;
+    return CareCard(
+      onTap: () => _openDetails(v),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: status.background,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.vaccines_rounded,
-                  size: 18,
-                  color: status.color,
-                ),
-              ),
-              const SizedBox(width: 12),
+              const CareMarkerIcon(marker: CareMarker.next),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      vaccine.vaccineName,
-                      style: GoogleFonts.outfit(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                        height: 1.25,
-                      ),
-                    ),
-                    Text(
-                      [
-                        'Dose ${vaccine.doseNumber}',
-                        if (month != null) monthLabel(month),
-                      ].join(' · '),
-                      style: GoogleFonts.poppins(
-                        fontSize: 11.5,
-                        color: const Color(0xFF6B7280),
-                      ),
-                    ),
+                    Text(v.vaccineName, style: _titleStyle(p)),
+                    if (week != null) ...[
+                      const SizedBox(height: 3),
+                      Text(week, style: _subStyle(p)),
+                    ],
                   ],
                 ),
               ),
-              CareStatusChip(status: status),
+              const CareChevron(),
             ],
           ),
-
-          const SizedBox(height: 12),
-
+          const SizedBox(height: 16),
           Row(
             children: [
-              Icon(
-                Icons.event_rounded,
-                size: 15,
-                color: const Color(0xFF9CA3AF),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                vaccine.administeredDate != null
-                    ? 'Given ${_dateFmt.format(vaccine.administeredDate!)}'
-                    : vaccine.scheduledDate == null
-                        ? 'Due date not set'
-                        : 'Due ${_dateFmt.format(vaccine.scheduledDate!)}',
-                style: GoogleFonts.poppins(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2024),
+              Expanded(
+                child: Text(
+                  date == null ? 'Date to be decided' : careDateFmt.format(date),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFFF3B5C),
+                  ),
                 ),
+              ),
+              CareOutlineButton(
+                label: 'View details',
+                onTap: () => _openDetails(v),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+        ],
+      ),
+    );
+  }
 
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
-              onPressed: () => _toggleDone(vaccine),
-              icon: Icon(
-                status.isDone
-                    ? Icons.undo_rounded
-                    : Icons.check_circle_outline_rounded,
-                size: 18,
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: status.isDone
-                    ? const Color(0xFF6B7280)
-                    : const Color(0xFF10B981),
-                side: BorderSide(
-                  color: status.isDone
-                      ? const Color(0xFFE5E7EB)
-                      : const Color(0xFF10B981),
+  Widget _laterCard(PregnancyImmunizationRecord v, AppPalette p) {
+    final week = _weekOf(v);
+    final date = v.scheduledDate;
+    return CareCard(
+      onTap: () => _openDetails(v),
+      child: Row(
+        children: [
+          const CareMarkerIcon(marker: CareMarker.later),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(v.vaccineName, style: _titleStyle(p)),
+                if (week != null) ...[
+                  const SizedBox(height: 3),
+                  Text(week, style: _subStyle(p)),
+                ],
+                const SizedBox(height: 6),
+                Text(
+                  date == null
+                      ? 'Date to be decided'
+                      : careDateFmt.format(date),
+                  style: TextStyle(fontSize: 12, color: p.textSecondary),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              label: Text(
-                status.isDone ? 'Mark as pending' : 'Mark as taken',
-                style: GoogleFonts.poppins(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                ),
+              ],
+            ),
+          ),
+          const CareChevron(),
+        ],
+      ),
+    );
+  }
+
+  void _openDetails(PregnancyImmunizationRecord v) {
+    final status = CareStatus.resolve(status: v.status, date: v.scheduledDate);
+    final week = _weekOf(v);
+    final month = v.pregnancyMonth;
+    showCareDetailSheet(
+      context,
+      eyebrow: 'Dose ${v.doseNumber}',
+      title: v.vaccineName,
+      status: status,
+      facts: [
+        if (week != null) (Icons.pregnant_woman_rounded, week),
+        if (month != null) (Icons.calendar_view_month_rounded, monthLabel(month)),
+        (
+          Icons.event_rounded,
+          v.scheduledDate == null
+              ? 'Date to be decided'
+              : 'Due ${careDateFmt.format(v.scheduledDate!)}',
+        ),
+        if (v.administeredDate != null)
+          (
+            Icons.verified_rounded,
+            'Given ${careDateFmt.format(v.administeredDate!)}',
+          ),
+      ],
+      primaryLabel: status.isDone ? 'Mark as not taken' : 'Mark as taken',
+      primaryIcon: status.isDone
+          ? Icons.undo_rounded
+          : Icons.check_circle_outline_rounded,
+      primaryQuiet: status.isDone,
+      primaryEnabled: status.isDone || careIsDue(v.scheduledDate),
+      disabledNote: 'You can mark it once its date arrives.',
+      onPrimary: () => _toggleDone(v),
+    );
+  }
+
+  void _showInfo() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: ctx.palette.card,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Text(
+          'Your vaccinations',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'These doses were booked when you registered your pregnancy. '
+          'Tap one to see its details and mark it as taken after the clinic.',
+          style: TextStyle(fontSize: 13.5, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFFFF3B5C),
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),

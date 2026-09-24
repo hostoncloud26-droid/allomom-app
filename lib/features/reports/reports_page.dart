@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -28,6 +29,13 @@ typedef ReportListPage = ReportsPage;
 
 class _ReportsPageState extends State<ReportsPage> {
   final ScrollController _scrollController = ScrollController();
+
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _slate => _p.pick(const Color(0xFF64748B), _p.textSecondary);
+  Color get _body => _p.pick(const Color(0xFF475569), _p.textSecondary);
+  Color get _muted => _p.pick(const Color(0xFF94A3B8), _p.textMuted);
+  Color get _line => _p.pick(const Color(0xFFF0F1F5), _p.border);
 
   List<Map<String, dynamic>> _reports = [];
   bool _isLoading = true;
@@ -254,7 +262,7 @@ class _ReportsPageState extends State<ReportsPage> {
         height: 76,
         width: 76,
         decoration: BoxDecoration(
-          color: const Color(0xFFFFECEF),
+          color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
           borderRadius: BorderRadius.circular(12),
         ),
         child: const Icon(Icons.description_outlined, color: Color(0xFFFF3B5C), size: 30),
@@ -267,7 +275,7 @@ class _ReportsPageState extends State<ReportsPage> {
         height: 76,
         width: 76,
         decoration: BoxDecoration(
-          color: const Color(0xFFFFE4E6),
+          color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: const Color(0xFFE11D48).withValues(alpha: 0.3)),
         ),
@@ -355,17 +363,17 @@ class _ReportsPageState extends State<ReportsPage> {
       height: 76,
       width: 76,
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Icon(Icons.image_outlined, color: Color(0xFF94A3B8), size: 28),
+      child: Icon(Icons.image_outlined, color: _muted, size: 28),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: widget.showAppBar
           ? AppBar(
               title: Text(
@@ -373,7 +381,7 @@ class _ReportsPageState extends State<ReportsPage> {
                 style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w800,
                   fontSize: 18,
-                  color: const Color(0xFF1E2024),
+                  color: _ink,
                 ),
               ),
               centerTitle: true,
@@ -381,7 +389,7 @@ class _ReportsPageState extends State<ReportsPage> {
               elevation: 0,
               scrolledUnderElevation: 0,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E2024), size: 20),
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: _ink, size: 20),
                 onPressed: () => Navigator.pop(context),
               ),
             )
@@ -422,8 +430,8 @@ class _ReportsPageState extends State<ReportsPage> {
                           children: [
                             Container(
                               padding: const EdgeInsets.all(22),
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFFFECEF),
+                              decoration: BoxDecoration(
+                                color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.file_copy_outlined, size: 48, color: Color(0xFFFF3B5C)),
@@ -434,7 +442,7 @@ class _ReportsPageState extends State<ReportsPage> {
                               style: GoogleFonts.manrope(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _ink,
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -442,7 +450,7 @@ class _ReportsPageState extends State<ReportsPage> {
                               'Scan and upload your first medical report',
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
-                                color: const Color(0xFF94A3B8),
+                                color: _muted,
                               ),
                               textAlign: TextAlign.center,
                             ),
@@ -500,9 +508,9 @@ class _ReportsPageState extends State<ReportsPage> {
         margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFF0F1F5)),
+          border: Border.all(color: _line),
         ),
         child: Row(
           children: [
@@ -514,7 +522,7 @@ class _ReportsPageState extends State<ReportsPage> {
             const SizedBox(width: 12),
             Text(
               'Analyzing health reports...',
-              style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF64748B)),
+              style: GoogleFonts.manrope(fontSize: 13, color: _slate),
             ),
           ],
         ),
@@ -529,7 +537,7 @@ class _ReportsPageState extends State<ReportsPage> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFECEF),
+        color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFFF3B5C).withValues(alpha: 0.2)),
         boxShadow: [
@@ -564,7 +572,7 @@ class _ReportsPageState extends State<ReportsPage> {
               fontSize: 13,
               height: 1.5,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF475569),
+              color: _body,
             ),
           ),
         ],
@@ -584,7 +592,7 @@ class _ReportsPageState extends State<ReportsPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Material(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
@@ -602,7 +610,7 @@ class _ReportsPageState extends State<ReportsPage> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(22),
-              border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+              border: Border.all(color: _line, width: 1.2),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.03),
@@ -632,7 +640,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                     style: GoogleFonts.manrope(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w800,
-                                      color: const Color(0xFF1E2024),
+                                      color: _ink,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -643,7 +651,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFFFE4E6),
+                                      color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -660,7 +668,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFF1F5F9),
+                                      color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
                                       borderRadius: BorderRadius.circular(6),
                                     ),
                                     child: Text(
@@ -668,7 +676,7 @@ class _ReportsPageState extends State<ReportsPage> {
                                       style: GoogleFonts.manrope(
                                         fontSize: 9.5,
                                         fontWeight: FontWeight.w700,
-                                        color: const Color(0xFF64748B),
+                                        color: _slate,
                                       ),
                                     ),
                                   ),
@@ -680,20 +688,20 @@ class _ReportsPageState extends State<ReportsPage> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
+                                color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.event_outlined, size: 12, color: Color(0xFF64748B)),
+                                  Icon(Icons.event_outlined, size: 12, color: _slate),
                                   const SizedBox(width: 4),
                                   Text(
                                     dateDisplay,
                                     style: GoogleFonts.manrope(
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF64748B),
+                                      color: _slate,
                                     ),
                                   ),
                                 ],
@@ -709,7 +717,7 @@ class _ReportsPageState extends State<ReportsPage> {
                         style: GoogleFonts.manrope(
                           fontSize: 12.5,
                           height: 1.4,
-                          color: const Color(0xFF64748B),
+                          color: _slate,
                         ),
                       ),
                     ],

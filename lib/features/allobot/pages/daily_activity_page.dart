@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 
 /// The "Daily activity" agent's own screen — today's five things, on a page of
@@ -9,27 +11,28 @@ class DailyActivityPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF2D3142),
+            color: p.pick(const Color(0xFF2D3142), p.textPrimary),
             size: 20,
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'Daily activity',
           style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: Color(0xFF2D3142),
+            color: p.pick(const Color(0xFF2D3142), p.textPrimary),
           ),
         ),
       ),

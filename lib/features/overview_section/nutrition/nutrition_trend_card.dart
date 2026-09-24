@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/nutrition/nutrition_day_data.dart';
 
@@ -87,12 +88,20 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: context.palette.pick(
+            Colors.black.withValues(alpha: 0.06),
+            context.palette.border,
+          ),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(
+              Colors.black.withValues(alpha: 0.03),
+              context.palette.shadow,
+            ),
             blurRadius: 12,
             offset: const Offset(0, 6),
           ),
@@ -109,7 +118,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
                 style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1B1C1A),
+                  color: context.palette.pick(
+                    const Color(0xFF1B1C1A),
+                    context.palette.textPrimary,
+                  ),
                 ),
               ),
               Text(
@@ -117,7 +129,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: Colors.black45,
+                  color: context.palette.pick(
+                    Colors.black45,
+                    context.palette.textMuted,
+                  ),
                 ),
               ),
             ],
@@ -140,7 +155,13 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
           else if (summary != null) ...[
             _buildCaloriesBlock(summary),
             const SizedBox(height: 18),
-            Container(height: 1, color: const Color(0xFFF1F2F5)),
+            Container(
+              height: 1,
+              color: context.palette.pick(
+                const Color(0xFFF1F2F5),
+                context.palette.divider,
+              ),
+            ),
             const SizedBox(height: 16),
             _buildWaterBlock(summary),
           ],
@@ -163,7 +184,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FA),
+        color: context.palette.pick(
+          const Color(0xFFF7F8FA),
+          context.palette.surface,
+        ),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -176,12 +200,20 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
                 duration: const Duration(milliseconds: 180),
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: selected ? Colors.white : Colors.transparent,
+                  color: selected
+                      ? context.palette.pick(
+                          Colors.white,
+                          const Color(0xFF3A3A40),
+                        )
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(13),
                   boxShadow: selected
                       ? [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.06),
+                            color: context.palette.pick(
+                              Colors.black.withValues(alpha: 0.06),
+                              context.palette.shadow,
+                            ),
                             blurRadius: 6,
                             offset: const Offset(0, 2),
                           ),
@@ -195,8 +227,14 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
                     fontSize: 12.5,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     color: selected
-                        ? const Color(0xFF1B1C1A)
-                        : Colors.black.withValues(alpha: 0.45),
+                        ? context.palette.pick(
+                            const Color(0xFF1B1C1A),
+                            context.palette.textPrimary,
+                          )
+                        : context.palette.pick(
+                            Colors.black.withValues(alpha: 0.45),
+                            context.palette.textMuted,
+                          ),
                   ),
                 ),
               ),
@@ -229,7 +267,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
           caption: isDay
               ? 'of ${kDailyCalorieGoal.round()} kcal goal'
               : '$_period total',
-          color: const Color(0xFF1B1C1A),
+          color: context.palette.pick(
+            const Color(0xFF1B1C1A),
+            context.palette.textPrimary,
+          ),
         ),
         const SizedBox(height: 12),
         _BarChart(
@@ -303,7 +344,15 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
               style: GoogleFonts.inter(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                color: kcal > 0 ? Colors.black54 : Colors.black26,
+                color: kcal > 0
+                    ? context.palette.pick(
+                        Colors.black54,
+                        context.palette.textSecondary,
+                      )
+                    : context.palette.pick(
+                        Colors.black26,
+                        context.palette.textMuted,
+                      ),
               ),
             ),
           ],
@@ -394,7 +443,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
           style: GoogleFonts.inter(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: Colors.black.withValues(alpha: 0.55),
+            color: context.palette.pick(
+              Colors.black.withValues(alpha: 0.55),
+              context.palette.textSecondary,
+            ),
           ),
         ),
         const Spacer(),
@@ -403,7 +455,12 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: value == '--' ? Colors.black26 : color,
+            color: value == '--'
+                ? context.palette.pick(
+                    Colors.black26,
+                    context.palette.textMuted,
+                  )
+                : color,
             height: 1.0,
           ),
         ),
@@ -415,7 +472,10 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
             style: GoogleFonts.inter(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              color: Colors.black38,
+              color: context.palette.pick(
+                Colors.black38,
+                context.palette.textMuted,
+              ),
             ),
           ),
         ),
@@ -424,7 +484,13 @@ class _NutritionTrendCardState extends State<NutritionTrendCard> {
           child: Text(
             caption,
             textAlign: TextAlign.right,
-            style: GoogleFonts.inter(fontSize: 10, color: Colors.black38),
+            style: GoogleFonts.inter(
+              fontSize: 10,
+              color: context.palette.pick(
+                Colors.black38,
+                context.palette.textMuted,
+              ),
+            ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -463,7 +529,9 @@ class _GlassRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: i < filled
                       ? _waterColor.withValues(alpha: i >= goal ? 0.45 : 1.0)
-                      : _waterColor.withValues(alpha: 0.10),
+                      : _waterColor.withValues(
+                          alpha: context.palette.pick(0.10, 0.18),
+                        ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: i < filled
@@ -522,6 +590,7 @@ class _BarChart extends StatelessWidget {
           unit: unit,
           emptyMessage: emptyMessage,
           maxLabels: maxLabels,
+          isDark: context.palette.isDark,
         ),
       ),
     );
@@ -535,6 +604,7 @@ class _BarChartPainter extends CustomPainter {
   final String unit;
   final String emptyMessage;
   final int maxLabels;
+  final bool isDark;
 
   const _BarChartPainter({
     required this.bars,
@@ -543,6 +613,7 @@ class _BarChartPainter extends CustomPainter {
     required this.unit,
     required this.emptyMessage,
     required this.maxLabels,
+    required this.isDark,
   });
 
   @override
@@ -560,7 +631,7 @@ class _BarChartPainter extends CustomPainter {
       Offset(plot.left, baseline),
       Offset(plot.right, baseline),
       Paint()
-        ..color = const Color(0xFFEDEFF3)
+        ..color = isDark ? const Color(0xFF2E2E33) : const Color(0xFFEDEFF3)
         ..strokeWidth = 1.2,
     );
 
@@ -593,10 +664,10 @@ class _BarChartPainter extends CustomPainter {
       final tag = TextPainter(
         text: TextSpan(
           text: goalLabel ?? 'Goal',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 8.5,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF94A3B8),
+            color: isDark ? const Color(0xFF8E93A3) : const Color(0xFF94A3B8),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -681,7 +752,9 @@ class _BarChartPainter extends CustomPainter {
           style: TextStyle(
             fontSize: 9.5,
             fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
-            color: isToday ? const Color(0xFF6B7280) : const Color(0xFF9AA1AE),
+            color: isToday
+                ? (isDark ? const Color(0xFFC4C7D0) : const Color(0xFF6B7280))
+                : (isDark ? const Color(0xFF8E93A3) : const Color(0xFF9AA1AE)),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -697,10 +770,10 @@ class _BarChartPainter extends CustomPainter {
     final text = TextPainter(
       text: TextSpan(
         text: emptyMessage,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11.5,
           fontWeight: FontWeight.w700,
-          color: Color(0xFFB4BAC6),
+          color: isDark ? const Color(0xFF8E93A3) : const Color(0xFFB4BAC6),
         ),
       ),
       textDirection: TextDirection.ltr,

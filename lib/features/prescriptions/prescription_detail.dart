@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:allomom/models/prescription_timing.dart';
@@ -21,6 +22,8 @@ class PrescriptionDetailPage extends StatefulWidget {
 }
 
 class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
+  AppPalette get _pal => context.palette;
+
   PrescriptionModel? _prescription;
   bool _isLoading = true;
 
@@ -72,7 +75,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _pal.scaffoldSoft,
         body: const Center(
           child: CircularProgressIndicator(color: Color(0xFFFF3B5C)),
         ),
@@ -85,14 +88,14 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
     final dateStr = p != null ? DateFormat('dd MMM yyyy').format(p.createdAt) : 'Recently';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _pal.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _pal.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _pal.textPrimary, size: 20),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -100,7 +103,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _pal.textPrimary,
           ),
         ),
       ),
@@ -115,12 +118,12 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
               width: double.infinity,
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _pal.card,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
+                    color: _pal.pick(Colors.black.withValues(alpha: 0.03), _pal.shadow),
                     blurRadius: 14,
                     offset: const Offset(0, 4),
                   ),
@@ -134,8 +137,8 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                       Container(
                         width: 46,
                         height: 46,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFFFECEF),
+                        decoration: BoxDecoration(
+                          color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
@@ -152,7 +155,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                               style: GoogleFonts.manrope(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _pal.textPrimary,
                               ),
                             ),
                             Text(
@@ -160,7 +163,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                               style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
+                                color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                               ),
                             ),
                           ],
@@ -169,7 +172,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  const Divider(color: Color(0xFFF1F5F9), height: 1),
+                  Divider(color: _pal.pick(const Color(0xFFF1F5F9), _pal.divider), height: 1),
                   const SizedBox(height: 12),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -179,7 +182,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: const Color(0xFF94A3B8),
+                          color: _pal.textMuted,
                         ),
                       ),
                       Text(
@@ -187,7 +190,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                         style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E2024),
+                          color: _pal.textPrimary,
                         ),
                       ),
                     ],
@@ -203,7 +206,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
               style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
+                color: _pal.textPrimary,
               ),
             ),
             const SizedBox(height: 12),
@@ -215,9 +218,9 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _pal.card,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF0F1F5)),
+                  border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border)),
                 ),
                 child: Center(
                   child: Text(
@@ -225,7 +228,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                     style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF94A3B8),
+                      color: _pal.textMuted,
                     ),
                   ),
                 ),
@@ -239,7 +242,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                 style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
+                  color: _pal.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -247,16 +250,16 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: _pal.pick(const Color(0xFFF8FAFC), _pal.inputFill),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: _pal.pick(const Color(0xFFE2E8F0), _pal.border)),
                 ),
                 child: Text(
                   p.description!,
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF475569),
+                    color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                     height: 1.4,
                   ),
                 ),
@@ -270,7 +273,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                 style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
+                  color: _pal.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
@@ -292,12 +295,12 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _pal.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFE11D48).withValues(alpha: 0.3), width: 1.2),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: _pal.pick(Colors.black.withValues(alpha: 0.02), _pal.shadow),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -308,7 +311,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFFFE4E6),
+                color: _pal.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 28),
@@ -325,13 +328,13 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                     style: GoogleFonts.manrope(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E2024),
+                      color: _pal.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     'PDF Document',
-                    style: GoogleFonts.manrope(fontSize: 11.5, color: const Color(0xFF64748B)),
+                    style: GoogleFonts.manrope(fontSize: 11.5, color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary)),
                   ),
                 ],
               ),
@@ -359,9 +362,9 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
       height: 200,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _pal.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
       ),
       clipBehavior: Clip.antiAlias,
       child: url.startsWith('http')
@@ -375,12 +378,12 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _pal.card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
+            color: _pal.pick(Colors.black.withValues(alpha: 0.02), _pal.shadow),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -392,7 +395,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFECEF),
+              color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(Icons.medication_outlined, color: Color(0xFFFF3B5C), size: 22),
@@ -407,7 +410,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                   style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
+                    color: _pal.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -416,7 +419,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                   style: GoogleFonts.manrope(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF64748B),
+                    color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                   ),
                 ),
                 if (med.times.isNotEmpty) ...[
@@ -428,7 +431,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
+                          color: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
@@ -436,7 +439,7 @@ class _PrescriptionDetailPageState extends State<PrescriptionDetailPage> {
                           style: GoogleFonts.manrope(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF475569),
+                            color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                           ),
                         ),
                       );

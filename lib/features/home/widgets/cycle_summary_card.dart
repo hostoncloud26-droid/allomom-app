@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 import 'package:allomom/features/cycle_tracker/cycle_setup_sheet.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
@@ -56,13 +58,28 @@ class CycleSummaryCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFFFF0F4), Colors.white],
+          gradient: LinearGradient(
+            colors: context.palette.pick(
+              const [Color(0xFFFFF0F4), Colors.white],
+              [
+                Color.alphaBlend(
+                  CycleColors.accent.withValues(alpha: 0.14),
+                  context.palette.card,
+                ),
+                context.palette.card,
+              ],
+            ),
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
           ),
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFFFDCE4), width: 1.2),
+          border: Border.all(
+            color: context.palette.pick(
+              const Color(0xFFFFDCE4),
+              context.palette.accentBorder,
+            ),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
               color: CycleColors.accent.withValues(alpha: 0.05),
@@ -86,7 +103,7 @@ class CycleSummaryCard extends StatelessWidget {
                   alignment: Alignment.topLeft,
                   child: SizedBox(
                     width: constraints.maxWidth,
-                    child: p == null ? _buildInvite() : _buildTracking(p),
+                    child: p == null ? _buildInvite(context) : _buildTracking(context, p),
                   ),
                 ),
               ),
@@ -125,7 +142,7 @@ class CycleSummaryCard extends StatelessWidget {
   }
 
   // ─── NOT TRACKING YET ──────────────────────────────────────
-  Widget _buildInvite() {
+  Widget _buildInvite(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -139,7 +156,7 @@ class CycleSummaryCard extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: CycleColors.ink,
+            color: CycleColors.inkOn(context),
           ),
         ),
         const SizedBox(height: 6),
@@ -150,7 +167,7 @@ class CycleSummaryCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             fontSize: 12.5,
-            color: CycleColors.muted,
+            color: CycleColors.mutedOn(context),
             height: 1.4,
           ),
         ),
@@ -184,7 +201,7 @@ class CycleSummaryCard extends StatelessWidget {
   }
 
   // ─── TRACKING ──────────────────────────────────────────────
-  Widget _buildTracking(CyclePrediction p) {
+  Widget _buildTracking(BuildContext context, CyclePrediction p) {
     final phase = p.phase;
     final color = CycleColors.of(phase);
     final progress = (p.cycleDay / p.cycleLength).clamp(0.0, 1.0);
@@ -208,7 +225,7 @@ class CycleSummaryCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: CycleColors.softOf(phase),
+                  color: CycleColors.phaseSoftOn(context, phase),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -236,7 +253,7 @@ class CycleSummaryCard extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 26,
                 fontWeight: FontWeight.w800,
-                color: CycleColors.ink,
+                color: CycleColors.inkOn(context),
                 height: 1.1,
               ),
             ),
@@ -247,7 +264,7 @@ class CycleSummaryCard extends StatelessWidget {
                 'of ${p.cycleLength}',
                 style: GoogleFonts.poppins(
                   fontSize: 13,
-                  color: CycleColors.muted,
+                  color: CycleColors.mutedOn(context),
                 ),
               ),
             ),
@@ -260,7 +277,7 @@ class CycleSummaryCard extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: GoogleFonts.poppins(
             fontSize: 12.5,
-            color: CycleColors.muted,
+            color: CycleColors.mutedOn(context),
             height: 1.4,
           ),
         ),
@@ -271,7 +288,10 @@ class CycleSummaryCard extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 8,
-            backgroundColor: const Color(0xFFF1F3F7),
+            backgroundColor: context.palette.pick(
+              const Color(0xFFF1F3F7),
+              context.palette.surface,
+            ),
             valueColor: AlwaysStoppedAnimation<Color>(color),
           ),
         ),
@@ -367,7 +387,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       decoration: BoxDecoration(
-        color: background,
+        color: CycleColors.softOn(context, color, background),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -380,7 +400,7 @@ class _Pill extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: CycleColors.ink,
+              color: CycleColors.inkOn(context),
             ),
           ),
         ],

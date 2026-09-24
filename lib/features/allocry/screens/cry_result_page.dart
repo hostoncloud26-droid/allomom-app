@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -24,11 +25,12 @@ class CryResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final type = record.type;
+    final p = context.palette;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: p.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: p.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: _pink),
@@ -57,22 +59,22 @@ class CryResultPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeroCard(type),
+            _buildHeroCard(type, p),
             const SizedBox(height: 18),
-            _buildPlayerCard(type),
+            _buildPlayerCard(type, p),
             const SizedBox(height: 18),
-            _buildWhatItSoundsLike(type),
+            _buildWhatItSoundsLike(type, p),
             const SizedBox(height: 18),
-            _buildRecommendations(type),
+            _buildRecommendations(type, p),
             const SizedBox(height: 20),
-            _buildSavedNote(),
+            _buildSavedNote(p),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeroCard(CryType type) {
+  Widget _buildHeroCard(CryType type, AppPalette p) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -106,7 +108,7 @@ class CryResultPage extends StatelessWidget {
           const SizedBox(height: 14),
           Text(
             'Probable reason',
-            style: GoogleFonts.poppins(fontSize: 12.5, color: const Color(0xFF8C93A3)),
+            style: GoogleFonts.poppins(fontSize: 12.5, color: p.pick(const Color(0xFF8C93A3), p.textMuted)),
           ),
           const SizedBox(height: 4),
           Text(
@@ -115,7 +117,7 @@ class CryResultPage extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 26,
               fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E2229),
+              color: p.pick(const Color(0xFF1E2229), p.textPrimary),
             ),
           ),
           const SizedBox(height: 10),
@@ -125,10 +127,10 @@ class CryResultPage extends StatelessWidget {
             runSpacing: 8,
             children: [
               _chip('${record.confidenceLabel} match', type.color),
-              _chip(record.confidenceBand, const Color(0xFF6B7280)),
+              _chip(record.confidenceBand, p.pick(const Color(0xFF6B7280), p.textSecondary)),
               _chip(
                 DateFormat('d MMM, h:mm a').format(record.recordedAt),
-                const Color(0xFF6B7280),
+                p.pick(const Color(0xFF6B7280), p.textSecondary),
               ),
             ],
           ),
@@ -139,7 +141,7 @@ class CryResultPage extends StatelessWidget {
             style: GoogleFonts.poppins(
               fontSize: 13,
               height: 1.5,
-              color: const Color(0xFF4A4E5A),
+              color: p.pick(const Color(0xFF4A4E5A), p.textSecondary),
             ),
           ),
         ],
@@ -165,8 +167,9 @@ class CryResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildPlayerCard(CryType type) {
+  Widget _buildPlayerCard(CryType type, AppPalette p) {
     return _card(
+      p: p,
       title: 'The recording',
       icon: Icons.graphic_eq_rounded,
       color: type.color,
@@ -181,7 +184,7 @@ class CryResultPage extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF6B7280),
+                color: p.pick(const Color(0xFF6B7280), p.textSecondary),
               ),
             ),
             const SizedBox(height: 8),
@@ -190,7 +193,7 @@ class CryResultPage extends StatelessWidget {
               runSpacing: 6,
               children: record.soundLabels
                   .take(4)
-                  .map((label) => _chip(label, const Color(0xFF6B7280)))
+                  .map((label) => _chip(label, p.pick(const Color(0xFF6B7280), p.textSecondary)))
                   .toList(),
             ),
           ],
@@ -199,8 +202,9 @@ class CryResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildWhatItSoundsLike(CryType type) {
+  Widget _buildWhatItSoundsLike(CryType type, AppPalette p) {
     return _card(
+      p: p,
       title: 'What this cry sounds like',
       icon: Icons.hearing_rounded,
       color: type.color,
@@ -233,8 +237,8 @@ class CryResultPage extends StatelessWidget {
                         fontWeight:
                             line.bold ? FontWeight.w600 : FontWeight.w400,
                         color: line.bold
-                            ? const Color(0xFF1E2229)
-                            : const Color(0xFF4A4E5A),
+                            ? p.pick(const Color(0xFF1E2229), p.textPrimary)
+                            : p.pick(const Color(0xFF4A4E5A), p.textSecondary),
                       ),
                     ),
                   ),
@@ -246,9 +250,10 @@ class CryResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildRecommendations(CryType type) {
+  Widget _buildRecommendations(CryType type, AppPalette p) {
     final items = type.recommendations;
     return _card(
+      p: p,
       title: 'What you can try',
       icon: Icons.tips_and_updates_rounded,
       color: type.color,
@@ -259,9 +264,9 @@ class CryResultPage extends StatelessWidget {
               margin: EdgeInsets.only(bottom: i == items.length - 1 ? 0 : 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFC),
+                color: p.pick(const Color(0xFFF9FAFC), p.inputFill),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFFEEF0F4)),
+                border: Border.all(color: p.pick(const Color(0xFFEEF0F4), p.border)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,7 +295,7 @@ class CryResultPage extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         height: 1.5,
-                        color: const Color(0xFF4A4E5A),
+                        color: p.pick(const Color(0xFF4A4E5A), p.textSecondary),
                       ),
                     ),
                   ),
@@ -302,13 +307,16 @@ class CryResultPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSavedNote() {
+  Widget _buildSavedNote(AppPalette p) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3FBF6),
+        color: p.tint(const Color(0xFF10B981), const Color(0xFFF3FBF6)),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFD6F0E0)),
+        border: Border.all(
+          color: p.pick(const Color(0xFFD6F0E0),
+              const Color(0xFF10B981).withValues(alpha: 0.3)),
+        ),
       ),
       child: Row(
         children: [
@@ -321,7 +329,7 @@ class CryResultPage extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 11.5,
                 height: 1.45,
-                color: const Color(0xFF3D6B55),
+                color: p.pick(const Color(0xFF3D6B55), const Color(0xFF9FD8B8)),
               ),
             ),
           ),
@@ -331,6 +339,7 @@ class CryResultPage extends StatelessWidget {
   }
 
   Widget _card({
+    required AppPalette p,
     required String title,
     required IconData icon,
     required Color color,
@@ -340,9 +349,9 @@ class CryResultPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFEEF0F4)),
+        border: Border.all(color: p.pick(const Color(0xFFEEF0F4), p.border)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -363,7 +372,7 @@ class CryResultPage extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 15.5,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C2F38),
+                  color: p.pick(const Color(0xFF2C2F38), p.textPrimary),
                 ),
               ),
             ],

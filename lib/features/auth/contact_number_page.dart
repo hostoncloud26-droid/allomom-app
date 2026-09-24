@@ -1,6 +1,7 @@
 // ignore_for_file: unused_import, unused_local_variable, unused_field
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/verify_otp_page.dart';
 import 'package:allomom/features/main_layout.dart';
@@ -26,6 +27,8 @@ class ContactNumberPage extends StatefulWidget {
 }
 
 class _ContactNumberPageState extends State<ContactNumberPage> {
+  AppPalette get _p => context.palette;
+
   final TextEditingController _phoneController = TextEditingController();
   final String _countryCode = '+91';
   bool _isLoading = false;
@@ -142,7 +145,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         bottom: false,
@@ -174,20 +177,20 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                             child: Container(
                               width: 40,
                               height: 40,
-                              decoration: const BoxDecoration(
-                                color: Colors.white,
+                              decoration: BoxDecoration(
+                                color: _p.card,
                                 shape: BoxShape.circle,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black12,
+                                    color: _p.pick(Colors.black12, _p.shadow),
                                     blurRadius: 8,
                                     offset: Offset(0, 2),
                                   ),
                                 ],
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.chevron_left_rounded,
-                                color: Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 size: 24,
                               ),
                             ),
@@ -199,7 +202,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                               style: GoogleFonts.outfit(
                                 fontSize: 22,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               ),
                             ),
                           ),
@@ -231,14 +234,14 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                         (isKeyboardOpen ? 16 : 24) +
                             MediaQuery.paddingOf(context).bottom,
                       ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
+                      decoration: BoxDecoration(
+                        color: _p.card,
                         borderRadius: BorderRadius.vertical(
                           top: Radius.circular(32),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black12,
+                            color: _p.pick(Colors.black12, _p.shadow),
                             blurRadius: 20,
                             offset: Offset(0, -4),
                           ),
@@ -252,7 +255,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                             style: GoogleFonts.outfit(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                           SizedBox(height: isKeyboardOpen ? 8 : 14),
@@ -264,10 +267,10 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: _p.card,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: const Color(0xFFE5E7EB),
+                                color: _p.border,
                                 width: 1.5,
                               ),
                             ),
@@ -280,7 +283,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                     vertical: 8,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF9FAFB),
+                                    color: _p.inputFill,
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Row(
@@ -296,14 +299,14 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                         style: GoogleFonts.poppins(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF1E2024),
+                                          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                         ),
                                       ),
                                       const SizedBox(width: 4),
-                                      const Icon(
+                                      Icon(
                                         Icons.keyboard_arrow_down_rounded,
                                         size: 18,
-                                        color: Color(0xFF6B7280),
+                                        color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                                       ),
                                     ],
                                   ),
@@ -312,7 +315,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                 Container(
                                   width: 1,
                                   height: 28,
-                                  color: const Color(0xFFE5E7EB),
+                                  color: _p.border,
                                 ),
                                 const SizedBox(width: 12),
 
@@ -324,13 +327,13 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                     style: GoogleFonts.poppins(
                                       fontSize: 15.5,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF1E2024),
+                                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                       letterSpacing: 0.5,
                                     ),
                                     decoration: InputDecoration(
                                       hintText: '1234567890',
                                       hintStyle: GoogleFonts.poppins(
-                                        color: const Color(0xFF9CA3AF),
+                                        color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                                         fontSize: 15,
                                       ),
                                       border: InputBorder.none,
@@ -399,10 +402,10 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                   vertical: 10,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF3F4F6),
+                                  color: _p.pick(const Color(0xFFF3F4F6), _p.surface),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFFE5E7EB),
+                                    color: _p.border,
                                   ),
                                 ),
                                 child: Row(
@@ -437,7 +440,7 @@ class _ContactNumberPageState extends State<ContactNumberPage> {
                                         style: GoogleFonts.poppins(
                                           fontSize: 13.5,
                                           fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF374151),
+                                          color: _p.pick(const Color(0xFF374151), _p.textSecondary),
                                         ),
                                       ),
                                     ),

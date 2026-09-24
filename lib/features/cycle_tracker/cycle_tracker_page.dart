@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import 'package:allomom/features/cycle_tracker/cycle_setup_sheet.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 import 'package:allomom/repositories/cycle_repository.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -61,7 +62,10 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
     final prediction = session.cyclePrediction;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F8),
+      backgroundColor: context.palette.pick(
+        const Color(0xFFFAF7F8),
+        context.palette.scaffoldSoft,
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -128,20 +132,23 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             child: Container(
               width: 40,
               height: 40,
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: context.palette.card,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
+                    color: context.palette.pick(
+                      Colors.black12,
+                      context.palette.shadow,
+                    ),
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chevron_left_rounded,
-                color: CycleColors.ink,
+                color: CycleColors.inkOn(context),
                 size: 24,
               ),
             ),
@@ -153,7 +160,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
               style: GoogleFonts.outfit(
                 fontSize: 21,
                 fontWeight: FontWeight.w800,
-                color: CycleColors.ink,
+                color: CycleColors.inkOn(context),
               ),
             ),
           ),
@@ -173,8 +180,8 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                color: CycleColors.accentSoft,
+              decoration: BoxDecoration(
+                color: CycleColors.softOn(context, CycleColors.accent, CycleColors.accentSoft),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -189,7 +196,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
               style: GoogleFonts.outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: CycleColors.ink,
+                color: CycleColors.inkOn(context),
               ),
             ),
             const SizedBox(height: 8),
@@ -199,7 +206,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 13,
-                color: CycleColors.muted,
+                color: CycleColors.mutedOn(context),
                 height: 1.45,
               ),
             ),
@@ -250,7 +257,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: CycleColors.softOf(phase),
+                  color: CycleColors.phaseSoftOn(context, phase),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -278,7 +285,10 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             percent: progress,
             animation: true,
             circularStrokeCap: CircularStrokeCap.round,
-            backgroundColor: const Color(0xFFF1F3F7),
+            backgroundColor: context.palette.pick(
+              const Color(0xFFF1F3F7),
+              context.palette.surface,
+            ),
             progressColor: color,
             center: Column(
               mainAxisSize: MainAxisSize.min,
@@ -288,7 +298,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
                   style: GoogleFonts.poppins(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
-                    color: CycleColors.muted,
+                    color: CycleColors.mutedOn(context),
                     letterSpacing: 1.2,
                   ),
                 ),
@@ -297,7 +307,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
                   style: GoogleFonts.outfit(
                     fontSize: 40,
                     fontWeight: FontWeight.w800,
-                    color: CycleColors.ink,
+                    color: CycleColors.inkOn(context),
                     height: 1.1,
                   ),
                 ),
@@ -305,7 +315,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
                   'of ${p.cycleLength}',
                   style: GoogleFonts.poppins(
                     fontSize: 12,
-                    color: CycleColors.muted,
+                    color: CycleColors.mutedOn(context),
                   ),
                 ),
               ],
@@ -318,7 +328,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             style: GoogleFonts.outfit(
               fontSize: 17,
               fontWeight: FontWeight.w800,
-              color: CycleColors.ink,
+              color: CycleColors.inkOn(context),
             ),
           ),
           const SizedBox(height: 6),
@@ -327,7 +337,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
               fontSize: 12.5,
-              color: CycleColors.muted,
+              color: CycleColors.mutedOn(context),
               height: 1.45,
             ),
           ),
@@ -336,7 +346,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             _Note(
               icon: Icons.info_outline_rounded,
               color: CycleColors.overdue,
-              background: CycleColors.overdueSoft,
+              background: CycleColors.softOn(context, CycleColors.overdue, CycleColors.overdueSoft),
               text:
                   'Your last log is over a cycle old, so this is an estimate. '
                   'Log your latest period to sharpen it.',
@@ -368,7 +378,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
           child: _DateTile(
             icon: Icons.water_drop_rounded,
             color: CycleColors.accent,
-            background: CycleColors.accentSoft,
+            background: CycleColors.softOn(context, CycleColors.accent, CycleColors.accentSoft),
             label: 'Next period',
             value: _longFmt.format(p.nextPeriodStart),
           ),
@@ -378,7 +388,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
           child: _DateTile(
             icon: Icons.brightness_7_rounded,
             color: CycleColors.fertile,
-            background: CycleColors.fertileSoft,
+            background: CycleColors.softOn(context, CycleColors.fertile, CycleColors.fertileSoft),
             label: 'Ovulation',
             value: _longFmt.format(p.ovulationDate),
           ),
@@ -411,7 +421,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
             '${_shortFmt.format(p.nextPeriodStart.subtract(const Duration(days: 1)))}',
             style: GoogleFonts.poppins(
               fontSize: 12,
-              color: CycleColors.muted,
+              color: CycleColors.mutedOn(context),
             ),
           ),
           const SizedBox(height: 14),
@@ -429,11 +439,11 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
           Wrap(
             spacing: 14,
             runSpacing: 8,
-            children: const [
+            children: [
               _LegendDot(color: CycleColors.accent, label: 'Period'),
               _LegendDot(color: CycleColors.fertile, label: 'Fertile'),
               _LegendDot(color: CycleColors.follicular, label: 'Ovulation'),
-              _LegendDot(color: CycleColors.ink, label: 'Today'),
+              _LegendDot(color: CycleColors.inkOn(context), label: 'Today'),
             ],
           ),
         ],
@@ -493,7 +503,7 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
-                    color: CycleColors.muted,
+                    color: CycleColors.mutedOn(context),
                   ),
                 ),
             ],
@@ -505,13 +515,13 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
               'can measure your real cycle length.',
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
-                color: CycleColors.muted,
+                color: CycleColors.mutedOn(context),
                 height: 1.45,
               ),
             )
           else
             for (var i = 0; i < _history.length; i++) ...[
-              if (i > 0) const Divider(height: 18, color: Color(0xFFF0F1F5)),
+              if (i > 0) Divider(height: 18, color: CycleColors.hairlineOn(context)),
               _HistoryRow(
                 entry: _history[i],
                 // Gap to the period before it — null for the oldest entry,
@@ -543,12 +553,15 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: CycleColors.hairline, width: 1.2),
+        border: Border.all(color: CycleColors.hairlineOn(context), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(
+              Colors.black.withValues(alpha: 0.03),
+              context.palette.shadow,
+            ),
             blurRadius: 18,
             offset: const Offset(0, 4),
           ),
@@ -642,7 +655,7 @@ class _DateTile extends StatelessWidget {
             style: GoogleFonts.outfit(
               fontSize: 15,
               fontWeight: FontWeight.w800,
-              color: CycleColors.ink,
+              color: CycleColors.inkOn(context),
             ),
           ),
         ],
@@ -667,8 +680,14 @@ class _CalendarDay extends StatelessWidget {
     final (Color bg, Color fg) = switch (true) {
       _ when isPeriod => (CycleColors.accent, Colors.white),
       _ when isOvulation => (CycleColors.follicular, Colors.white),
-      _ when isFertile => (CycleColors.fertileSoft, CycleColors.fertile),
-      _ => (const Color(0xFFF7F8FA), CycleColors.muted),
+      _ when isFertile => (CycleColors.softOn(context, CycleColors.fertile, CycleColors.fertileSoft), CycleColors.fertile),
+      _ => (
+        context.palette.pick(
+          const Color(0xFFF7F8FA),
+          context.palette.surface,
+        ),
+        CycleColors.mutedOn(context),
+      ),
     };
 
     return Container(
@@ -678,7 +697,7 @@ class _CalendarDay extends StatelessWidget {
         // Today is outlined rather than filled so it can sit on top of any
         // phase colour without hiding it.
         border: isToday
-            ? Border.all(color: CycleColors.ink, width: 1.8)
+            ? Border.all(color: CycleColors.inkOn(context), width: 1.8)
             : null,
       ),
       alignment: Alignment.center,
@@ -721,7 +740,7 @@ class _LegendDot extends StatelessWidget {
           label,
           style: GoogleFonts.poppins(
             fontSize: 11,
-            color: CycleColors.muted,
+            color: CycleColors.mutedOn(context),
           ),
         ),
       ],
@@ -754,7 +773,10 @@ class _GuidanceLine extends StatelessWidget {
               text,
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
-                color: const Color(0xFF4B5160),
+                color: context.palette.pick(
+                  const Color(0xFF4B5160),
+                  context.palette.textSecondary,
+                ),
                 height: 1.4,
               ),
             ),
@@ -796,7 +818,10 @@ class _Note extends StatelessWidget {
               text,
               style: GoogleFonts.poppins(
                 fontSize: 12,
-                color: const Color(0xFF4B5160),
+                color: context.palette.pick(
+                  const Color(0xFF4B5160),
+                  context.palette.textSecondary,
+                ),
                 height: 1.4,
               ),
             ),
@@ -830,8 +855,8 @@ class _HistoryRow extends StatelessWidget {
         Container(
           width: 36,
           height: 36,
-          decoration: const BoxDecoration(
-            color: CycleColors.accentSoft,
+          decoration: BoxDecoration(
+            color: CycleColors.softOn(context, CycleColors.accent, CycleColors.accentSoft),
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -850,7 +875,7 @@ class _HistoryRow extends StatelessWidget {
                 style: GoogleFonts.outfit(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w700,
-                  color: CycleColors.ink,
+                  color: CycleColors.inkOn(context),
                 ),
               ),
               Text(
@@ -859,7 +884,7 @@ class _HistoryRow extends StatelessWidget {
                     : '$duration day${duration == 1 ? '' : 's'} long',
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
-                  color: CycleColors.muted,
+                  color: CycleColors.mutedOn(context),
                 ),
               ),
             ],
@@ -869,7 +894,10 @@ class _HistoryRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F8FA),
+              color: context.palette.pick(
+                const Color(0xFFF7F8FA),
+                context.palette.surface,
+              ),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -877,7 +905,7 @@ class _HistoryRow extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: CycleColors.muted,
+                color: CycleColors.mutedOn(context),
               ),
             ),
           ),

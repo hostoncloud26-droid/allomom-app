@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 /// One "ask the baby" chip: a short label and the line it plays.
 class NarrationHint {
   const NarrationHint(this.label, this.narrationKey);
@@ -71,18 +73,21 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF0F3) : Colors.white,
+          color: selected
+              ? p.pick(const Color(0xFFFFF0F3), p.accentSoft)
+              : p.card,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
             color: selected
                 ? const Color(0xFFFF4E6A)
-                : const Color(0xFFE5E7EB),
+                : p.pick(const Color(0xFFE5E7EB), p.border),
             width: selected ? 1.4 : 1.1,
           ),
         ),
@@ -94,7 +99,7 @@ class _Chip extends StatelessWidget {
               size: 13,
               color: selected
                   ? const Color(0xFFFF4E6A)
-                  : const Color(0xFF8E95A5),
+                  : p.pick(const Color(0xFF8E95A5), p.textMuted),
             ),
             const SizedBox(width: 5),
             // Flexible, not bare: `Wrap` breaks between chips but never inside
@@ -110,7 +115,7 @@ class _Chip extends StatelessWidget {
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   color: selected
                       ? const Color(0xFFFF4E6A)
-                      : const Color(0xFF6B7280),
+                      : p.pick(const Color(0xFF6B7280), p.textSecondary),
                 ),
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -17,6 +18,16 @@ class HemoglobinDetailPage extends StatefulWidget {
 class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
   String _selectedTab = 'Month';
 
+  // Accent colours stay fixed; surfaces and neutral text follow light / dark.
+  AppPalette get _p => context.palette;
+  Color get _titleColor => _p.pick(const Color(0xFF2D3142), _p.textPrimary);
+  Color get _textStrong => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _textSoft => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
+  Color get _tabInactive => _p.pick(const Color(0xFF6B7280), _p.textSecondary);
+  Color get _cardBorder => _p.pick(const Color(0xFFF0F1F5), _p.border);
+  Color get _cardShadow =>
+      _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow);
+
   void _openLogSheet() async {
     final updated = await VitalLogBottomSheet.show(context, initialKey: 'hemoglobin', lockKey: true);
     if (updated == true && mounted) {
@@ -33,26 +44,26 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
         final week = session.currentGestationalWeek;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFBFBFC),
+          backgroundColor: _p.scaffoldSoft,
           appBar: AppBar(
-            backgroundColor: const Color(0xFFFBFBFC),
+            backgroundColor: _p.scaffoldSoft,
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF2D3142),
+                color: _titleColor,
                 size: 20,
               ),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text(
+            title: Text(
               'Hemoglobin',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF2D3142),
+                color: _titleColor,
               ),
             ),
             actions: [
@@ -98,7 +109,7 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
                       greetingText: "",
                     ),
                     const SizedBox(height: 14),
-                    _buildPeriodTabs(const Color(0xFFFFECEF), const Color(0xFFE11D48)),
+                    _buildPeriodTabs(_p.tint(const Color(0xFFE11D48), const Color(0xFFFFECEF)), const Color(0xFFE11D48)),
                     const SizedBox(height: 14),
                   ],
                 ),
@@ -131,9 +142,9 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
       ),
       child: Row(
         children: ['Day', 'Week', 'Month'].map((tab) {
@@ -154,7 +165,7 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? activeText : const Color(0xFF6B7280),
+                    color: isSelected ? activeText : _tabInactive,
                   ),
                 ),
               ),
@@ -189,12 +200,12 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _cardShadow,
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -209,19 +220,19 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             children: [
               Text(
                 headerTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: _textStrong,
                   letterSpacing: 0.5,
                 ),
               ),
               Text(
                 dateRangeText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8E95A5),
+                  color: _textSoft,
                 ),
               ),
             ],
@@ -277,7 +288,7 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
           child: _buildMetricCard(
             icon: Icons.bloodtype_rounded,
             iconColor: const Color(0xFFE11D48),
-            iconBg: const Color(0xFFFFECEF),
+            iconBg: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFECEF)),
             label: 'Average',
             value: isRecorded ? hb.toStringAsFixed(1) : '--',
             unit: 'g/dL',
@@ -291,7 +302,7 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
           child: _buildMetricCard(
             icon: Icons.verified_rounded,
             iconColor: const Color(0xFF10B981),
-            iconBg: const Color(0xFFE6F9F0),
+            iconBg: _p.tint(const Color(0xFF10B981), const Color(0xFFE6F9F0)),
             label: 'Status',
             value: isRecorded ? (hb >= 11.0 ? 'Normal' : 'Watch') : 'No record',
             unit: '',
@@ -305,7 +316,7 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
           child: _buildMetricCard(
             icon: Icons.medication_rounded,
             iconColor: const Color(0xFFF59E0B),
-            iconBg: const Color(0xFFFEF3C7),
+            iconBg: _p.tint(const Color(0xFFF59E0B), const Color(0xFFFEF3C7)),
             label: 'Iron Care',
             value: 'Daily',
             unit: '',
@@ -328,12 +339,12 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _cardShadow,
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -361,10 +372,10 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF8E95A5),
+                    color: _textSoft,
                   ),
                 ),
               ),
@@ -377,20 +388,20 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 19,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: _textStrong,
                 ),
               ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 2),
                 Text(
                   unit,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF8E95A5),
+                    color: _textSoft,
                   ),
                 ),
               ],
@@ -401,9 +412,9 @@ class _HemoglobinDetailPageState extends State<HemoglobinDetailPage> {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9.5,
-              color: Color(0xFF8E95A5),
+              color: _textSoft,
             ),
           ),
         ],

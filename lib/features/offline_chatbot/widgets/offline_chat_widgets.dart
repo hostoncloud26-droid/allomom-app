@@ -12,13 +12,19 @@ import 'package:flutter/services.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 
-const Color _cardBg = Colors.white;
-const Color _pageBorder = Color(0xFFF2E4E7);
-const Color _textStrong = Color(0xFF1E2024);
-const Color _textSoft = Color(0xFF8E95A5);
+// Read from the palette so the chat follows light and dark; the light values
+// are the ones this surface has always used.
+Color _cardBg(AppPalette p) => p.card;
+Color _pageBorder(AppPalette p) =>
+    p.pick(const Color(0xFFF2E4E7), p.accentBorder);
+Color _textStrong(AppPalette p) =>
+    p.pick(const Color(0xFF1E2024), p.textPrimary);
+Color _textSoft(AppPalette p) => p.pick(const Color(0xFF8E95A5), p.textMuted);
+Color _textLight(AppPalette p) => p.pick(textLight, p.textMuted);
 
 /// Live status of the downloaded catalogue: how many intents are ready, when
 /// they were last fetched, and whether a flow is mid-conversation.
@@ -29,6 +35,7 @@ class OfflineChatbotStatusBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Obx(() {
       final synced = controller.lastSynced.value;
       final error = controller.error.value;
@@ -40,9 +47,9 @@ class OfflineChatbotStatusBar extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(16, 6, 16, 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: _cardBg,
+          color: _cardBg(p),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _pageBorder),
+          border: Border.all(color: _pageBorder(p)),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.03),
@@ -80,18 +87,18 @@ class OfflineChatbotStatusBar extends StatelessWidget {
                         hasBundle
                             ? '${controller.intentCount} topics ready offline'
                             : 'AlloBot not downloaded yet',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: _textStrong,
+                          color: _textStrong(p),
                         ),
                       ),
                       if (synced != null)
                         Text(
                           'Synced ${DateFormat('d MMM, h:mm a').format(synced)}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: _textSoft,
+                            color: _textSoft(p),
                           ),
                         ),
                     ],
@@ -104,9 +111,9 @@ class OfflineChatbotStatusBar extends StatelessWidget {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: surfaceLight,
+                    color: p.surface,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: dividerColor),
+                    border: Border.all(color: p.divider),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -124,10 +131,10 @@ class OfflineChatbotStatusBar extends StatelessWidget {
                       const SizedBox(width: 5),
                       Text(
                         flowLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: textMedium,
+                          color: p.textSecondary,
                         ),
                       ),
                     ],
@@ -184,7 +191,8 @@ class OfflineChatMessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (message.isSystem) return _systemNote();
+    final p = context.palette;
+    if (message.isSystem) return _systemNote(p);
 
     final isUser = message.fromUser;
 
@@ -201,8 +209,8 @@ class OfflineChatMessageBubble extends StatelessWidget {
               width: 30,
               height: 30,
               margin: const EdgeInsets.only(right: 8, bottom: 2),
-              decoration: const BoxDecoration(
-                color: accentLight,
+              decoration: BoxDecoration(
+                color: p.accentSoft,
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
@@ -225,14 +233,14 @@ class OfflineChatMessageBubble extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 gradient: isUser ? primaryGradient : null,
-                color: isUser ? null : _cardBg,
+                color: isUser ? null : _cardBg(p),
                 borderRadius: BorderRadius.only(
                   topLeft: const Radius.circular(18),
                   topRight: const Radius.circular(18),
                   bottomLeft: Radius.circular(isUser ? 18 : 4),
                   bottomRight: Radius.circular(isUser ? 4 : 18),
                 ),
-                border: isUser ? null : Border.all(color: _pageBorder),
+                border: isUser ? null : Border.all(color: _pageBorder(p)),
                 boxShadow: [
                   BoxShadow(
                     color: isUser
@@ -262,7 +270,7 @@ class OfflineChatMessageBubble extends StatelessWidget {
                             if (progress == null) return child;
                             return Container(
                               height: 140,
-                              color: surfaceLight,
+                              color: p.surface,
                               child: const Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
@@ -290,17 +298,17 @@ class OfflineChatMessageBubble extends StatelessWidget {
                                 MarkdownStyleSheet.fromTheme(
                                   Theme.of(context),
                                 ).copyWith(
-                                  p: const TextStyle(
+                                  p: TextStyle(
                                     fontSize: 14.5,
                                     height: 1.35,
-                                    color: _textStrong,
+                                    color: _textStrong(p),
                                   ),
-                                  strong: const TextStyle(
+                                  strong: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    color: _textStrong,
+                                    color: _textStrong(p),
                                   ),
-                                  code: const TextStyle(
-                                    backgroundColor: surfaceLight,
+                                  code: TextStyle(
+                                    backgroundColor: p.surface,
                                     color: primaryColor,
                                     fontSize: 13,
                                   ),
@@ -353,15 +361,15 @@ class OfflineChatMessageBubble extends StatelessWidget {
                           fontSize: 10,
                           color: isUser
                               ? Colors.white.withValues(alpha: 0.75)
-                              : textLight,
+                              : _textLight(p),
                         ),
                       ),
                       if (!isUser) ...[
                         const SizedBox(width: 4),
-                        const Icon(
+                        Icon(
                           Icons.offline_bolt_outlined,
                           size: 10,
-                          color: textLight,
+                          color: _textLight(p),
                         ),
                       ],
                     ],
@@ -375,33 +383,33 @@ class OfflineChatMessageBubble extends StatelessWidget {
     );
   }
 
-  Widget _systemNote() {
+  Widget _systemNote(AppPalette p) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Center(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: surfaceLight,
+            color: p.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: dividerColor),
+            border: Border.all(color: p.divider),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.info_outline_rounded,
                 size: 13,
-                color: _textSoft,
+                color: _textSoft(p),
               ),
               const SizedBox(width: 6),
               Flexible(
                 child: Text(
                   message.text,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: _textSoft,
+                    color: _textSoft(p),
                   ),
                 ),
               ),
@@ -447,6 +455,7 @@ class _OfflineChatbotTypingBubbleState extends State<OfflineChatbotTypingBubble>
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -457,8 +466,8 @@ class _OfflineChatbotTypingBubbleState extends State<OfflineChatbotTypingBubble>
               width: 30,
               height: 30,
               margin: const EdgeInsets.only(right: 8, bottom: 2),
-              decoration: const BoxDecoration(
-                color: accentLight,
+              decoration: BoxDecoration(
+                color: p.accentSoft,
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
@@ -475,14 +484,14 @@ class _OfflineChatbotTypingBubbleState extends State<OfflineChatbotTypingBubble>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: _cardBg,
+              color: _cardBg(p),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(18),
                 topRight: Radius.circular(18),
                 bottomRight: Radius.circular(18),
                 bottomLeft: Radius.circular(4),
               ),
-              border: Border.all(color: _pageBorder),
+              border: Border.all(color: _pageBorder(p)),
             ),
             child: AnimatedBuilder(
               animation: _anim,
@@ -535,6 +544,7 @@ class OfflineChatbotActiveOptionsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (options.isEmpty) return const SizedBox.shrink();
+    final p = context.palette;
 
     final chips = options.map((option) {
       return Material(
@@ -545,7 +555,7 @@ class OfflineChatbotActiveOptionsBar extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: _cardBg,
+              color: _cardBg(p),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
                 color: primaryColor.withValues(alpha: 0.85),
@@ -584,10 +594,10 @@ class OfflineChatbotActiveOptionsBar extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 6),
               child: Text(
                 title!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: _textSoft,
+                  color: _textSoft(p),
                 ),
               ),
             ),
@@ -671,15 +681,16 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return SafeArea(
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
         child: Container(
           decoration: BoxDecoration(
-            color: _cardBg,
+            color: _cardBg(p),
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: _pageBorder),
+            border: Border.all(color: _pageBorder(p)),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.05),
@@ -695,8 +706,8 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
               Container(
                 width: 38,
                 height: 38,
-                decoration: const BoxDecoration(
-                  color: accentLight,
+                decoration: BoxDecoration(
+                  color: p.accentSoft,
                   shape: BoxShape.circle,
                 ),
                 child: IconButton(
@@ -734,12 +745,12 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
                       maxLines: 4,
                       textInputAction: TextInputAction.send,
                       onSubmitted: (_) => widget.onSend(),
-                      style: const TextStyle(fontSize: 15, color: _textStrong),
+                      style: TextStyle(fontSize: 15, color: _textStrong(p)),
                       decoration: InputDecoration(
                         hintText: widget.hintText,
-                        hintStyle: const TextStyle(
+                        hintStyle: TextStyle(
                           fontSize: 14.5,
-                          color: textLight,
+                          color: _textLight(p),
                         ),
                         isDense: true,
                         border: InputBorder.none,
@@ -754,10 +765,10 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
               ),
               if (_hasText)
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.clear_rounded,
                     size: 18,
-                    color: _textSoft,
+                    color: _textSoft(p),
                   ),
                   onPressed: widget.input.clear,
                 ),
@@ -775,7 +786,7 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
                   height: 42,
                   decoration: BoxDecoration(
                     gradient: canSend ? primaryGradient : null,
-                    color: canSend ? null : dividerColor,
+                    color: canSend ? null : p.divider,
                     shape: BoxShape.circle,
                     boxShadow: canSend
                         ? [
@@ -791,7 +802,7 @@ class _OfflineChatbotComposerState extends State<OfflineChatbotComposer> {
                     padding: EdgeInsets.zero,
                     icon: Icon(
                       Icons.arrow_upward_rounded,
-                      color: canSend ? Colors.white : textLight,
+                      color: canSend ? Colors.white : _textLight(p),
                       size: 22,
                     ),
                     onPressed: canSend ? () => widget.onSend() : null,

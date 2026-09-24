@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/features/allocry/service/cry_audio_store.dart';
@@ -32,6 +33,8 @@ class CryAudioPlayer extends StatefulWidget {
 }
 
 class _CryAudioPlayerState extends State<CryAudioPlayer> {
+  AppPalette get _p => context.palette;
+
   final AudioPlayer _player = AudioPlayer();
 
   String? _resolvedPath;
@@ -135,11 +138,11 @@ class _CryAudioPlayerState extends State<CryAudioPlayer> {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.mic_off_rounded, size: 16, color: Colors.grey.shade400),
+          Icon(Icons.mic_off_rounded, size: 16, color: _p.pick(Colors.grey.shade400, _p.textMuted)),
           const SizedBox(width: 6),
           Text(
             'Recording unavailable',
-            style: GoogleFonts.poppins(fontSize: 11.5, color: Colors.grey.shade500),
+            style: GoogleFonts.poppins(fontSize: 11.5, color: _p.pick(Colors.grey.shade500, _p.textMuted)),
           ),
         ],
       );
@@ -180,7 +183,7 @@ class _CryAudioPlayerState extends State<CryAudioPlayer> {
         const SizedBox(width: 12),
         Text(
           _format(_position),
-          style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF6B7280)),
+          style: GoogleFonts.poppins(fontSize: 12, color: _p.pick(const Color(0xFF6B7280), _p.textSecondary)),
         ),
         Expanded(
           child: SliderTheme(
@@ -204,7 +207,7 @@ class _CryAudioPlayerState extends State<CryAudioPlayer> {
         ),
         Text(
           _format(_duration),
-          style: GoogleFonts.poppins(fontSize: 12, color: const Color(0xFF6B7280)),
+          style: GoogleFonts.poppins(fontSize: 12, color: _p.pick(const Color(0xFF6B7280), _p.textSecondary)),
         ),
       ],
     );

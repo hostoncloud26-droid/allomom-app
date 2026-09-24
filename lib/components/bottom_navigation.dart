@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 
 class CustomBottomNavigationBar extends StatelessWidget {
@@ -14,7 +15,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: Colors.white,
+      color: context.palette.card,
       elevation: 8,
       shape: const CircularNotchedRectangle(),
       notchMargin: 6,
@@ -25,12 +26,14 @@ class CustomBottomNavigationBar extends StatelessWidget {
             child: Row(
               children: [
                 _buildNavItem(
+                  context,
                   index: 0,
                   activeIcon: Icons.home,
                   inactiveIcon: Icons.home_outlined,
                   label: 'Home',
                 ),
                 _buildNavItem(
+                  context,
                   index: 1,
                   activeIcon: Icons.feed,
                   inactiveIcon: Icons.feed_outlined,
@@ -44,12 +47,14 @@ class CustomBottomNavigationBar extends StatelessWidget {
             child: Row(
               children: [
                 _buildNavItem(
+                  context,
                   index: 2,
                   activeIcon: Icons.people,
                   inactiveIcon: Icons.people_outline,
                   label: 'People',
                 ),
                 _buildNavItem(
+                  context,
                   index: 3,
                   activeIcon: Icons.settings_rounded,
                   inactiveIcon: Icons.settings_outlined,
@@ -63,13 +68,15 @@ class CustomBottomNavigationBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem({
+  Widget _buildNavItem(
+    BuildContext context, {
     required int index,
     required IconData activeIcon,
     required IconData inactiveIcon,
     required String label,
   }) {
     final isSelected = currentIndex == index;
+    final inactive = context.palette.navInactive;
     return Expanded(
       child: MaterialButton(
         padding: EdgeInsets.zero,
@@ -80,7 +87,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
           children: [
             Icon(
               isSelected ? activeIcon : inactiveIcon,
-              color: isSelected ? primaryColor : Colors.grey,
+              color: isSelected ? primaryColor : inactive,
               size: 24,
             ),
             const SizedBox(height: 2),
@@ -89,7 +96,7 @@ class CustomBottomNavigationBar extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 fontSize: 11,
-                color: isSelected ? primaryColor : Colors.grey,
+                color: isSelected ? primaryColor : inactive,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
               ),
             ),

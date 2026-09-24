@@ -1,5 +1,6 @@
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/features/allocry/data/cry_data.dart';
@@ -18,6 +19,8 @@ class CryTypeDetailPage extends StatefulWidget {
 }
 
 class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
+  AppPalette get _p => context.palette;
+
   final AudioPlayer _player = AudioPlayer();
   bool _playing = false;
 
@@ -50,9 +53,9 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
     final type = widget.type;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: _p.background,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: _p.background,
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: type.color),
@@ -98,7 +101,7 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 13,
                       height: 1.55,
-                      color: const Color(0xFF4A4E5A),
+                      color: _p.pick(const Color(0xFF4A4E5A), _p.textSecondary),
                     ),
                   ),
                   if (type.sampleAudio != null) ...[
@@ -163,8 +166,8 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
                                 fontWeight:
                                     line.bold ? FontWeight.w600 : FontWeight.w400,
                                 color: line.bold
-                                    ? const Color(0xFF1E2229)
-                                    : const Color(0xFF4A4E5A),
+                                    ? _p.pick(const Color(0xFF1E2229), _p.textPrimary)
+                                    : _p.pick(const Color(0xFF4A4E5A), _p.textSecondary),
                               ),
                             ),
                           ),
@@ -187,9 +190,9 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
                           bottom: i == type.recommendations.length - 1 ? 0 : 10),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF9FAFC),
+                        color: _p.pick(const Color(0xFFF9FAFC), _p.inputFill),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFEEF0F4)),
+                        border: Border.all(color: _p.pick(const Color(0xFFEEF0F4), _p.border)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -218,7 +221,7 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
                               style: GoogleFonts.poppins(
                                 fontSize: 13,
                                 height: 1.5,
-                                color: const Color(0xFF4A4E5A),
+                                color: _p.pick(const Color(0xFF4A4E5A), _p.textSecondary),
                               ),
                             ),
                           ),
@@ -244,9 +247,9 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFEEF0F4)),
+        border: Border.all(color: _p.pick(const Color(0xFFEEF0F4), _p.border)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -267,7 +270,7 @@ class _CryTypeDetailPageState extends State<CryTypeDetailPage> {
                 style: GoogleFonts.outfit(
                   fontSize: 15.5,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF2C2F38),
+                  color: _p.pick(const Color(0xFF2C2F38), _p.textPrimary),
                 ),
               ),
             ],

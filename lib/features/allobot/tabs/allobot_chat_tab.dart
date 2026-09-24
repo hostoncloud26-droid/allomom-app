@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
 import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.dart';
@@ -79,8 +80,9 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -135,6 +137,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
 
   // ─── TOP APP BAR ───
   Widget _buildAppBar() {
+    final p = context.palette;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       child: Row(
@@ -150,20 +153,20 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
             child: Container(
               width: 35,
               height: 35,
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: p.card,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black12,
+                    color: p.pick(Colors.black12, p.shadow),
                     blurRadius: 8,
                     offset: Offset(0, 2),
                   ),
                 ],
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.chevron_left_rounded,
-                color: Color(0xFF1E2024),
+                color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                 size: 24,
               ),
             ),
@@ -178,7 +181,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                   style: GoogleFonts.outfit(
                     fontSize: 19,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
+                    color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                   ),
                 ),
               ],
@@ -194,9 +197,11 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F3),
+                  color: p.pick(const Color(0xFFFFF0F3), p.accentSoft),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFFD2DC)),
+                  border: Border.all(
+                    color: p.pick(const Color(0xFFFFD2DC), p.accentBorder),
+                  ),
                 ),
                 child: Text(
                   'New Chat',
@@ -215,6 +220,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
   }
 
   Widget _buildEmptyState() {
+    final p = context.palette;
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 40),
@@ -224,8 +230,8 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
             Container(
               width: 74,
               height: 74,
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFF0F3),
+              decoration: BoxDecoration(
+                color: p.pick(const Color(0xFFFFF0F3), p.accentSoft),
                 shape: BoxShape.circle,
               ),
               clipBehavior: Clip.antiAlias,
@@ -245,7 +251,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
+                color: p.pick(const Color(0xFF1E2024), p.textPrimary),
               ),
             ),
             const SizedBox(height: 6),
@@ -256,7 +262,7 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 height: 1.45,
-                color: const Color(0xFF8E95A5),
+                color: p.pick(const Color(0xFF8E95A5), p.textMuted),
               ),
             ),
           ],

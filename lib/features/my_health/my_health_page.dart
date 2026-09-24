@@ -1,34 +1,36 @@
-import 'dart:math' as math;
-import 'package:intl/intl.dart' hide TextDirection;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:get/get.dart';
+import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/components/day_date_selector.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/reports/reports_page.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
 import 'package:allomom/features/my_health/health_profile_page.dart';
+import 'package:allomom/features/my_health/widgets/my_health_profile_card.dart';
 import 'package:allomom/features/my_health/widgets/advanced_health_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/step_target_tile.dart';
 import 'package:allomom/features/my_health/widgets/fitness_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/calories_tracker_tile.dart';
 import 'package:allomom/features/my_health/widgets/nutrition_tiles.dart';
-import 'package:allomom/features/overview_section/nutrition/nutrition_trend_card.dart';
 import 'package:allomom/features/my_health/widgets/fitness_tiles.dart';
-import 'package:allomom/features/my_health/details/steps_detail_page.dart';
-import 'package:allomom/features/my_health/details/blood_oxygen_detail_page.dart';
-import 'package:allomom/features/my_health/details/heart_rate_detail_page.dart';
-import 'package:allomom/features/my_health/details/sleep_detail_page.dart';
-import 'package:allomom/features/my_health/details/hrv_detail_page.dart';
-import 'package:allomom/features/my_health/details/stress_detail_page.dart';
-import 'package:allomom/features/my_health/details/blood_pressure_detail_page.dart';
-import 'package:allomom/features/my_health/details/hemoglobin_detail_page.dart';
-import 'package:allomom/features/my_health/details/blood_glucose_detail_page.dart';
-import 'package:allomom/features/my_health/details/bmi_tracker_detail_page.dart';
-import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
-import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
-import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
-import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/my_health/tiles/step_tile.dart';
+import 'package:allomom/features/my_health/tiles/sleep_tile.dart';
+import 'package:allomom/features/my_health/tiles/heart_rate_tile.dart';
+import 'package:allomom/features/my_health/tiles/blood_oxygen_tile.dart';
+import 'package:allomom/features/my_health/tiles/blood_pressure_tile.dart';
+import 'package:allomom/features/my_health/tiles/stress_tile.dart';
+import 'package:allomom/features/my_health/tiles/bmi_tile.dart';
+import 'package:allomom/features/my_health/tiles/hrv_tile.dart';
+import 'package:allomom/features/my_health/tiles/hemoglobin_tile.dart';
+import 'package:allomom/features/my_health/tiles/blood_glucose_tile.dart';
+import 'package:allomom/features/my_health/tiles/kick_count_tile.dart';
+import 'package:allomom/features/my_health/tiles/feeding_tile.dart';
+import 'package:allomom/features/overview_section/nutrition/nutrition_trend_card.dart';
+import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
+import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 class _HealthTabItem {
@@ -50,6 +52,11 @@ class _MyHealthPageState extends State<MyHealthPage> {
   late int _currentIndex;
   late final PageController _pageController;
   bool _isSyncingAllowear = false;
+
+  // Accent colours stay fixed; surfaces and neutral text follow light / dark.
+  AppPalette get _p => context.palette;
+  Color get _titleColor => _p.pick(const Color(0xFF2D3142), _p.textPrimary);
+  Color get _textSoft => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
 
   final List<_HealthTabItem> _tabs = const [
     _HealthTabItem(icon: Icons.health_and_safety_rounded, label: 'Health'),
@@ -101,16 +108,16 @@ class _MyHealthPageState extends State<MyHealthPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF2D3142),
+            color: _titleColor,
             size: 20,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -123,10 +130,10 @@ class _MyHealthPageState extends State<MyHealthPage> {
               : _currentIndex == 2
               ? 'My Prescriptions'
               : 'My Profile',
-          style: GoogleFonts.manrope(
+          style: TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF2D3142),
+            color: _titleColor,
           ),
         ),
       ),
@@ -137,19 +144,19 @@ class _MyHealthPageState extends State<MyHealthPage> {
         backgroundColor: const Color(0xFFFF3B5C),
         elevation: 6,
         shape: const CircleBorder(),
-        child: _isSyncingAllowear
-            ? const SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2.5,
-                ),
-              )
-            : const Icon(Icons.watch_rounded, color: Colors.white, size: 28),
+        // AlloConnect's band icon: it turns while a sync runs, and is dimmed
+        // until a band has been paired.
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: _RotatingAllowearIcon(
+            spinning: _isSyncingAllowear,
+            paired:
+                (MainController.instance.allowearMacAddress ?? '').isNotEmpty,
+          ),
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
-        color: Colors.white,
+        color: _p.card,
         shape: const CircularNotchedRectangle(),
         notchMargin: 8,
         elevation: 12,
@@ -176,27 +183,9 @@ class _MyHealthPageState extends State<MyHealthPage> {
           }
         },
         children: [
-          // Tab 0: Health Section — the baby stays put, the rest scrolls under it
-          Column(
-            children: [
-              const _PinnedBabyHero(),
-              Expanded(
-                child: RefreshIndicator(
-                  color: const Color(0xFFFF3B5C),
-                  onRefresh: () async {
-                    await HealthVitalsController.instance.syncAllVitals();
-                  },
-                  child: const SingleChildScrollView(
-                    physics: AlwaysScrollableScrollPhysics(
-                      parent: BouncingScrollPhysics(),
-                    ),
-                    padding: EdgeInsets.only(top: 4),
-                    child: MyHealthSection(),
-                  ),
-                ),
-              ),
-            ],
-          ),
+          // Tab 0: Health Section — owns its own scroll view, pull-to-refresh
+          // and collapsing profile header.
+          MyHealthSection(onOpenProfile: () => _goToTab(3)),
 
           // Tab 1: Reports
           const ReportsPage(showAppBar: false),
@@ -211,18 +200,20 @@ class _MyHealthPageState extends State<MyHealthPage> {
     );
   }
 
+  void _goToTab(int index) {
+    if (_currentIndex != index) {
+      setState(() => _currentIndex = index);
+      _pageController.jumpToPage(index);
+    }
+  }
+
   Widget _buildTabButton(int index, _HealthTabItem tab) {
     final isSelected = _currentIndex == index;
     const activeColor = Color(0xFFFF3B5C);
-    const inactiveColor = Color(0xFF8E95A5);
+    final inactiveColor = _textSoft;
 
     return InkWell(
-      onTap: () {
-        if (_currentIndex != index) {
-          setState(() => _currentIndex = index);
-          _pageController.jumpToPage(index);
-        }
-      },
+      onTap: () => _goToTab(index),
       borderRadius: BorderRadius.circular(16),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -238,7 +229,7 @@ class _MyHealthPageState extends State<MyHealthPage> {
             const SizedBox(height: 3),
             Text(
               tab.label,
-              style: GoogleFonts.manrope(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
                 color: isSelected ? activeColor : inactiveColor,
@@ -251,2473 +242,496 @@ class _MyHealthPageState extends State<MyHealthPage> {
   }
 }
 
-/// The baby card that stays fixed at the top of My Health.
-///
-/// It sits outside the scroll view so the greeting never scrolls away — only
-/// the cards below it move.
-class _PinnedBabyHero extends StatelessWidget {
-  const _PinnedBabyHero();
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        MainController.instance,
-        HealthVitalsController.instance,
-      ]),
-      builder: (context, child) {
-        final week = MainController.instance.currentGestationalWeek;
-
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 10),
-          child: BabyHeroBanner(
-            // A screen of empty tiles needs the line that asks for a
-            // first reading, not the tour of what lives here.
-            narrationKey: HealthVitalsController.instance.hasAnyVital
-                ? NarrationKeys.pgVitalsOpen
-                : NarrationKeys.pgVitalsEmpty,
-            bindNarrationText: false,
-            speechText:
-                "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-            bubblePosition: SpeechBubblePosition.topCenter,
-            height: 270,
-            greetingText: "",
-          ),
-        );
-      },
-    );
-  }
-}
-
+/// The Health tab: a collapsing profile header, the day's summary cards, one
+/// tile per vital and the nutrition / fitness blocks — laid out as
+/// AlloConnect's HealthSection. Everything from the calories tile down reports
+/// on [_selectedDate], picked from a date strip that rides over the scroll view
+/// once that stretch reaches the app bar.
 class MyHealthSection extends StatefulWidget {
-  final bool showSectionHeader;
+  /// Tapping the profile header; the page switches to its Profile tab.
+  final VoidCallback? onOpenProfile;
 
-  const MyHealthSection({super.key, this.showSectionHeader = false});
+  const MyHealthSection({super.key, this.onOpenProfile});
 
   @override
   State<MyHealthSection> createState() => _MyHealthSectionState();
 }
 
 class _MyHealthSectionState extends State<MyHealthSection> {
+  static const _tilePadding = EdgeInsets.only(
+    left: 16.0,
+    right: 16.0,
+    top: 12.0,
+    bottom: 4.0,
+  );
+
+  final HealthVitalsController _vitals = HealthVitalsController.instance;
+  late final ScrollController _scrollController;
+  bool _showTitle = false;
+
+  /// Day the section below the summary card reports on.
+  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
+
+  /// Latest vital per key as it stood on [_selectedDate]. Only consulted for
+  /// past days — today keeps reading the controller so live syncs still land.
+  Map<String, VitalsStreamResponse?> _dayVitals =
+      <String, VitalsStreamResponse?>{};
+
+  /// The date strip is an overlay, never part of the scrolled content: it
+  /// shows only once the date-scoped stretch has reached the app bar.
+  bool _showDateSelector = false;
+
+  /// Sits on the first date-scoped card, so the overlay triggers off real
+  /// layout rather than a guessed scroll offset.
+  final GlobalKey _dateScopeAnchorKey = GlobalKey();
+
+  /// The section's own box: the page's app bar sits above it, so the anchor is
+  /// measured against this rather than the screen.
+  final GlobalKey _sectionKey = GlobalKey();
+
   @override
   void initState() {
     super.initState();
+    _scrollController = ScrollController()..addListener(_onScroll);
+    // Keep a past day's snapshot in step with fresh syncs and manual entries.
+    _vitals.addListener(_onVitalsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      HealthVitalsController.instance.fetchLatestVitals();
+      _vitals.fetchLatestVitals();
     });
+    _loadDayVitals();
+  }
+
+  @override
+  void dispose() {
+    _vitals.removeListener(_onVitalsChanged);
+    _scrollController
+      ..removeListener(_onScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  bool get _isToday => DateUtils.isSameDay(_selectedDate, DateTime.now());
+
+  void _onVitalsChanged() {
+    if (!_isToday) _loadDayVitals();
+  }
+
+  Future<void> _loadDayVitals() async {
+    final date = _selectedDate;
+    final snapshot = await _vitals.fetchVitalsForDate(date);
+    if (!mounted || !DateUtils.isSameDay(date, _selectedDate)) return;
+    setState(() => _dayVitals = snapshot);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateDateSelectorVisibility();
+    });
+  }
+
+  void _onDateSelected(DateTime date) {
+    final normalized = DateUtils.dateOnly(date);
+    if (DateUtils.isSameDay(normalized, _selectedDate)) return;
+    setState(() {
+      _selectedDate = normalized;
+      _dayVitals = <String, VitalsStreamResponse?>{};
+    });
+    _loadDayVitals();
+  }
+
+  /// Today reads straight from the controller; any other day comes from the
+  /// day snapshot.
+  VitalsStreamResponse? _vitalFor(String key, VitalsStreamResponse? today) {
+    return _isToday ? today : _dayVitals[key];
+  }
+
+  int get _stepsForSelectedDate {
+    if (_isToday) return _vitals.stepsValue;
+    return _dayVitals['steps']?.value.round() ?? 0;
+  }
+
+  /// There is no typed getter for glucose, so today's reading is the newest
+  /// row under either key.
+  VitalsStreamResponse? get _todayGlucoseVital {
+    VitalsStreamResponse? latest;
+    for (final v in _vitals.vitals) {
+      final key = v.key.toLowerCase();
+      if (key != 'glucose' && key != 'blood_glucose') continue;
+      if (latest == null || v.createdAt.isAfter(latest.createdAt)) latest = v;
+    }
+    return latest;
+  }
+
+  void _onScroll() {
+    final showTitle = _scrollController.offset > 160;
+    if (showTitle != _showTitle) {
+      setState(() => _showTitle = showTitle);
+    }
+    _updateDateSelectorVisibility();
+  }
+
+  void _updateDateSelectorVisibility() {
+    final anchorBox =
+        _dateScopeAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final sectionBox =
+        _sectionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (anchorBox == null || !anchorBox.hasSize || sectionBox == null) return;
+
+    final anchorTop = anchorBox
+        .localToGlobal(Offset.zero, ancestor: sectionBox)
+        .dy;
+    final show = anchorTop <= _appBarBottom;
+
+    if (show != _showDateSelector) {
+      setState(() => _showDateSelector = show);
+    }
+  }
+
+  /// Bottom of the collapsed sliver app bar, in the section's coordinates.
+  double get _appBarBottom => MediaQuery.of(context).padding.top + kToolbarHeight;
+
+  Future<void> _refresh() async {
+    await _vitals.syncAllVitals();
+    await _loadDayVitals();
   }
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = p.isDark;
+    final titleColor = isDark ? Colors.white : Colors.black87;
+
+    return Stack(
+      key: _sectionKey,
+      children: [
+        // Speaks the tab's intro — or, with nothing recorded yet, the line
+        // that asks for a first reading — while the tab is on screen.
+        GetBuilder<HealthVitalsController>(
+          init: _vitals,
+          builder: (c) => BabyNarration(
+            narrationKey: c.hasAnyVital
+                ? NarrationKeys.pgVitalsOpen
+                : NarrationKeys.pgVitalsEmpty,
+            bindText: false,
+            builder: (_, _) => const SizedBox.shrink(),
+          ),
+        ),
+        RefreshIndicator(
+          color: Theme.of(context).primaryColor,
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // ── App bar ──────────────────────────────────────────────────
+              SliverAppBar(
+                expandedHeight: 230,
+                floating: false,
+                pinned: true,
+                automaticallyImplyLeading: false,
+                backgroundColor: _showTitle
+                    ? (isDark ? Colors.black : Colors.white)
+                    : p.scaffoldSoft,
+                surfaceTintColor: Colors.transparent,
+                elevation: _showTitle ? 2 : 0,
+                title: AnimatedOpacity(
+                  opacity: _showTitle ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 200),
+                  child: AnimatedBuilder(
+                    animation: MainController.instance,
+                    builder: (context, _) => Text(
+                      MainController.instance.userName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: titleColor,
+                      ),
+                    ),
+                  ),
+                ),
+                centerTitle: true,
+                flexibleSpace: FlexibleSpaceBar(
+                  collapseMode: CollapseMode.parallax,
+                  background: MyHealthProfileCard(onTap: widget.onOpenProfile),
+                ),
+              ),
+
+              // ── Health Summary Card ──────────────────────────────────────
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: AdvancedHealthSummaryCard(),
+                ),
+              ),
+
+              // ── Cycle tracker (not pregnant) ─────────────────────────────
+              SliverToBoxAdapter(child: _buildCycleCard()),
+
+              // ── Calories Tracker ─────────────────────────────────────────
+              // Everything from here down reports on the selected day; the
+              // date strip that drives it rides above as an overlay.
+              SliverToBoxAdapter(
+                child: Padding(
+                  key: _dateScopeAnchorKey,
+                  padding: _tilePadding,
+                  child: CaloriesTrackerTile(
+                    date: _selectedDate,
+                    stepsForDate: _stepsForSelectedDate,
+                  ),
+                ),
+              ),
+
+              // ── Step Target Tile ─────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: GetBuilder<HealthVitalsController>(
+                  init: _vitals,
+                  builder: (c) {
+                    // A step target is a standing setting, not day data, so
+                    // it is only offered while today is selected.
+                    if (!_isToday ||
+                        c.targetVital?.data?['stepTarget'] != null) {
+                      return const SizedBox.shrink();
+                    }
+                    return const Padding(
+                      padding: _tilePadding,
+                      child: StepTargetTile(),
+                    );
+                  },
+                ),
+              ),
+
+              // ── Fitness Summary Card ─────────────────────────────────────
+              SliverToBoxAdapter(
+                child: GetBuilder<HealthVitalsController>(
+                  init: _vitals,
+                  builder: (_) => Padding(
+                    padding: _tilePadding,
+                    child: FitnessSummaryCard(
+                      date: _selectedDate,
+                      stepsForDate: _stepsForSelectedDate,
+                    ),
+                  ),
+                ),
+              ),
+
+              // ── Vital tiles ──────────────────────────────────────────────
+              SliverToBoxAdapter(
+                child: GetBuilder<HealthVitalsController>(
+                  init: _vitals,
+                  builder: _buildVitalTiles,
+                ),
+              ),
+
+              // ── Nutrition (NutritionTiles draws its own heading) ─────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                  child: NutritionTiles(date: _selectedDate),
+                ),
+              ),
+
+              // ── Intake trends (Allomom extra) ────────────────────────────
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: NutritionTrendCard(),
+                ),
+              ),
+
+              // ── Fitness (FitnessTiles draws its own heading) ─────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+                  child: FitnessTiles(date: _selectedDate),
+                ),
+              ),
+
+              // Clears the docked FAB and bottom bar.
+              const SliverToBoxAdapter(child: SizedBox(height: 80)),
+            ],
+          ),
+        ),
+
+        // ── Sticky date selector (overlay only) ──────────────────────────
+        StickyDateSelectorOverlay(
+          visible: _showDateSelector,
+          top: _appBarBottom,
+          selectedDate: _selectedDate,
+          onDateSelected: _onDateSelected,
+        ),
+      ],
+    );
+  }
+
+  /// Where AlloConnect shows its menstruation tracker: Allomom's cycle card,
+  /// for a woman who is not pregnant. The card pads itself horizontally.
+  Widget _buildCycleCard() {
     return AnimatedBuilder(
-      animation: Listenable.merge([
-        MainController.instance,
-        HealthVitalsController.instance,
-      ]),
-      builder: (context, child) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Optional Section Header (for home overview integration)
-            if (widget.showSectionHeader) ...[
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'My Health',
-                      style: GoogleFonts.manrope(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const MyHealthPage(),
-                          ),
-                        );
-                      },
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'View all',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFFFF3B5C),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.arrow_forward_ios_rounded,
-                            size: 11,
-                            color: Color(0xFFFF3B5C),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+      animation: MainController.instance,
+      builder: (context, _) {
+        final session = MainController.instance;
+        if (session.isPregnant || session.gender.toLowerCase() != 'female') {
+          return const SizedBox.shrink();
+        }
+        return Padding(
+          padding: const EdgeInsets.only(top: 12.0, bottom: 4.0),
+          child: CycleSummaryCard(
+            prediction: session.cyclePrediction,
+            onChanged: () {
+              if (mounted) setState(() {});
+            },
+            onRegisterPregnancy: () async {
+              final created = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PregnancyConfirmationPage(),
                 ),
-              ),
-              const SizedBox(height: 14),
-            ],
-
-            // ─── ADVANCED READINESS & VITAL SCORING ENGINE ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: AdvancedHealthSummaryCard(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── DAILY STEP TARGET CARD ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: StepTargetTile(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── FITNESS & MOVEMENT SUMMARY ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: FitnessSummaryCard(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── CALORIES & DIET TRACKER ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: CaloriesTrackerTile(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── SLEEP CARD (1ST VITAL) ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildSleepCard(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── VITALS GRID (STEPS, HR, HRV, BLOOD OXYGEN, STRESS) ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildVitalsGrid(),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── HEALTH READINGS (WITH + ADD) ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildHealthReadingsSection(context),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── WEIGHT & BMI TRACKER ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildWeightAndBmiTrackerCard(context),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── BABY CARE & TRACKING (KICK COUNTER & FEEDING) ───
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _buildBabyTrackingSection(context),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── NUTRITION MEAL TILES ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: NutritionTiles(),
-            ),
-            const SizedBox(height: 14),
-
-            // ─── INTAKE TRENDS (CALORIES BY MEAL & WATER) ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: NutritionTrendCard(),
-            ),
-            const SizedBox(height: 20),
-
-            // ─── GENTLE PREGNANCY FITNESS TILES ───
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: FitnessTiles(),
-            ),
-
-            const SizedBox(height: 60),
-          ],
+              );
+              if (created == true && mounted) setState(() {});
+            },
+          ),
         );
       },
     );
   }
 
-  /// The last week of readings for a tile sparkline, oldest first so the line
-  /// runs forward in time.
-  List<double> _sparklinePoints(String key) {
-    final history = HealthVitalsController.instance.getHistoryForPeriod(
-      key,
-      'Week',
-    );
-    return history.map((e) => e.value).toList();
-  }
+  Widget _buildVitalTiles(HealthVitalsController c) {
+    final date = _selectedDate;
+    final today = _isToday;
+    void onLogged() => _loadDayVitals();
 
-  // ─── VITALS GRID (STEPS, HEART RATE, HRV, BLOOD OXYGEN, STRESS) ───
-  Widget _buildVitalsGrid() {
+    final sleepVital = today
+        ? c.sleepVital
+        : (_dayVitals['sleep'] ?? _dayVitals['sleep_data']);
+    final glucoseVital = today
+        ? _todayGlucoseVital
+        : (_dayVitals['glucose'] ?? _dayVitals['blood_glucose']);
+
+    final tiles = <Widget>[
+      StepTile(
+        vital: _vitalFor('steps', c.stepsVital),
+        steps: today ? c.stepsValue : null,
+        targetSteps: c.currentStepTarget,
+        date: date,
+        onLogged: onLogged,
+      ),
+      SleepTile(
+        vital: sleepVital,
+        sleepHours: today && c.hasSleep ? c.sleepHoursValue : null,
+        date: date,
+        onLogged: onLogged,
+      ),
+      HeartRateTile(
+        vital: _vitalFor('heart_rate', c.heartRateVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      BloodOxygenTile(
+        vital: _vitalFor('blood_oxygen', c.bloodOxygenVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      BloodPressureTile(
+        vital: _vitalFor('blood_pressure', c.bloodPressureVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      StressTile(
+        vital: _vitalFor('stress', c.stressVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      BMITile(
+        weightVital: _vitalFor('weight', c.weightVital),
+        heightVital: _vitalFor('height', c.heightVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      HrvTile(
+        vital: _vitalFor('hrv', c.hrvVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      HemoglobinTile(
+        vital: _vitalFor('hemoglobin', c.hemoglobinVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      BloodGlucoseTile(vital: glucoseVital, date: date, onLogged: onLogged),
+      // Kicks only mean something during a pregnancy (the tile would render
+      // nothing anyway); leaving it out also drops its padding.
+      if (MainController.instance.isPregnant)
+        KickCountTile(
+          vital: _vitalFor('kick_count', c.kickCountVital),
+          date: date,
+          isPregnant: true,
+          onLogged: onLogged,
+        ),
+      FeedingTile(
+        vital: _vitalFor('feeding', c.feedingVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+    ];
+
     return Column(
       children: [
-        // Row 1: Steps & Heart Rate
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _buildStepsTile()),
-              const SizedBox(width: 12),
-              Expanded(child: _buildHeartRateTile()),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Row 2: HRV & Blood Oxygen
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(child: _buildHrvTile()),
-              const SizedBox(width: 12),
-              Expanded(child: _buildBloodOxygenTile()),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Row 3: Stress Load Tile
-        _buildStressLoadTile(),
+        for (final tile in tiles) Padding(padding: _tilePadding, child: tile),
       ],
     );
   }
+}
 
-  // ─── HEART RATE TILE ─────────────────────────────────────────
-  Widget _buildHeartRateTile() {
-    final hasHr = HealthVitalsController.instance.hasHeartRate;
-    final hr = HealthVitalsController.instance.heartRateValue;
-    final hrInt = int.tryParse(hr) ?? 72;
-    final statusText = !hasHr
-        ? 'No record'
-        : (hrInt >= 60 && hrInt <= 100)
-        ? 'Normal'
-        : (hrInt < 60 ? 'Low' : 'Elevated');
-    final statusColor = !hasHr
-        ? const Color(0xFF8E95A5)
-        : (hrInt >= 60 && hrInt <= 100)
-        ? const Color(0xFF10B981)
-        : const Color(0xFFFF5252);
+/// The Allowear band, as AlloConnect's My Health button shows it.
+class _RotatingAllowearIcon extends StatefulWidget {
+  const _RotatingAllowearIcon({required this.spinning, required this.paired});
 
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const HeartRateDetailPage()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFECEF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.favorite_rounded,
-                          color: Color(0xFFFF3B5C),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'heart_rate',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFECEF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFFFF3B5C),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFFF3B5C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
+  final bool spinning;
+  final bool paired;
 
-                Text(
-                  'Heart Rate',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(height: 2),
+  @override
+  State<_RotatingAllowearIcon> createState() => _RotatingAllowearIconState();
+}
 
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      hr,
-                      style: GoogleFonts.manrope(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      'bpm',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        color: const Color(0xFF8E95A5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+class _RotatingAllowearIconState extends State<_RotatingAllowearIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 4),
+  );
 
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  statusText,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-                SizedBox(
-                  width: 48,
-                  height: 18,
-                  child: CustomPaint(
-                    painter: _MiniSparklinePainter(
-                      color: const Color(0xFFFF3B5C),
-                      dataPoints: _sparklinePoints('heart_rate'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    if (widget.spinning) _controller.repeat();
   }
 
-  // ─── STEPS TILE ───────────────────────────────────────────────
-  Widget _buildStepsTile() {
-    final steps = HealthVitalsController.instance.stepsValue;
-    final goal = HealthVitalsController.instance.currentStepTarget;
-    final pct = ((steps / (goal > 0 ? goal : 6000)) * 100)
-        .clamp(0, 100)
-        .toInt();
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const StepsDetailPage()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE6F9F0),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.directions_walk_rounded,
-                          color: Color(0xFF10B981),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'steps',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE6F9F0),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFF10B981),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF10B981),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  'Steps',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(height: 2),
-
-                Text(
-                  steps.toString(),
-                  style: GoogleFonts.manrope(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '$pct% of goal',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF8E95A5),
-                      ),
-                    ),
-                    Text(
-                      '$goal',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFF8E95A5),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct / 100.0,
-                    minHeight: 5,
-                    backgroundColor: const Color(0xFFF0F1F5),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF10B981),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── HRV TILE ────────────────────────────────────────────────
-  Widget _buildHrvTile() {
-    final hasHrv = HealthVitalsController.instance.hasHrv;
-    final hrv = HealthVitalsController.instance.hrvValue;
-    final hrvInt = int.tryParse(hrv) ?? 50;
-    final statusText = !hasHrv
-        ? 'No record'
-        : (hrvInt >= 50)
-        ? 'Good'
-        : (hrvInt >= 35 ? 'Balanced' : 'Low');
-    final statusColor = !hasHrv
-        ? const Color(0xFF8E95A5)
-        : (hrvInt >= 35 ? const Color(0xFF10B981) : const Color(0xFFF59E0B));
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const HrvDetailPage()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF3E8FF),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.insights_rounded,
-                          color: Color(0xFF9333EA),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'hrv',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF3E8FF),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFF9333EA),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF9333EA),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  'HRV',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(height: 2),
-
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      hrv,
-                      style: GoogleFonts.manrope(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      'ms',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        color: const Color(0xFF8E95A5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  statusText,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-                SizedBox(
-                  width: 48,
-                  height: 18,
-                  child: CustomPaint(
-                    painter: _MiniSparklinePainter(
-                      color: const Color(0xFF9333EA),
-                      dataPoints: _sparklinePoints('hrv'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── BLOOD OXYGEN TILE ───────────────────────────────────────
-  Widget _buildBloodOxygenTile() {
-    final hasSpo2 = HealthVitalsController.instance.hasBloodOxygen;
-    final spo2 = HealthVitalsController.instance.bloodOxygenValue;
-    final spo2Int = int.tryParse(spo2) ?? 98;
-    final statusText = !hasSpo2
-        ? 'No record'
-        : (spo2Int >= 95 ? 'Optimal' : 'Attention');
-    final statusColor = !hasSpo2
-        ? const Color(0xFF8E95A5)
-        : (spo2Int >= 95 ? const Color(0xFF10B981) : const Color(0xFFFF5252));
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BloodOxygenDetailPage()),
-        );
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFE0F2FE),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.air_rounded,
-                          color: Color(0xFF0284C7),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'blood_oxygen',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFF0284C7),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0284C7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                Text(
-                  'Blood Oxygen',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(height: 2),
-
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  children: [
-                    Text(
-                      spo2,
-                      style: GoogleFonts.manrope(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      '%',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11,
-                        color: const Color(0xFF8E95A5),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Text(
-                  statusText,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
-                ),
-                SizedBox(
-                  width: 48,
-                  height: 18,
-                  child: CustomPaint(
-                    painter: _MiniSparklinePainter(
-                      color: const Color(0xFF0284C7),
-                      dataPoints: _sparklinePoints('blood_oxygen'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── STRESS LOAD TILE ────────────────────────────────────────
-  Widget _buildStressLoadTile() {
-    final hasStress = HealthVitalsController.instance.hasStress;
-    final stressVital = HealthVitalsController.instance.stressVital;
-    final stressScore = stressVital != null ? stressVital.value.toInt() : 0;
-    final stressBadge = hasStress
-        ? HealthVitalsController.instance.stressLevel
-        : 'No record';
-    final progress = hasStress ? (stressScore / 100.0).clamp(0.0, 1.0) : 0.0;
-    final subtitle = hasStress
-        ? (stressScore <= 30
-              ? 'Low stress ($stressScore/100)'
-              : stressScore <= 60
-              ? 'Moderate stress ($stressScore/100)'
-              : 'High stress ($stressScore/100)')
-        : 'Not recorded yet';
-    final statusText = hasStress
-        ? (stressScore <= 30
-              ? 'Well rested'
-              : stressScore <= 60
-              ? 'Normal load'
-              : 'Take a rest')
-        : 'Sync to track';
-    final badgeColor = hasStress
-        ? (stressScore <= 30
-              ? const Color(0xFF10B981)
-              : stressScore <= 60
-              ? const Color(0xFFF59E0B)
-              : const Color(0xFFFF3B5C))
-        : const Color(0xFF8E95A5);
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const StressDetailPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFEF3C7),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.spa_rounded,
-                          color: Color(0xFFD97706),
-                          size: 19,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Stress Load',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: badgeColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        stressBadge,
-                        style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: badgeColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'stress',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F2FE),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFF0284C7),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0284C7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 6,
-                backgroundColor: const Color(0xFFF0F1F5),
-                valueColor: AlwaysStoppedAnimation<Color>(badgeColor),
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  subtitle,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8E95A5),
-                  ),
-                ),
-                Text(
-                  statusText,
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── SLEEP CARD ──────────────────────────────────────────────
-  Widget _buildSleepCard() {
-    final hasSleep = HealthVitalsController.instance.hasSleep;
-    final sleepHours = HealthVitalsController.instance.sleepHoursValue;
-    final sleepH = sleepHours.toInt();
-    final sleepM = ((sleepHours - sleepH) * 60).round();
-    final sleepDate = HealthVitalsController.instance.sleepDate;
-    final sleepScore = hasSleep
-        ? ((sleepHours / 8.0) * 100).clamp(30, 99).toInt()
-        : null;
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const SleepDetailPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: const BoxDecoration(
-                          color: Color(0xFFEEF2FF),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(
-                            Icons.bedtime_rounded,
-                            color: Color(0xFF4F46E5),
-                            size: 19,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Sleep',
-                              style: GoogleFonts.manrope(
-                                fontSize: 14.5,
-                                fontWeight: FontWeight.w700,
-                                color: const Color(0xFF1E2024),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              hasSleep ? sleepDate : 'No record',
-                              style: GoogleFonts.manrope(
-                                fontSize: 11,
-                                color: const Color(0xFF8E95A5),
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFEEF2FF),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.star_rounded,
-                            size: 13,
-                            color: Color(0xFF4F46E5),
-                          ),
-                          const SizedBox(width: 3),
-                          Text(
-                            sleepScore != null
-                                ? 'Score $sleepScore'
-                                : 'No record',
-                            style: GoogleFonts.manrope(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF4F46E5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'sleep',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEEF2FF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFF4F46E5),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF4F46E5),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  hasSleep ? '${sleepH}h ${sleepM}m' : '-- h -- m',
-                  style: GoogleFonts.manrope(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  hasSleep
-                      ? (sleepHours >= 7.0
-                            ? '• Optimal rest'
-                            : sleepHours >= 5.0
-                            ? '• Fair rest'
-                            : '• Need more rest')
-                      : '• Tap to log',
-                  style: GoogleFonts.manrope(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: hasSleep
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFF8E95A5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            SizedBox(
-              height: 48,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _SleepHypnogramPainter(
-                  hasSleep: hasSleep,
-                  sleepHours: sleepHours,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── HEALTH READINGS SECTION ─────────────────────────────────
-  Widget _buildHealthReadingsSection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Health Readings',
-              style: GoogleFonts.manrope(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
-              ),
-            ),
-            GestureDetector(
-              onTap: () => _showAddReadingSheet(context),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.add_circle_outline_rounded,
-                    size: 15,
-                    color: Color(0xFFFF3B5C),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Add',
-                    style: GoogleFonts.manrope(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFFF3B5C),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-
-        // 3 Cards Row: BP, Hemoglobin, Blood Glucose
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: [
-              _buildReadingCard(
-                title: 'Blood Pressure',
-                value: HealthVitalsController.instance.bloodPressureValue,
-                unit: 'mmHg',
-                date: HealthVitalsController.instance.bloodPressureDate,
-                status: HealthVitalsController.instance.hasBloodPressure
-                    ? 'Recorded'
-                    : 'No record',
-                statusColor: HealthVitalsController.instance.hasBloodPressure
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFF8E95A5),
-                accentColor: const Color(0xFFFF3B5C),
-                icon: Icons.favorite_border_rounded,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const BloodPressureDetailPage(),
-                    ),
-                  );
-                },
-                onLog: () => VitalLogBottomSheet.show(
-                  context,
-                  initialKey: 'blood_pressure',
-                  lockKey: true,
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              _buildReadingCard(
-                title: 'Hemoglobin',
-                value: HealthVitalsController.instance.hasHemoglobin
-                    ? HealthVitalsController.instance.hemoglobinValue
-                          .toStringAsFixed(1)
-                    : '--',
-                unit: 'g/dL',
-                date: HealthVitalsController.instance.hemoglobinDate,
-                status: HealthVitalsController.instance.hasHemoglobin
-                    ? (HealthVitalsController.instance.hemoglobinValue >= 11.0
-                          ? 'Adequate'
-                          : 'Low')
-                    : 'No record',
-                statusColor: HealthVitalsController.instance.hasHemoglobin
-                    ? const Color(0xFF10B981)
-                    : const Color(0xFF8E95A5),
-                accentColor: const Color(0xFF9333EA),
-                icon: Icons.water_drop_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const HemoglobinDetailPage(),
-                    ),
-                  );
-                },
-                onLog: () => VitalLogBottomSheet.show(
-                  context,
-                  initialKey: 'hemoglobin',
-                  lockKey: true,
-                ),
-              ),
-              const SizedBox(width: 12),
-
-              _buildReadingCard(
-                title: 'Blood Glucose',
-                value: HealthVitalsController.instance.hasBloodGlucose
-                    ? HealthVitalsController.instance.bloodGlucoseValue
-                          .toStringAsFixed(0)
-                    : '--',
-                unit: 'mg/dL',
-                date: HealthVitalsController.instance.bloodGlucoseDate,
-                status: HealthVitalsController.instance.hasBloodGlucose
-                    ? (HealthVitalsController.instance.bloodGlucoseValue <= 100
-                          ? 'Normal'
-                          : 'Elevated')
-                    : 'No record',
-                statusColor: HealthVitalsController.instance.hasBloodGlucose
-                    ? const Color(0xFF3898EC)
-                    : const Color(0xFF8E95A5),
-                accentColor: const Color(0xFFF59E0B),
-                icon: Icons.bloodtype_outlined,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const BloodGlucoseDetailPage(),
-                    ),
-                  );
-                },
-                onLog: () => VitalLogBottomSheet.show(
-                  context,
-                  initialKey: 'glucose',
-                  lockKey: true,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReadingCard({
-    required String title,
-    required String value,
-    required String unit,
-    required String date,
-    required String status,
-    required Color statusColor,
-    required Color accentColor,
-    required IconData icon,
-    required VoidCallback onTap,
-    VoidCallback? onLog,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 164,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: accentColor.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Icon(icon, color: accentColor, size: 17),
-                  ),
-                ),
-                Text(
-                  date,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8E95A5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-
-            Text(
-              title,
-              style: GoogleFonts.manrope(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFF8E95A5),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.manrope(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(width: 3),
-                Text(
-                  unit,
-                  style: GoogleFonts.manrope(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8E95A5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    status,
-                    style: GoogleFonts.manrope(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: statusColor,
-                    ),
-                  ),
-                ),
-                if (onLog != null)
-                  GestureDetector(
-                    onTap: onLog,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accentColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_rounded, size: 12, color: accentColor),
-                          const SizedBox(width: 2),
-                          Text(
-                            'Log',
-                            style: GoogleFonts.manrope(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: accentColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── WEIGHT & BMI TRACKER CARD ───────────────────────────────
-  Widget _buildWeightAndBmiTrackerCard(BuildContext context) {
-    final hasWeight = HealthVitalsController.instance.hasWeight;
-    final wt = hasWeight
-        ? HealthVitalsController.instance.weightValue.toStringAsFixed(1)
-        : '--';
-    final wtDate = hasWeight
-        ? HealthVitalsController.instance.weightDate
-        : 'No record';
-    final bmi = hasWeight
-        ? HealthVitalsController.instance.bmiValue.toStringAsFixed(1)
-        : '--';
-
-    final weightHistory = HealthVitalsController.instance.getHistory('weight');
-    String gestationalGainStr = '--';
-    Color gainColor = const Color(0xFF10B981);
-    if (weightHistory.length >= 2) {
-      final sortedAsc = List<VitalsStreamResponse>.from(weightHistory)
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      final initialWt = sortedAsc.first.value;
-      final currentWt = sortedAsc.last.value;
-      final diff = currentWt - initialWt;
-      gestationalGainStr = diff >= 0
-          ? '+${diff.toStringAsFixed(1)}'
-          : diff.toStringAsFixed(1);
-      gainColor = diff >= 0 ? const Color(0xFF10B981) : const Color(0xFF3898EC);
-    } else if (hasWeight) {
-      gestationalGainStr = '+0.0';
-    }
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const BmiTrackerDetailPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFF0F3),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.monitor_weight_outlined,
-                          color: Color(0xFFFF3B5C),
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Weight & BMI Tracker',
-                          style: GoogleFonts.manrope(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E2024),
-                          ),
-                        ),
-                        Text(
-                          hasWeight
-                              ? 'Recorded $wtDate'
-                              : 'No weight logged yet',
-                          style: GoogleFonts.manrope(
-                            fontSize: 11,
-                            color: const Color(0xFF8E95A5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => VitalLogBottomSheet.show(
-                        context,
-                        initialKey: 'weight',
-                        lockKey: true,
-                      ),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFECEF),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.add_rounded,
-                              size: 12,
-                              color: Color(0xFFFF3B5C),
-                            ),
-                            SizedBox(width: 2),
-                            Text(
-                              'Log',
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFFFF3B5C),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.arrow_forward_ios_rounded,
-                      size: 14,
-                      color: Color(0xFF8E95A5),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Current Weight',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        color: const Color(0xFF8E95A5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          wt,
-                          style: GoogleFonts.manrope(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          'kg',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            color: const Color(0xFF8E95A5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Container(height: 36, width: 1, color: const Color(0xFFF0F1F5)),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Gestational Gain',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        color: const Color(0xFF8E95A5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          gestationalGainStr,
-                          style: GoogleFonts.manrope(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w800,
-                            color: gainColor,
-                          ),
-                        ),
-                        const SizedBox(width: 3),
-                        Text(
-                          'kg',
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            color: const Color(0xFF8E95A5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                Container(height: 36, width: 1, color: const Color(0xFFF0F1F5)),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'BMI',
-                      style: GoogleFonts.manrope(
-                        fontSize: 11.5,
-                        color: const Color(0xFF8E95A5),
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      bmi,
-                      style: GoogleFonts.manrope(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 18),
-
-            SizedBox(
-              height: 48,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _WeightTrendPainter(history: weightHistory),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── BABY TRACKING SECTION (KICK COUNTER & FEEDING) ─────────
-  Widget _buildBabyTrackingSection(BuildContext context) {
-    final vitals = HealthVitalsController.instance;
-
-    // Kicks are counted per day, so the tile shows today's running total and
-    // only falls back to the last recorded day when nothing came in today.
-    final kicksToday = vitals.getHistoryForPeriod('kick_count', 'Day');
-    final kickHistory = vitals.getHistory('kick_count');
-    final hasKicksToday = kicksToday.isNotEmpty;
-    final latestKick = kickHistory.isNotEmpty
-        ? kickHistory.reduce((a, b) => a.createdAt.isAfter(b.createdAt) ? a : b)
-        : null;
-
-    final String kickValue;
-    final String kickCaption;
-    if (hasKicksToday) {
-      final total = kicksToday
-          .fold<double>(0, (sum, v) => sum + v.value)
-          .round();
-      kickValue = '$total';
-      kickCaption =
-          'Today, ${DateFormat('h:mm a').format(kicksToday.last.createdAt)}';
-    } else if (latestKick != null) {
-      kickValue = '${latestKick.value.round()}';
-      kickCaption = DateFormat('dd MMM, h:mm a').format(latestKick.createdAt);
+  @override
+  void didUpdateWidget(covariant _RotatingAllowearIcon oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.spinning == oldWidget.spinning) return;
+    if (widget.spinning) {
+      _controller.repeat();
     } else {
-      kickValue = '--';
-      kickCaption = 'No kicks logged yet';
-    }
-
-    // Feeding sessions differ in unit (mins vs ml), so the tile reports the
-    // latest session rather than a total that would mix the two.
-    final feedingHistory = vitals.getHistory('feeding');
-    final latestFeeding = feedingHistory.isNotEmpty
-        ? feedingHistory.reduce(
-            (a, b) => a.createdAt.isAfter(b.createdAt) ? a : b,
-          )
-        : null;
-
-    final String feedingValue;
-    final String feedingUnit;
-    final String feedingCaption;
-    if (latestFeeding != null) {
-      feedingValue = latestFeeding.value % 1 == 0
-          ? latestFeeding.value.toInt().toString()
-          : latestFeeding.value.toStringAsFixed(1);
-      feedingUnit = latestFeeding.unit.isNotEmpty ? latestFeeding.unit : 'mins';
-      final type = latestFeeding.data?['type']?.toString();
-      final when = _isToday(latestFeeding.createdAt)
-          ? 'Today'
-          : DateFormat('dd MMM').format(latestFeeding.createdAt);
-      feedingCaption = type != null && type.isNotEmpty ? '$type · $when' : when;
-    } else {
-      feedingValue = '--';
-      feedingUnit = 'mins';
-      feedingCaption = 'No feeds logged yet';
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Baby Care & Tracking',
-              style: GoogleFonts.manrope(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
-              ),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const KickCounterStatsPage(),
-                  ),
-                );
-              },
-              child: Text(
-                'View All',
-                style: GoogleFonts.manrope(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFFFF3B5C),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // IntrinsicHeight gives the Row a real height so the two cards can match
-        // each other inside the scroll view, which has no bound of its own.
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _buildTrackingTile(
-                  icon: Icons.pets_rounded,
-                  accent: const Color(0xFFFF4E6A),
-                  accentBg: const Color(0xFFFFE4E6),
-                  title: 'Kick Counter',
-                  value: kickValue,
-                  unit: 'kicks',
-                  caption: kickCaption,
-                  hasData: hasKicksToday || latestKick != null,
-                  onOpen: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const KickCounterStatsPage(),
-                    ),
-                  ),
-                  onLog: () => VitalLogBottomSheet.show(
-                    context,
-                    initialKey: 'kick_count',
-                    lockKey: true,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildTrackingTile(
-                  icon: Icons.local_drink_rounded,
-                  accent: const Color(0xFF8B5CF6),
-                  accentBg: const Color(0xFFEDE9FE),
-                  title: 'Feeding Tracker',
-                  value: feedingValue,
-                  unit: feedingUnit,
-                  caption: feedingCaption,
-                  hasData: latestFeeding != null,
-                  onOpen: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const FeedingTrackerStatsPage(),
-                    ),
-                  ),
-                  onLog: () => VitalLogBottomSheet.show(
-                    context,
-                    initialKey: 'feeding',
-                    lockKey: true,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  bool _isToday(DateTime t) {
-    final now = DateTime.now();
-    return t.year == now.year && t.month == now.month && t.day == now.day;
-  }
-
-  Widget _buildTrackingTile({
-    required IconData icon,
-    required Color accent,
-    required Color accentBg,
-    required String title,
-    required String value,
-    required String unit,
-    required String caption,
-    required bool hasData,
-    required VoidCallback onOpen,
-    required VoidCallback onLog,
-  }) {
-    return GestureDetector(
-      onTap: onOpen,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: accentBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(child: Icon(icon, color: accent, size: 19)),
-                ),
-                GestureDetector(
-                  onTap: onLog,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 7,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: accentBg,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.add_rounded, size: 12, color: accent),
-                        const SizedBox(width: 2),
-                        Text(
-                          'Log',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: accent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: GoogleFonts.manrope(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  value,
-                  style: GoogleFonts.manrope(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: hasData
-                        ? const Color(0xFF1E2024)
-                        : const Color(0xFFB4BAC6),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  unit,
-                  style: GoogleFonts.manrope(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF8E95A5),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              caption,
-              style: GoogleFonts.manrope(
-                fontSize: 10.5,
-                color: const Color(0xFF8E95A5),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ─── ADD READING BOTTOM SHEET ────────────────────────────────
-  void _showAddReadingSheet(BuildContext context, [String? initialKey]) {
-    VitalLogBottomSheet.show(context, initialKey: initialKey);
-  }
-}
-
-// ─── MINI SPARKLINE PAINTER ──────────────────────────────────
-class _MiniSparklinePainter extends CustomPainter {
-  final Color color;
-  final List<double>? dataPoints;
-
-  _MiniSparklinePainter({required this.color, this.dataPoints});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (dataPoints != null && dataPoints!.length >= 2) {
-      final pts = dataPoints!;
-      final minVal = pts.reduce(math.min);
-      final maxVal = pts.reduce(math.max);
-      final range = maxVal - minVal == 0 ? 10.0 : maxVal - minVal;
-
-      final stepX = size.width / (pts.length - 1);
-      final points = <Offset>[];
-      for (int i = 0; i < pts.length; i++) {
-        final normY = (pts[i] - minVal) / range;
-        final y = size.height - (normY * (size.height - 8)) - 4;
-        points.add(Offset(i * stepX, y));
-      }
-
-      final path = Path()..moveTo(points.first.dx, points.first.dy);
-      for (int i = 0; i < points.length - 1; i++) {
-        final p0 = points[i];
-        final p1 = points[i + 1];
-        final cp1 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p0.dy);
-        final cp2 = Offset(p0.dx + (p1.dx - p0.dx) / 2, p1.dy);
-        path.cubicTo(cp1.dx, cp1.dy, cp2.dx, cp2.dy, p1.dx, p1.dy);
-      }
-
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawPath(path, paint);
-      return;
-    }
-
-    // Nothing recorded yet — a flat baseline says so; a curve would be a lie.
-    final y = size.height * 0.62;
-    final basePaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    const dash = 4.0;
-    var x = 0.0;
-    while (x < size.width) {
-      final end = math.min(x + dash, size.width);
-      canvas.drawLine(Offset(x, y), Offset(end, y), basePaint);
-      x = end + dash;
-    }
-
-    if (dataPoints != null && dataPoints!.length == 1) {
-      canvas.drawCircle(Offset(size.width / 2, y), 3, Paint()..color = color);
+      _controller
+        ..stop()
+        ..reset();
     }
   }
 
   @override
-  bool shouldRepaint(covariant _MiniSparklinePainter oldDelegate) => true;
-}
-
-// ─── SLEEP HYPNOGRAM PAINTER ─────────────────────────────────
-class _SleepHypnogramPainter extends CustomPainter {
-  final bool hasSleep;
-  final double sleepHours;
-
-  const _SleepHypnogramPainter({this.hasSleep = false, this.sleepHours = 0.0});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!hasSleep || sleepHours <= 0) {
-      final dashedPaint = Paint()
-        ..color = const Color(0xFFE2E8F0)
-        ..strokeWidth = 1.5
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(
-        Offset(0, size.height / 2),
-        Offset(size.width, size.height / 2),
-        dashedPaint,
-      );
-
-      final textPainter = TextPainter(
-        text: const TextSpan(
-          text: 'Wear your Allowear watch or tap above to track sleep',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF94A3B8),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          (size.width - textPainter.width) / 2,
-          (size.height - textPainter.height) / 2,
-        ),
-      );
-      return;
-    }
-
-    final lightTextPainter = TextPainter(
-      text: const TextSpan(
-        text: 'Light',
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFFC084FC),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    lightTextPainter.paint(canvas, const Offset(0, 0));
-
-    final deepTextPainter = TextPainter(
-      text: const TextSpan(
-        text: 'Deep',
-        style: TextStyle(
-          fontSize: 9.5,
-          fontWeight: FontWeight.w600,
-          color: Color(0xFF6366F1),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    deepTextPainter.paint(canvas, const Offset(0, 24));
-
-    final barStartX = 45.0;
-    final usableWidth = size.width - barStartX;
-
-    final lightPaint = Paint()..color = const Color(0xFFC084FC);
-    final deepPaint = Paint()..color = const Color(0xFF6366F1);
-
-    final deepRatio = (sleepHours >= 7.0 ? 0.35 : 0.25);
-    final lightRatio = 1.0 - deepRatio;
-
-    // Block 1 (Light)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          barStartX + usableWidth * 0.15,
-          0,
-          usableWidth * (lightRatio * 0.4),
-          16,
-        ),
-        const Radius.circular(5),
-      ),
-      lightPaint,
-    );
-
-    // Block 2 (Light)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          barStartX + usableWidth * 0.55,
-          0,
-          usableWidth * (lightRatio * 0.45),
-          16,
-        ),
-        const Radius.circular(5),
-      ),
-      lightPaint,
-    );
-
-    // Block 1 (Deep)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(barStartX, 24, usableWidth * (deepRatio * 0.5), 16),
-        const Radius.circular(5),
-      ),
-      deepPaint,
-    );
-
-    // Block 2 (Deep)
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          barStartX + usableWidth * 0.35,
-          24,
-          usableWidth * (deepRatio * 0.5),
-          16,
-        ),
-        const Radius.circular(5),
-      ),
-      deepPaint,
-    );
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
-  bool shouldRepaint(covariant _SleepHypnogramPainter oldDelegate) =>
-      oldDelegate.hasSleep != hasSleep || oldDelegate.sleepHours != sleepHours;
-}
-
-// ─── WEIGHT TREND PAINTER ────────────────────────────────────
-class _WeightTrendPainter extends CustomPainter {
-  final List<VitalsStreamResponse> history;
-
-  const _WeightTrendPainter({this.history = const []});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (history.isEmpty) {
-      final basePaint = Paint()
-        ..color = const Color(0xFFF1F5F9)
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke;
-      canvas.drawLine(
-        Offset(0, size.height / 2),
-        Offset(size.width, size.height / 2),
-        basePaint,
-      );
-
-      final textPainter = TextPainter(
-        text: const TextSpan(
-          text: 'No weight entries logged yet',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF94A3B8),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      textPainter.paint(
-        canvas,
-        Offset(
-          (size.width - textPainter.width) / 2,
-          (size.height - textPainter.height) / 2,
-        ),
-      );
-      return;
-    }
-
-    final sortedAsc = List<VitalsStreamResponse>.from(history)
-      ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
-    final startX = size.width * 0.12;
-    final endX = size.width * 0.88;
-
-    final firstVal = sortedAsc.first.value;
-    final lastVal = sortedAsc.last.value;
-
-    final startY = size.height * 0.70;
-    final endY = sortedAsc.length > 1
-        ? (firstVal <= lastVal ? size.height * 0.40 : size.height * 0.80)
-        : size.height * 0.70;
-
-    final linePaint = Paint()
-      ..color = const Color(0xFFFFD1DC)
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(Offset(startX, startY), Offset(endX, endY), linePaint);
-
-    final startDotPaint = Paint()
-      ..color = const Color(0xFFFF6584)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(startX, startY), 4.5, startDotPaint);
-
-    final startText = TextPainter(
-      text: TextSpan(
-        text: '${firstVal.toStringAsFixed(1)} kg',
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF8E95A5),
-        ),
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: Image.asset(
+        'assets/allowear/bracelet_white.png',
+        color: widget.paired || widget.spinning
+            ? Colors.white
+            : Colors.white.withValues(alpha: 0.6),
       ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    startText.paint(canvas, Offset(startX - startText.width / 2, startY - 16));
-
-    final endDotPaint = Paint()
-      ..color = const Color(0xFFFF3B5C)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(endX, endY), 5.5, endDotPaint);
-
-    final endText = TextPainter(
-      text: TextSpan(
-        text: '${lastVal.toStringAsFixed(1)} kg',
-        style: const TextStyle(
-          fontSize: 10.5,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFFFF3B5C),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    endText.paint(canvas, Offset(endX - endText.width / 2, endY - 18));
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _WeightTrendPainter oldDelegate) => true;
 }

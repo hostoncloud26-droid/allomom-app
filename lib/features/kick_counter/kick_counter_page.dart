@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 
@@ -123,7 +124,7 @@ class _KickCounterPageState extends State<KickCounterPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.palette.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -161,9 +162,9 @@ class _KickCounterPageState extends State<KickCounterPage>
           IconButton(
             onPressed: () => Navigator.maybePop(context),
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: context.palette.card,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: context.palette.pick(Colors.black.withValues(alpha: 0.1), context.palette.shadow),
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
@@ -174,7 +175,7 @@ class _KickCounterPageState extends State<KickCounterPage>
             ),
           ),
           const SizedBox(width: 8),
-          const Expanded(
+          Expanded(
             child: Column(
               children: [
                 Text(
@@ -189,7 +190,7 @@ class _KickCounterPageState extends State<KickCounterPage>
                   "Count and track your baby's kicks",
                   style: TextStyle(
                     fontSize: 12,
-                    color: Color(0xFF8C93A3),
+                    color: context.palette.pick(const Color(0xFF8C93A3), context.palette.textMuted),
                   ),
                 ),
               ],
@@ -203,9 +204,9 @@ class _KickCounterPageState extends State<KickCounterPage>
               );
             },
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: context.palette.card,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: context.palette.pick(Colors.black.withValues(alpha: 0.1), context.palette.shadow),
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
@@ -219,7 +220,7 @@ class _KickCounterPageState extends State<KickCounterPage>
             onPressed: () {
               showModalBottomSheet(
                 context: context,
-                backgroundColor: Colors.white,
+                backgroundColor: context.palette.card,
                 shape: const RoundedRectangleBorder(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
                 ),
@@ -284,16 +285,16 @@ class _KickCounterPageState extends State<KickCounterPage>
               );
             },
             style: IconButton.styleFrom(
-              backgroundColor: Colors.white,
+              backgroundColor: context.palette.card,
               elevation: 1,
-              shadowColor: Colors.black.withValues(alpha: 0.1),
+              shadowColor: context.palette.pick(Colors.black.withValues(alpha: 0.1), context.palette.shadow),
               shape: const CircleBorder(),
               padding: const EdgeInsets.all(10),
             ),
-            icon: const Icon(
+            icon: Icon(
               Icons.more_horiz_rounded,
               size: 20,
-              color: Color(0xFF8C93A3),
+              color: context.palette.pick(const Color(0xFF8C93A3), context.palette.textMuted),
             ),
           ),
         ],
@@ -304,7 +305,7 @@ class _KickCounterPageState extends State<KickCounterPage>
   void _showTimestampsDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: context.palette.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -321,9 +322,9 @@ class _KickCounterPageState extends State<KickCounterPage>
               ),
               const SizedBox(height: 12),
               if (_kickTimestamps.isEmpty)
-                const Text(
+                Text(
                   'No kicks recorded yet today.',
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: context.palette.pick(Colors.grey, context.palette.textMuted)),
                 )
               else
                 SizedBox(
@@ -342,7 +343,7 @@ class _KickCounterPageState extends State<KickCounterPage>
                         ),
                         trailing: Text(
                           _kickTimestamps[idx],
-                          style: const TextStyle(color: Colors.grey),
+                          style: TextStyle(color: context.palette.pick(Colors.grey, context.palette.textMuted)),
                         ),
                       );
                     },
@@ -377,10 +378,10 @@ class _KickCounterPageState extends State<KickCounterPage>
         const SizedBox(height: 4),
         Text(
           _kickCount == 1 ? 'kick counted today' : 'kicks counted today',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w500,
-            color: Color(0xFF9AA1AE),
+            color: context.palette.pick(const Color(0xFF9AA1AE), context.palette.textMuted),
           ),
         ),
       ],
@@ -489,14 +490,14 @@ class _KickCounterPageState extends State<KickCounterPage>
           // Section label and the live state of the session.
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   "TODAY'S KICKS",
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.1,
-                    color: Color(0xFF9AA1AE),
+                    color: context.palette.pick(const Color(0xFF9AA1AE), context.palette.textMuted),
                   ),
                 ),
               ),
@@ -514,10 +515,10 @@ class _KickCounterPageState extends State<KickCounterPage>
 
           const SizedBox(height: 6),
 
-          const Text(
+          Text(
             'Tap when you feel a kick',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, color: Color(0xFF9AA1AE)),
+            style: TextStyle(fontSize: 12.5, color: context.palette.pick(const Color(0xFF9AA1AE), context.palette.textMuted)),
           ),
 
           const SizedBox(height: 16),
@@ -562,14 +563,14 @@ class _KickCounterPageState extends State<KickCounterPage>
                   onPressed: _resetKicks,
                   style: OutlinedButton.styleFrom(
                     padding: EdgeInsets.zero,
-                    side: const BorderSide(color: Color(0xFFE6E8EE)),
+                    side: BorderSide(color: context.palette.pick(const Color(0xFFE6E8EE), context.palette.border)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.refresh_rounded,
-                    color: Color(0xFF6B7280),
+                    color: context.palette.pick(const Color(0xFF6B7280), context.palette.textSecondary),
                     size: 19,
                   ),
                 ),
@@ -579,7 +580,7 @@ class _KickCounterPageState extends State<KickCounterPage>
 
           const SizedBox(height: 16),
 
-          Container(height: 1, color: const Color(0xFFF0F1F5)),
+          Container(height: 1, color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.divider)),
 
           const SizedBox(height: 14),
 
@@ -591,18 +592,18 @@ class _KickCounterPageState extends State<KickCounterPage>
                 Expanded(
                   child: _buildStatColumn(label: 'STARTED', value: _startTime),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0xFFF0F1F5),
+                  color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.divider),
                 ),
                 Expanded(
                   child: _buildStatColumn(label: 'LAST KICK', value: lastKick),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0xFFF0F1F5),
+                  color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.divider),
                 ),
                 Expanded(
                   child: _buildStatColumn(
@@ -622,9 +623,11 @@ class _KickCounterPageState extends State<KickCounterPage>
   Widget _buildSessionPill(bool hasKicks) {
     final label = hasKicks ? 'Counting' : 'Ready';
     final color =
-        hasKicks ? const Color(0xFFFF4E6A) : const Color(0xFF8B92A2);
+        hasKicks ? const Color(0xFFFF4E6A) : context.palette.pick(const Color(0xFF8B92A2), context.palette.textMuted);
     final background =
-        hasKicks ? const Color(0xFFFFE4E9) : const Color(0xFFF1F3F6);
+        hasKicks
+            ? context.palette.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9))
+            : context.palette.pick(const Color(0xFFF1F3F6), context.palette.surface);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -660,20 +663,20 @@ class _KickCounterPageState extends State<KickCounterPage>
       children: [
         Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.7,
-            color: Color(0xFFA7ADBA),
+            color: context.palette.pick(const Color(0xFFA7ADBA), context.palette.textMuted),
           ),
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1E2229),
+            color: context.palette.pick(const Color(0xFF1E2229), context.palette.textPrimary),
           ),
         ),
       ],

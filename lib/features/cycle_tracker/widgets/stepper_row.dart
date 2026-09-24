@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
 
 /// A labelled −/+ counter, used for cycle length and period length.
@@ -41,7 +42,7 @@ class CycleStepperRow extends StatelessWidget {
                 style: GoogleFonts.poppins(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w600,
-                  color: CycleColors.ink,
+                  color: CycleColors.inkOn(context),
                 ),
               ),
               const SizedBox(height: 2),
@@ -49,7 +50,7 @@ class CycleStepperRow extends StatelessWidget {
                 subtitle,
                 style: GoogleFonts.poppins(
                   fontSize: 11.5,
-                  color: CycleColors.muted,
+                  color: CycleColors.mutedOn(context),
                   height: 1.3,
                 ),
               ),
@@ -80,7 +81,7 @@ class CycleStepperRow extends StatelessWidget {
                 textAlign: TextAlign.center,
                 style: GoogleFonts.poppins(
                   fontSize: 10,
-                  color: CycleColors.muted,
+                  color: CycleColors.mutedOn(context),
                 ),
               ),
             ],
@@ -112,7 +113,10 @@ class _RoundStepButton extends StatelessWidget {
     return Material(
       color: enabled
           ? CycleColors.accent.withValues(alpha: 0.12)
-          : const Color(0xFFF1F5F9),
+          : context.palette.pick(
+              const Color(0xFFF1F5F9),
+              context.palette.surface,
+            ),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -122,7 +126,10 @@ class _RoundStepButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 20,
-            color: enabled ? CycleColors.accent : const Color(0xFFCBD5E1),
+            color: enabled ? CycleColors.accent : context.palette.pick(
+                    const Color(0xFFCBD5E1),
+                    context.palette.textMuted,
+                  ),
           ),
         ),
       ),

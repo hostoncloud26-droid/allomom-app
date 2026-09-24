@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/my_health/widgets/vital_trend_chart.dart';
@@ -273,26 +274,26 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
         final week = MainController.instance.currentGestationalWeek;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFBFBFC),
+          backgroundColor: context.palette.scaffoldSoft,
           appBar: AppBar(
-            backgroundColor: const Color(0xFFFBFBFC),
+            backgroundColor: context.palette.scaffoldSoft,
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF2D3142),
+                color: context.palette.pick(const Color(0xFF2D3142), context.palette.textPrimary),
                 size: 20,
               ),
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
               _metric.label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF2D3142),
+                color: context.palette.pick(const Color(0xFF2D3142), context.palette.textPrimary),
               ),
             ),
             actions: [
@@ -374,9 +375,9 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
       ),
       child: Row(
         children: ['Day', 'Week', 'Month'].map((tab) {
@@ -388,7 +389,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? _metric.tint : Colors.transparent,
+                  color: isSelected ? context.palette.tint(_metric.color, _metric.tint) : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
@@ -398,7 +399,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                     color:
-                        isSelected ? _metric.color : const Color(0xFF6B7280),
+                        isSelected ? _metric.color : context.palette.pick(const Color(0xFF6B7280), context.palette.textSecondary),
                   ),
                 ),
               ),
@@ -432,12 +433,12 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -451,19 +452,19 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
             children: [
               Text(
                 headerTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                   letterSpacing: 0.5,
                 ),
               ),
               Text(
                 dateRangeText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8E95A5),
+                  color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
                 ),
               ),
             ],
@@ -573,12 +574,12 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -591,10 +592,10 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w500,
-              color: Color(0xFF8E95A5),
+              color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
             ),
           ),
           const SizedBox(height: 10),
@@ -603,7 +604,9 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: empty ? const Color(0xFFB4BAC6) : const Color(0xFF1E2024),
+              color: empty
+                  ? context.palette.pick(const Color(0xFFB4BAC6), context.palette.textMuted)
+                  : context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
             ),
           ),
           const SizedBox(height: 2),
@@ -611,10 +614,10 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
             unit,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF8E95A5),
+              color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
             ),
           ),
           if (subtitle.isNotEmpty) ...[
@@ -623,7 +626,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10, color: Color(0xFFB4BAC6)),
+              style: TextStyle(fontSize: 10, color: context.palette.pick(const Color(0xFFB4BAC6), context.palette.textMuted)),
             ),
           ],
         ],
@@ -638,12 +641,12 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -654,10 +657,10 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
         children: [
           Text(
             _selectedTab == 'Day' ? "Today's entries" : 'Recent entries',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E2024),
+              color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
             ),
           ),
           const SizedBox(height: 14),
@@ -668,7 +671,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
                 'Nothing logged in this period yet.',
                 style: TextStyle(
                   fontSize: 12.5,
-                  color: Colors.black.withValues(alpha: 0.35),
+                  color: context.palette.pick(Colors.black.withValues(alpha: 0.35), context.palette.textMuted),
                 ),
               ),
             )
@@ -697,7 +700,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
           Container(
             width: 34,
             height: 34,
-            decoration: BoxDecoration(color: _metric.tint, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: context.palette.tint(_metric.color, _metric.tint), shape: BoxShape.circle),
             child: Icon(
               isCorrection ? Icons.remove_rounded : _metric.icon,
               size: 16,
@@ -715,17 +718,17 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
                       : (isCorrection ? 'Correction' : _metric.label),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E2024),
+                    color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                   ),
                 ),
                 Text(
                   when,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
-                    color: Color(0xFF8E95A5),
+                    color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
                   ),
                 ),
               ],
@@ -736,7 +739,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: isCorrection ? const Color(0xFF8E95A5) : _metric.color,
+              color: isCorrection ? context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted) : _metric.color,
             ),
           ),
         ],

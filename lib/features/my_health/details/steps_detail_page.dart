@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -32,26 +33,26 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
         final week = session.currentGestationalWeek;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFBFBFC),
+          backgroundColor: context.palette.pick(const Color(0xFFFBFBFC), context.palette.scaffoldSoft),
           appBar: AppBar(
-            backgroundColor: const Color(0xFFFBFBFC),
+            backgroundColor: context.palette.pick(const Color(0xFFFBFBFC), context.palette.scaffoldSoft),
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF2D3142),
+                color: context.palette.pick(const Color(0xFF2D3142), context.palette.textPrimary),
                 size: 20,
               ),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text(
+            title: Text(
               'Steps',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF2D3142),
+                color: context.palette.pick(const Color(0xFF2D3142), context.palette.textPrimary),
               ),
             ),
             actions: [
@@ -128,9 +129,9 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
       ),
       child: Row(
         children: ['Day', 'Week', 'Month'].map((tab) {
@@ -142,7 +143,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 duration: const Duration(milliseconds: 200),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? activeBg : Colors.transparent,
+                  color: isSelected ? context.palette.tint(activeText, activeBg) : Colors.transparent,
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
@@ -151,7 +152,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? activeText : const Color(0xFF6B7280),
+                    color: isSelected ? activeText : context.palette.pick(const Color(0xFF6B7280), context.palette.textSecondary),
                   ),
                 ),
               ),
@@ -186,12 +187,12 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -206,19 +207,19 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             children: [
               Text(
                 headerTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                   letterSpacing: 0.5,
                 ),
               ),
               Text(
                 dateRangeText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8E95A5),
+                  color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
                 ),
               ),
             ],
@@ -318,12 +319,12 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: context.palette.pick(Colors.black.withValues(alpha: 0.03), context.palette.shadow),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -338,7 +339,7 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: iconBg,
+                  color: context.palette.tint(iconColor, iconBg),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -351,10 +352,10 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF8E95A5),
+                    color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
                   ),
                 ),
               ),
@@ -367,19 +368,19 @@ class _StepsDetailPageState extends State<StepsDetailPage> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                 ),
               ),
               const SizedBox(width: 3),
               Text(
                 unit,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8E95A5),
+                  color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted),
                 ),
               ),
             ],

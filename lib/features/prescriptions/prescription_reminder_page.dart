@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
@@ -19,6 +20,8 @@ class PrescriptionReminderPage extends StatefulWidget {
 }
 
 class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
+  AppPalette get _pal => context.palette;
+
   Map<String, dynamic>? _timingData;
   bool _isLoading = true;
 
@@ -167,7 +170,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
   Widget build(BuildContext context) {
     if (_isLoading) {
       return Scaffold(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _pal.scaffoldSoft,
         body: const Center(
           child: CircularProgressIndicator(color: Color(0xFFFF3B5C)),
         ),
@@ -189,14 +192,14 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _pal.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _pal.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded, color: Color(0xFF2D3142), size: 24),
+          icon: Icon(Icons.close_rounded, color: _pal.textPrimary, size: 24),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -204,7 +207,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _pal.textPrimary,
           ),
         ),
       ),
@@ -222,7 +225,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                 height: 100,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isTaken ? const Color(0xFFE6F9F0) : const Color(0xFFFFECEF),
+                  color: isTaken ? _pal.tint(const Color(0xFF10B981), const Color(0xFFE6F9F0)) : _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                   boxShadow: [
                     BoxShadow(
                       color: isTaken
@@ -249,7 +252,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                 style: GoogleFonts.manrope(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
+                  color: _pal.textPrimary,
                 ),
               ),
               const SizedBox(height: 6),
@@ -259,7 +262,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                 style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
+                  color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                 ),
               ),
               const SizedBox(height: 12),
@@ -267,7 +270,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
+                  color: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -275,7 +278,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                   ),
                 ),
               ),
@@ -288,7 +291,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                   style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontStyle: FontStyle.italic,
-                    color: const Color(0xFF94A3B8),
+                    color: _pal.textMuted,
                   ),
                 ),
               ],
@@ -302,14 +305,14 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                   style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF475569),
+                    color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                   ),
                 ),
                 const SizedBox(height: 6),
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     activeTrackColor: const Color(0xFF3898EC),
-                    inactiveTrackColor: const Color(0xFFE2E8F0),
+                    inactiveTrackColor: _pal.pick(const Color(0xFFE2E8F0), _pal.border),
                     thumbColor: const Color(0xFF3898EC),
                     overlayColor: const Color(0xFF3898EC).withValues(alpha: 0.15),
                   ),
@@ -331,7 +334,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                         child: OutlinedButton(
                           onPressed: _snooze,
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFCBD5E1), width: 1.5),
+                            side: BorderSide(color: _pal.pick(const Color(0xFFCBD5E1), _pal.border), width: 1.5),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                           ),
                           child: Text(
@@ -339,7 +342,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                             style: GoogleFonts.manrope(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF475569),
+                              color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                             ),
                           ),
                         ),
@@ -382,7 +385,7 @@ class _PrescriptionReminderPageState extends State<PrescriptionReminderPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE6F9F0),
+                    color: _pal.tint(const Color(0xFF10B981), const Color(0xFFE6F9F0)),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Center(

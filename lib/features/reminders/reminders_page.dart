@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/services/sq_lite/services/reminder_db_service.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
@@ -47,6 +48,8 @@ class RemindersPage extends StatefulWidget {
 typedef ManageRemindersScreen = RemindersPage;
 
 class _RemindersPageState extends State<RemindersPage> {
+  AppPalette get _p => context.palette;
+
   final List<ReminderItem> _pregnancyReminders = [
     ReminderItem(
       id: 'r_water',
@@ -293,8 +296,8 @@ class _RemindersPageState extends State<RemindersPage> {
           builder: (context, setModalState) {
             return Container(
               padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(ctx).viewInsets.bottom + 32),
-              decoration: const BoxDecoration(
-                color: Colors.white,
+              decoration: BoxDecoration(
+                color: _p.card,
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(32),
                   topRight: Radius.circular(32),
@@ -309,7 +312,7 @@ class _RemindersPageState extends State<RemindersPage> {
                       width: 44,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE2E8F0),
+                        color: _p.pick(const Color(0xFFE2E8F0), _p.divider),
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
@@ -321,7 +324,7 @@ class _RemindersPageState extends State<RemindersPage> {
                     style: GoogleFonts.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -331,23 +334,24 @@ class _RemindersPageState extends State<RemindersPage> {
                     style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF475569),
+                      color: _p.pick(const Color(0xFF475569), _p.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 6),
                   TextField(
                     controller: nameCtrl,
+                    style: TextStyle(color: _p.textPrimary),
                     decoration: InputDecoration(
                       hintText: 'e.g. Fetal Kick Counting, Doctor Appointment',
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
+                      fillColor: _p.pick(const Color(0xFFF8FAFC), _p.inputFill),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(color: _p.pick(const Color(0xFFE2E8F0), _p.border)),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(color: _p.pick(const Color(0xFFE2E8F0), _p.border)),
                       ),
                     ),
                   ),
@@ -358,7 +362,7 @@ class _RemindersPageState extends State<RemindersPage> {
                     style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF475569),
+                      color: _p.pick(const Color(0xFF475569), _p.textSecondary),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -372,9 +376,9 @@ class _RemindersPageState extends State<RemindersPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: _p.pick(const Color(0xFFF8FAFC), _p.inputFill),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _p.pick(const Color(0xFFE2E8F0), _p.border)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -388,7 +392,7 @@ class _RemindersPageState extends State<RemindersPage> {
                                 style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
-                                  color: const Color(0xFF1E2024),
+                                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 ),
                               ),
                             ],
@@ -485,14 +489,14 @@ class _RemindersPageState extends State<RemindersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _p.pick(const Color(0xFF2D3142), _p.textPrimary), size: 20),
           onPressed: () => Navigator.of(context).maybePop(),
         ),
         title: Text(
@@ -500,7 +504,7 @@ class _RemindersPageState extends State<RemindersPage> {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
           ),
         ),
         actions: [
@@ -531,12 +535,12 @@ class _RemindersPageState extends State<RemindersPage> {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _p.card,
                   borderRadius: BorderRadius.circular(22),
-                  border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                  border: Border.all(color: _p.pick(const Color(0xFFF0F1F5), _p.border), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
+                      color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -548,7 +552,7 @@ class _RemindersPageState extends State<RemindersPage> {
                       width: 44,
                       height: 44,
                       decoration: BoxDecoration(
-                        color: r.iconBg,
+                        color: _p.tint(r.iconColor, r.iconBg),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -566,7 +570,7 @@ class _RemindersPageState extends State<RemindersPage> {
                             style: GoogleFonts.manrope(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                           const SizedBox(height: 2),
@@ -575,7 +579,7 @@ class _RemindersPageState extends State<RemindersPage> {
                             style: GoogleFonts.manrope(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
+                              color: _p.pick(const Color(0xFF64748B), _p.textSecondary),
                             ),
                           ),
                           const SizedBox(height: 4),
@@ -593,7 +597,7 @@ class _RemindersPageState extends State<RemindersPage> {
 
                     if (r.localType != null)
                       IconButton(
-                        icon: const Icon(Icons.tune_rounded, color: Color(0xFF94A3B8), size: 19),
+                        icon: Icon(Icons.tune_rounded, color: _p.pick(const Color(0xFF94A3B8), _p.textMuted), size: 19),
                         onPressed: () {
                           final explain = _narrationFor(r.localType).explain;
                           if (explain != null) speak(explain);
@@ -605,9 +609,9 @@ class _RemindersPageState extends State<RemindersPage> {
                       // ones are switched off, not deleted — there would be no
                       // way to get them back.
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.delete_outline_rounded,
-                          color: Color(0xFF94A3B8),
+                          color: _p.pick(const Color(0xFF94A3B8), _p.textMuted),
                           size: 19,
                         ),
                         onPressed: () => _deleteCustomReminder(r),

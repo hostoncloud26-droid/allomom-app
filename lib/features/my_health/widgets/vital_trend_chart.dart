@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 /// One reading placed on the time axis.
@@ -162,10 +163,10 @@ class _VitalTrendChartState extends State<VitalTrendChart> {
                 const SizedBox(width: 5),
                 Text(
                   s.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF6B7280),
+                    color: context.palette.pick(const Color(0xFF6B7280), context.palette.textSecondary),
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -198,6 +199,7 @@ class _VitalTrendChartState extends State<VitalTrendChart> {
                     emptyTitle: widget.emptyTitle,
                     emptySubtitle: widget.emptySubtitle,
                     valueFormatter: widget.valueFormatter,
+                    palette: context.palette,
                   ),
                 ),
               );
@@ -469,6 +471,7 @@ class _VitalTrendPainter extends CustomPainter {
   final String emptyTitle;
   final String emptySubtitle;
   final String Function(double)? valueFormatter;
+  final AppPalette palette;
 
   static const double leftPad = 34;
   static const double rightPad = 10;
@@ -488,6 +491,7 @@ class _VitalTrendPainter extends CustomPainter {
     required this.emptyTitle,
     required this.emptySubtitle,
     required this.valueFormatter,
+    required this.palette,
   });
 
   @override
@@ -554,7 +558,7 @@ class _VitalTrendPainter extends CustomPainter {
 
   void _paintGrid(Canvas canvas, Rect plot, _Scale scale, {bool showLabels = true}) {
     final gridPaint = Paint()
-      ..color = const Color(0xFFEDEFF3)
+      ..color = palette.pick(const Color(0xFFEDEFF3), palette.divider)
       ..strokeWidth = 1;
 
     for (final tick in scale.ticks) {
@@ -565,9 +569,9 @@ class _VitalTrendPainter extends CustomPainter {
       final label = TextPainter(
         text: TextSpan(
           text: _axisLabel(tick),
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 9.5,
-            color: Color(0xFFB4BAC6),
+            color: palette.pick(const Color(0xFFB4BAC6), palette.textMuted),
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -586,7 +590,7 @@ class _VitalTrendPainter extends CustomPainter {
           text: text,
           style: TextStyle(
             fontSize: 9.5,
-            color: isNow ? const Color(0xFF6B7280) : const Color(0xFF9AA1AE),
+            color: isNow ? palette.pick(const Color(0xFF6B7280), palette.textSecondary) : palette.pick(const Color(0xFF9AA1AE), palette.textMuted),
             fontWeight: isNow ? FontWeight.w800 : FontWeight.w600,
           ),
         ),
@@ -604,10 +608,10 @@ class _VitalTrendPainter extends CustomPainter {
     final title = TextPainter(
       text: TextSpan(
         text: emptyTitle,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w800,
-          color: Color(0xFF8E95A5),
+          color: palette.pick(const Color(0xFF8E95A5), palette.textMuted),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -617,10 +621,10 @@ class _VitalTrendPainter extends CustomPainter {
     final sub = TextPainter(
       text: TextSpan(
         text: emptySubtitle,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w500,
-          color: Color(0xFFB4BAC6),
+          color: palette.pick(const Color(0xFFB4BAC6), palette.textMuted),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -685,7 +689,7 @@ class _VitalTrendPainter extends CustomPainter {
       // Dots stay readable only while there are few of them.
       if (offsets.length <= 14) {
         for (final o in offsets) {
-          canvas.drawCircle(o, 4.0, Paint()..color = Colors.white);
+          canvas.drawCircle(o, 4.0, Paint()..color = palette.card);
           canvas.drawCircle(
             o,
             4.0,
@@ -793,7 +797,7 @@ class _VitalTrendPainter extends CustomPainter {
         final o = Offset(x, scale.y(plot, slot.values[s]!));
         canvas.drawCircle(o, 7.5, Paint()..color = model.colors[s].withValues(alpha: 0.16));
         canvas.drawCircle(o, 4.8, Paint()..color = model.colors[s]);
-        canvas.drawCircle(o, 2.0, Paint()..color = Colors.white);
+        canvas.drawCircle(o, 2.0, Paint()..color = palette.card);
       }
     }
 
@@ -804,9 +808,9 @@ class _VitalTrendPainter extends CustomPainter {
     final time = TextPainter(
       text: TextSpan(
         text: slot.tooltipLabel,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 8.5,
-          color: Color(0xFF8E95A5),
+          color: palette.pick(const Color(0xFF8E95A5), palette.textMuted),
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -818,18 +822,18 @@ class _VitalTrendPainter extends CustomPainter {
         children: [
           TextSpan(
             text: valueText,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
-              color: Color(0xFF1E2024),
+              color: palette.pick(const Color(0xFF1E2024), palette.textPrimary),
               fontWeight: FontWeight.w800,
             ),
           ),
           if (unit.isNotEmpty)
             TextSpan(
               text: ' $unit',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 9,
-                color: Color(0xFF8E95A5),
+                color: palette.pick(const Color(0xFF8E95A5), palette.textMuted),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -855,7 +859,7 @@ class _VitalTrendPainter extends CustomPainter {
       4,
       true,
     );
-    canvas.drawRRect(rect, Paint()..color = Colors.white);
+    canvas.drawRRect(rect, Paint()..color = palette.card);
     canvas.drawRRect(
       rect,
       Paint()

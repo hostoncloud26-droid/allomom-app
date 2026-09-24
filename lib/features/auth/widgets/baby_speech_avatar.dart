@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
+import 'package:allomom/config/app_theme.dart';
 
 class BabySpeechAvatar extends StatelessWidget {
   final String speechText;
@@ -17,6 +18,7 @@ class BabySpeechAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCompact = avatarSize < 140;
+    final p = context.palette;
 
     return Column(
       children: [
@@ -32,11 +34,11 @@ class BabySpeechAvatar extends StatelessWidget {
                 vertical: isCompact ? 10 : 14,
               ),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(22),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
+                    color: p.pick(Colors.black.withValues(alpha: 0.04), p.shadow),
                     blurRadius: 16,
                     offset: const Offset(0, 4),
                   ),
@@ -51,7 +53,7 @@ class BabySpeechAvatar extends StatelessWidget {
                       style: GoogleFonts.poppins(
                         fontSize: isCompact ? 12.5 : 13.5,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E2024),
+                        color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                         height: 1.35,
                       ),
                     ),
@@ -61,8 +63,8 @@ class BabySpeechAvatar extends StatelessWidget {
                     onTap: onSpeakerTap,
                     child: Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFFFF0F3),
+                      decoration: BoxDecoration(
+                        color: p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -81,7 +83,7 @@ class BabySpeechAvatar extends StatelessWidget {
               bottom: -6,
               child: CustomPaint(
                 size: const Size(14, 7),
-                painter: _BubblePointerPainter(),
+                painter: _BubblePointerPainter(p.card),
               ),
             ),
           ],
@@ -97,9 +99,9 @@ class BabySpeechAvatar extends StatelessWidget {
           height: avatarSize,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: const Color(0xFFFFF0F5),
+            color: p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F5)),
             border: Border.all(
-              color: const Color(0xFFFFD2DC),
+              color: p.pick(const Color(0xFFFFD2DC), p.accentBorder),
               width: isCompact ? 3.5 : 5,
             ),
             boxShadow: [
@@ -138,10 +140,14 @@ class BabySpeechAvatar extends StatelessWidget {
 }
 
 class _BubblePointerPainter extends CustomPainter {
+  final Color color;
+
+  _BubblePointerPainter(this.color);
+
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white
+      ..color = color
       ..style = PaintingStyle.fill;
 
     final path = Path()
@@ -154,5 +160,6 @@ class _BubblePointerPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _BubblePointerPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

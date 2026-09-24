@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/prescription_timing.dart';
 import 'package:drift/drift.dart' as drift;
@@ -25,6 +26,8 @@ class PrescriptionTimingsView extends StatefulWidget {
 }
 
 class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
+  AppPalette get _pal => context.palette;
+
   static const int _dateItemCount = 30;
   final ScrollController _dateScrollController = ScrollController();
 
@@ -167,15 +170,15 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
     final progress = totalCount > 0 ? (takenCount / totalCount) : 0.0;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _pal.scaffoldSoft,
       appBar: widget.showAppBar
           ? AppBar(
-              backgroundColor: const Color(0xFFFBFBFC),
+              backgroundColor: _pal.scaffoldSoft,
               elevation: 0,
               scrolledUnderElevation: 0,
               centerTitle: true,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+                icon: Icon(Icons.arrow_back_ios_new_rounded, color: _pal.textPrimary, size: 20),
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
               title: Text(
@@ -183,7 +186,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                 style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
+                  color: _pal.textPrimary,
                 ),
               ),
               actions: [
@@ -222,7 +225,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                           style: GoogleFonts.manrope(
                             fontSize: 20,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
+                            color: _pal.textPrimary,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -232,7 +235,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                           style: GoogleFonts.manrope(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: const Color(0xFF8E95A5),
+                            color: _pal.pick(const Color(0xFF8E95A5), _pal.textMuted),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -246,8 +249,8 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                       IconButton(
                         icon: Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFECEF),
+                          decoration: BoxDecoration(
+                            color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.list_alt_rounded, color: Color(0xFFFF3B5C), size: 18),
@@ -264,8 +267,8 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                       IconButton(
                         icon: Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: const BoxDecoration(
-                            color: Color(0xFFFFECEF),
+                          decoration: BoxDecoration(
+                            color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.add_rounded, color: Color(0xFFFF3B5C), size: 18),
@@ -293,12 +296,12 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
               Container(
                 padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _pal.card,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                  border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
+                      color: _pal.pick(Colors.black.withValues(alpha: 0.03), _pal.shadow),
                       blurRadius: 14,
                       offset: const Offset(0, 4),
                     ),
@@ -315,7 +318,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                           child: CircularProgressIndicator(
                             value: progress,
                             strokeWidth: 5.5,
-                            backgroundColor: const Color(0xFFF1F5F9),
+                            backgroundColor: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
                             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF3B5C)),
                           ),
                         ),
@@ -324,7 +327,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                           style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
+                            color: _pal.textPrimary,
                           ),
                         ),
                       ],
@@ -343,7 +346,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                             style: GoogleFonts.manrope(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _pal.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -354,7 +357,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                             style: GoogleFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
+                              color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                             ),
                           ),
                         ],
@@ -415,14 +418,14 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
               width: 58,
               margin: const EdgeInsets.only(right: 8),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFFF3B5C) : Colors.white,
+                color: isSelected ? const Color(0xFFFF3B5C) : _pal.card,
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: isSelected
                       ? const Color(0xFFFF3B5C)
                       : isToday
                           ? const Color(0xFFFF3B5C).withValues(alpha: 0.4)
-                          : const Color(0xFFE2E8F0),
+                          : _pal.pick(const Color(0xFFE2E8F0), _pal.border),
                   width: isToday ? 1.5 : 1.0,
                 ),
                 boxShadow: isSelected
@@ -443,7 +446,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
-                      color: isSelected ? Colors.white.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
+                      color: isSelected ? Colors.white.withValues(alpha: 0.8) : _pal.textMuted,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -452,7 +455,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                     style: GoogleFonts.manrope(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
-                      color: isSelected ? Colors.white : const Color(0xFF1E2024),
+                      color: isSelected ? Colors.white : _pal.textPrimary,
                     ),
                   ),
                 ],
@@ -493,7 +496,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                 style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
-                  color: const Color(0xFF1E2024),
+                  color: _pal.textPrimary,
                 ),
               ),
             ],
@@ -525,15 +528,15 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _pal.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isTaken ? const Color(0xFFE2E8F0) : slotColor.withValues(alpha: 0.3),
+            color: isTaken ? _pal.pick(const Color(0xFFE2E8F0), _pal.border) : slotColor.withValues(alpha: 0.3),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: _pal.pick(Colors.black.withValues(alpha: 0.02), _pal.shadow),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -552,7 +555,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                   color: isTaken ? const Color(0xFF10B981) : Colors.transparent,
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isTaken ? const Color(0xFF10B981) : const Color(0xFFCBD5E1),
+                    color: isTaken ? const Color(0xFF10B981) : _pal.pick(const Color(0xFFCBD5E1), _pal.textMuted),
                     width: 2,
                   ),
                 ),
@@ -573,7 +576,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                     style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
-                      color: isTaken ? const Color(0xFF94A3B8) : const Color(0xFF1E2024),
+                      color: isTaken ? _pal.textMuted : _pal.textPrimary,
                       decoration: isTaken ? TextDecoration.lineThrough : null,
                     ),
                   ),
@@ -584,13 +587,13 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                       style: GoogleFonts.manrope(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF64748B),
+                        color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
                       ),
                       children: [
                         if (timing.mealInstruction != null && timing.mealInstruction!.isNotEmpty) ...[
                           TextSpan(
                             text: ' • ',
-                            style: GoogleFonts.manrope(color: const Color(0xFFCBD5E1)),
+                            style: GoogleFonts.manrope(color: _pal.pick(const Color(0xFFCBD5E1), _pal.textMuted)),
                           ),
                           TextSpan(
                             text: timing.mealInstruction!,
@@ -614,7 +617,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F5F9),
+                color: _pal.pick(const Color(0xFFF1F5F9), _pal.inputFill),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -622,7 +625,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                 style: GoogleFonts.manrope(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF475569),
+                  color: _pal.pick(const Color(0xFF475569), _pal.textSecondary),
                 ),
               ),
             ),
@@ -637,17 +640,17 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _pal.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF0F1F5)),
+        border: Border.all(color: _pal.pick(const Color(0xFFF0F1F5), _pal.border)),
       ),
       child: Column(
         children: [
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFFECEF),
+            decoration: BoxDecoration(
+              color: _pal.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
               shape: BoxShape.circle,
             ),
             child: const Center(
@@ -660,7 +663,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
             style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: const Color(0xFF1E2024),
+              color: _pal.textPrimary,
             ),
           ),
           const SizedBox(height: 4),
@@ -669,7 +672,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: _pal.pick(const Color(0xFF64748B), _pal.textSecondary),
             ),
           ),
         ],

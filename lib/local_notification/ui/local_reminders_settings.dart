@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
 import 'package:allomom/local_notification/ui/reminder_setup_bottom_sheet.dart';
@@ -9,14 +10,14 @@ class LocalRemindersSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: context.palette.pick(const Color(0xFFFBFBFC), context.palette.scaffoldSoft),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: context.palette.pick(const Color(0xFFFBFBFC), context.palette.scaffoldSoft),
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF2D3142), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: context.palette.pick(const Color(0xFF2D3142), context.palette.textPrimary), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -24,7 +25,7 @@ class LocalRemindersSettingsPage extends StatelessWidget {
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
           ),
         ),
       ),
@@ -45,12 +46,15 @@ class LocalRemindersSettingsPage extends StatelessWidget {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.palette.card,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                  border: Border.all(color: context.palette.pick(const Color(0xFFF0F1F5), context.palette.border), width: 1.2),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
+                      color: context.palette.pick(
+                        Colors.black.withValues(alpha: 0.02),
+                        context.palette.shadow,
+                      ),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
@@ -67,7 +71,7 @@ class LocalRemindersSettingsPage extends StatelessWidget {
                             style: GoogleFonts.manrope(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E2024),
+                              color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                             ),
                           ),
                           const SizedBox(height: 3),
@@ -85,7 +89,7 @@ class LocalRemindersSettingsPage extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.tune_rounded, color: Color(0xFF94A3B8), size: 20),
+                      icon: Icon(Icons.tune_rounded, color: context.palette.pick(const Color(0xFF94A3B8), context.palette.textMuted), size: 20),
                       onPressed: () => ReminderSetupBottomSheet.show(context, config.type),
                     ),
                     Switch(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -56,6 +57,14 @@ class _BabyFormSheet extends StatefulWidget {
 
 class _BabyFormSheetState extends State<_BabyFormSheet> {
   static final _dateFmt = DateFormat('dd MMM yyyy');
+
+  // Neutral ink, fills and lines follow light / dark mode.
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _inkSoft => _p.textSecondary;
+  Color get _inkMuted => _p.textMuted;
+  Color get _field => _p.inputFill;
+  Color get _line => _p.border;
 
   late final TextEditingController _name = TextEditingController(
     text: widget.existing?.name ?? '',
@@ -226,9 +235,9 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
         top: 20,
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: _p.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -240,7 +249,7 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: _p.divider,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -250,8 +259,11 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFFF0F4),
+                  decoration: BoxDecoration(
+                    color: _p.tint(
+                      const Color(0xFFFF3B5C),
+                      const Color(0xFFFFF0F4),
+                    ),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -270,16 +282,16 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                         style: GoogleFonts.outfit(
                           fontSize: 19,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E2024),
+                          color: _ink,
                         ),
                       ),
                       Text(
                         widget.pregnancyId != null
                             ? 'Linked to this pregnancy'
                             : "We'll set up their vaccines & milestones",
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF6B7280),
+                          color: _inkSoft,
                         ),
                       ),
                     ],
@@ -305,6 +317,7 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
               controller: _name,
               focusNode: _nameFocus,
               textCapitalization: TextCapitalization.words,
+              style: TextStyle(color: _p.textPrimary),
               decoration: _fieldDecoration('e.g. Aarav'),
             ),
             const SizedBox(height: 16),
@@ -319,12 +332,15 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF9FAFB),
+                  color: _field,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: _dob == null
-                        ? const Color(0xFFFFC9D4)
-                        : const Color(0xFFE5E7EB),
+                        ? context.palette.pick(
+                            const Color(0xFFFFC9D4),
+                            const Color(0xFF6B2E3A),
+                          )
+                        : _line,
                   ),
                 ),
                 child: Row(
@@ -341,18 +357,18 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
                         color: _dob == null
-                            ? const Color(0xFF9CA3AF)
-                            : const Color(0xFF1E2024),
+                            ? _inkMuted
+                            : _ink,
                       ),
                     ),
                     const Spacer(),
                     if (_dob != null)
                       Text(
                         babyAgeLabel(_dob),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF6B7280),
+                          color: _inkSoft,
                         ),
                       ),
                   ],
@@ -390,6 +406,7 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
+                        style: TextStyle(color: _p.textPrimary),
                         decoration: _fieldDecoration('3.2'),
                       ),
                     ],
@@ -404,6 +421,8 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                       DropdownButtonFormField<String>(
                         initialValue: _bloodGroup,
                         isExpanded: true,
+                        dropdownColor: _p.card,
+                        style: TextStyle(fontSize: 16, color: _p.textPrimary),
                         decoration: _fieldDecoration('Select'),
                         items: bloodGroupOptions
                             .map(
@@ -427,7 +446,10 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                 onPressed: _saving ? null : _save,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF3B5C),
-                  disabledBackgroundColor: const Color(0xFFFFC9D4),
+                  disabledBackgroundColor: _p.pick(
+                    const Color(0xFFFFC9D4),
+                    const Color(0xFFFF3B5C).withValues(alpha: 0.35),
+                  ),
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -462,28 +484,28 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
     padding: const EdgeInsets.only(bottom: 6),
     child: Text(
       text,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: Color(0xFF6B7280),
+        color: _inkSoft,
       ),
     ),
   );
 
   InputDecoration _fieldDecoration(String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(fontSize: 13.5, color: Color(0xFF9CA3AF)),
+    hintStyle: TextStyle(fontSize: 13.5, color: _inkMuted),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      borderSide: BorderSide(color: _line),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+      borderSide: BorderSide(color: _line),
     ),
     filled: true,
-    fillColor: const Color(0xFFF9FAFB),
+    fillColor: _field,
   );
 
   Widget _chips({
@@ -501,10 +523,10 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
           labelStyle: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF4B5563),
+            color: isSelected ? Colors.white : _p.textSecondary,
           ),
           selectedColor: const Color(0xFFFF3B5C),
-          backgroundColor: const Color(0xFFF3F4F6),
+          backgroundColor: _p.pick(const Color(0xFFF3F4F6), _p.surface),
           showCheckmark: false,
           side: BorderSide.none,
           // Tapping the selected chip clears it, since both fields are

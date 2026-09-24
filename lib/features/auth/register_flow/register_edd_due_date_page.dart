@@ -1,3 +1,4 @@
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,8 @@ class RegisterEddDueDatePage extends StatefulWidget {
 }
 
 class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
+  AppPalette get _p => context.palette;
+
   /// The line on the baby head card: the cheer about the date, or whichever
   /// side-question she taps.
   String _narrationKey = NarrationKeys.pregEddBubble;
@@ -79,7 +82,7 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
         .clamp(0, 280);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -105,20 +108,20 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -130,7 +133,7 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -160,14 +163,14 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                       24,
                       24 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -181,7 +184,7 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                           style: GoogleFonts.poppins(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF8E95A5),
+                            color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
                             letterSpacing: 0.8,
                           ),
                         ),
@@ -192,14 +195,24 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                           width: double.infinity,
                           padding: const EdgeInsets.all(20),
                           decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                            gradient: _p.pick(
+                              const LinearGradient(
+                                colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              LinearGradient(
+                                colors: [
+                                  Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.22), _p.card),
+                                  Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.12), _p.card),
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
                             ),
                             borderRadius: BorderRadius.circular(22),
                             border: Border.all(
-                              color: const Color(0xFFFFD1DC),
+                              color: _p.pick(const Color(0xFFFFD1DC), _p.accentBorder),
                               width: 1.5,
                             ),
                           ),
@@ -208,12 +221,12 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                               Container(
                                 width: 56,
                                 height: 56,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
+                                decoration: BoxDecoration(
+                                  color: _p.card,
                                   shape: BoxShape.circle,
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black12,
+                                      color: _p.pick(Colors.black12, _p.shadow),
                                       blurRadius: 10,
                                       offset: Offset(0, 4),
                                     ),
@@ -231,7 +244,7 @@ class _RegisterEddDueDatePageState extends State<RegisterEddDueDatePage> {
                                 style: GoogleFonts.outfit(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1E2024),
+                                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 ),
                               ),
                               const SizedBox(height: 4),

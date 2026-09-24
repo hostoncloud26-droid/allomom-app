@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -14,6 +15,8 @@ class FeedingTrackerStatsPage extends StatefulWidget {
 }
 
 class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
+  AppPalette get _p => context.palette;
+
   int _selectedFilter = 0; // 0: Day, 1: Week, 2: Month
 
   String get _periodKey {
@@ -61,7 +64,7 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
   void _showAllFeedsSheet(List<Map<String, dynamic>> feeds) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: _p.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -72,20 +75,20 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'All Feeds History',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                 ),
               ),
               const SizedBox(height: 16),
               if (feeds.isEmpty)
-                const Padding(
+                Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
                   child: Center(
-                    child: Text('No feeds recorded yet.', style: TextStyle(color: Colors.grey)),
+                    child: Text('No feeds recorded yet.', style: TextStyle(color: _p.pick(Colors.grey, _p.textMuted))),
                   ),
                 )
               else
@@ -131,7 +134,7 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
         }
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFAF6F7),
+          backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
           body: SafeArea(
             child: Column(
               children: [
@@ -142,20 +145,20 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                     children: [
                       IconButton(
                         onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.arrow_back,
-                          color: Color(0xFF1E2024),
+                          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                           size: 24,
                         ),
                       ),
-                      const Expanded(
+                      Expanded(
                         child: Center(
                           child: Text(
                             'Feeding Tracker',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -172,7 +175,7 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                           ),
                         ),
                         style: TextButton.styleFrom(
-                          backgroundColor: const Color(0xFFEDE9FE),
+                          backgroundColor: _p.tint(const Color(0xFF8B5CF6), const Color(0xFFEDE9FE)),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         ),
@@ -205,11 +208,11 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: _p.card,
                         borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.03),
+                            color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
                             blurRadius: 14,
                             offset: const Offset(0, 4),
                           ),
@@ -220,8 +223,8 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                           Container(
                             width: 50,
                             height: 50,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFEDE9FE),
+                            decoration: BoxDecoration(
+                              color: _p.tint(const Color(0xFF8B5CF6), const Color(0xFFEDE9FE)),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
@@ -240,47 +243,47 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                                 children: [
                                   Text(
                                     '$totalFeeds',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 26,
                                       fontWeight: FontWeight.w800,
-                                      color: Color(0xFF1E2024),
+                                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                       height: 1.0,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
                                   Text(
                                     totalSubLabel,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
-                                      color: Color(0xFF1E2024),
+                                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                     ),
                                   ),
                                 ],
                               ),
                               const SizedBox(height: 2),
-                              const Text(
+                              Text(
                                 'Total feeding time',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: Color(0xFF8C93A3),
+                                  color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                                 ),
                               ),
                               const SizedBox(height: 1),
                               Text(
                                 totalDurationMinutes > 0 ? '$totalDurationMinutes min' : '${totalFeeds * 20} min',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w700,
-                                  color: Color(0xFF1E2024),
+                                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                 ),
                               ),
                             ],
                           ),
                           const Spacer(),
-                          const Icon(
+                          Icon(
                             Icons.chevron_right_rounded,
-                            color: Color(0xFF8C93A3),
+                            color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                             size: 24,
                           ),
                         ],
@@ -298,11 +301,11 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                     height: 44,
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: _p.card,
                       borderRadius: BorderRadius.circular(22),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.02),
+                          color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -332,11 +335,11 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: _p.card,
                           borderRadius: BorderRadius.circular(28),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.03),
+                              color: _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow),
                               blurRadius: 14,
                               offset: const Offset(0, 4),
                             ),
@@ -349,17 +352,17 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                               children: [
                                 Text(
                                   periodTitle,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: Color(0xFF1E2024),
+                                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                   ),
                                 ),
                                 Text(
                                   periodSubheader,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 13,
-                                    color: Color(0xFF8C93A3),
+                                    color: _p.pick(const Color(0xFF8C93A3), _p.textMuted),
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -374,11 +377,11 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                                 child: Center(
                                   child: Column(
                                     children: [
-                                      Icon(Icons.child_care_rounded, size: 36, color: Colors.grey.shade300),
+                                      Icon(Icons.child_care_rounded, size: 36, color: _p.pick(Colors.grey.shade300, _p.textMuted)),
                                       const SizedBox(height: 8),
                                       Text(
                                         'No feeds recorded for this period',
-                                        style: TextStyle(fontSize: 13.5, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                                        style: TextStyle(fontSize: 13.5, color: _p.pick(Colors.grey.shade600, _p.textSecondary), fontWeight: FontWeight.w500),
                                       ),
                                     ],
                                   ),
@@ -418,10 +421,10 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF5F3FF),
+                          color: _p.tint(const Color(0xFF8B5CF6), const Color(0xFFF5F3FF)),
                           borderRadius: BorderRadius.circular(20),
                         ),
-                        child: const Row(
+                        child: Row(
                           children: [
                             Icon(
                               Icons.favorite_rounded,
@@ -435,7 +438,7 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
                                 style: TextStyle(
                                   fontSize: 13.5,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E2024),
+                                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                                   height: 1.35,
                                 ),
                               ),
@@ -466,7 +469,9 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
     final amount = feed['amount'] as String;
     final unit = feed['unit'] as String;
 
-    final iconBg = isBreastfeeding ? const Color(0xFFEDE9FE) : const Color(0xFFFFE4E6);
+    final iconBg = isBreastfeeding
+        ? _p.tint(const Color(0xFF8B5CF6), const Color(0xFFEDE9FE))
+        : _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E6));
     final iconColor = isBreastfeeding ? const Color(0xFF8B5CF6) : const Color(0xFFFF4E6A);
 
     return Row(
@@ -487,19 +492,19 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
         const SizedBox(width: 12),
         Text(
           time,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1E2024),
+            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
           ),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
             type,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF374151),
+              color: _p.pick(const Color(0xFF374151), _p.textSecondary),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -510,27 +515,27 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
           children: [
             Text(
               amount,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF1E2024),
+                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
             ),
             const SizedBox(width: 2),
             Text(
               unit,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
-                color: Color(0xFF6B7280),
+                color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                 fontWeight: FontWeight.w500,
               ),
             ),
           ],
         ),
         const SizedBox(width: 8),
-        const Icon(
+        Icon(
           Icons.chevron_right_rounded,
-          color: Color(0xFF9CA3AF),
+          color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
           size: 20,
         ),
       ],
@@ -549,7 +554,9 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFEDE9FE) : Colors.transparent,
+            color: isSelected
+                ? _p.tint(const Color(0xFF8B5CF6), const Color(0xFFEDE9FE))
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Center(
@@ -558,7 +565,7 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
               style: TextStyle(
                 fontSize: 13.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF8B5CF6) : const Color(0xFF6B7280),
+                color: isSelected ? const Color(0xFF8B5CF6) : _p.pick(const Color(0xFF6B7280), _p.textSecondary),
               ),
             ),
           ),

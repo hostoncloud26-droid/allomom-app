@@ -97,6 +97,7 @@ List<CareItem> careItemsFor({
   required int pregnancyDay,
 }) {
   final trimester = _trimesterFor(pregnancyDay);
+  final week = _weekFor(pregnancyDay);
 
   final water = _waterItem(
     part: part,
@@ -106,6 +107,18 @@ List<CareItem> careItemsFor({
 
   return switch (part) {
     CareDayPart.morning => [
+      if (isPregnant && week <= 14)
+        const CareItem(
+          id: 'nausea_care',
+          title: 'Something dry before you sit up',
+          subtitle:
+              'A biscuit or toast before getting out of bed settles '
+              'morning sickness',
+          icon: Icons.bakery_dining_rounded,
+          color: Color(0xffF59E0B),
+          kind: CareActionKind.checkoff,
+          actionValue: 'managing nausea',
+        ),
       _mealItem(
         CareMeal.breakfast,
         subtitle: isPregnant
@@ -148,12 +161,25 @@ List<CareItem> careItemsFor({
       ),
     ],
     CareDayPart.midMorning => [
+      if (isPregnant) ?_milestoneItem(week),
       _snackItem(
         subtitle: isPregnant
             ? 'Fruit, nuts or yoghurt keeps nausea and dizziness away'
             : 'A handful of nuts or fruit to bridge to lunch',
       ),
       water,
+      if (isPregnant && week >= 12)
+        const CareItem(
+          id: 'pelvic_floor',
+          title: 'Pelvic floor squeezes',
+          subtitle:
+              '10 slow holds and 10 quick ones — they make pushing and '
+              'recovery easier',
+          icon: Icons.fitness_center_rounded,
+          color: Color(0xff00897B),
+          kind: CareActionKind.checkoff,
+          actionValue: 'pelvic floor exercises',
+        ),
       _coffeeItem(isPregnant: isPregnant),
     ],
     CareDayPart.afternoon => [
@@ -199,16 +225,36 @@ List<CareItem> careItemsFor({
             ? 'Roasted chana, fruit or a chikki — skip the fried snacks'
             : 'Something light so you are not ravenous at dinner',
       ),
-      if (isPregnant && pregnancyDay >= 180)
-        const CareItem(
+      // From 16 weeks, when the first flutters are felt. Until 28 it is
+      // about getting to know her baby's pattern; after that the ten-kick
+      // count is the one that matters clinically, so the copy changes but
+      // the screen behind it does not.
+      if (isPregnant && week >= 16)
+        CareItem(
           id: 'kick_count',
-          title: 'Count my kicks',
-          subtitle: 'Evenings are when baby is most active — count 10 kicks',
+          title: week >= 28 ? 'Count my kicks' : "Feel your baby's movements",
+          subtitle: week >= 28
+              ? 'Evenings are when baby is most active — count 10 kicks'
+              : week >= 20
+              ? 'Kicks and rolls should be daily now — learn her pattern'
+              : 'Flutters and bubbles start about now — log what you feel',
           icon: Icons.child_friendly_rounded,
-          color: Color(0xff9C27B0),
+          color: const Color(0xff9C27B0),
           kind: CareActionKind.navigate,
           destination: CareDestination.kickCounter,
           doneVitalKey: 'kick_count',
+        ),
+      if (isPregnant && week >= 20)
+        const CareItem(
+          id: 'swelling_check',
+          title: 'Check for swelling',
+          subtitle:
+              'Hands, feet and face — sudden puffiness needs your '
+              'clinic the same day',
+          icon: Icons.back_hand_rounded,
+          color: Color(0xff0288D1),
+          kind: CareActionKind.checkoff,
+          actionValue: 'checking for swelling',
         ),
       CareItem(
         id: 'evening_walk',
@@ -247,6 +293,18 @@ List<CareItem> careItemsFor({
           kind: CareActionKind.checkoff,
           actionValue: 'taking calcium tablet',
         ),
+      if (isPregnant && week >= 36)
+        const CareItem(
+          id: 'labour_watch',
+          title: 'Watch for labour signs',
+          subtitle:
+              'Regular tightening, a gush of fluid or any bleeding — '
+              'call your clinic',
+          icon: Icons.notifications_active_rounded,
+          color: Color(0xffE53935),
+          kind: CareActionKind.checkoff,
+          actionValue: 'watching for labour signs',
+        ),
     ],
     CareDayPart.lateNight => [
       if (isPregnant)
@@ -271,18 +329,167 @@ List<CareItem> careItemsFor({
           kind: CareActionKind.checkoff,
           actionValue: 'resting',
         ),
-      const CareItem(
+      if (isPregnant && week >= 16)
+        const CareItem(
+          id: 'belly_care',
+          title: 'Oil your bump',
+          subtitle:
+              'A few minutes of oil or cream keeps the stretching skin '
+              'comfortable',
+          icon: Icons.spa_outlined,
+          color: Color(0xffFF7043),
+          kind: CareActionKind.checkoff,
+          actionValue: 'belly care',
+        ),
+      if (isPregnant && week >= 18)
+        const CareItem(
+          id: 'talk_to_baby',
+          title: 'Talk to your baby',
+          subtitle:
+              'She can hear you from about now — read, sing or just '
+              'tell her about your day',
+          icon: Icons.favorite_rounded,
+          color: Color(0xffEC407A),
+          kind: CareActionKind.checkoff,
+          actionValue: 'talking to baby',
+        ),
+      if (isPregnant && week >= 34)
+        const CareItem(
+          id: 'perineal_massage',
+          title: 'Perineal massage',
+          subtitle: '5 min a day from 34 weeks lowers the chance of tearing',
+          icon: Icons.healing_rounded,
+          color: Color(0xff8E24AA),
+          kind: CareActionKind.checkoff,
+          actionValue: 'perineal massage',
+        ),
+      CareItem(
         id: 'stretch',
         title: 'Stretch & breathe',
-        subtitle: '5 min of gentle stretching and slow breathing',
-        icon: Icons.spa_rounded,
-        color: Color(0xffE91E63),
+        subtitle: isPregnant && week >= 30
+            ? '5 min of slow breathing — the same rhythm carries you through '
+                  'labour'
+            : '5 min of gentle stretching and slow breathing',
+        icon: Icons.self_improvement_rounded,
+        color: const Color(0xffE91E63),
         kind: CareActionKind.checkoff,
         actionValue: 'stretching',
       ),
       water,
     ],
   };
+}
+
+/// Completed weeks of pregnancy, the way the rest of the app counts them
+/// (`PregnancyController.currentGestationalWeek`).
+///
+/// Gates read as a clinic would say them: `week >= 16` is "from 16 weeks",
+/// which begins on day 112.
+int _weekFor(int pregnancyDay) {
+  final week = pregnancyDay ~/ 7;
+  if (week < 0) return 0;
+  return week > 42 ? 42 : week;
+}
+
+/// The one appointment or preparation this week calls for, if any.
+///
+/// Scans, the sugar test and the vaccine each belong to a window of weeks
+/// rather than to a day, so the list carries whichever window she is in — one
+/// at a time, in the order they come due, so a mother at 28 weeks is asked
+/// about her glucose test rather than about that and her vaccine at once.
+CareItem? _milestoneItem(int week) {
+  const milestones =
+      <
+        ({
+          int from,
+          int to,
+          String id,
+          String title,
+          String subtitle,
+          IconData icon,
+          String action,
+        })
+      >[
+        (
+          from: 6,
+          to: 10,
+          id: 'first_anc',
+          title: 'Book your first antenatal visit',
+          subtitle: 'Your booking visit and dating scan are due about now',
+          icon: Icons.event_available_rounded,
+          action: 'booking first antenatal visit',
+        ),
+        (
+          from: 11,
+          to: 13,
+          id: 'nt_scan',
+          title: 'NT scan & first screening',
+          subtitle: 'The 11–13 week scan — book it if you have not already',
+          icon: Icons.monitor_heart_rounded,
+          action: 'attending nt scan',
+        ),
+        (
+          from: 18,
+          to: 22,
+          id: 'anomaly_scan',
+          title: 'Anomaly scan',
+          subtitle:
+              'The 18–22 week scan checks how every part of baby is growing',
+          icon: Icons.monitor_heart_rounded,
+          action: 'attending anomaly scan',
+        ),
+        (
+          from: 24,
+          to: 28,
+          id: 'glucose_test',
+          title: 'Glucose tolerance test',
+          subtitle: 'The sugar test is done between 24 and 28 weeks',
+          icon: Icons.science_rounded,
+          action: 'taking glucose test',
+        ),
+        (
+          from: 29,
+          to: 33,
+          id: 'tdap',
+          title: 'Tdap / TT vaccine',
+          subtitle:
+              'Ask your clinic — this one protects your baby after birth too',
+          icon: Icons.vaccines_rounded,
+          action: 'taking tdap vaccine',
+        ),
+        (
+          from: 34,
+          to: 35,
+          id: 'hospital_bag',
+          title: 'Pack your hospital bag',
+          subtitle: 'Papers, clothes for you and baby, and your medicines',
+          icon: Icons.luggage_rounded,
+          action: 'packing hospital bag',
+        ),
+        (
+          from: 36,
+          to: 42,
+          id: 'birth_plan',
+          title: 'Birth plan & who drives you',
+          subtitle: 'Settle the hospital, the route and who to call at night',
+          icon: Icons.map_rounded,
+          action: 'making birth plan',
+        ),
+      ];
+
+  for (final milestone in milestones) {
+    if (week < milestone.from || week > milestone.to) continue;
+    return CareItem(
+      id: milestone.id,
+      title: milestone.title,
+      subtitle: milestone.subtitle,
+      icon: milestone.icon,
+      color: const Color(0xff6C63FF),
+      kind: CareActionKind.checkoff,
+      actionValue: milestone.action,
+    );
+  }
+  return null;
 }
 
 /// 1, 2 or 3 — clamped so a missing LMP still lands somewhere sensible.
@@ -383,4 +590,48 @@ CareItem _waterItem({
     dailyTarget: target,
     presets: const [1, 2, 3],
   );
+}
+
+/// The clock hour (0–23) an item sits at on the day's timeline.
+///
+/// Items are written per [CareDayPart], which is a window; the timeline needs
+/// one hour for each, so this places them where the day actually puts them —
+/// something dry on waking, breakfast at eight, folic acid after it, iron an
+/// hour after lunch, calcium after dinner. Water and snacks recur through the
+/// day, so the hour depends on the window as well as the item. Anything not
+/// listed lands at the start of its window.
+int careHourFor(String itemId, CareDayPart part) {
+  final hour = switch ((part, itemId)) {
+    (CareDayPart.morning, 'nausea_care') => 6,
+    (CareDayPart.morning, 'water') => 7,
+    (CareDayPart.morning, 'meal_breakfast') => 8,
+    (CareDayPart.morning, 'folic_acid') => 9,
+    (CareDayPart.morning, 'morning_movement') => 10,
+    (CareDayPart.midMorning, 'snack') => 11,
+    (CareDayPart.midMorning, 'water') => 12,
+    (CareDayPart.midMorning, 'pelvic_floor') => 12,
+    (CareDayPart.afternoon, 'meal_lunch') => 13,
+    (CareDayPart.afternoon, 'iron_tablet') => 14,
+    (CareDayPart.afternoon, 'water') => 15,
+    (CareDayPart.afternoon, 'afternoon_rest') => 15,
+    (CareDayPart.evening, 'coffee') => 17,
+    (CareDayPart.evening, 'snack') => 17,
+    (CareDayPart.evening, 'evening_walk') => 17,
+    (CareDayPart.evening, 'kick_count') => 18,
+    (CareDayPart.evening, 'swelling_check') => 18,
+    (CareDayPart.evening, 'water') => 18,
+    (CareDayPart.night, 'water') => 19,
+    (CareDayPart.night, 'meal_dinner') => 20,
+    (CareDayPart.night, 'calcium_tablet') => 21,
+    (CareDayPart.night, 'labour_watch') => 21,
+    (CareDayPart.lateNight, 'water') => 22,
+    (CareDayPart.lateNight, 'stretch') => 22,
+    (CareDayPart.lateNight, 'belly_care') => 22,
+    (CareDayPart.lateNight, 'talk_to_baby') => 22,
+    (CareDayPart.lateNight, 'perineal_massage') => 23,
+    (CareDayPart.lateNight, 'left_side_sleep') => 23,
+    (CareDayPart.lateNight, 'sleep') => 23,
+    _ => null,
+  };
+  return hour ?? part.startHour;
 }

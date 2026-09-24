@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/local_notification/models/local_reminder.dart';
 import 'package:allomom/local_notification/controller/local_reminder_controller.dart';
@@ -54,11 +55,18 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFFF3B5C),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF1E2024),
-            ),
+            colorScheme: context.palette.isDark
+                ? ColorScheme.dark(
+                    primary: const Color(0xFFFF3B5C),
+                    onPrimary: Colors.white,
+                    surface: context.palette.card,
+                    onSurface: context.palette.textPrimary,
+                  )
+                : const ColorScheme.light(
+                    primary: Color(0xFFFF3B5C),
+                    onPrimary: Colors.white,
+                    onSurface: Color(0xFF1E2024),
+                  ),
           ),
           child: child!,
         );
@@ -78,9 +86,9 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(32),
           topRight: Radius.circular(32),
         ),
@@ -94,7 +102,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: context.palette.pick(const Color(0xFFE2E8F0), context.palette.divider),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -110,7 +118,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
                   style: GoogleFonts.manrope(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1E2024),
+                    color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                   ),
                 ),
               ),
@@ -138,7 +146,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF64748B),
+              color: context.palette.pick(const Color(0xFF64748B), context.palette.textSecondary),
             ),
           ),
           const SizedBox(height: 24),
@@ -149,7 +157,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
+                color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
               ),
             ),
             const SizedBox(height: 12),
@@ -165,9 +173,10 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
                   labelStyle: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                    color: isSelected ? Colors.white : context.palette.pick(const Color(0xFF475569), context.palette.textSecondary),
                   ),
-                  backgroundColor: const Color(0xFFF8FAFC),
+                  backgroundColor: context.palette.pick(const Color(0xFFF8FAFC), context.palette.inputFill),
+                  side: context.palette.isDark ? BorderSide(color: context.palette.border) : null,
                   onSelected: (sel) async {
                     if (sel) {
                       setState(() {
@@ -185,7 +194,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF94A3B8),
+                color: context.palette.pick(const Color(0xFF94A3B8), context.palette.textMuted),
               ),
             ),
           ] else ...[
@@ -194,7 +203,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
+                color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
               ),
             ),
             const SizedBox(height: 12),
@@ -203,9 +212,9 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                  color: context.palette.pick(const Color(0xFFF8FAFC), context.palette.inputFill),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                  border: Border.all(color: context.palette.pick(const Color(0xFFE2E8F0), context.palette.border)),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -219,7 +228,7 @@ class _ReminderSetupBottomSheetState extends State<ReminderSetupBottomSheet> {
                           style: GoogleFonts.manrope(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
+                            color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                           ),
                         ),
                       ],

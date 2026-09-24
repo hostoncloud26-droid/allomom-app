@@ -500,6 +500,66 @@ class HealthVitalsController extends GetxController {
     await refreshAndSyncLast30Days();
   }
 
+  /// Readings that belong to one day: the selected day shows what was
+  /// recorded on it, or nothing.
+  static const List<String> dayScopedVitalKeys = <String>[
+    'steps',
+    'sleep',
+    'sleep_data',
+    'heart_rate',
+    'blood_oxygen',
+    'blood_pressure',
+    'temperature',
+    'stress',
+    'hrv',
+    'glucose',
+    'blood_glucose',
+    'kick_count',
+    'feeding',
+  ];
+
+  /// Standing facts rather than daily readings, so the latest entry on or
+  /// before the selected day still applies.
+  static const List<String> carryForwardVitalKeys = <String>[
+    'weight',
+    'height',
+    'hemoglobin',
+  ];
+
+  /// The latest vital per key as it stood on [date], read straight from the
+  /// local store — the in-memory state only ever holds the newest row per key,
+  /// which is today's.
+  Future<Map<String, VitalsStreamResponse?>> fetchVitalsForDate(
+    DateTime date,
+  ) async {
+    final result = <String, VitalsStreamResponse?>{};
+    final currentUserId = userId.trim();
+    if (currentUserId.isEmpty) return result;
+
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
+    final service = VitalsSqLiteService();
+
+    for (final key in dayScopedVitalKeys) {
+      final rows = await service.getVitalsHistory(
+        currentUserId,
+        key,
+        fromDate: startOfDay,
+        toDate: endOfDay,
+      );
+      result[key] = rows.isEmpty ? null : _vitalFromDbMap(rows.first);
+    }
+    for (final key in carryForwardVitalKeys) {
+      final rows = await service.getVitalsHistory(
+        currentUserId,
+        key,
+        toDate: endOfDay,
+      );
+      result[key] = rows.isEmpty ? null : _vitalFromDbMap(rows.first);
+    }
+    return result;
+  }
+
   VitalsStreamResponse _vitalFromDbMap(Map<String, dynamic> map) {
     final rawData = map['data'];
     final parsedData = rawData is String && rawData.isNotEmpty

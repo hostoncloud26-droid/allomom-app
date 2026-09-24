@@ -3,7 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:allomom/config/colors.dart';
+import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/api_routes.dart';
@@ -38,12 +39,8 @@ void main() async {
   if (kDebugMode) {
     HttpOverrides.global = DevHttpOverrides();
   }
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+  // Loaded before the first frame so a dark-mode user never sees a white flash.
+  await ThemeController.instance.load();
 
   Get.put(Apiroutes());
   // Secure storage first: the token it loads decides whether the bootstrap
@@ -128,25 +125,14 @@ class AllomomApp extends StatelessWidget {
           navigatorKey: rootNavigatorKey,
           title: 'Allomom',
           debugShowCheckedModeBanner: false,
-          theme: ThemeData(
-            primaryColor: primaryColor,
-            colorScheme: ColorScheme.fromSeed(
-              seedColor: primaryColor,
-              primary: primaryColor,
-              brightness: Brightness.light,
-            ),
-            scaffoldBackgroundColor: Colors.white,
-            appBarTheme: const AppBarTheme(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              iconTheme: IconThemeData(color: textDark),
-              titleTextStyle: TextStyle(
-                color: textDark,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            useMaterial3: true,
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeController.instance.resolvedThemeMode,
+          // Status bar icons follow whichever theme is actually showing,
+          // including when "System" hands the choice to the phone.
+          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+            value: ThemeController.overlayFor(Theme.of(context).brightness),
+            child: child ?? const SizedBox.shrink(),
           ),
           home: _home(),
         );

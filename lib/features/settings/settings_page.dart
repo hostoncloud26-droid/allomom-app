@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
+import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
@@ -35,14 +37,17 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // AlloMom Theme Color Palette from config/colors.dart
-  static const Color _bgTheme = Colors.white;
+  // Brand colours stay fixed; surfaces and text follow light / dark mode.
   static const Color _accentPrimary = primaryColor;
-  static const Color _textDark = textDark;
-  static const Color _textMuted = textMuted;
-  static const Color _textSecondary = textMedium;
-  static const Color _dividerTheme = dividerColor;
-  static const Color _itemDivider = Color(0xFFF4EBED);
   static const Color _logoutRed = dangerRed;
+  Color get _bgTheme => context.palette.background;
+  Color get _cardTheme => context.palette.card;
+  Color get _textDark => context.palette.textPrimary;
+  Color get _textMuted => context.palette.textMuted;
+  Color get _textSecondary => context.palette.textSecondary;
+  Color get _dividerTheme => context.palette.divider;
+  Color get _itemDivider =>
+      context.isDarkMode ? context.palette.divider : const Color(0xFFF4EBED);
 
   @override
   Widget build(BuildContext context) {
@@ -63,53 +68,6 @@ class _SettingsPageState extends State<SettingsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ─── TOP APP BAR ───
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Settings',
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                            color: _textDark,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        // Top Right App Badge
-                        Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.white,
-                            border: Border.all(
-                              color: accentColor.withValues(alpha: 0.6),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: _accentPrimary.withValues(alpha: 0.1),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: const Center(
-                            child: Icon(
-                              Icons.verified_user_rounded,
-                              color: _accentPrimary,
-                              size: 18,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
                   // ─── PROFILE HEADER (FLAT, NO CARD WRAPPER) ───
                   _buildProfileHeader(
                     context,
@@ -121,7 +79,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 12),
 
                   // ─── SUBTLE SECTION DIVIDER ───
-                  const Divider(height: 1, thickness: 1, color: _dividerTheme),
+                  Divider(height: 1, thickness: 1, color: _dividerTheme),
                   const SizedBox(height: 6),
 
                   // ─── FLAT SETTINGS LIST ───
@@ -149,8 +107,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     subtitle: isPregnant
                         ? 'Week $gestationalWeek · $trimester'
                         : session.isNewMom
-                            ? 'New Mom Journey'
-                            : 'Update status & LMP',
+                        ? 'New Mom Journey'
+                        : 'Update status & LMP',
                     onTap: () {
                       speak(NarrationKeys.pgSettingsTimeline);
                       Navigator.push(
@@ -163,43 +121,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _buildItemDivider(),
 
-                  // 2b. My Babies
-                  _buildListTile(
-                    icon: Icons.child_care_outlined,
-                    title: 'My Babies',
-                    subtitle: session.hasKids
-                        ? '${session.kidsCount} '
-                              '${session.kidsCount == 1 ? 'baby' : 'babies'} '
-                              '· Vaccines & milestones'
-                        : 'Add your newborn or older child',
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MyBabiesPage()),
-                      );
-                      if (mounted) setState(() {});
-                    },
-                  ),
-                  _buildItemDivider(),
-
-                  // 3. Family & Care Circle
-                  _buildListTile(
-                    icon: Icons.group_outlined,
-                    title: 'Family & Care Circle',
-                    subtitle: 'Invite partner & family',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PeoplePage()),
-                      );
-                    },
-                  ),
-                  _buildItemDivider(),
-
-                  // 3b. Family Group — the code, who is in it, and the way out.
-                  // The same screen registration uses, which knows from
-                  // `is_registered` that this visit is management rather than
-                  // a step in signing up.
                   _buildListTile(
                     icon: Icons.qr_code_2_rounded,
                     title: 'Family Group',
@@ -224,21 +145,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _buildItemDivider(),
 
-                  // 4. Allowear Smart Band
-                  _buildListTile(
-                    icon: Icons.watch_outlined,
-                    title: 'Allowear Smart Band',
-                    subtitle: session.allowearMacAddress != null &&
-                            session.allowearMacAddress!.isNotEmpty
-                        ? 'Paired: ${session.allowearMacAddress}'
-                        : 'Connect Bluetooth vitals band',
-                    onTap: () {
-                      speak(NarrationKeys.pgSettingsBand);
-                      _showAllowearDialog(context, session);
-                    },
-                  ),
-                  _buildItemDivider(),
-
                   // 5. Language
                   _buildListTile(
                     icon: Icons.translate_rounded,
@@ -249,6 +155,18 @@ class _SettingsPageState extends State<SettingsPage> {
                       _showLanguagePickerModal(context);
                     },
                   ),
+                  _buildItemDivider(),
+
+                  // 5b. Theme — light, dark, or follow the phone.
+                  Obx(() {
+                    final theme = ThemeController.instance;
+                    return _buildListTile(
+                      icon: theme.themeModeIcon,
+                      title: 'Theme',
+                      subtitle: '${theme.themeModeLabel} mode',
+                      onTap: () => _showThemePickerModal(context),
+                    );
+                  }),
                   _buildItemDivider(),
 
                   // 6. Notifications (Switch Toggle)
@@ -295,18 +213,6 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Reminders',
                     subtitle: 'Medicine & nutrition alerts',
                     onTap: () => _showRemindersModal(context),
-                  ),
-                  _buildItemDivider(),
-
-                  // 8. Accessibility & Voice
-                  _buildListTile(
-                    icon: Icons.volume_up_outlined,
-                    title: 'Accessibility & Voice',
-                    subtitle: 'Speech speed & voice volume',
-                    onTap: () {
-                      speak(NarrationKeys.pgSettingsVoice);
-                      _showAccessibilityModal(context);
-                    },
                   ),
                   _buildItemDivider(),
 
@@ -365,7 +271,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final name = session.userName.isNotEmpty ? session.userName : 'Mommy';
     final contact = session.userEmail.isNotEmpty
         ? session.userEmail
-        : (session.userPhone.isNotEmpty ? session.userPhone : 'deekshaveeramanikandan@gmail.com');
+        : (session.userPhone.isNotEmpty
+              ? session.userPhone
+              : 'deekshaveeramanikandan@gmail.com');
     final avatarUrl = session.image;
 
     return GestureDetector(
@@ -384,16 +292,13 @@ class _SettingsPageState extends State<SettingsPage> {
               padding: const EdgeInsets.all(2.5),
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: _accentPrimary,
-                  width: 2,
-                ),
+                border: Border.all(color: _accentPrimary, width: 2),
               ),
               child: ClipOval(
                 child: Container(
                   width: 66,
                   height: 66,
-                  color: accentLight,
+                  color: context.palette.accentSoft,
                   child: avatarUrl != null && avatarUrl.isNotEmpty
                       ? Image.network(
                           avatarUrl,
@@ -425,7 +330,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 21,
                       fontWeight: FontWeight.w700,
                       color: _textDark,
@@ -436,7 +341,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   const SizedBox(height: 5),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.mail_outline_rounded,
                         size: 15,
                         color: _textMuted,
@@ -445,7 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       Expanded(
                         child: Text(
                           contact,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12.5,
                             color: _textSecondary,
                           ),
@@ -463,7 +368,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: accentLight,
+                        color: context.palette.accentSoft,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: accentColor.withValues(alpha: 0.8),
@@ -532,10 +437,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: _textMuted,
-                        ),
+                        style: TextStyle(fontSize: 12, color: _textMuted),
                       ),
                     ],
                   ],
@@ -544,7 +446,7 @@ class _SettingsPageState extends State<SettingsPage> {
               Icon(
                 Icons.chevron_right_rounded,
                 size: 22,
-                color: isLogout ? _logoutRed : const Color(0xFF9CA3AF),
+                color: isLogout ? _logoutRed : _textMuted,
               ),
             ],
           ),
@@ -566,11 +468,7 @@ class _SettingsPageState extends State<SettingsPage> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
       child: Row(
         children: [
-          Icon(
-            icon,
-            size: 24,
-            color: _accentPrimary,
-          ),
+          Icon(icon, size: 24, color: _accentPrimary),
           const SizedBox(width: 16),
           Expanded(
             child: Column(
@@ -578,7 +476,7 @@ class _SettingsPageState extends State<SettingsPage> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w600,
                     color: _textDark,
@@ -606,7 +504,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Widget _buildItemDivider() {
-    return const Divider(
+    return Divider(
       height: 1,
       thickness: 0.8,
       color: _itemDivider,
@@ -628,20 +526,15 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
+        backgroundColor: _cardTheme,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
           children: [
             Icon(Icons.watch_rounded, color: _accentPrimary),
             SizedBox(width: 10),
             Text(
               'Allowear Band',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _textDark,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: _textDark),
             ),
           ],
         ),
@@ -649,29 +542,29 @@ class _SettingsPageState extends State<SettingsPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Enter your Allowear Smart Band MAC address to enable continuous maternal vital streaming:',
-              style: TextStyle(
-                fontSize: 13,
-                color: _textSecondary,
-              ),
+              style: TextStyle(fontSize: 13, color: _textSecondary),
             ),
             const SizedBox(height: 16),
             TextField(
               controller: macController,
-              style: const TextStyle(color: _textDark),
+              style: TextStyle(color: _textDark),
               decoration: InputDecoration(
                 labelText: 'MAC Address',
-                labelStyle: const TextStyle(color: _textMuted),
+                labelStyle: TextStyle(color: _textMuted),
                 hintText: 'AA:BB:CC:11:22:33',
-                hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+                hintStyle: TextStyle(color: _textMuted),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                  borderSide: BorderSide(color: _dividerTheme),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: _accentPrimary, width: 1.5),
+                  borderSide: const BorderSide(
+                    color: _accentPrimary,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -680,10 +573,7 @@ class _SettingsPageState extends State<SettingsPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: _textMuted),
-            ),
+            child: Text('Cancel', style: TextStyle(color: _textMuted)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -728,8 +618,8 @@ class _SettingsPageState extends State<SettingsPage> {
       isScrollControlled: true,
       builder: (ctx) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _cardTheme,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -740,7 +630,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: _dividerTheme,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -750,6 +640,94 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 16),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showThemePickerModal(BuildContext context) {
+    const options = [
+      (
+        'light',
+        'Light',
+        'Bright screens for daytime',
+        Icons.light_mode_rounded,
+      ),
+      ('dark', 'Dark', 'Easier on the eyes at night', Icons.dark_mode_rounded),
+      (
+        'system',
+        'System',
+        'Match your phone setting',
+        Icons.brightness_auto_rounded,
+      ),
+    ];
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.fromLTRB(20, 22, 20, 28),
+        decoration: BoxDecoration(
+          color: ctx.palette.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Obx(() {
+          final theme = ThemeController.instance;
+          final selected = theme.themeMode.value;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: ctx.palette.divider,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Theme',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: ctx.palette.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final (value, label, hint, icon) in options)
+                ListTile(
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                  leading: Icon(icon, color: _accentPrimary),
+                  title: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: ctx.palette.textPrimary,
+                    ),
+                  ),
+                  subtitle: Text(
+                    hint,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: ctx.palette.textMuted,
+                    ),
+                  ),
+                  trailing: selected == value
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          color: _accentPrimary,
+                        )
+                      : null,
+                  onTap: () {
+                    theme.setThemeMode(value);
+                    Navigator.pop(ctx);
+                  },
+                ),
+            ],
+          );
+        }),
       ),
     );
   }
@@ -767,11 +745,11 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _cardTheme,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -786,10 +764,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SizedBox(height: 14),
             Text(
               'Baby voice speech rate, haptic feedback, and text scaling for comfortable maternal experience.',
-              style: TextStyle(
-                fontSize: 13,
-                color: _textSecondary,
-              ),
+              style: TextStyle(fontSize: 13, color: _textSecondary),
             ),
             SizedBox(height: 20),
           ],
@@ -804,11 +779,11 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _cardTheme,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -823,10 +798,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SizedBox(height: 12),
             Text(
               'Need urgent pregnancy guidance or technical assistance? AlloMom support is here 24/7.',
-              style: TextStyle(
-                fontSize: 13,
-                color: _textSecondary,
-              ),
+              style: TextStyle(fontSize: 13, color: _textSecondary),
             ),
             SizedBox(height: 18),
             Row(
@@ -850,11 +822,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SizedBox(height: 12),
             Row(
               children: [
-                Icon(
-                  Icons.email_outlined,
-                  color: _accentPrimary,
-                  size: 20,
-                ),
+                Icon(Icons.email_outlined, color: _accentPrimary, size: 20),
                 SizedBox(width: 10),
                 Text(
                   'support@savemom.app',
@@ -879,11 +847,11 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _cardTheme,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        child: const Column(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -898,10 +866,7 @@ class _SettingsPageState extends State<SettingsPage> {
             SizedBox(height: 12),
             Text(
               'Your maternal vitals and medical data are end-to-end encrypted and safeguarded with strict clinical standards.',
-              style: TextStyle(
-                fontSize: 13,
-                color: _textSecondary,
-              ),
+              style: TextStyle(fontSize: 13, color: _textSecondary),
             ),
             SizedBox(height: 20),
           ],
@@ -914,24 +879,19 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Row(
+        backgroundColor: _cardTheme,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
           children: [
             Icon(Icons.info_outline_rounded, color: _accentPrimary),
             SizedBox(width: 10),
             Text(
               'AlloMom Maternal Care',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: _textDark,
-              ),
+              style: TextStyle(fontWeight: FontWeight.bold, color: _textDark),
             ),
           ],
         ),
-        content: const Column(
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -975,31 +935,20 @@ class _SettingsPageState extends State<SettingsPage> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        title: const Text(
+        backgroundColor: _cardTheme,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
           'Log out of AlloMom?',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: _textDark,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold, color: _textDark),
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to log out from this device?',
-          style: TextStyle(
-            fontSize: 13,
-            color: _textSecondary,
-          ),
+          style: TextStyle(fontSize: 13, color: _textSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(color: _textMuted),
-            ),
+            child: Text('Cancel', style: TextStyle(color: _textMuted)),
           ),
           ElevatedButton(
             onPressed: () async {

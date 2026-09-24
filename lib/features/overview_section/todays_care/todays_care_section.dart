@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 
 class TodaysCareSection extends StatefulWidget {
@@ -33,7 +34,7 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
               style: GoogleFonts.outfit(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: textDark,
+                color: context.palette.textPrimary,
               ),
             ),
             Text(
@@ -66,11 +67,11 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: isDone ? Colors.white : accentLight,
+          color: isDone ? context.palette.card : context.palette.accentSoft,
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
+              color: context.palette.pick(Colors.black.withValues(alpha: 0.02), context.palette.shadow),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -97,14 +98,14 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
                     style: GoogleFonts.poppins(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: textDark,
+                      color: context.palette.textPrimary,
                     ),
                   ),
                   Text(
                     item['subtitle'] as String,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: textLight,
+                      color: context.palette.textMuted,
                     ),
                   ),
                 ],
@@ -126,7 +127,7 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.grey.shade300, width: 2),
+                  border: Border.all(color: context.palette.pick(Colors.grey.shade300, context.palette.textMuted), width: 2),
                 ),
               ),
           ],

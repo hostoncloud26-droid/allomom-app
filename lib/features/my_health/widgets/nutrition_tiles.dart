@@ -1,636 +1,259 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
-import 'package:allomom/controllers/main_controller.dart';
-import 'package:allomom/features/overview_section/nutrition/nutrition_detail_page.dart';
 
+import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/my_health/vitals/drinks/drinks_entry_bottom_sheet.dart';
+import 'package:allomom/features/my_health/vitals/nutrition_routes.dart';
+import 'package:allomom/features/overview_section/nutrition/nutrition_detail_page.dart';
+import 'package:allomom/models/vitals_stream_model.dart';
+import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
+
+import 'nutrition/drinks_tile.dart';
+import 'nutrition/health_tile_parts.dart';
+import 'nutrition/meal_tiles.dart';
+import 'nutrition/water_tile.dart';
+
+/// Daily water goal, in glasses.
+const int _waterTargetGlasses = 10;
+
+/// The day's nutrition as AlloConnect lays it out — water, drinks, snacks,
+/// then breakfast, lunch and dinner, each its own tile.
+///
+/// Shows [date] (today when null). A past day is a record: its tiles are
+/// read-only, and logging always writes to today.
 class NutritionTiles extends StatefulWidget {
   final String? userId;
 
-  const NutritionTiles({super.key, this.userId});
+  /// Day whose meals are shown. Defaults to today when omitted.
+  final DateTime? date;
+
+  const NutritionTiles({super.key, this.userId, this.date});
 
   @override
   State<NutritionTiles> createState() => _NutritionTilesState();
 }
 
 class _NutritionTilesState extends State<NutritionTiles> {
-  double _breakfastCal = 0.0;
-  double _lunchCal = 0.0;
-  double _dinnerCal = 0.0;
-  double _snacksCal = 0.0;
+  List<VitalsStreamResponse> _breakfast = const [];
+  List<VitalsStreamResponse> _lunch = const [];
+  List<VitalsStreamResponse> _dinner = const [];
+  List<VitalsStreamResponse> _snacks = const [];
+  List<VitalsStreamResponse> _drinks = const [];
   int _waterGlasses = 0;
+
+  int _loadSeq = 0;
+
+  DateTime get _selectedDate => widget.date ?? DateTime.now();
+  bool get _readOnly => !DateUtils.isSameDay(_selectedDate, DateTime.now());
+  String get _userId => widget.userId ?? MainController.instance.userId;
 
   @override
   void initState() {
     super.initState();
-    _loadMeals();
-    HealthVitalsController.instance.addListener(_loadMeals);
+    _load();
+    HealthVitalsController.instance.addListener(_load);
+  }
+
+  @override
+  void didUpdateWidget(covariant NutritionTiles oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.userId != widget.userId ||
+        !DateUtils.isSameDay(oldWidget.date ?? DateTime.now(), _selectedDate)) {
+      _load();
+    }
   }
 
   @override
   void dispose() {
-    HealthVitalsController.instance.removeListener(_loadMeals);
+    HealthVitalsController.instance.removeListener(_load);
     super.dispose();
   }
 
-  Future<void> _loadMeals() async {
+  Future<void> _load() async {
     if (!mounted) return;
+    final seq = ++_loadSeq;
     try {
-      final targetUserId = widget.userId ?? MainController.instance.userId;
-      final now = DateTime.now();
-      final startOfToday = DateTime(now.year, now.month, now.day);
-      final endOfToday = DateTime(now.year, now.month, now.day, 23, 59, 59);
-
-      final bfRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'breakfast',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-      final bfAltRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'break_fast',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-      final lunchRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'lunch',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-      final dinnerRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'dinner',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-      final snacksRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'snacks',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-      final waterRows = await VitalsSqLiteService().getVitalsHistory(
-        targetUserId,
-        'water',
-        fromDate: startOfToday,
-        toDate: endOfToday,
-      );
-
-      double bSum = 0.0;
-      for (final r in [...bfRows, ...bfAltRows]) {
-        bSum += (r['value'] as num?)?.toDouble() ?? 0.0;
-      }
-      double lSum = 0.0;
-      for (final r in lunchRows) {
-        lSum += (r['value'] as num?)?.toDouble() ?? 0.0;
-      }
-      double dSum = 0.0;
-      for (final r in dinnerRows) {
-        dSum += (r['value'] as num?)?.toDouble() ?? 0.0;
-      }
-      double sSum = 0.0;
-      for (final r in snacksRows) {
-        sSum += (r['value'] as num?)?.toDouble() ?? 0.0;
+      final bounds = dayBounds(_selectedDate);
+      final service = VitalsSqLiteService();
+      Future<List<VitalsStreamResponse>> rows(String key) async {
+        final r = await service.getVitalsHistory(
+          _userId,
+          key,
+          fromDate: bounds.start,
+          toDate: bounds.end,
+        );
+        return r.map(vitalFromRow).toList();
       }
 
-      int wSum = 0;
-      for (final r in waterRows) {
-        wSum += ((r['value'] as num?)?.toDouble() ?? 0).round();
-      }
-      if (wSum < 0) wSum = 0;
+      final results = await Future.wait([
+        rows('breakfast'),
+        rows('break_fast'),
+        rows('lunch'),
+        rows('dinner'),
+        rows('snacks'),
+        rows('drinks'),
+        rows('water'),
+      ]);
+      if (!mounted || seq != _loadSeq) return;
 
-      if (mounted) {
-        setState(() {
-          _breakfastCal = bSum;
-          _lunchCal = lSum;
-          _dinnerCal = dSum;
-          _snacksCal = sSum;
-          _waterGlasses = wSum;
-        });
-      }
-    } catch (_) {}
+      int newestFirst(VitalsStreamResponse a, VitalsStreamResponse b) =>
+          b.createdAt.compareTo(a.createdAt);
+
+      final water = results[6].fold<double>(0, (s, v) => s + v.value).round();
+      setState(() {
+        _breakfast = [...results[0], ...results[1]]..sort(newestFirst);
+        _lunch = results[2]..sort(newestFirst);
+        _dinner = results[3]..sort(newestFirst);
+        _snacks = results[4]..sort(newestFirst);
+        _drinks = results[5]..sort(newestFirst);
+        _waterGlasses = water < 0 ? 0 : water;
+      });
+    } catch (e) {
+      debugPrint('NutritionTiles: failed to load day: $e');
+    }
   }
 
   /// Opens a tile's own detail page — its trend, its numbers, its entries.
   Future<void> _openDetail(NutritionMetric metric) async {
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => NutritionDetailPage(metric: metric)),
+      MaterialPageRoute(
+        builder: (_) => nutritionOverviewScreen(metric, userId: _userId),
+      ),
     );
-    if (mounted) await _loadMeals();
+    if (mounted) await _load();
   }
 
-  void _showAddMealDialog(
-    String mealType,
-    String label,
-    Color color,
-    IconData icon,
-  ) {
-    final calController = TextEditingController();
-    final itemController = TextEditingController();
+  Future<void> _logMeal(NutritionMetric metric) async {
+    if (_readOnly) return;
+    final saved = await showNutritionEntrySheet(
+      context,
+      metric,
+      userId: _userId,
+    );
+    if (saved == true && mounted) await _load();
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Container(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            20,
-            24,
-            MediaQuery.of(ctx).viewInsets.bottom + 30,
-          ),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(
-              topLeft: Radius.circular(32),
-              topRight: Radius.circular(32),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(icon, color: color, size: 22),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Log $label',
-                    style: GoogleFonts.manrope(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-
-              Text(
-                'Meal Description / Food Items',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: itemController,
-                decoration: InputDecoration(
-                  hintText: 'e.g. Oats porridge with almonds & milk',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              Text(
-                'Calories (kcal)',
-                style: GoogleFonts.manrope(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF475569),
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextField(
-                controller: calController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  hintText: 'e.g. 350',
-                  filled: true,
-                  fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () async {
-                    final cal =
-                        double.tryParse(calController.text.trim()) ?? 300.0;
-                    final text = itemController.text.trim();
-
-                    await HealthVitalsController.instance.addVitalEntry(
-                      key: mealType.toLowerCase(),
-                      value: cal,
-                      unit: 'kcal',
-                      createdAt: DateTime.now(),
-                      userId: widget.userId ?? MainController.instance.userId,
-                      data: {'items': text, 'meal': label},
-                    );
-
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: color,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Text(
-                    'Save $label',
-                    style: GoogleFonts.manrope(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
+  Future<void> _addWater(int glasses) async {
+    if (_readOnly || glasses <= 0) return;
+    setState(() => _waterGlasses += glasses);
+    await HealthVitalsController.instance.addVitalEntry(
+      key: 'water',
+      value: glasses.toDouble(),
+      unit: 'glasses',
+      createdAt: DateTime.now(),
+      userId: _userId,
+      data: {
+        'details': '$glasses ${glasses == 1 ? 'glass' : 'glasses'}',
+        'type': 'water',
       },
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 12),
-          child: Text(
-            'Nutrition & Hydration',
-            style: GoogleFonts.manrope(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFF1E2024),
-            ),
-          ),
-        ),
-
-        // Row 1: Breakfast & Lunch
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _buildMealCard(
-                  icon: Icons.wb_sunny_rounded,
-                  color: const Color(0xFFFF9800),
-                  label: 'Breakfast',
-                  calories: _breakfastCal,
-                  metric: NutritionMetric.breakfast,
-                  onLog: () => _showAddMealDialog(
-                    'breakfast',
-                    'Breakfast',
-                    const Color(0xFFFF9800),
-                    Icons.wb_sunny_rounded,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildMealCard(
-                  icon: Icons.lunch_dining_rounded,
-                  color: const Color(0xFF10B981),
-                  label: 'Lunch',
-                  calories: _lunchCal,
-                  metric: NutritionMetric.lunch,
-                  onLog: () => _showAddMealDialog(
-                    'lunch',
-                    'Lunch',
-                    const Color(0xFF10B981),
-                    Icons.lunch_dining_rounded,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Row 2: Snacks & Dinner
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                child: _buildMealCard(
-                  icon: Icons.cookie_rounded,
-                  color: const Color(0xFFF59E0B),
-                  label: 'Snacks',
-                  calories: _snacksCal,
-                  metric: NutritionMetric.snacks,
-                  onLog: () => _showAddMealDialog(
-                    'snacks',
-                    'Snacks',
-                    const Color(0xFFF59E0B),
-                    Icons.cookie_rounded,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildMealCard(
-                  icon: Icons.dinner_dining_rounded,
-                  color: const Color(0xFF8B5CF6),
-                  label: 'Dinner',
-                  calories: _dinnerCal,
-                  metric: NutritionMetric.dinner,
-                  onLog: () => _showAddMealDialog(
-                    'dinner',
-                    'Dinner',
-                    const Color(0xFF8B5CF6),
-                    Icons.dinner_dining_rounded,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Row 3: Water Hydration Card
-        GestureDetector(
-          onTap: () => _openDetail(NutritionMetric.water),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF0284C7).withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.water_drop_rounded,
-                          color: Color(0xFF0284C7),
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Hydration Tracker',
-                            style: GoogleFonts.manrope(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1E2024),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            _waterGlasses > 0
-                                ? '$_waterGlasses of 10 glasses (${(_waterGlasses * 0.25).toStringAsFixed(1)}L)'
-                                : '0 of 10 glasses • Tap + to log',
-                            style: GoogleFonts.manrope(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: const Color(0xFF64748B),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_waterGlasses > 0)
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        padding: EdgeInsets.zero,
-                        onPressed: () async {
-                          setState(() => _waterGlasses = _waterGlasses - 1);
-                          // Rows hold increments (the reader sums them), so a
-                          // correction is logged as -1, not as the new total.
-                          await HealthVitalsController.instance.addVitalEntry(
-                            key: 'water',
-                            value: -1,
-                            unit: 'glasses',
-                            createdAt: DateTime.now(),
-                            userId:
-                                widget.userId ?? MainController.instance.userId,
-                            data: const {
-                              'details': 'Corrected by 1 glass',
-                              'type': 'water',
-                            },
-                          );
-                        },
-                        icon: Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.remove_rounded,
-                            color: Color(0xFF64748B),
-                            size: 16,
-                          ),
-                        ),
-                      ),
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      padding: EdgeInsets.zero,
-                      onPressed: () async {
-                        setState(() => _waterGlasses = _waterGlasses + 1);
-                        await HealthVitalsController.instance.addVitalEntry(
-                          key: 'water',
-                          value: 1,
-                          unit: 'glasses',
-                          createdAt: DateTime.now(),
-                          userId:
-                              widget.userId ?? MainController.instance.userId,
-                          data: const {'details': '1 glass', 'type': 'water'},
-                        );
-                      },
-                      icon: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: const Color(
-                            0xFF0284C7,
-                          ).withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.add_rounded,
-                          color: Color(0xFF0284C7),
-                          size: 18,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: (_waterGlasses / 10.0).clamp(0.0, 1.0),
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF0284C7),
-                    ),
-                    minHeight: 6,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+  Future<void> _removeWater() async {
+    if (_readOnly || _waterGlasses <= 0) return;
+    setState(() => _waterGlasses -= 1);
+    // Rows hold increments (the reader sums them), so a correction is logged
+    // as -1, not as the new total.
+    await HealthVitalsController.instance.addVitalEntry(
+      key: 'water',
+      value: -1,
+      unit: 'glasses',
+      createdAt: DateTime.now(),
+      userId: _userId,
+      data: const {'details': 'Corrected by 1 glass', 'type': 'water'},
     );
   }
 
-  Widget _buildMealCard({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required double calories,
-    required NutritionMetric metric,
-    required VoidCallback onLog,
-  }) {
-    final hasLogged = calories > 0;
+  Future<void> _logDrink(String name, IconData icon) async {
+    if (_readOnly) return;
+    final saved = await showDrinksEntrySheet(
+      context,
+      userId: _userId,
+      initialType: name,
+    );
+    if (saved == true && mounted) await _load();
+  }
 
-    return GestureDetector(
-      onTap: () => _openDetail(metric),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
+  @override
+  Widget build(BuildContext context) {
+    final breakfastColor = Colors.orange.shade400;
+    final lunchColor = Colors.green.shade400;
+    final dinnerColor = Colors.indigo.shade400;
+    const gap = SizedBox(height: 16);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'Nutrition',
+            style: TextStyle(
+              color: Theme.of(context).primaryColor,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
             ),
-          ],
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: color, size: 18),
-                ),
-                GestureDetector(
-                  onTap: onLog,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: hasLogged
-                          ? const Color(0xFFE6F9F0)
-                          : color.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      hasLogged ? '+ Log' : '+ Add',
-                      style: GoogleFonts.manrope(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: hasLogged ? const Color(0xFF10B981) : color,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  hasLogged ? '${calories.toInt()} kcal' : '0 kcal',
-                  style: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: hasLogged ? FontWeight.w700 : FontWeight.w500,
-                    color: hasLogged
-                        ? const Color(0xFF1E2024)
-                        : const Color(0xFF94A3B8),
-                  ),
-                ),
-              ],
-            ),
-          ],
+        const SizedBox(height: 8),
+        WaterTile(
+          glasses: _waterGlasses,
+          targetGlasses: _waterTargetGlasses,
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.water),
+          onAdd: _addWater,
+          onRemove: _removeWater,
         ),
-      ),
+        gap,
+        DrinksTile(
+          entries: _drinks,
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.drinks),
+          onLog: _logDrink,
+        ),
+        gap,
+        SnacksTile(
+          entries: _snacks,
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.snacks),
+          onLog: () => _logMeal(NutritionMetric.snacks),
+        ),
+        gap,
+        MealTile(
+          label: 'Breakfast',
+          color: breakfastColor,
+          entries: _breakfast,
+          emptyHint: 'Start your day by tracking your breakfast.',
+          fallbackDetails: 'Healthy Breakfast',
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.breakfast),
+          onLog: () => _logMeal(NutritionMetric.breakfast),
+        ),
+        gap,
+        MealTile(
+          label: 'Lunch',
+          color: lunchColor,
+          entries: _lunch,
+          emptyHint: 'Keep your energy up by tracking your lunch.',
+          fallbackDetails: 'Healthy Lunch',
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.lunch),
+          onLog: () => _logMeal(NutritionMetric.lunch),
+        ),
+        gap,
+        MealTile(
+          label: 'Dinner',
+          color: dinnerColor,
+          entries: _dinner,
+          emptyHint: 'Wrap up your day by tracking your dinner.',
+          fallbackDetails: 'Healthy Dinner',
+          readOnly: _readOnly,
+          onOpen: () => _openDetail(NutritionMetric.dinner),
+          onLog: () => _logMeal(NutritionMetric.dinner),
+        ),
+      ],
     );
   }
 }

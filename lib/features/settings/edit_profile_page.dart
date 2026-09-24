@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -106,11 +107,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFFFF4E6A),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF1E2024),
-            ),
+            colorScheme: ctx.palette.isDark
+                ? ColorScheme.dark(
+                    primary: const Color(0xFFFF4E6A),
+                    onPrimary: Colors.white,
+                    surface: ctx.palette.card,
+                    onSurface: ctx.palette.textPrimary,
+                  )
+                : const ColorScheme.light(
+                    primary: Color(0xFFFF4E6A),
+                    onPrimary: Colors.white,
+                    onSurface: Color(0xFF1E2024),
+                  ),
           ),
           child: child!,
         );
@@ -217,10 +225,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
-        backgroundColor: const Color(0xFFFAF6F7),
+        backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
         body: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
@@ -318,7 +327,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             style: GoogleFonts.poppins(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1E2024),
+                              color: p.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -345,9 +354,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   labelStyle: TextStyle(
                                     color: _pregnancyStatus == option.$1
                                         ? Colors.white
-                                        : const Color(0xFF4B5563),
+                                        : p.textSecondary,
                                   ),
-                                  backgroundColor: const Color(0xFFF3F4F6),
+                                  backgroundColor: p.pick(const Color(0xFFF3F4F6), p.inputFill),
                                   onSelected: (sel) {
                                     if (sel) {
                                       setState(
@@ -426,7 +435,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             style: GoogleFonts.poppins(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1E2024),
+                              color: p.textPrimary,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -448,13 +457,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 labelStyle: TextStyle(
                                   color: isSelected
                                       ? Colors.white
-                                      : const Color(0xFF374151),
+                                      : p.textSecondary,
                                 ),
-                                backgroundColor: Colors.white,
+                                backgroundColor: p.card,
                                 side: BorderSide(
                                   color: isSelected
                                       ? const Color(0xFFFF5277)
-                                      : const Color(0xFFE5E7EB),
+                                      : p.border,
                                   width: 1.2,
                                 ),
                                 onSelected: (sel) {
@@ -532,7 +541,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             'Pair with Allowear to sync maternal vitals, heart rate, and temperature continuously.',
                             style: GoogleFonts.poppins(
                               fontSize: 12,
-                              color: const Color(0xFF6B7280),
+                              color: p.textSecondary,
                             ),
                           ),
                         ],
@@ -549,10 +558,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
         bottomNavigationBar: Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: p.card,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
+                color: p.pick(Colors.black.withValues(alpha: 0.06), p.shadow),
                 blurRadius: 16,
                 offset: const Offset(0, -4),
               ),
@@ -735,15 +744,16 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required IconData icon,
     required List<Widget> children,
   }) {
+    final p = context.palette;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: p.card,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.035),
+            color: p.pick(Colors.black.withValues(alpha: 0.035), p.shadow),
             blurRadius: 12,
             offset: const Offset(0, 3),
           ),
@@ -761,13 +771,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 style: GoogleFonts.outfit(
                   fontSize: 16.5,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E2024),
+                  color: p.textPrimary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 4),
-          Divider(color: Colors.grey.shade200),
+          Divider(color: p.pick(Colors.grey.shade200, p.divider)),
           const SizedBox(height: 12),
           ...children,
         ],
@@ -784,6 +794,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     TextInputType keyboardType = TextInputType.text,
     int maxLines = 1,
   }) {
+    final p = context.palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -792,15 +803,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF4B5563),
+            color: p.textSecondary,
           ),
         ),
         const SizedBox(height: 6),
         Container(
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: p.inputFill,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: p.border),
           ),
           child: TextField(
             controller: controller,
@@ -809,15 +820,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
             style: GoogleFonts.poppins(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: const Color(0xFF1E2024),
+              color: p.textPrimary,
             ),
             decoration: InputDecoration(
               hintText: hint,
               hintStyle: GoogleFonts.poppins(
                 fontSize: 13,
-                color: const Color(0xFF9CA3AF),
+                color: p.textMuted,
               ),
-              prefixIcon: Icon(icon, color: const Color(0xFF6B7280), size: 20),
+              prefixIcon: Icon(icon, color: p.textSecondary, size: 20),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 14,
@@ -838,6 +849,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required IconData icon,
     required ValueChanged<T?> onChanged,
   }) {
+    final p = context.palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -846,24 +858,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF4B5563),
+            color: p.textSecondary,
           ),
         ),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: p.inputFill,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: p.border),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<T>(
               value: value,
               isExpanded: true,
-              icon: const Icon(
+              dropdownColor: p.card,
+              style: GoogleFonts.poppins(fontSize: 14, color: p.textPrimary),
+              icon: Icon(
                 Icons.keyboard_arrow_down_rounded,
-                color: Color(0xFF6B7280),
+                color: p.textSecondary,
               ),
               items: items
                   .map(
@@ -871,7 +885,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       value: e,
                       child: Text(
                         e.toString(),
-                        style: GoogleFonts.poppins(fontSize: 14),
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          color: p.textPrimary,
+                        ),
                       ),
                     ),
                   )
@@ -910,6 +927,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
+    final p = context.palette;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -918,7 +936,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           style: GoogleFonts.poppins(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF4B5563),
+            color: p.textSecondary,
           ),
         ),
         const SizedBox(height: 6),
@@ -928,9 +946,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
+              color: p.inputFill,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
+              border: Border.all(color: p.border),
             ),
             child: Row(
               children: [
@@ -945,8 +963,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                           ? FontWeight.w600
                           : FontWeight.normal,
                       color: date != null
-                          ? const Color(0xFF1E2024)
-                          : const Color(0xFF9CA3AF),
+                          ? p.textPrimary
+                          : p.textMuted,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),

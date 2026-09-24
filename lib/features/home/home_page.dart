@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/features/overview_section/daily_summary/daily_summary_section.dart';
-import 'package:allomom/features/overview_section/overview_section_page.dart';
+import 'package:allomom/features/overview_section/day_overview_section.dart';
+import 'package:allomom/components/day_date_selector.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
 import 'package:allomom/features/reports/reports_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart';
@@ -34,6 +36,19 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final PageController _carouselController;
   int _currentCarouselPage = 0;
+
+  final ScrollController _scrollController = ScrollController();
+
+  /// Day the overview section (vitals and nutrition) reports on.
+  DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
+
+  /// The date strip is an overlay, never part of the scrolled content: it
+  /// shows only once the overview section has reached the top.
+  bool _showDateSelector = false;
+
+  /// Sits on the overview section, so the overlay triggers off real layout
+  /// rather than a guessed scroll offset.
+  final GlobalKey _dateScopeAnchorKey = GlobalKey();
 
   /// AlloBot's proactive companion: greets her on open and works through the
   /// day's questions. Owned here so it lives as long as the screen.
@@ -90,28 +105,15 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _homeNarrationKey = null);
   }
 
-  static const List<String> _shortMonths = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
   @override
   void initState() {
     super.initState();
     _carouselController = PageController();
+    _scrollController.addListener(_updateDateSelectorVisibility);
     _voice.addListener(_onVoiceChanged);
-    HomeVoiceLauncher.instance.ancFollowUpRequests
-        .addListener(_onAncFollowUpRequested);
+    HomeVoiceLauncher.instance.ancFollowUpRequests.addListener(
+      _onAncFollowUpRequested,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // The baby says hello first, in her own recorded voice; AlloBot picks up
       // where it leaves off.
@@ -133,11 +135,38 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     _carouselController.dispose();
+    _scrollController.removeListener(_updateDateSelectorVisibility);
+    _scrollController.dispose();
     _voice.removeListener(_onVoiceChanged);
-    HomeVoiceLauncher.instance.ancFollowUpRequests
-        .removeListener(_onAncFollowUpRequested);
+    HomeVoiceLauncher.instance.ancFollowUpRequests.removeListener(
+      _onAncFollowUpRequested,
+    );
     _voice.dispose();
     super.dispose();
+  }
+
+  void _updateDateSelectorVisibility() {
+    final anchorContext = _dateScopeAnchorKey.currentContext;
+    if (anchorContext == null) return;
+
+    final box = anchorContext.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+
+    final anchorTop = box.localToGlobal(Offset.zero).dy;
+    final show = anchorTop <= MediaQuery.of(context).padding.top;
+
+    if (show != _showDateSelector) {
+      setState(() => _showDateSelector = show);
+    }
+  }
+
+  void _onDateSelected(DateTime date) {
+    final normalized = DateUtils.dateOnly(date);
+    if (DateUtils.isSameDay(normalized, _selectedDate)) return;
+    setState(() => _selectedDate = normalized);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _updateDateSelectorVisibility();
+    });
   }
 
   /// Runs the post-visit questions when the ANC calendar asks for them.
@@ -231,11 +260,7 @@ class _HomePageState extends State<HomePage> {
   /// AlloBot's current line while it is talking, and the plain greeting
   /// otherwise. Long lines are trimmed: the bubble is a fixed shape over the
   /// illustration, and the full text is on the card below it anyway.
-  String _babyBubbleText(
-    MainController session,
-    bool isPregnant,
-    String name,
-  ) {
+  String _babyBubbleText(MainController session, bool isPregnant, String name) {
     if (_voice.isVisible) {
       final spoken = _voice.prompt?.question ?? _voice.message;
       return spoken.length > 90 ? '${spoken.substring(0, 88)}…' : spoken;
@@ -280,34 +305,25 @@ class _HomePageState extends State<HomePage> {
         final session = MainController.instance;
         final isPregnant = session.isPregnant;
         final name = session.userName;
-        final week = session.currentGestationalWeek;
-        final trimester = session.currentTrimester;
-        final edd =
-            session.eddDate ?? DateTime.now().add(const Duration(days: 112));
-        final dueDay = edd.day.toString();
-        final dueMonth = _shortMonths[edd.month - 1].toUpperCase();
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFBFBFC),
+          backgroundColor: context.palette.scaffoldSoft,
           body: SafeArea(
             bottom: false,
-            child: CustomScrollView(
+            child: Stack(
+              children: [
+            CustomScrollView(
+              controller: _scrollController,
               physics: const BouncingScrollPhysics(),
               slivers: [
                 SliverToBoxAdapter(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildHeader(
-                        context,
-                        session,
-                        name,
-                        isPregnant,
-                        week,
-                        trimester,
-                        dueDay,
-                        dueMonth,
-                      ),
+                      // No name-and-due-date header. Week, trimester and the
+                      // due date are all spelled out on the Daily Summary card
+                      // a scroll below, and saying them twice pushed the baby
+                      // — the thing she actually talks to — down the screen.
                       const SizedBox(height: 10),
 
                       // ─── HERO BABY CARD ───
@@ -323,15 +339,17 @@ class _HomePageState extends State<HomePage> {
                           // lines, so the card itself does not autoplay.
                           narrationKey: _homeNarrationKey,
                           autoPlayNarration: false,
-                          speechText: _babyBubbleText(session, isPregnant, name),
+                          speechText: _babyBubbleText(
+                            session,
+                            isPregnant,
+                            name,
+                          ),
                           greetingText: "",
                           bubblePosition: SpeechBubblePosition.topCenter,
                           height: 270,
                           onSpeakerTap: _homeNarrationKey != null
                               ? null
-                              : (_voice.isVisible
-                                    ? _voice.toggleSpeech
-                                    : null),
+                              : (_voice.isVisible ? _voice.toggleSpeech : null),
                           onTap: () {
                             Navigator.push(
                               context,
@@ -363,15 +381,32 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 24),
 
                       // ─── OVERVIEW (VITALS & NUTRITION TILES) ───
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20),
-                        child: OverviewSectionPage(),
+                      // Everything in here reports on the selected day; the
+                      // date strip that drives it rides above as an overlay.
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: DayOverviewSection(
+                          key: _dateScopeAnchorKey,
+                          date: _selectedDate,
+                        ),
                       ),
 
                       const SizedBox(height: 120),
                     ],
                   ),
                 ),
+              ],
+            ),
+
+            // ─── Sticky date selector (overlay only) ───
+            // SafeArea already keeps the status bar clear, so the strip
+            // starts at the top of the safe area with no scrim.
+            StickyDateSelectorOverlay(
+              visible: _showDateSelector,
+              top: 0,
+              selectedDate: _selectedDate,
+              onDateSelected: _onDateSelected,
+            ),
               ],
             ),
           ),
@@ -381,187 +416,6 @@ class _HomePageState extends State<HomePage> {
   }
 
   // ─── HEADER / APP BAR ─────────────────────────────────────
-  Widget _buildHeader(
-    BuildContext context,
-    MainController session,
-    String userName,
-    bool isPregnant,
-    int week,
-    String trimester,
-    String dueDay,
-    String dueMonth,
-  ) {
-    final firstName = userName.split(' ').first;
-
-    // Three states to describe: currently pregnant, recently delivered, and
-    // no pregnancy on record. Only the last one should say "Register".
-    final isNewMom = session.isNewMom;
-    final daysSince = session.daysSinceDelivery;
-    final postpartumDay = daysSince == null || daysSince == 0 ? 1 : daysSince;
-
-    final subtitle = isPregnant
-        ? 'Week $week · $trimester'
-        : isNewMom
-        ? 'Day $postpartumDay postpartum'
-        : 'Maternal Care Journey';
-
-    final badgeLabel = isPregnant
-        ? 'DUE DATE'
-        : isNewMom
-        ? 'POSTPARTUM'
-        : 'CARE';
-
-    final badgeValue = isPregnant
-        ? '$dueDay $dueMonth'
-        : isNewMom
-        ? 'Day $postpartumDay'
-        : 'Register';
-
-    // A finished journey still has a page worth opening (past pregnancies),
-    // so only send a brand-new user straight to registration.
-    Widget headerDestination() => isPregnant || session.hasPregnancyHistory
-        ? const PregnancyJourneyPage()
-        : const PregnancyConfirmationPage();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      child: Row(
-        children: [
-          // Profile Avatar with green online dot
-          Stack(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Color(0xFF0E1013),
-                ),
-                child: Center(
-                  child: Text(
-                    firstName.isNotEmpty ? firstName[0].toUpperCase() : 'A',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20,
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 1,
-                right: 1,
-                child: Container(
-                  width: 12,
-                  height: 12,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF22C55E),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 12),
-
-          // User Name & Trimester in one line
-          Expanded(
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => headerDestination()),
-                );
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    firstName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1E2024),
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF8E95A5),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Due Date / Register Badge Card
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => headerDestination()),
-              );
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    badgeLabel,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF8E95A5),
-                      letterSpacing: 0.6,
-                      height: 1.1,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    badgeValue,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFFFF3B5C),
-                      height: 1.1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // ─── SWIPEABLE SUMMARY CAROUSEL ────────────────────────────
   Widget _buildSummaryCarousel(BuildContext context) {
     // AlloBot leads the carousel while it has something to say, so the first
@@ -611,7 +465,10 @@ class _HomePageState extends State<HomePage> {
                 decoration: BoxDecoration(
                   color: isActive
                       ? const Color(0xFFFF3B5C)
-                      : const Color(0xFFE2E4E9),
+                      : context.palette.pick(
+                          const Color(0xFFE2E4E9),
+                          const Color(0xFF3A3A40),
+                        ),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -632,12 +489,21 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.palette.card,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(
+            color: context.palette.pick(
+              const Color(0xFFF0F1F5),
+              context.palette.border,
+            ),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: context.palette.pick(
+                Colors.black.withValues(alpha: 0.03),
+                context.palette.shadow,
+              ),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -673,7 +539,10 @@ class _HomePageState extends State<HomePage> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFFF0F4),
+                      color: context.palette.tint(
+                        const Color(0xFFFF3B5C),
+                        const Color(0xFFFFF0F4),
+                      ),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
@@ -827,12 +696,21 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.palette.card,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(
+            color: context.palette.pick(
+              const Color(0xFFF0F1F5),
+              context.palette.border,
+            ),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: context.palette.pick(
+                Colors.black.withValues(alpha: 0.03),
+                context.palette.shadow,
+              ),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -871,20 +749,20 @@ class _HomePageState extends State<HomePage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       "You're doing well today.",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E2024),
+                        color: context.palette.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       "You are in Week $gestationalWeek of your pregnancy ($trimester). Your estimated delivery is on $eddFormattedFull.",
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: Color(0xFF6B7280),
+                        color: context.palette.textSecondary,
                         height: 1.4,
                       ),
                     ),
@@ -907,7 +785,10 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF0F4),
+                          bg: context.palette.tint(
+                            const Color(0xFFFF4E6A),
+                            const Color(0xFFFFF0F4),
+                          ),
                           icon: Icons.favorite_rounded,
                           iconColor: const Color(0xFFFF4E6A),
                           value: 'Week $gestationalWeek',
@@ -929,7 +810,10 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFEDF6FF),
+                          bg: context.palette.tint(
+                            const Color(0xFF3898EC),
+                            const Color(0xFFEDF6FF),
+                          ),
                           icon: Icons.calendar_month_rounded,
                           iconColor: const Color(0xFF3898EC),
                           value: eddFormatted,
@@ -951,7 +835,10 @@ class _HomePageState extends State<HomePage> {
                           );
                         },
                         child: _buildSummaryMetricChip(
-                          bg: const Color(0xFFFFF6ED),
+                          bg: context.palette.tint(
+                            const Color(0xFFFF9438),
+                            const Color(0xFFFFF6ED),
+                          ),
                           icon: Icons.hourglass_bottom_rounded,
                           iconColor: const Color(0xFFFF9438),
                           value: '$daysLeft days',
@@ -978,12 +865,15 @@ class _HomePageState extends State<HomePage> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F4),
+                  color: context.palette.tint(
+                    const Color(0xFFFF4E6A),
+                    const Color(0xFFFFF0F4),
+                  ),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Icon(
                       Icons.favorite_rounded,
                       color: Color(0xFFFF4E6A),
@@ -995,7 +885,7 @@ class _HomePageState extends State<HomePage> {
                       style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1E2024),
+                        color: context.palette.textPrimary,
                       ),
                     ),
                     SizedBox(width: 8),
@@ -1031,8 +921,8 @@ class _HomePageState extends State<HomePage> {
         children: [
           Container(
             padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: context.palette.card,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: iconColor, size: 15),
@@ -1040,18 +930,18 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15.5,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1E2024),
+              color: context.palette.textPrimary,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
-              color: Color(0xFF8A90A0),
+              color: context.palette.textMuted,
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -1137,12 +1027,21 @@ class _HomePageState extends State<HomePage> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.palette.card,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+          border: Border.all(
+            color: context.palette.pick(
+              const Color(0xFFF0F1F5),
+              context.palette.border,
+            ),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
+              color: context.palette.pick(
+                Colors.black.withValues(alpha: 0.03),
+                context.palette.shadow,
+              ),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -1225,9 +1124,15 @@ class _HomePageState extends State<HomePage> {
         height: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
         decoration: BoxDecoration(
-          color: bg.withValues(alpha: 0.5),
+          color: context.palette.pick(
+            bg.withValues(alpha: 0.5),
+            color.withValues(alpha: 0.12),
+          ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: bg, width: 1.2),
+          border: Border.all(
+            color: context.palette.pick(bg, color.withValues(alpha: 0.25)),
+            width: 1.2,
+          ),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1236,7 +1141,7 @@ class _HomePageState extends State<HomePage> {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: context.palette.card,
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
@@ -1254,10 +1159,10 @@ class _HomePageState extends State<HomePage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1E2024),
+                color: context.palette.textPrimary,
               ),
             ),
             const SizedBox(height: 2),
@@ -1266,10 +1171,10 @@ class _HomePageState extends State<HomePage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF8E95A5),
+                color: context.palette.textMuted,
               ),
             ),
           ],

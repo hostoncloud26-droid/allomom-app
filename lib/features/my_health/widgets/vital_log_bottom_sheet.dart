@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -67,6 +67,17 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
   };
 
   String? get _narrationKey => _narrationByVital[_currentKey];
+
+  // Accent colours stay fixed; the sheet surface, fields and neutral text
+  // follow light / dark.
+  AppPalette get _p => context.palette;
+  Color get _textStrong => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _labelColor => _p.pick(const Color(0xFF64748B), _p.textSecondary);
+  Color get _chipText => _p.pick(const Color(0xFF475569), _p.textSecondary);
+  Color get _fieldFill => _p.pick(const Color(0xFFF8F9FA), _p.inputFill);
+  Color get _fieldBorder => _p.pick(const Color(0xFFE2E8F0), _p.border);
+  Color get _hintColor => _p.pick(const Color(0xFFCBD5E1), _p.textMuted);
+  Color get _suffixColor => _p.pick(const Color(0xFF94A3B8), _p.textMuted);
 
   @override
   void initState() {
@@ -313,9 +324,9 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
 
     return Container(
       margin: EdgeInsets.only(bottom: bottomInset),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: _p.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -331,7 +342,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                   width: 40,
                   height: 4.5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
+                    color: _p.pick(_fieldBorder, _p.divider),
                     borderRadius: BorderRadius.circular(3),
                   ),
                 ),
@@ -354,10 +365,10 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                 children: [
                   Text(
                     'Log ${_getVitalTitle(_currentKey)}',
-                    style: GoogleFonts.manrope(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
+                      color: _textStrong,
                     ),
                   ),
                   GestureDetector(
@@ -365,17 +376,17 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
+                        color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.calendar_today_rounded, size: 13, color: Color(0xFF64748B)),
+                          Icon(Icons.calendar_today_rounded, size: 13, color: _labelColor),
                           const SizedBox(width: 5),
                           Text(
                             DateFormat('dd MMM, hh:mm a').format(_selectedDate),
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _chipText),
                           ),
                         ],
                       ),
@@ -407,10 +418,10 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                           duration: const Duration(milliseconds: 180),
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
-                            color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFFF8F9FA),
+                            color: isSelected ? const Color(0xFFFF3B5C) : _fieldFill,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFFE2E8F0),
+                              color: isSelected ? const Color(0xFFFF3B5C) : _fieldBorder,
                             ),
                           ),
                           child: Row(
@@ -419,7 +430,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                               Icon(
                                 item['icon'] as IconData,
                                 size: 14,
-                                color: isSelected ? Colors.white : const Color(0xFF64748B),
+                                color: isSelected ? Colors.white : _labelColor,
                               ),
                               const SizedBox(width: 6),
                               Text(
@@ -427,7 +438,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                                 style: TextStyle(
                                   fontSize: 12.5,
                                   fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                                  color: isSelected ? Colors.white : _chipText,
                                 ),
                               ),
                             ],
@@ -448,9 +459,12 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: _p.tint(const Color(0xFFEF4444), const Color(0xFFFEF2F2)),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFFFCA5A5)),
+                    border: Border.all(
+                      color: _p.pick(const Color(0xFFFCA5A5),
+                          const Color(0xFFEF4444).withValues(alpha: 0.4)),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -459,7 +473,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                       Expanded(
                         child: Text(
                           _errorMessage,
-                          style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+                          style: TextStyle(fontSize: 12, color: _p.pick(const Color(0xFFB91C1C), const Color(0xFFFCA5A5))),
                         ),
                       ),
                     ],
@@ -488,7 +502,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                         )
                       : Text(
                           'Save Reading',
-                          style: GoogleFonts.manrope(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
+                          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Colors.white),
                         ),
                 ),
               ),
@@ -556,9 +570,9 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
               hint: '95',
             ),
             const SizedBox(height: 14),
-            const Text(
+            Text(
               'Meal Timing',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _labelColor),
             ),
             const SizedBox(height: 8),
             Row(
@@ -593,9 +607,9 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Sleep Duration',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _labelColor),
             ),
             const SizedBox(height: 10),
             Row(
@@ -604,19 +618,19 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
+                      color: _fieldFill,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: _fieldBorder),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$_sleepHours hours', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text('$_sleepHours hours', style: TextStyle(fontWeight: FontWeight.w700, color: _p.textPrimary)),
                         Row(
                           children: [
                             GestureDetector(
                               onTap: () => setState(() => _sleepHours = (_sleepHours - 1).clamp(0, 24)),
-                              child: const Icon(Icons.remove_circle_outline_rounded, size: 22, color: Color(0xFF64748B)),
+                              child: Icon(Icons.remove_circle_outline_rounded, size: 22, color: _labelColor),
                             ),
                             const SizedBox(width: 10),
                             GestureDetector(
@@ -634,19 +648,19 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF8F9FA),
+                      color: _fieldFill,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                      border: Border.all(color: _fieldBorder),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$_sleepMinutes mins', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        Text('$_sleepMinutes mins', style: TextStyle(fontWeight: FontWeight.w700, color: _p.textPrimary)),
                         Row(
                           children: [
                             GestureDetector(
                               onTap: () => setState(() => _sleepMinutes = (_sleepMinutes - 15).clamp(0, 45)),
-                              child: const Icon(Icons.remove_circle_outline_rounded, size: 22, color: Color(0xFF64748B)),
+                              child: Icon(Icons.remove_circle_outline_rounded, size: 22, color: _labelColor),
                             ),
                             const SizedBox(width: 10),
                             GestureDetector(
@@ -725,9 +739,9 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Feed Type',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _labelColor),
             ),
             const SizedBox(height: 8),
             Row(
@@ -776,10 +790,10 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFF3B5C).withValues(alpha: 0.12) : const Color(0xFFF8F9FA),
+          color: isSelected ? const Color(0xFFFF3B5C).withValues(alpha: 0.12) : _fieldFill,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFFE2E8F0),
+            color: isSelected ? const Color(0xFFFF3B5C) : _fieldBorder,
             width: isSelected ? 1.4 : 1.0,
           ),
         ),
@@ -788,7 +802,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFF64748B),
+            color: isSelected ? const Color(0xFFFF3B5C) : _labelColor,
           ),
         ),
       ),
@@ -807,28 +821,28 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _labelColor),
         ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
           keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF1E2024)),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: _textStrong),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Color(0xFFCBD5E1)),
+            hintStyle: TextStyle(color: _hintColor),
             suffixText: suffix,
-            suffixStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF94A3B8)),
+            suffixStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _suffixColor),
             filled: true,
-            fillColor: const Color(0xFFF8F9FA),
+            fillColor: _fieldFill,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: _fieldBorder),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: BorderSide(color: _fieldBorder),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
@@ -848,10 +862,10 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.12) : const Color(0xFFF8F9FA),
+          color: isSelected ? const Color(0xFF6366F1).withValues(alpha: 0.12) : _fieldFill,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
+            color: isSelected ? const Color(0xFF6366F1) : _fieldBorder,
             width: isSelected ? 1.4 : 1.0,
           ),
         ),
@@ -860,7 +874,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF64748B),
+            color: isSelected ? const Color(0xFF6366F1) : _labelColor,
           ),
         ),
       ),

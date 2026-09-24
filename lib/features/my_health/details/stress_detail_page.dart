@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -16,6 +17,16 @@ class StressDetailPage extends StatefulWidget {
 class _StressDetailPageState extends State<StressDetailPage> {
   String _selectedTab = 'Day';
 
+  // Accent colours stay fixed; surfaces and neutral text follow light / dark.
+  AppPalette get _p => context.palette;
+  Color get _titleColor => _p.pick(const Color(0xFF2D3142), _p.textPrimary);
+  Color get _textStrong => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _textSoft => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
+  Color get _tabInactive => _p.pick(const Color(0xFF6B7280), _p.textSecondary);
+  Color get _cardBorder => _p.pick(const Color(0xFFF0F1F5), _p.border);
+  Color get _cardShadow =>
+      _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow);
+
   void _openLogSheet() async {
     final updated = await VitalLogBottomSheet.show(context, initialKey: 'stress', lockKey: true);
     if (updated == true && mounted) {
@@ -32,26 +43,26 @@ class _StressDetailPageState extends State<StressDetailPage> {
         final week = session.currentGestationalWeek;
 
         return Scaffold(
-          backgroundColor: const Color(0xFFFBFBFC),
+          backgroundColor: _p.scaffoldSoft,
           appBar: AppBar(
-            backgroundColor: const Color(0xFFFBFBFC),
+            backgroundColor: _p.scaffoldSoft,
             elevation: 0,
             scrolledUnderElevation: 0,
             centerTitle: true,
             leading: IconButton(
-              icon: const Icon(
+              icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
-                color: Color(0xFF2D3142),
+                color: _titleColor,
                 size: 20,
               ),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            title: const Text(
+            title: Text(
               'Stress Load',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF2D3142),
+                color: _titleColor,
               ),
             ),
             actions: [
@@ -95,7 +106,7 @@ class _StressDetailPageState extends State<StressDetailPage> {
                       greetingText: "",
                     ),
                     const SizedBox(height: 14),
-                    _buildPeriodTabs(const Color(0xFFE0F2FE), const Color(0xFF0284C7)),
+                    _buildPeriodTabs(_p.tint(const Color(0xFF0284C7), const Color(0xFFE0F2FE)), const Color(0xFF0284C7)),
                     const SizedBox(height: 14),
                   ],
                 ),
@@ -128,9 +139,9 @@ class _StressDetailPageState extends State<StressDetailPage> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
       ),
       child: Row(
         children: ['Day', 'Week', 'Month'].map((tab) {
@@ -151,7 +162,7 @@ class _StressDetailPageState extends State<StressDetailPage> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? activeText : const Color(0xFF6B7280),
+                    color: isSelected ? activeText : _tabInactive,
                   ),
                 ),
               ),
@@ -186,12 +197,12 @@ class _StressDetailPageState extends State<StressDetailPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _cardShadow,
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -206,19 +217,19 @@ class _StressDetailPageState extends State<StressDetailPage> {
             children: [
               Text(
                 headerTitle,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: _textStrong,
                   letterSpacing: 0.5,
                 ),
               ),
               Text(
                 dateRangeText,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
-                  color: Color(0xFF8E95A5),
+                  color: _textSoft,
                 ),
               ),
             ],
@@ -270,7 +281,7 @@ class _StressDetailPageState extends State<StressDetailPage> {
           child: _buildMetricCard(
             icon: Icons.spa_rounded,
             iconColor: const Color(0xFF0284C7),
-            iconBg: const Color(0xFFE0F2FE),
+            iconBg: _p.tint(const Color(0xFF0284C7), const Color(0xFFE0F2FE)),
             label: 'Average',
             value: isRecorded ? scoreLevel : '--',
             unit: '',
@@ -284,7 +295,7 @@ class _StressDetailPageState extends State<StressDetailPage> {
           child: _buildMetricCard(
             icon: Icons.trending_up_rounded,
             iconColor: const Color(0xFFF59E0B),
-            iconBg: const Color(0xFFFEF3C7),
+            iconBg: _p.tint(const Color(0xFFF59E0B), const Color(0xFFFEF3C7)),
             label: 'Peak',
             value: (isRecorded && peak > 0) ? peak.toInt().toString() : (isRecorded ? score.toString() : '--'),
             unit: 'pts',
@@ -298,7 +309,7 @@ class _StressDetailPageState extends State<StressDetailPage> {
           child: _buildMetricCard(
             icon: Icons.nightlight_round,
             iconColor: const Color(0xFF10B981),
-            iconBg: const Color(0xFFE6F9F0),
+            iconBg: _p.tint(const Color(0xFF10B981), const Color(0xFFE6F9F0)),
             label: 'Rested',
             value: sleepHours > 0 ? sleepHours.toStringAsFixed(1) : '--',
             unit: 'hrs',
@@ -321,12 +332,12 @@ class _StressDetailPageState extends State<StressDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(color: _cardBorder, width: 1.2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _cardShadow,
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -354,10 +365,10 @@ class _StressDetailPageState extends State<StressDetailPage> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF8E95A5),
+                    color: _textSoft,
                   ),
                 ),
               ),
@@ -370,20 +381,20 @@ class _StressDetailPageState extends State<StressDetailPage> {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E2024),
+                  color: _textStrong,
                 ),
               ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 3),
                 Text(
                   unit,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF8E95A5),
+                    color: _textSoft,
                   ),
                 ),
               ],
@@ -394,9 +405,9 @@ class _StressDetailPageState extends State<StressDetailPage> {
             subtitle,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 9.5,
-              color: Color(0xFF8E95A5),
+              color: _textSoft,
             ),
           ),
         ],

@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lottie/lottie.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 
@@ -48,6 +49,8 @@ class AlloBotVoiceAssistantModal extends StatefulWidget {
 
 class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
     with SingleTickerProviderStateMixin {
+  AppPalette get _p => context.palette;
+
   late AnimationController _animController;
   final TtsService _ttsService = TtsService();
   final stt.SpeechToText _speechToText = stt.SpeechToText();
@@ -308,12 +311,12 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(36)),
+      decoration: BoxDecoration(
+        color: _p.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(36)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black26,
+            color: _p.pick(Colors.black26, _p.shadow),
             blurRadius: 30,
             offset: Offset(0, -8),
           ),
@@ -331,7 +334,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 width: 44,
                 height: 4.5,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
+                  color: _p.pick(Colors.grey.shade300, _p.divider),
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -398,7 +401,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               style: GoogleFonts.outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF1E2024),
+                color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
               ),
             ),
           ],
@@ -410,14 +413,14 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           },
           child: Container(
             padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF3F4F6),
+            decoration: BoxDecoration(
+              color: _p.pick(const Color(0xFFF3F4F6), _p.inputFill),
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.close_rounded,
               size: 18,
-              color: Color(0xFF6B7280),
+              color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
             ),
           ),
         ),
@@ -474,8 +477,14 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           height: 110,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFF0F3), Color(0xFFFFE2E8)],
+            gradient: LinearGradient(
+              colors: _p.pick(
+                const [Color(0xFFFFF0F3), Color(0xFFFFE2E8)],
+                [
+                  const Color(0xFFFF4E6A).withValues(alpha: 0.18),
+                  const Color(0xFFFF4E6A).withValues(alpha: 0.26),
+                ],
+              ),
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -542,9 +551,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF5F7),
+            color: _p.pick(const Color(0xFFFFF5F7), _p.accentSoft),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFFFD2DC)),
+            border: Border.all(color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder)),
           ),
           child: Column(
             children: [
@@ -554,7 +563,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 style: GoogleFonts.poppins(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w600,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                   height: 1.4,
                 ),
               ),
@@ -575,7 +584,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             style: GoogleFonts.poppins(
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF8E95A5),
+              color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
             ),
           ),
         ),
@@ -593,12 +602,12 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _p.card,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFFE5E7EB)),
+                  border: Border.all(color: _p.pick(const Color(0xFFE5E7EB), _p.border)),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.02),
+                      color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
                       blurRadius: 6,
                       offset: const Offset(0, 2),
                     ),
@@ -609,7 +618,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF374151),
+                    color: _p.pick(const Color(0xFF374151), _p.textSecondary),
                   ),
                 ),
               ),
@@ -630,14 +639,14 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             margin: const EdgeInsets.only(bottom: 10),
             decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+              color: _p.pick(const Color(0xFFF3F4F6), _p.inputFill),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Text(
               _liveTranscript,
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
-                color: const Color(0xFF4B5563),
+                color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -648,11 +657,19 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFFFFF0F3), Color(0xFFFFE8EE)],
+            gradient: LinearGradient(
+              colors: _p.pick(
+                const [Color(0xFFFFF0F3), Color(0xFFFFE8EE)],
+                [
+                  const Color(0xFFFF4E6A).withValues(alpha: 0.14),
+                  const Color(0xFFFF4E6A).withValues(alpha: 0.20),
+                ],
+              ),
             ),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFFFC0CE)),
+            border: Border.all(
+              color: _p.pick(const Color(0xFFFFC0CE), _p.accentBorder),
+            ),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFFFF4E6A).withValues(alpha: 0.08),
@@ -678,7 +695,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                       style: GoogleFonts.outfit(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF1E2024),
+                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                         height: 1.4,
                       ),
                     ),
@@ -702,7 +719,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 onPressed: _onDeclineKickCounter,
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 13),
-                  side: const BorderSide(color: Color(0xFFD1D5DB)),
+                  side: BorderSide(color: _p.pick(const Color(0xFFD1D5DB), _p.border)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -712,7 +729,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                   style: GoogleFonts.poppins(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF6B7280),
+                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                   ),
                 ),
               ),
@@ -758,9 +775,14 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFFECFDF5),
+            color: _p.tint(const Color(0xFF059669), const Color(0xFFECFDF5)),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFFA7F3D0)),
+            border: Border.all(
+              color: _p.pick(
+                const Color(0xFFA7F3D0),
+                const Color(0xFF059669).withValues(alpha: 0.45),
+              ),
+            ),
           ),
           child: Row(
             children: [
@@ -776,7 +798,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                   style: GoogleFonts.poppins(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF065F46),
+                    color: _p.pick(
+                      const Color(0xFF065F46),
+                      const Color(0xFF6EE7B7),
+                    ),
                   ),
                 ),
               ),
@@ -792,8 +817,14 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFF0F3), Color(0xFFFFE1E8)],
+              gradient: LinearGradient(
+                colors: _p.pick(
+                  const [Color(0xFFFFF0F3), Color(0xFFFFE1E8)],
+                  [
+                    const Color(0xFFFF4E6A).withValues(alpha: 0.16),
+                    const Color(0xFFFF4E6A).withValues(alpha: 0.24),
+                  ],
+                ),
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
@@ -818,7 +849,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                   height: 64,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: _p.card,
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
@@ -850,7 +881,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         style: GoogleFonts.outfit(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E2024),
+                          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -858,7 +889,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         'Track active hours & record baby movements',
                         style: GoogleFonts.poppins(
                           fontSize: 11.5,
-                          color: const Color(0xFF6B7280),
+                          color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                         ),
                       ),
                     ],
@@ -922,9 +953,9 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
-            color: const Color(0xFFFFF5F7),
+            color: _p.pick(const Color(0xFFFFF5F7), _p.accentSoft),
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: const Color(0xFFFFD2DC)),
+            border: Border.all(color: _p.pick(const Color(0xFFFFD2DC), _p.accentBorder)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -934,7 +965,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 style: GoogleFonts.poppins(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: const Color(0xFF1E2024),
+                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                   height: 1.45,
                 ),
               ),
@@ -950,7 +981,7 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFE4E9),
+                        color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFE4E9)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
@@ -1009,7 +1040,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
                 icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
                 label: const Text('Open Chat'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1E2024),
+                  backgroundColor: _p.pick(
+                    _p.pick(const Color(0xFF1E2024), _p.textPrimary),
+                    const Color(0xFF3A3D45),
+                  ),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -1081,8 +1115,8 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
               ),
             ),
             style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF4B5563),
-              side: const BorderSide(color: Color(0xFFD1D5DB)),
+              foregroundColor: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
+              side: BorderSide(color: _p.pick(const Color(0xFFD1D5DB), _p.border)),
               padding: const EdgeInsets.symmetric(vertical: 13),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(18),
@@ -1116,7 +1150,10 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             ),
             style: ElevatedButton.styleFrom(
               backgroundColor: _isListening
-                  ? const Color(0xFF0F172A)
+                  ? _p.pick(
+                      _p.pick(const Color(0xFF0F172A), _p.textPrimary),
+                      const Color(0xFF3A3D45),
+                    )
                   : const Color(0xFFFF4E6A),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 13),

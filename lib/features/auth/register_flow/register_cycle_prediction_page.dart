@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/auth/register_flow/register_partner_details_page.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -13,8 +14,6 @@ import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 
 const _accent = Color(0xFFFF4E6A);
-const _ink = Color(0xFF1E2024);
-const _muted = Color(0xFF8E95A5);
 
 /// Shown instead of the due-date screen when the mother is **not** pregnant.
 ///
@@ -54,6 +53,10 @@ class RegisterCyclePredictionPage extends StatefulWidget {
 
 class _RegisterCyclePredictionPageState
     extends State<RegisterCyclePredictionPage> {
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _muted => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
+
   static final _longFmt = DateFormat('MMMM d, yyyy');
 
   final int _cycleLength = defaultCycleLength;
@@ -112,7 +115,7 @@ class _RegisterCyclePredictionPageState
     final daysAway = prediction.daysUntilNextPeriod;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -138,18 +141,18 @@ class _RegisterCyclePredictionPageState
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
                               color: _ink,
                               size: 24,
@@ -193,14 +196,14 @@ class _RegisterCyclePredictionPageState
                       24,
                       22 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -225,14 +228,24 @@ class _RegisterCyclePredictionPageState
                             width: double.infinity,
                             padding: const EdgeInsets.all(18),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                              gradient: _p.pick(
+                                const LinearGradient(
+                                  colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                LinearGradient(
+                                  colors: [
+                                    Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.22), _p.card),
+                                    Color.alphaBlend(const Color(0xFFFF4E6A).withValues(alpha: 0.12), _p.card),
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
                               ),
                               borderRadius: BorderRadius.circular(22),
                               border: Border.all(
-                                color: const Color(0xFFFFD1DC),
+                                color: _p.pick(const Color(0xFFFFD1DC), _p.accentBorder),
                                 width: 1.5,
                               ),
                             ),
@@ -241,12 +254,12 @@ class _RegisterCyclePredictionPageState
                                 Container(
                                   width: 52,
                                   height: 52,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
+                                  decoration: BoxDecoration(
+                                    color: _p.card,
                                     shape: BoxShape.circle,
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black12,
+                                        color: _p.pick(Colors.black12, _p.shadow),
                                         blurRadius: 10,
                                         offset: Offset(0, 4),
                                       ),

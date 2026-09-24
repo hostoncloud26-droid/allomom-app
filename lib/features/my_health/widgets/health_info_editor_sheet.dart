@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
@@ -169,9 +169,9 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, 20, 20, bottomInset + 20),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Form(
         key: _formKey,
@@ -186,7 +186,7 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE2E8F0),
+                    color: context.palette.pick(const Color(0xFFE2E8F0), context.palette.divider),
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -196,14 +196,14 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
                 children: [
                   Text(
                     'Edit Health Information',
-                    style: GoogleFonts.manrope(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
+                      color: context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF8E95A5)),
+                    icon: Icon(Icons.close_rounded, size: 20, color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted)),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -213,31 +213,32 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
               // Height
               Text(
                 'Height (cm)',
-                style: GoogleFonts.manrope(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF4B5563),
+                  color: context.palette.pick(const Color(0xFF4B5563), context.palette.textSecondary),
                 ),
               ),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _heightController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: context.palette.textPrimary),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
                 decoration: InputDecoration(
                   hintText: 'e.g. 162',
-                  prefixIcon: const Icon(Icons.height_rounded, color: Color(0xFF8E95A5), size: 20),
+                  prefixIcon: Icon(Icons.height_rounded, color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted), size: 20),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: context.palette.pick(const Color(0xFFF9FAFB), context.palette.inputFill),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -259,31 +260,32 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
               // Weight
               Text(
                 'Weight (kg)',
-                style: GoogleFonts.manrope(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF4B5563),
+                  color: context.palette.pick(const Color(0xFF4B5563), context.palette.textSecondary),
                 ),
               ),
               const SizedBox(height: 6),
               TextFormField(
                 controller: _weightController,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                style: TextStyle(color: context.palette.textPrimary),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
                 ],
                 decoration: InputDecoration(
                   hintText: 'e.g. 62.5',
-                  prefixIcon: const Icon(Icons.monitor_weight_outlined, color: Color(0xFF8E95A5), size: 20),
+                  prefixIcon: Icon(Icons.monitor_weight_outlined, color: context.palette.pick(const Color(0xFF8E95A5), context.palette.textMuted), size: 20),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: context.palette.pick(const Color(0xFFF9FAFB), context.palette.inputFill),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -305,27 +307,28 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
               // Blood Group
               Text(
                 'Blood Group',
-                style: GoogleFonts.manrope(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: const Color(0xFF4B5563),
+                  color: context.palette.pick(const Color(0xFF4B5563), context.palette.textSecondary),
                 ),
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
                 initialValue: _selectedBloodGroup,
                 hint: const Text('Select Blood Group'),
+                dropdownColor: context.palette.card,
                 decoration: InputDecoration(
                   prefixIcon: const Icon(Icons.bloodtype_rounded, color: Color(0xFFFF3B5C), size: 20),
                   filled: true,
-                  fillColor: const Color(0xFFF9FAFB),
+                  fillColor: context.palette.pick(const Color(0xFFF9FAFB), context.palette.inputFill),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    borderSide: BorderSide(color: context.palette.pick(const Color(0xFFE5E7EB), context.palette.border)),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -337,7 +340,7 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
                     value: bg,
                     child: Text(
                       bg,
-                      style: GoogleFonts.manrope(fontWeight: FontWeight.w600),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   );
                 }).toList(),
@@ -366,7 +369,7 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
                         )
                       : Text(
                           'Save Changes',
-                          style: GoogleFonts.manrope(
+                          style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,

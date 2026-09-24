@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -89,15 +90,16 @@ class _EditReportState extends State<EditReport> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: p.scaffoldSoft,
       appBar: AppBar(
         title: Text(
           'Edit Report',
           style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 18,
-            color: const Color(0xFF1E2024),
+            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
           ),
         ),
         centerTitle: true,
@@ -105,7 +107,7 @@ class _EditReportState extends State<EditReport> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E2024), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: p.pick(const Color(0xFF1E2024), p.textPrimary), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -119,22 +121,23 @@ class _EditReportState extends State<EditReport> {
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF475569),
+                color: p.pick(const Color(0xFF475569), p.textSecondary),
               ),
             ),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border), width: 1.2),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: reportType,
-                  hint: Text('Select Type', style: GoogleFonts.manrope(color: const Color(0xFF94A3B8))),
+                  hint: Text('Select Type', style: GoogleFonts.manrope(color: p.pick(const Color(0xFF94A3B8), p.textMuted))),
                   isExpanded: true,
+                  dropdownColor: p.card,
                   icon: const Icon(Icons.keyboard_arrow_down_rounded),
                   items: reportTypes.map((t) {
                     return DropdownMenuItem<String>(
@@ -153,23 +156,23 @@ class _EditReportState extends State<EditReport> {
               style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF475569),
+                color: p.pick(const Color(0xFF475569), p.textSecondary),
               ),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: p.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+                border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border), width: 1.2),
               ),
               child: TextFormField(
                 controller: descriptionController,
                 maxLines: 5,
-                style: GoogleFonts.manrope(fontSize: 14, color: const Color(0xFF1E2024)),
+                style: GoogleFonts.manrope(fontSize: 14, color: p.pick(const Color(0xFF1E2024), p.textPrimary)),
                 decoration: InputDecoration(
                   hintText: 'Enter clinical description...',
-                  hintStyle: GoogleFonts.manrope(color: const Color(0xFF94A3B8)),
+                  hintStyle: GoogleFonts.manrope(color: p.pick(const Color(0xFF94A3B8), p.textMuted)),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.all(16),
                 ),

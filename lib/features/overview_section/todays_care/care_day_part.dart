@@ -83,6 +83,16 @@ enum CareDayPart {
     CareDayPart.lateNight => Icons.nightlight_round,
   };
 
+  /// The first whole hour of the window, where an unplaced item goes.
+  int get startHour => switch (this) {
+    CareDayPart.morning => 5,
+    CareDayPart.midMorning => 11,
+    CareDayPart.afternoon => 13,
+    CareDayPart.evening => 17,
+    CareDayPart.night => 19,
+    CareDayPart.lateNight => 22,
+  };
+
   /// Human-readable window, e.g. "5:00 AM – 11:00 AM".
   String get timeRange => switch (this) {
     CareDayPart.morning => '5:00 AM – 11:00 AM',

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/auth/register_flow/register_lmp_timeline_page.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -26,6 +27,8 @@ class RegisterStatusPage extends StatefulWidget {
 }
 
 class _RegisterStatusPageState extends State<RegisterStatusPage> {
+  AppPalette get _p => context.palette;
+
   String _selectedStatus = 'Pregnant'; // 'Pre Pregnancy', 'Pregnant', 'New Mom'
 
   /// The question, then the baby's reaction to where they are on the journey.
@@ -46,7 +49,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -72,20 +75,20 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -97,7 +100,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -127,14 +130,14 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                       24,
                       24 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -148,7 +151,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                           style: GoogleFonts.poppins(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1E2024),
+                            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                           ),
                         ),
                         const SizedBox(height: 16),
@@ -157,7 +160,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                         _buildStatusOption(
                           title: 'Pregnant',
                           subtitle: 'Expecting a Baby',
-                          iconBg: const Color(0xFFFFF0F3),
+                          iconBg: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
                           iconColor: const Color(0xFFFF4E6A),
                           icon: Icons.pregnant_woman_rounded,
                         ),
@@ -167,7 +170,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                         _buildStatusOption(
                           title: 'Pre Pregnancy',
                           subtitle: 'Planning for a Baby',
-                          iconBg: const Color(0xFFFAF5FF),
+                          iconBg: _p.tint(const Color(0xFFC026D3), const Color(0xFFFAF5FF)),
                           iconColor: const Color(0xFFC026D3),
                           icon: Icons.child_care_rounded,
                         ),
@@ -177,7 +180,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                         _buildStatusOption(
                           title: 'New Mom',
                           subtitle: 'Caring for your Baby',
-                          iconBg: const Color(0xFFEFF6FF),
+                          iconBg: _p.tint(const Color(0xFF3B82F6), const Color(0xFFEFF6FF)),
                           iconColor: const Color(0xFF3B82F6),
                           icon: Icons.face_rounded,
                         ),
@@ -271,12 +274,14 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
+          color: isSelected
+              ? _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3))
+              : _p.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFFFF4E6A)
-                : const Color(0xFFE5E7EB),
+                : _p.border,
             width: isSelected ? 2 : 1.5,
           ),
           boxShadow: isSelected
@@ -307,14 +312,14 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                     ),
                   ),
                   Text(
                     subtitle,
                     style: GoogleFonts.poppins(
                       fontSize: 12,
-                      color: const Color(0xFF6B7280),
+                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                     ),
                   ),
                 ],
@@ -328,7 +333,7 @@ class _RegisterStatusPageState extends State<RegisterStatusPage> {
                 border: Border.all(
                   color: isSelected
                       ? const Color(0xFFFF4E6A)
-                      : const Color(0xFFD1D5DB),
+                      : _p.pick(const Color(0xFFD1D5DB), _p.border),
                   width: 2,
                 ),
                 color: isSelected

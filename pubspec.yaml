@@ -70,6 +70,9 @@ dependencies:
   permission_handler: ^12.0.0+1
   flutter_markdown: ^0.7.7+1
   whisper_ggml_plus: ^1.5.2
+  qr_flutter: ^4.1.0
+  fl_chart: ^1.0.0
+  syncfusion_flutter_charts: ^33.2.13
 
 dev_dependencies:
   flutter_test:
@@ -95,6 +98,7 @@ flutter:
   assets:
     - assets/animations/
     - assets/allobaby/
+    - assets/allowear/
     # The baby's onboarding voice. One mp3 per narration keyword, per language;
     # add a `assets/audio/<code>/onboard/` line here as each language lands.
     - assets/audio/en/onboard/

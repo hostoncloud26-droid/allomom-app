@@ -1,15 +1,27 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/pregnancy_care_scheduler.dart';
 
 const _accent = Color(0xFFFF3B5C);
-const _ink = Color(0xFF1E2024);
-const _muted = Color(0xFF6B707B);
+
+// Ink follows light / dark mode; the accent stays the brand pink.
+Color _inkOf(BuildContext context) => context.palette.pick(
+  const Color(0xFF1E2024),
+  context.palette.textPrimary,
+);
+Color _mutedOf(BuildContext context) => context.palette.pick(
+  const Color(0xFF6B707B),
+  context.palette.textSecondary,
+);
+
+/// A light-mode colour, or its dark-mode stand-in.
+Color _pick(BuildContext context, Color light, Color dark) =>
+    context.palette.pick(light, dark);
 
 /// Registers a pregnancy and books its whole care schedule locally.
 ///
@@ -54,15 +66,18 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   DateTime get _calculatedEdd =>
       _selectedLmpDate.add(const Duration(days: 280));
 
+  /// Completed weeks, counted exactly as `PregnancyController` does — this is
+  /// a preview of what home will say once she registers, so it must not round
+  /// the week up when home rounds it down.
   int get _calculatedGestationalWeek {
     final days = DateTime.now().difference(_selectedLmpDate).inDays;
-    return days >= 0 ? (days ~/ 7) + 1 : 1;
+    return days >= 0 ? days ~/ 7 : 0;
   }
 
   String get _calculatedTrimester {
     final week = _calculatedGestationalWeek;
-    if (week <= 12) return '1st Trimester';
-    if (week <= 26) return '2nd Trimester';
+    if (week < 13) return '1st Trimester';
+    if (week < 28) return '2nd Trimester';
     return '3rd Trimester';
   }
 
@@ -93,12 +108,19 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
       helpText: 'SELECT FIRST DAY OF LAST PERIOD (LMP)',
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: _accent,
-            onPrimary: Colors.white,
-            surface: Colors.white,
-            onSurface: _ink,
-          ),
+          colorScheme: context.palette.isDark
+              ? ColorScheme.dark(
+                  primary: _accent,
+                  onPrimary: Colors.white,
+                  surface: context.palette.card,
+                  onSurface: context.palette.textPrimary,
+                )
+              : ColorScheme.light(
+                  primary: _accent,
+                  onPrimary: Colors.white,
+                  surface: Colors.white,
+                  onSurface: _inkOf(context),
+                ),
         ),
         child: child!,
       ),
@@ -178,15 +200,23 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _pick(
+        context,
+        const Color(0xFFFAF6F7),
+        context.palette.scaffoldSoft,
+      ),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF6F7),
+        backgroundColor: _pick(
+          context,
+          const Color(0xFFFAF6F7),
+          context.palette.scaffoldSoft,
+        ),
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: _ink,
+            color: _inkOf(context),
             size: 20,
           ),
           onPressed: _step == 0
@@ -196,10 +226,10 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         centerTitle: true,
         title: Text(
           'Register Pregnancy',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: _ink,
+            color: _inkOf(context),
           ),
         ),
       ),
@@ -238,19 +268,31 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                   Container(
                     height: 4,
                     decoration: BoxDecoration(
-                      color: i <= _step ? _accent : const Color(0xFFF0D9DE),
+                      color: i <= _step
+                          ? _accent
+                          : _pick(
+                              context,
+                              const Color(0xFFF0D9DE),
+                              context.palette.accentBorder,
+                            ),
                       borderRadius: BorderRadius.circular(4),
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     _stepTitles[i],
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: i == _step
                           ? FontWeight.w700
                           : FontWeight.w500,
-                      color: i <= _step ? _accent : const Color(0xFFB6AEB1),
+                      color: i <= _step
+                          ? _accent
+                          : _pick(
+                              context,
+                              const Color(0xFFB6AEB1),
+                              context.palette.textMuted,
+                            ),
                     ),
                   ),
                 ],
@@ -280,8 +322,8 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
               errorBuilder: (_, __, ___) => Container(
                 width: 90,
                 height: 90,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFF0F4),
+                decoration: BoxDecoration(
+                  color: context.palette.tint(_accent, const Color(0xFFFFF0F4)),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -297,11 +339,11 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         Text(
           'When was the first day of\nyour last period (LMP)?',
           textAlign: TextAlign.center,
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
             height: 1.25,
-            color: _ink,
+            color: _inkOf(context),
           ),
         ),
         const SizedBox(height: 8),
@@ -309,7 +351,7 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
           "Your LMP date sets your baby's gestational age, your due date and "
           'every appointment we schedule next.',
           textAlign: TextAlign.center,
-          style: GoogleFonts.poppins(fontSize: 13, color: _muted, height: 1.45),
+          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
         ),
         const SizedBox(height: 24),
 
@@ -331,9 +373,18 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                     vertical: 14,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF0F4),
+                    color: context.palette.tint(
+                      _accent,
+                      const Color(0xFFFFF0F4),
+                    ),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFFFFD2DC)),
+                    border: Border.all(
+                      color: _pick(
+                        context,
+                        const Color(0xFFFFD2DC),
+                        context.palette.accentBorder,
+                      ),
+                    ),
                   ),
                   child: Row(
                     children: [
@@ -345,10 +396,10 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                       const SizedBox(width: 12),
                       Text(
                         _dateFmt.format(_selectedLmpDate),
-                        style: GoogleFonts.outfit(
+                        style: TextStyle(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
-                          color: _ink,
+                          color: _inkOf(context),
                         ),
                       ),
                       const Spacer(),
@@ -358,12 +409,12 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white,
+                          color: context.palette.card,
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           'Change',
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
                             color: _accent,
@@ -426,18 +477,18 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         const SizedBox(height: 8),
         Text(
           'Which months will you go\nfor your ANC check-up?',
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
             height: 1.25,
-            color: _ink,
+            color: _inkOf(context),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Pick the pregnancy months you plan to visit your doctor in. Each '
           'visit is booked on the same day of the month as your LMP.',
-          style: GoogleFonts.poppins(fontSize: 13, color: _muted, height: 1.45),
+          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
         ),
         const SizedBox(height: 16),
 
@@ -506,17 +557,17 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         const SizedBox(height: 8),
         Text(
           "Here's your care plan",
-          style: GoogleFonts.outfit(
+          style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.w800,
-            color: _ink,
+            color: _inkOf(context),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Due ${_dateFmt.format(_calculatedEdd)} · everything below is saved '
           'on this device.',
-          style: GoogleFonts.poppins(fontSize: 13, color: _muted, height: 1.45),
+          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
         ),
         const SizedBox(height: 18),
 
@@ -619,16 +670,16 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                 dense: true,
                 title: Text(
                   'Include optional tests',
-                  style: GoogleFonts.poppins(
+                  style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
-                    color: _ink,
+                    color: _inkOf(context),
                   ),
                 ),
                 subtitle: Text(
                   'TB screening and NST are only done when your doctor '
                   'asks for them',
-                  style: GoogleFonts.poppins(fontSize: 11, color: _muted),
+                  style: TextStyle(fontSize: 11, color: _mutedOf(context)),
                 ),
               ),
               const SizedBox(height: 4),
@@ -638,7 +689,7 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                   child: Text(
                     '${monthLabel(month)} · '
                     '${_shortFmt.format(addMonthsClamped(_selectedLmpDate, month))}',
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF3898EC),
@@ -668,9 +719,19 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
       decoration: BoxDecoration(
-        color: const Color(0xFFFAF6F7),
+        color: _pick(
+          context,
+          const Color(0xFFFAF6F7),
+          context.palette.scaffoldSoft,
+        ),
         border: Border(
-          top: BorderSide(color: Colors.black.withValues(alpha: 0.04)),
+          top: BorderSide(
+            color: _pick(
+              context,
+              Colors.black.withValues(alpha: 0.04),
+              context.palette.divider,
+            ),
+          ),
         ),
       ),
       child: SizedBox(
@@ -712,7 +773,7 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                     const SizedBox(width: 10),
                     Text(
                       isLast ? 'Create Pregnancy Journey' : 'Continue',
-                      style: GoogleFonts.outfit(
+                      style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -739,12 +800,23 @@ class _Card extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.palette.card,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFF0F1F5), width: 1.2),
+        border: Border.all(
+          color: _pick(
+            context,
+            const Color(0xFFF0F1F5),
+            context.palette.border,
+          ),
+          width: 1.2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
+            color: _pick(
+              context,
+              Colors.black.withValues(alpha: 0.03),
+              context.palette.shadow,
+            ),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -803,15 +875,15 @@ class _EstimateChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        color: bg,
+        color: context.palette.tint(iconColor, bg),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: context.palette.card,
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: iconColor, size: 13),
@@ -820,19 +892,19 @@ class _EstimateChip extends StatelessWidget {
           Text(
             value,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13.5,
               fontWeight: FontWeight.w800,
-              color: _ink,
+              color: _inkOf(context),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle ?? title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 10,
-              color: Color(0xFF6B7280),
+              color: context.palette.textSecondary,
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -855,13 +927,19 @@ class _QuickChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.palette.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFF0D9DE)),
+          border: Border.all(
+            color: _pick(
+              context,
+              const Color(0xFFF0D9DE),
+              context.palette.accentBorder,
+            ),
+          ),
         ),
         child: Text(
           label,
-          style: GoogleFonts.poppins(
+          style: TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
             color: _accent,
@@ -894,10 +972,22 @@ class _MonthRow extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFFFF0F4) : Colors.white,
+          color: selected
+              ? context.palette.tint(_accent, const Color(0xFFFFF0F4))
+              : context.palette.card,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? const Color(0xFFFFD2DC) : const Color(0xFFF0F1F5),
+            color: selected
+                ? _pick(
+                    context,
+                    const Color(0xFFFFD2DC),
+                    context.palette.accentBorder,
+                  )
+                : _pick(
+                    context,
+                    const Color(0xFFF0F1F5),
+                    context.palette.border,
+                  ),
             width: selected ? 1.4 : 1.2,
           ),
         ),
@@ -911,7 +1001,14 @@ class _MonthRow extends StatelessWidget {
                 color: selected ? _accent : Colors.transparent,
                 border: selected
                     ? null
-                    : Border.all(color: const Color(0xFFD0D5DD), width: 1.6),
+                    : Border.all(
+                        color: _pick(
+                          context,
+                          const Color(0xFFD0D5DD),
+                          context.palette.textMuted,
+                        ),
+                        width: 1.6,
+                      ),
               ),
               child: selected
                   ? const Icon(
@@ -928,25 +1025,31 @@ class _MonthRow extends StatelessWidget {
                 children: [
                   Text(
                     monthLabel(month),
-                    style: GoogleFonts.poppins(
+                    style: TextStyle(
                       fontSize: 13.5,
                       fontWeight: FontWeight.w600,
-                      color: _ink,
+                      color: _inkOf(context),
                     ),
                   ),
                   Text(
                     'Trimester ${trimesterForMonth(month)}',
-                    style: GoogleFonts.poppins(fontSize: 11, color: _muted),
+                    style: TextStyle(fontSize: 11, color: _mutedOf(context)),
                   ),
                 ],
               ),
             ),
             Text(
               dateLabel,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: selected ? _accent : const Color(0xFF8E95A5),
+                color: selected
+                    ? _accent
+                    : _pick(
+                        context,
+                        const Color(0xFF8E95A5),
+                        context.palette.textMuted,
+                      ),
               ),
             ),
           ],
@@ -991,19 +1094,19 @@ class _Section extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: GoogleFonts.outfit(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
-                    color: _ink,
+                    color: _inkOf(context),
                   ),
                 ),
               ),
               Text(
                 subtitle,
-                style: GoogleFonts.poppins(
+                style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.w600,
-                  color: _muted,
+                  color: _mutedOf(context),
                 ),
               ),
             ],
@@ -1041,8 +1144,12 @@ class _PlanRow extends StatelessWidget {
             child: Container(
               width: 5,
               height: 5,
-              decoration: const BoxDecoration(
-                color: Color(0xFFD0D5DD),
+              decoration: BoxDecoration(
+                color: _pick(
+                  context,
+                  const Color(0xFFD0D5DD),
+                  context.palette.textMuted,
+                ),
                 shape: BoxShape.circle,
               ),
             ),
@@ -1056,10 +1163,10 @@ class _PlanRow extends StatelessWidget {
                     Flexible(
                       child: Text(
                         title,
-                        style: GoogleFonts.poppins(
+                        style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: _ink,
+                          color: _inkOf(context),
                         ),
                       ),
                     ),
@@ -1071,15 +1178,23 @@ class _PlanRow extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
+                          color: _pick(
+                            context,
+                            const Color(0xFFF1F5F9),
+                            context.palette.surface,
+                          ),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           badge!,
-                          style: GoogleFonts.poppins(
+                          style: TextStyle(
                             fontSize: 9.5,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF64748B),
+                            color: _pick(
+                              context,
+                              const Color(0xFF64748B),
+                              context.palette.textSecondary,
+                            ),
                           ),
                         ),
                       ),
@@ -1089,11 +1204,7 @@ class _PlanRow extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GoogleFonts.poppins(
-                      fontSize: 11,
-                      color: _muted,
-                      height: 1.35,
-                    ),
+                    style: TextStyle(fontSize: 11, color: _mutedOf(context), height: 1.35),
                   ),
               ],
             ),
@@ -1102,10 +1213,14 @@ class _PlanRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               trailing!,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF8E95A5),
+                color: _pick(
+                  context,
+                  const Color(0xFF8E95A5),
+                  context.palette.textMuted,
+                ),
               ),
             ),
           ],
@@ -1128,16 +1243,13 @@ class _EmptyRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              text,
-              style: GoogleFonts.poppins(fontSize: 12, color: _muted),
-            ),
+            child: Text(text, style: TextStyle(fontSize: 12, color: _mutedOf(context))),
           ),
           TextButton(
             onPressed: onFix,
             child: Text(
               'Pick months',
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: _accent,
@@ -1160,7 +1272,7 @@ class _InfoNote extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F4),
+        color: context.palette.tint(_accent, const Color(0xFFFFF0F4)),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -1170,9 +1282,13 @@ class _InfoNote extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: GoogleFonts.poppins(
+              style: TextStyle(
                 fontSize: 11.5,
-                color: const Color(0xFF8A5A63),
+                color: _pick(
+                  context,
+                  const Color(0xFF8A5A63),
+                  const Color(0xFFE8B4BE),
+                ),
                 height: 1.35,
               ),
             ),

@@ -1,14 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
+import 'package:allomom/services/sync/sync_service.dart';
 
-/// Placeholder for the vitals sync worker.
+/// The vitals end of the sync, kept as the entry point the vitals screens call.
 ///
-/// AlloMom currently runs fully on the local database: vitals are written to
-/// SQLite with `synced = 0` and stay there. Nothing is pushed to allomom-api
-/// yet, so this service only reports how much data is queued. The periodic
-/// timer and the `VitalsApi.syncDataBulk` upload were removed deliberately —
-/// re-add them here when the sync implementation lands, and mark rows via
-/// [VitalsSqLiteService.markAsSynced] once the server accepts them.
+/// Vitals are written to SQLite with `synced = 0`. [SyncService] owns the
+/// upload — the `vitals` module pushes edits and `deleted_ids`, and runs on its
+/// five-minute timer — so this only asks it to run now, straight after a
+/// write, instead of leaving the row to wait for the next tick.
 class HealthVitalSyncService {
   static final HealthVitalSyncService instance =
       HealthVitalSyncService._internal();
@@ -18,7 +17,7 @@ class HealthVitalSyncService {
   final VitalsSqLiteService _sqLiteService = VitalsSqLiteService();
 
   void init() {
-    // No-op: no background sync while the app is local-only.
+    // Nothing to start: SyncService runs the periodic pass.
   }
 
   void dispose() {}
@@ -34,15 +33,12 @@ class HealthVitalSyncService {
     }
   }
 
-  /// Kept so existing callers compile. Does not touch the network; local
-  /// records intentionally stay at `synced = 0`.
+  /// Pushes queued vitals — new readings and deletions — now.
   Future<void> syncUnsyncedVitals() async {
-    final pending = await pendingCount();
-    if (pending > 0) {
-      debugPrint(
-        'HealthVitalSyncService: $pending vital(s) pending upload. '
-        'Sync is disabled (local-only mode).',
-      );
+    try {
+      await SyncService.instance.syncModule('vitals');
+    } catch (e) {
+      debugPrint('HealthVitalSyncService: vitals sync failed: $e');
     }
   }
 }

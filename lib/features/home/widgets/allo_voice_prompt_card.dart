@@ -10,6 +10,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/config/app_theme.dart';
+
 import 'package:allomom/services/allobot/home_voice_flow.dart';
 
 class AlloVoicePromptCard extends StatelessWidget {
@@ -57,18 +59,25 @@ class AlloVoicePromptCard extends StatelessWidget {
     // Geometry copied from the Daily Summary card it sits beside: same
     // horizontal inset, same 22px padding, same 28px corners. Anything else
     // and the two pages of the carousel do not look like siblings.
+    final p = context.palette;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(22),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: p.card,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFFFD2DC), width: 1.2),
+          border: Border.all(
+            color: p.pick(const Color(0xFFFFD2DC), p.accentBorder),
+            width: 1.2,
+          ),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFFFF4E6A).withValues(alpha: 0.07),
+              color: p.pick(
+                const Color(0xFFFF4E6A).withValues(alpha: 0.07),
+                p.shadow,
+              ),
               blurRadius: 20,
               offset: const Offset(0, 4),
             ),
@@ -83,27 +92,27 @@ class AlloVoicePromptCard extends StatelessWidget {
               ? MainAxisAlignment.spaceBetween
               : MainAxisAlignment.start,
           children: [
-            _buildMessageBlock(),
-            if (prompt != null) _buildQuestionBlock(context),
+            _buildMessageBlock(p),
+            if (prompt != null) _buildQuestionBlock(context, p),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildMessageBlock() {
+  Widget _buildMessageBlock(AppPalette p) {
     final block = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildHeader(),
+        _buildHeader(p),
         const SizedBox(height: 12),
         Text(
           message,
           style: GoogleFonts.poppins(
             fontSize: 13.5,
             fontWeight: FontWeight.w500,
-            color: const Color(0xFF1E2024),
+            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
             height: 1.45,
           ),
         ),
@@ -121,7 +130,7 @@ class AlloVoicePromptCard extends StatelessWidget {
     );
   }
 
-  Widget _buildQuestionBlock(BuildContext context) {
+  Widget _buildQuestionBlock(BuildContext context, AppPalette p) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -132,24 +141,24 @@ class AlloVoicePromptCard extends StatelessWidget {
           style: GoogleFonts.outfit(
             fontSize: 15.5,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFFC2334D),
+            color: p.pick(const Color(0xFFC2334D), const Color(0xFFFF8A9E)),
             height: 1.3,
           ),
         ),
         const SizedBox(height: 12),
-        _buildAnswerControls(context),
+        _buildAnswerControls(context, p),
       ],
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(AppPalette p) {
     return Row(
       children: [
         Container(
           width: 30,
           height: 30,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFF0F3),
+          decoration: BoxDecoration(
+            color: p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3)),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -184,12 +193,12 @@ class AlloVoicePromptCard extends StatelessWidget {
         if (onDismiss != null)
           GestureDetector(
             onTap: onDismiss,
-            child: const Padding(
-              padding: EdgeInsets.only(left: 6, top: 4, bottom: 4),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6, top: 4, bottom: 4),
               child: Icon(
                 Icons.close_rounded,
                 size: 18,
-                color: Color(0xFFB0B6C3),
+                color: p.pick(const Color(0xFFB0B6C3), p.textMuted),
               ),
             ),
           ),
@@ -197,14 +206,14 @@ class AlloVoicePromptCard extends StatelessWidget {
     );
   }
 
-  Widget _buildAnswerControls(BuildContext context) {
+  Widget _buildAnswerControls(BuildContext context, AppPalette p) {
     switch (prompt!.answerKind) {
       case HomeAnswerKind.yesNo:
         return Row(
           children: [
-            Expanded(child: _button('Yes', filled: true, onTap: onYes)),
+            Expanded(child: _button('Yes', p, filled: true, onTap: onYes)),
             const SizedBox(width: 10),
-            Expanded(child: _button('No', filled: false, onTap: onNo)),
+            Expanded(child: _button('No', p, filled: false, onTap: onNo)),
           ],
         );
 
@@ -214,6 +223,7 @@ class AlloVoicePromptCard extends StatelessWidget {
             Expanded(
               child: _button(
                 'Pick the date',
+                p,
                 filled: true,
                 icon: Icons.calendar_month_rounded,
                 onTap: () => _pickDate(context),
@@ -221,7 +231,7 @@ class AlloVoicePromptCard extends StatelessWidget {
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: _button("Don't know yet", filled: false, onTap: onNo),
+              child: _button("Don't know yet", p, filled: false, onTap: onNo),
             ),
           ],
         );
@@ -253,7 +263,8 @@ class AlloVoicePromptCard extends StatelessWidget {
   }
 
   Widget _button(
-    String label, {
+    String label,
+    AppPalette p, {
     required bool filled,
     VoidCallback? onTap,
     IconData? icon,
@@ -263,10 +274,12 @@ class AlloVoicePromptCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 11),
         decoration: BoxDecoration(
-          color: filled ? const Color(0xFFFF4E6A) : Colors.white,
+          color: filled ? const Color(0xFFFF4E6A) : p.card,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: filled ? const Color(0xFFFF4E6A) : const Color(0xFFFFD2DC),
+            color: filled
+                ? const Color(0xFFFF4E6A)
+                : p.pick(const Color(0xFFFFD2DC), p.accentBorder),
           ),
         ),
         child: Row(
@@ -276,7 +289,9 @@ class AlloVoicePromptCard extends StatelessWidget {
               Icon(
                 icon,
                 size: 15,
-                color: filled ? Colors.white : const Color(0xFFC2334D),
+                color: filled
+                    ? Colors.white
+                    : p.pick(const Color(0xFFC2334D), const Color(0xFFFF8A9E)),
               ),
               const SizedBox(width: 6),
             ],
@@ -285,7 +300,9 @@ class AlloVoicePromptCard extends StatelessWidget {
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
-                color: filled ? Colors.white : const Color(0xFFC2334D),
+                color: filled
+                    ? Colors.white
+                    : p.pick(const Color(0xFFC2334D), const Color(0xFFFF8A9E)),
               ),
             ),
           ],
@@ -333,14 +350,15 @@ class _AnswerFieldState extends State<_AnswerField> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Column(
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: p.inputFill,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
+            border: Border.all(color: p.border),
           ),
           child: TextField(
             controller: _controller,
@@ -349,13 +367,13 @@ class _AnswerFieldState extends State<_AnswerField> {
             textInputAction: TextInputAction.newline,
             style: GoogleFonts.poppins(
               fontSize: 13,
-              color: const Color(0xFF1E2024),
+              color: p.pick(const Color(0xFF1E2024), p.textPrimary),
             ),
             decoration: InputDecoration(
               hintText: widget.hintText,
               hintStyle: GoogleFonts.poppins(
                 fontSize: 12,
-                color: const Color(0xFF9CA3AF),
+                color: p.pick(const Color(0xFF9CA3AF), p.textMuted),
               ),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -396,16 +414,21 @@ class _AnswerFieldState extends State<_AnswerField> {
                   horizontal: 16,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: p.card,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFFD2DC)),
+                  border: Border.all(
+                    color: p.pick(const Color(0xFFFFD2DC), p.accentBorder),
+                  ),
                 ),
                 child: Text(
                   'Skip',
                   style: GoogleFonts.poppins(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFFC2334D),
+                    color: p.pick(
+                      const Color(0xFFC2334D),
+                      const Color(0xFFFF8A9E),
+                    ),
                   ),
                 ),
               ),

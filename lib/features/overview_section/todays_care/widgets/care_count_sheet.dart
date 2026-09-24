@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 
 /// Bottom sheet that asks "how many?" — glasses of water, cups of coffee or
@@ -117,9 +118,9 @@ class _CareCountSheetState extends State<CareCountSheet> {
         24,
         MediaQuery.of(context).viewInsets.bottom + 28,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.only(
+      decoration: BoxDecoration(
+        color: context.palette.card,
+        borderRadius: const BorderRadius.only(
           topLeft: Radius.circular(32),
           topRight: Radius.circular(32),
         ),
@@ -133,7 +134,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
               width: 44,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE2E8F0),
+                color: context.palette.pick(
+                  const Color(0xFFE2E8F0),
+                  context.palette.divider,
+                ),
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
@@ -171,7 +175,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
                       style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                        color: context.palette.pick(
+                          const Color(0xFF1E2024),
+                          context.palette.textPrimary,
+                        ),
                       ),
                     ),
                     if (widget.subtitle != null) ...[
@@ -181,7 +188,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
                         style: GoogleFonts.manrope(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: const Color(0xFF64748B),
+                          color: context.palette.pick(
+                            const Color(0xFF64748B),
+                            context.palette.textSecondary,
+                          ),
                         ),
                       ),
                     ],
@@ -219,7 +229,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
                       style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF64748B),
+                        color: context.palette.pick(
+                          const Color(0xFF64748B),
+                          context.palette.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -260,7 +273,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
               child: LinearProgressIndicator(
                 value: (total / target).clamp(0.0, 1.0),
                 minHeight: 6,
-                backgroundColor: const Color(0xFFF1F5F9),
+                backgroundColor: context.palette.pick(
+                  const Color(0xFFF1F5F9),
+                  context.palette.surface,
+                ),
                 valueColor: AlwaysStoppedAnimation<Color>(widget.color),
               ),
             ),
@@ -273,7 +289,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF64748B),
+                color: context.palette.pick(
+                  const Color(0xFF64748B),
+                  context.palette.textSecondary,
+                ),
               ),
             ),
           ],
@@ -323,7 +342,12 @@ class _StepperButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: enabled ? color.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
+      color: enabled
+          ? context.palette.tint(color, color.withValues(alpha: 0.12))
+          : context.palette.pick(
+              const Color(0xFFF1F5F9),
+              context.palette.surface,
+            ),
       shape: const CircleBorder(),
       child: InkWell(
         customBorder: const CircleBorder(),
@@ -333,7 +357,12 @@ class _StepperButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 24,
-            color: enabled ? color : const Color(0xFFCBD5E1),
+            color: enabled
+                ? color
+                : context.palette.pick(
+                    const Color(0xFFCBD5E1),
+                    context.palette.textMuted,
+                  ),
           ),
         ),
       ),
@@ -364,11 +393,19 @@ class _PresetChip extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected
-              ? color.withValues(alpha: 0.12)
-              : const Color(0xFFF8FAFC),
+              ? context.palette.tint(color, color.withValues(alpha: 0.12))
+              : context.palette.pick(
+                  const Color(0xFFF8FAFC),
+                  context.palette.inputFill,
+                ),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: selected ? color : const Color(0xFFE2E8F0),
+            color: selected
+                ? color
+                : context.palette.pick(
+                    const Color(0xFFE2E8F0),
+                    context.palette.border,
+                  ),
             width: selected ? 1.4 : 1,
           ),
         ),
@@ -377,7 +414,12 @@ class _PresetChip extends StatelessWidget {
           style: GoogleFonts.manrope(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: selected ? color : const Color(0xFF475569),
+            color: selected
+                ? color
+                : context.palette.pick(
+                    const Color(0xFF475569),
+                    context.palette.textSecondary,
+                  ),
           ),
         ),
       ),

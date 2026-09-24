@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:open_filex/open_filex.dart';
 
@@ -25,6 +26,13 @@ class _ViewReportState extends State<ViewReport> {
 
   /// True while files held only in the user's Drive are being fetched.
   bool _fetchingFromDrive = false;
+
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _slate => _p.pick(const Color(0xFF64748B), _p.textSecondary);
+  Color get _body => _p.pick(const Color(0xFF475569), _p.textSecondary);
+  Color get _muted => _p.pick(const Color(0xFF94A3B8), _p.textMuted);
+  Color get _line => _p.pick(const Color(0xFFF0F1F5), _p.border);
 
   @override
   void initState() {
@@ -249,14 +257,14 @@ class _ViewReportState extends State<ViewReport> {
           ].contains(k));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
         title: Text(
           'Report Details',
           style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 18,
-            color: const Color(0xFF1E2024),
+            color: _ink,
           ),
         ),
         centerTitle: true,
@@ -264,7 +272,7 @@ class _ViewReportState extends State<ViewReport> {
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1E2024), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _ink, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
@@ -273,7 +281,7 @@ class _ViewReportState extends State<ViewReport> {
             onPressed: () => _deleteReport(context),
           ),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, color: Color(0xFF1E2024)),
+            icon: Icon(Icons.edit_outlined, color: _ink),
             onPressed: () async {
               final updated = await Navigator.of(context).push(
                 MaterialPageRoute(
@@ -302,9 +310,9 @@ class _ViewReportState extends State<ViewReport> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: _p.card,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFF0F1F5)),
+                border: Border.all(color: _line),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.03),
@@ -321,7 +329,7 @@ class _ViewReportState extends State<ViewReport> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFFFECEF),
+                          color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.medical_information_outlined, color: Color(0xFFFF3B5C), size: 20),
@@ -333,7 +341,7 @@ class _ViewReportState extends State<ViewReport> {
                           style: GoogleFonts.manrope(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
+                            color: _ink,
                           ),
                         ),
                       ),
@@ -341,7 +349,7 @@ class _ViewReportState extends State<ViewReport> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF1F5F9),
+                            color: _p.pick(const Color(0xFFF1F5F9), _p.surface),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -350,7 +358,7 @@ class _ViewReportState extends State<ViewReport> {
                               Icon(
                                 _files.any((f) => _isPdf(f)) ? Icons.picture_as_pdf_outlined : Icons.attachment_rounded,
                                 size: 13,
-                                color: const Color(0xFF64748B),
+                                color: _slate,
                               ),
                               const SizedBox(width: 4),
                               Text(
@@ -358,7 +366,7 @@ class _ViewReportState extends State<ViewReport> {
                                 style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF64748B),
+                                  color: _slate,
                                 ),
                               ),
                             ],
@@ -367,14 +375,14 @@ class _ViewReportState extends State<ViewReport> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  const Divider(color: Color(0xFFF0F1F5)),
+                  Divider(color: _p.pick(const Color(0xFFF0F1F5), _p.divider)),
                   const SizedBox(height: 12),
                   Text(
                     'Clinical Description',
                     style: GoogleFonts.manrope(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF94A3B8),
+                      color: _muted,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -383,7 +391,7 @@ class _ViewReportState extends State<ViewReport> {
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       height: 1.5,
-                      color: const Color(0xFF475569),
+                      color: _body,
                     ),
                   ),
                 ],
@@ -394,7 +402,7 @@ class _ViewReportState extends State<ViewReport> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F3FF),
+                  color: _p.tint(const Color(0xFF8B5CF6), const Color(0xFFF5F3FF)),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25)),
                   boxShadow: [
@@ -424,7 +432,7 @@ class _ViewReportState extends State<ViewReport> {
                           style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF7C3AED),
+                            color: _p.pick(const Color(0xFF7C3AED), const Color(0xFFA78BFA)),
                           ),
                         ),
                         const Spacer(),
@@ -452,7 +460,7 @@ class _ViewReportState extends State<ViewReport> {
                         fontSize: 13.5,
                         height: 1.5,
                         fontWeight: FontWeight.w500,
-                        color: const Color(0xFF334155),
+                        color: _p.pick(const Color(0xFF334155), _p.textPrimary),
                       ),
                     ),
                   ],
@@ -465,9 +473,9 @@ class _ViewReportState extends State<ViewReport> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: _p.card,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFF0F1F5)),
+                  border: Border.all(color: _line),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.03),
@@ -484,7 +492,7 @@ class _ViewReportState extends State<ViewReport> {
                       style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: const Color(0xFF1E2024),
+                        color: _ink,
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -499,7 +507,7 @@ class _ViewReportState extends State<ViewReport> {
                               style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
-                                color: const Color(0xFF64748B),
+                                color: _slate,
                               ),
                             ),
                             Text(
@@ -507,7 +515,7 @@ class _ViewReportState extends State<ViewReport> {
                               style: GoogleFonts.manrope(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800,
-                                color: const Color(0xFF1E2024),
+                                color: _ink,
                               ),
                             ),
                           ],
@@ -530,9 +538,9 @@ class _ViewReportState extends State<ViewReport> {
         height: 180,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5)),
+          border: Border.all(color: _line),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -547,13 +555,13 @@ class _ViewReportState extends State<ViewReport> {
                 ),
               )
             else
-              const Icon(Icons.description_outlined, size: 48, color: Color(0xFFCBD5E1)),
+              Icon(Icons.description_outlined, size: 48, color: _p.pick(const Color(0xFFCBD5E1), _p.textMuted)),
             const SizedBox(height: 10),
             Text(
               _fetchingFromDrive
                   ? 'Getting this report from your Google Drive…'
                   : 'No document or image attached',
-              style: GoogleFonts.manrope(fontSize: 13, color: const Color(0xFF94A3B8)),
+              style: GoogleFonts.manrope(fontSize: 13, color: _muted),
             ),
           ],
         ),
@@ -591,7 +599,7 @@ class _ViewReportState extends State<ViewReport> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: const Color(0xFF64748B),
+                color: _slate,
               ),
             ),
             Row(
@@ -610,7 +618,7 @@ class _ViewReportState extends State<ViewReport> {
                     width: isSelected ? 18 : 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFFCBD5E1),
+                      color: isSelected ? const Color(0xFFFF3B5C) : _p.pick(const Color(0xFFCBD5E1), _p.textMuted),
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
@@ -645,14 +653,14 @@ class _ViewReportState extends State<ViewReport> {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? const Color(0xFFFF3B5C) : const Color(0xFFE2E8F0),
+                      color: isSelected ? const Color(0xFFFF3B5C) : _p.pick(const Color(0xFFE2E8F0), _p.border),
                       width: isSelected ? 2 : 1,
                     ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: isPdf
                       ? Container(
-                          color: const Color(0xFFFFE4E6),
+                          color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                           child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 24),
                         )
                       : (path.startsWith('http')
@@ -677,7 +685,7 @@ class _ViewReportState extends State<ViewReport> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: const Color(0xFFE11D48).withValues(alpha: 0.3), width: 1.2),
           boxShadow: [
@@ -693,8 +701,8 @@ class _ViewReportState extends State<ViewReport> {
           children: [
             Container(
               padding: const EdgeInsets.all(16),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFFE4E6),
+              decoration: BoxDecoration(
+                color: _p.tint(const Color(0xFFE11D48), const Color(0xFFFFE4E6)),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFFE11D48), size: 40),
@@ -707,7 +715,7 @@ class _ViewReportState extends State<ViewReport> {
               style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
+                color: _ink,
               ),
             ),
             const SizedBox(height: 4),
@@ -716,7 +724,7 @@ class _ViewReportState extends State<ViewReport> {
               style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF94A3B8),
+                color: _muted,
               ),
             ),
             const SizedBox(height: 16),
@@ -749,9 +757,9 @@ class _ViewReportState extends State<ViewReport> {
         height: 220,
         width: double.infinity,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFF0F1F5)),
+          border: Border.all(color: _line),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),

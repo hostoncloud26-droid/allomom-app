@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
@@ -37,6 +38,11 @@ class BabyDetailPage extends StatefulWidget {
 class _BabyDetailPageState extends State<BabyDetailPage>
     with SingleTickerProviderStateMixin {
   static final _dateFmt = DateFormat('dd MMM yyyy');
+
+  // Neutral ink and surfaces follow light / dark mode.
+  AppPalette get _p => context.palette;
+  Color get _ink => _p.pick(const Color(0xFF1E2024), _p.textPrimary);
+  Color get _inkSoft => _p.pick(const Color(0xFF6B707B), _p.textSecondary);
 
   final _db = BabyDbService.instance;
   late final TabController _tabs = TabController(
@@ -98,15 +104,15 @@ class _BabyDetailPageState extends State<BabyDetailPage>
   Widget build(BuildContext context) {
     final baby = _baby;
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBFBFC),
+        backgroundColor: _p.scaffoldSoft,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFF1E2024),
+            color: _ink,
             size: 20,
           ),
           onPressed: () => Navigator.pop(context),
@@ -116,16 +122,16 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           style: GoogleFonts.outfit(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: const Color(0xFF1E2024),
+            color: _ink,
           ),
         ),
         actions: [
           if (baby != null)
             IconButton(
               tooltip: 'Edit details',
-              icon: const Icon(
+              icon: Icon(
                 Icons.edit_outlined,
-                color: Color(0xFF1E2024),
+                color: _ink,
                 size: 20,
               ),
               onPressed: () async {
@@ -141,7 +147,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         bottom: TabBar(
           controller: _tabs,
           labelColor: const Color(0xFFFF3B5C),
-          unselectedLabelColor: const Color(0xFF9CA3AF),
+          unselectedLabelColor: _p.textMuted,
           indicatorColor: const Color(0xFFFF3B5C),
           indicatorSize: TabBarIndicatorSize.label,
           labelStyle: GoogleFonts.outfit(
@@ -173,7 +179,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           : Column(
               children: [
                 _summary(baby),
-                const Divider(height: 1, color: Color(0xFFEEEFF4)),
+                Divider(height: 1, color: _p.divider),
                 Expanded(
                   child: TabBarView(
                     controller: _tabs,
@@ -197,7 +203,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
 
     return Container(
       width: double.infinity,
-      color: Colors.white,
+      color: _p.card,
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
       child: Wrap(
         spacing: 8,
@@ -210,7 +216,10 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F4),
+                  color: _p.tint(
+                    const Color(0xFFFF3B5C),
+                    const Color(0xFFFFF0F4),
+                  ),
                   borderRadius: BorderRadius.circular(9),
                 ),
                 child: Text(
@@ -218,7 +227,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                   style: GoogleFonts.poppins(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4B5563),
+                    color: _p.textSecondary,
                   ),
                 ),
               ),
@@ -473,7 +482,11 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 40, color: const Color(0xFFD1D5DB)),
+            Icon(
+              icon,
+              size: 40,
+              color: _p.pick(const Color(0xFFD1D5DB), _p.textMuted),
+            ),
             const SizedBox(height: 14),
             Text(
               title,
@@ -481,7 +494,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF1E2024),
+                color: _ink,
               ),
             ),
             const SizedBox(height: 6),
@@ -490,7 +503,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 12.5,
-                color: const Color(0xFF6B707B),
+                color: _inkSoft,
                 height: 1.45,
               ),
             ),
@@ -515,12 +528,12 @@ class _BabyDetailPageState extends State<BabyDetailPage>
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.fromLTRB(6, 10, 6, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: status.needsAttention && !status.isDone
               ? status.color.withValues(alpha: 0.35)
-              : const Color(0xFFEEEFF4),
+              : _p.divider,
         ),
       ),
       child: Row(
@@ -539,22 +552,25 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                         style: GoogleFonts.outfit(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF1E2024),
+                          color: _ink,
                           decoration: titleStrikethrough
                               ? TextDecoration.lineThrough
                               : null,
-                          decorationColor: const Color(0xFF9CA3AF),
+                          decorationColor: _p.textMuted,
                         ),
                       ),
                     ),
                     if (showStatus) CareStatusChip(status: status),
                     if (synced == 0)
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.only(left: 6),
                         child: Icon(
                           Icons.sync_problem_rounded,
                           size: 14,
-                          color: Color(0xFFB6BAC5),
+                          color: _p.pick(
+                            const Color(0xFFB6BAC5),
+                            _p.textMuted,
+                          ),
                         ),
                       ),
                   ],
@@ -567,7 +583,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                       line,
                       style: GoogleFonts.poppins(
                         fontSize: 12,
-                        color: const Color(0xFF6B707B),
+                        color: _inkSoft,
                         height: 1.4,
                       ),
                     ),
@@ -576,10 +592,10 @@ class _BabyDetailPageState extends State<BabyDetailPage>
             ),
           ),
           PopupMenuButton<String>(
-            icon: const Icon(
+            icon: Icon(
               Icons.more_vert_rounded,
               size: 18,
-              color: Color(0xFF9CA3AF),
+              color: _p.textMuted,
             ),
             onSelected: (v) {
               if (v == 'edit') onEdit();
@@ -641,7 +657,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
     final result = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: _p.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -668,15 +684,15 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                           style: GoogleFonts.outfit(
                             fontSize: 17,
                             fontWeight: FontWeight.w800,
-                            color: const Color(0xFF1E2024),
+                            color: _ink,
                           ),
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
                           size: 22,
-                          color: Color(0xFF9CA3AF),
+                          color: _p.textMuted,
                         ),
                         onPressed: () => Navigator.pop(ctx, false),
                       ),
@@ -731,13 +747,13 @@ class _BabyDetailPageState extends State<BabyDetailPage>
       child: TextField(
         controller: controller,
         maxLines: maxLines,
-        style: const TextStyle(fontSize: 14, color: Color(0xFF1E2024)),
+        style: TextStyle(fontSize: 14, color: _ink),
         decoration: InputDecoration(
           labelText: label,
           hintText: hint,
-          labelStyle: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+          labelStyle: TextStyle(fontSize: 13, color: _p.textSecondary),
           filled: true,
-          fillColor: const Color(0xFFF9FAFB),
+          fillColor: _p.inputFill,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
@@ -777,16 +793,16 @@ class _BabyDetailPageState extends State<BabyDetailPage>
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: _p.inputFill,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: Color(0xFF6B7280),
+                  color: _p.textSecondary,
                 ),
               ),
               const Spacer(),
@@ -796,8 +812,8 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
                   color: value == null
-                      ? const Color(0xFF9CA3AF)
-                      : const Color(0xFF1E2024),
+                      ? _p.textMuted
+                      : _ink,
                 ),
               ),
               if (clearable && value != null)
@@ -807,10 +823,10 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                     minWidth: 30,
                     minHeight: 24,
                   ),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.clear_rounded,
                     size: 16,
-                    color: Color(0xFF9CA3AF),
+                    color: _p.textMuted,
                   ),
                   onPressed: () {
                     onChanged(null);
@@ -818,12 +834,12 @@ class _BabyDetailPageState extends State<BabyDetailPage>
                   },
                 )
               else
-                const Padding(
+                Padding(
                   padding: EdgeInsets.only(left: 8),
                   child: Icon(
                     Icons.calendar_today_rounded,
                     size: 14,
-                    color: Color(0xFF9CA3AF),
+                    color: _p.textMuted,
                   ),
                 ),
             ],
@@ -844,7 +860,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
+          color: _p.inputFill,
           borderRadius: BorderRadius.circular(12),
         ),
         child: SwitchListTile(
@@ -854,7 +870,7 @@ class _BabyDetailPageState extends State<BabyDetailPage>
           value: value,
           title: Text(
             label,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+            style: TextStyle(fontSize: 13, color: _p.textSecondary),
           ),
           onChanged: (v) {
             onChanged(v);

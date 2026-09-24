@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -42,6 +43,8 @@ class DadFamilySetupPage extends StatefulWidget {
 }
 
 class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
+  AppPalette get _p => context.palette;
+
   static const _primaryColor = Color(0xFFFF5277);
 
   bool _loading = true;
@@ -185,7 +188,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           style: GoogleFonts.outfit(
             fontSize: 19,
             fontWeight: FontWeight.w700,
-            color: const Color(0xFF1E2024),
+            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
           ),
         ),
         content: Text(
@@ -195,7 +198,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           style: GoogleFonts.poppins(
             fontSize: 13.5,
             height: 1.45,
-            color: const Color(0xFF6B7280),
+            color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
           ),
         ),
         actions: [
@@ -205,7 +208,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
               'Stay',
               style: GoogleFonts.poppins(
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFF6B7280),
+                color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
               ),
             ),
           ),
@@ -257,7 +260,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -283,20 +286,20 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                           child: Container(
                             width: 40,
                             height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
+                            decoration: BoxDecoration(
+                              color: _p.card,
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black12,
+                                  color: _p.pick(Colors.black12, _p.shadow),
                                   blurRadius: 8,
                                   offset: Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.chevron_left_rounded,
-                              color: Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                               size: 24,
                             ),
                           ),
@@ -308,7 +311,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                             style: GoogleFonts.outfit(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
-                              color: const Color(0xFF1E2024),
+                              color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                             ),
                           ),
                         ),
@@ -344,14 +347,14 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                       24,
                       28 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: _p.card,
                       borderRadius: BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: _p.pick(Colors.black12, _p.shadow),
                           blurRadius: 20,
                           offset: Offset(0, -4),
                         ),
@@ -390,7 +393,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           'Checking your family...',
           style: GoogleFonts.poppins(
             fontSize: 13.5,
-            color: const Color(0xFF6B7280),
+            color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
           ),
         ),
       ),
@@ -410,7 +413,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
         style: GoogleFonts.outfit(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF1E2024),
+          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
         ),
       ),
       const SizedBox(height: 6),
@@ -423,7 +426,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                   '${family.memberCount == 1 ? 'person' : 'people'} here.',
         style: GoogleFonts.poppins(
           fontSize: 13.5,
-          color: const Color(0xFF6B7280),
+          color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
           height: 1.45,
         ),
       ),
@@ -445,7 +448,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           onPressed: _leaving ? null : _onContinue,
           style: ElevatedButton.styleFrom(
             backgroundColor: _primaryColor,
-            disabledBackgroundColor: const Color(0xFFFFB3C1),
+            disabledBackgroundColor: _p.pick(const Color(0xFFFFB3C1), const Color(0xFF7A3A48)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(25),
             ),
@@ -484,7 +487,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           child: OutlinedButton(
             onPressed: _leaving ? null : _openPartnerDetails,
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+              side: BorderSide(color: _p.border, width: 1.5),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
@@ -492,9 +495,9 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.person_add_alt_1_rounded,
-                  color: Color(0xFF4B5563),
+                  color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -506,7 +509,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF4B5563),
+                      color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                     ),
                   ),
                 ),
@@ -558,7 +561,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
         style: GoogleFonts.outfit(
           fontSize: 20,
           fontWeight: FontWeight.w700,
-          color: const Color(0xFF1E2024),
+          color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
         ),
       ),
       const SizedBox(height: 6),
@@ -567,7 +570,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
         'access shared vitals, timeline, and pregnancy records.',
         style: GoogleFonts.poppins(
           fontSize: 13.5,
-          color: const Color(0xFF6B7280),
+          color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
           height: 1.45,
         ),
       ),
@@ -613,7 +616,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
         child: OutlinedButton(
           onPressed: _openPartnerDetails,
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
+            side: BorderSide(color: _p.border, width: 1.5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(25),
             ),
@@ -621,9 +624,9 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.family_restroom_rounded,
-                color: Color(0xFF4B5563),
+                color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -635,7 +638,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                   style: GoogleFonts.poppins(
                     fontSize: 14.5,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF4B5563),
+                    color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
                   ),
                 ),
               ),
@@ -654,7 +657,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
       style: GoogleFonts.poppins(
         fontSize: 11,
         fontWeight: FontWeight.w700,
-        color: const Color(0xFF8E95A5),
+        color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
         letterSpacing: 0.8,
       ),
     );
@@ -667,9 +670,9 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFFFFF5F8),
+          color: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF5F8)),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFFCD9E3), width: 1.2),
+          border: Border.all(color: _p.pick(const Color(0xFFFCD9E3), _p.accentBorder), width: 1.2),
         ),
         child: Row(
           children: [
@@ -685,7 +688,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                     style: GoogleFonts.poppins(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF9CA3AF),
+                      color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -695,13 +698,13 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 3,
-                      color: const Color(0xFF1E2024),
+                      color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.copy_rounded, size: 18, color: Color(0xFF9CA3AF)),
+            Icon(Icons.copy_rounded, size: 18, color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted)),
           ],
         ),
       ),
@@ -718,7 +721,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor: const Color(0xFFFCE7F0),
+            backgroundColor: _p.tint(const Color(0xFFFF4E6A), const Color(0xFFFCE7F0)),
             backgroundImage: photo == null || photo.isEmpty
                 ? null
                 : NetworkImage(photo),
@@ -746,7 +749,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                   style: GoogleFonts.outfit(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1E2024),
+                    color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -755,7 +758,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: const Color(0xFF6B7280),
+                    color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                   ),
                 ),
               ],
@@ -768,8 +771,8 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
                 color: member.isRegistered
-                    ? const Color(0xFFECFDF5)
-                    : const Color(0xFFF3F4F6),
+                    ? _p.tint(const Color(0xFF10B981), const Color(0xFFECFDF5))
+                    : _p.pick(const Color(0xFFF3F4F6), _p.surface),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -779,7 +782,7 @@ class _DadFamilySetupPageState extends State<DadFamilySetupPage> {
                   fontWeight: FontWeight.w600,
                   color: member.isRegistered
                       ? const Color(0xFF059669)
-                      : const Color(0xFF6B7280),
+                      : _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                 ),
               ),
             ),

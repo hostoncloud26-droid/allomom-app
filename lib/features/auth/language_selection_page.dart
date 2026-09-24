@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -33,8 +34,9 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF6F7),
+      backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
         child: CustomScrollView(
@@ -55,7 +57,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                     style: GoogleFonts.outfit(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF1E2024),
+                      color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -80,16 +82,16 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                       20,
                       22 + MediaQuery.paddingOf(context).bottom,
                     ),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.vertical(
+                    decoration: BoxDecoration(
+                      color: p.card,
+                      borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(32),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black12,
+                          color: p.pick(Colors.black12, p.shadow),
                           blurRadius: 20,
-                          offset: Offset(0, -4),
+                          offset: const Offset(0, -4),
                         ),
                       ],
                     ),
@@ -101,7 +103,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                           style: GoogleFonts.outfit(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: const Color(0xFF1E2024),
+                            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -205,6 +207,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
     final isSelected = _selectedLanguageCode == code;
     final iconType = lang['iconType'] as String;
     final char = lang['char'] as String?;
+    final p = context.palette;
 
     return GestureDetector(
       onTap: () {
@@ -219,12 +222,14 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
+          color: isSelected
+              ? p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFF0F3))
+              : p.card,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: isSelected
                 ? const Color(0xFFFF4E6A)
-                : const Color(0xFFE5E7EB),
+                : p.border,
             width: isSelected ? 1.8 : 1.2,
           ),
         ),
@@ -238,8 +243,8 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSelected
-                    ? const Color(0xFFFFD8E0)
-                    : const Color(0xFFF3F4F6),
+                    ? p.tint(const Color(0xFFFF4E6A), const Color(0xFFFFD8E0))
+                    : p.pick(const Color(0xFFF3F4F6), p.surface),
               ),
               child: Center(
                 child: iconType == 'char'
@@ -250,7 +255,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                           fontWeight: FontWeight.bold,
                           color: isSelected
                               ? const Color(0xFFFF4E6A)
-                              : const Color(0xFF4B5563),
+                              : p.pick(const Color(0xFF4B5563), p.textSecondary),
                         ),
                       )
                     : Icon(
@@ -272,7 +277,7 @@ class _LanguageSelectionPageState extends State<LanguageSelectionPage> {
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: isSelected
                     ? const Color(0xFFFF4E6A)
-                    : const Color(0xFF1E2024),
+                    : p.pick(const Color(0xFF1E2024), p.textPrimary),
               ),
             ),
           ],
