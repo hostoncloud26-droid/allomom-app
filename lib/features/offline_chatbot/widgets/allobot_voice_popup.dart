@@ -22,7 +22,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
-import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
@@ -88,9 +87,6 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     with SingleTickerProviderStateMixin {
   final AudioRecorder _recorder = AudioRecorder();
   final AlloBotSpeechController _speech = AlloBotSpeechController.instance;
-
-  // Not `p`: that name is taken by the `path` import.
-  AppPalette get _pal => context.palette;
 
   // Built in initState rather than as late fields: a popup opened and closed
   // without ever pulsing would otherwise create its controller inside
@@ -377,23 +373,16 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
         final isBusy = widget.controller.isTyping.value;
 
         return Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.bottomCenter,
               end: Alignment.topCenter,
-              stops: const [0.0, 0.45, 1.0],
-              colors: _pal.pick(
-                const [
-                  Color(0xF2FAF6F7),
-                  Color(0xA6FAF6F7),
-                  Colors.transparent,
-                ],
-                const [
-                  Color(0xF2121212),
-                  Color(0xA6121212),
-                  Colors.transparent,
-                ],
-              ),
+              stops: [0.0, 0.45, 1.0],
+              colors: [
+                Color(0xF2FAF6F7),
+                Color(0xA6FAF6F7),
+                Colors.transparent,
+              ],
             ),
           ),
           child: SafeArea(
@@ -424,16 +413,10 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
           margin: const EdgeInsets.only(top: 8, bottom: 16),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: _pal.pick(
-              Colors.black.withValues(alpha: 0.08),
-              Colors.white.withValues(alpha: 0.10),
-            ),
+            color: Colors.black.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _pal.pick(
-                Colors.black.withValues(alpha: 0.1),
-                Colors.white.withValues(alpha: 0.12),
-              ),
+              color: Colors.black.withValues(alpha: 0.1),
               width: 0.8,
             ),
             boxShadow: [
@@ -444,9 +427,9 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
               ),
             ],
           ),
-          child: Icon(
+          child: const Icon(
             Icons.remove_rounded,
-            color: _pal.pick(Colors.black54, _pal.textSecondary),
+            color: Colors.black54,
             size: 20,
           ),
         ),
@@ -467,18 +450,16 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
         constraints: const BoxConstraints(maxWidth: 420),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: _pal.card.withValues(alpha: 0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: _pal.pick(const Color(0xFFF2E4E7), _pal.accentBorder),
-          ),
+          border: Border.all(color: const Color(0xFFF2E4E7)),
         ),
         child: Text(
           text,
           textAlign: TextAlign.center,
           style: GoogleFonts.poppins(
             fontSize: 14,
-            color: _pal.pick(const Color(0xFF8E95A5), _pal.textMuted),
+            color: const Color(0xFF8E95A5),
           ),
         ),
       ),
@@ -489,11 +470,9 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: _pal.card.withValues(alpha: 0.95),
+        color: Colors.white.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(50),
-        border: Border.all(
-          color: _pal.pick(const Color(0xFFF2E4E7), _pal.accentBorder),
-        ),
+        border: Border.all(color: const Color(0xFFF2E4E7)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.08),
@@ -510,10 +489,10 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
           _sideButton(
             icon: isBusy ? Icons.stop_rounded : Icons.add_rounded,
             tooltip: isBusy ? 'Stop' : 'Topics',
-            foreground: isBusy ? dangerRed : _pal.textSecondary,
+            foreground: isBusy ? dangerRed : textMedium,
             background: isBusy
                 ? dangerRed.withValues(alpha: 0.12)
-                : _pal.pick(const Color(0xFFF1F2F6), _pal.surface),
+                : const Color(0xFFF1F2F6),
             onTap: () {
               HapticFeedback.lightImpact();
               if (isBusy) {
@@ -531,8 +510,8 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
           _sideButton(
             icon: Icons.keyboard_alt_outlined,
             tooltip: 'Type a message',
-            foreground: _pal.textSecondary,
-            background: _pal.pick(const Color(0xFFF1F2F6), _pal.surface),
+            foreground: textMedium,
+            background: const Color(0xFFF1F2F6),
             onTap: () {
               HapticFeedback.lightImpact();
               unawaited(_switchToKeyboard());

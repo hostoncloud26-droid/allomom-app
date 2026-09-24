@@ -314,11 +314,20 @@ class BotStep {
     this.nextIntentLang,
   });
 
+  /// The Flow Builder exports plain message steps as `text_message`; the
+  /// engine's automatic-step handling has only ever known `text`. Normalising
+  /// here is what lets a message step still hand off to whatever follows it
+  /// instead of the traversal mistaking it for a step waiting on an answer.
+  static String _normalizeType(dynamic raw) {
+    final type = (raw ?? 'question').toString();
+    return type == 'text_message' ? 'text' : type;
+  }
+
   factory BotStep.fromJson(Map<String, dynamic> json) {
     final nextIntent = json['next_intent_ref'];
     return BotStep(
       ref: (json['ref'] ?? '').toString(),
-      type: (json['type'] ?? 'question').toString(),
+      type: _normalizeType(json['type']),
       question: (json['question'] ?? '').toString(),
       saveKey: json['save_key'] as String?,
       questionDataType: json['question_data_type'] as String?,
@@ -407,6 +416,7 @@ class BotStep {
         'image',
         'ai',
         'action',
+        'custom_action',
         'intent',
       ].contains(type);
 }

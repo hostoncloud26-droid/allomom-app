@@ -71,6 +71,7 @@ dependencies:
   flutter_markdown: ^0.7.7+1
   whisper_ggml_plus: ^1.5.2
   qr_flutter: ^4.1.0
+  mobile_scanner: ^7.0.1
   fl_chart: ^1.0.0
   syncfusion_flutter_charts: ^33.2.13
 

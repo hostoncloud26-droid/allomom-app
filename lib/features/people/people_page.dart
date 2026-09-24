@@ -1,34 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/config/app_theme.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
+import 'package:allomom/features/people/widgets/scan_qr_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 class PeoplePage extends StatefulWidget {
-  const PeoplePage({super.key});
+  const PeoplePage({super.key, this.initialTab = 0});
+
+  /// 0: Family, 1: Community — lets a caller (the offline chatbot's
+  /// `open_community` action) land directly on the Community tab.
+  final int initialTab;
 
   @override
   State<PeoplePage> createState() => _PeoplePageState();
 }
 
 class _PeoplePageState extends State<PeoplePage> {
-  int _selectedTab = 0; // 0: Family, 1: Community
-
-  AppPalette get _p => context.palette;
-
-  /// Deep badge/avatar letter colours, lifted a little so they read on the
-  /// dark tints.
-  Color _onTint(Color c) =>
-      _p.isDark ? Color.lerp(c, Colors.white, 0.35)! : c;
+  late int _selectedTab = widget.initialTab; // 0: Family, 1: Community
   final TextEditingController _searchController = TextEditingController();
 
   Map<String, dynamic>? _familyData;
@@ -41,10 +37,24 @@ class _PeoplePageState extends State<PeoplePage> {
     _loadFamilyData();
   }
 
-  /// Loads the family and its members from the local Drift database.
+  /// Loads the family and its members, local-first.
+  ///
+  /// The local read is what puts something on screen immediately, even
+  /// offline — but `MainController.bootstrap()` fires its own family refresh
+  /// unawaited, so a fresh device's first login can land on this page before
+  /// that background fetch has written anything to SQLite yet. Reconciling
+  /// with the server here too (and reloading local data once more) means
+  /// this page — and pull-to-refresh, which also calls this — never gets
+  /// stuck showing "No Family" when the server actually has one.
   Future<void> _loadFamilyData() async {
     await _loadFamilyDataInner();
     if (mounted) _speakForTab();
+
+    final userId = MainController.instance.userId;
+    if (userId.isEmpty) return;
+    await FamilyController.instance.refreshFromServer();
+    if (!mounted) return;
+    await _loadFamilyDataInner();
   }
 
   Future<void> _loadFamilyDataInner() async {
@@ -112,13 +122,14 @@ class _PeoplePageState extends State<PeoplePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _p.scaffoldSoft,
+      backgroundColor: const Color(0xFFFBFBFC),
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SizedBox(height: 8),
+            _buildHeader(),
+            mediumSpacingBox(),
             _buildTabSwitcher(),
             mediumSpacingBox(),
             Expanded(
@@ -132,6 +143,21 @@ class _PeoplePageState extends State<PeoplePage> {
     );
   }
 
+  // ─── HEADER ────────────────────────────────────────────────
+  Widget _buildHeader() {
+    return const Padding(
+      padding: EdgeInsets.only(left: 20, right: 20, top: 12),
+      child: Text(
+        'People',
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w800,
+          color: textDark,
+        ),
+      ),
+    );
+  }
+
   // ─── TAB SWITCHER (Family / Community) ─────────────────────
   Widget _buildTabSwitcher() {
     return Padding(
@@ -139,7 +165,7 @@ class _PeoplePageState extends State<PeoplePage> {
       child: Container(
         padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
-          color: _p.pick(Colors.grey.withValues(alpha: 0.08), _p.surface),
+          color: Colors.grey.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -189,14 +215,12 @@ class _PeoplePageState extends State<PeoplePage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected
-              ? _p.pick(Colors.white, const Color(0xFF3A3A40))
-              : Colors.transparent,
+          color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: _p.pick(Colors.black.withValues(alpha: 0.04), _p.shadow),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   ),
@@ -209,7 +233,7 @@ class _PeoplePageState extends State<PeoplePage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? primaryColor : _p.textSecondary,
+              color: isSelected ? primaryColor : Colors.grey.shade600,
             ),
           ),
         ),
@@ -253,7 +277,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     'No family members added yet.\nTap "Add member" above to invite!',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: _p.textMuted,
+                      color: Colors.grey.shade500,
                       fontSize: 13.5,
                     ),
                   ),
@@ -270,157 +294,127 @@ class _PeoplePageState extends State<PeoplePage> {
     );
   }
 
-  /// The viewer's partner, in the words the Family Setup screen uses: a dad is
-  /// asked about Mommy, a mom about Daddy.
-  String get _partnerWord =>
-      MainController.instance.gender.trim().toLowerCase() == 'male'
-      ? 'Mommy'
-      : 'Daddy';
-
-  static const _setupPink = Color(0xFFFF5277);
-
-  /// No household yet — laid out like Family Setup: the baby asks the
-  /// question, and the card below offers the two ways in.
   Widget _buildNoFamilyCard() {
-    final isDad = _partnerWord == 'Mommy';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        BabyHeroBanner(
-          margin: EdgeInsets.zero,
-          height: 230,
-          speechText: isDad
-              ? 'Welcome Daddy! 🌟\nDo you already have a Family Code?'
-              : 'Welcome Mommy! 🌟\nDo you already have a Family Code?',
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.fromLTRB(24, 26, 24, 24),
-          decoration: BoxDecoration(
-            color: _p.card,
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: _p.pick(Colors.black12, _p.shadow),
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'FAMILY GROUP',
-                style: GoogleFonts.poppins(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: _p.pick(const Color(0xFF8E95A5), _p.textMuted),
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Connect with $_partnerWord',
-                style: GoogleFonts.outfit(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'A 6-character family code lets you link directly with '
-                '$_partnerWord to access shared vitals, timeline, and '
-                'pregnancy records.',
-                style: GoogleFonts.poppins(
-                  fontSize: 13.5,
-                  color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
-                  height: 1.45,
-                ),
-              ),
-              const SizedBox(height: 26),
-
-              // Option A: join the family the partner already made.
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: _showJoinFamilyDialog,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _setupPink,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(
-                        Icons.vpn_key_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'I have a Family Code',
-                        style: GoogleFonts.poppins(
-                          fontSize: 15.5,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-
-              // Option B: no code — start the family here.
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: OutlinedButton(
-                  onPressed: _showCreateFamilyDialog,
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: _p.border, width: 1.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.family_restroom_rounded,
-                        color: _p.pick(const Color(0xFF4B5563), _p.textSecondary),
-                        size: 20,
-                      ),
-                      const SizedBox(width: 8),
-                      Flexible(
-                        child: Text(
-                          'No code? Create a family',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.poppins(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w600,
-                            color: _p.pick(
-                              const Color(0xFF4B5563),
-                              _p.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFCE7F0),
+              shape: BoxShape.circle,
+            ),
+            child: const Center(
+              child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 42)),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 18),
+          const Text(
+            'No Family Group Yet',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: textDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Create your family group or enter a 6-character family code to connect with your partner and share your maternal journey.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13.5,
+              color: Colors.grey.shade600,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton.icon(
+              onPressed: () => _showJoinFamilyDialog(),
+              icon: const Icon(Icons.vpn_key_rounded, size: 20),
+              label: const Text(
+                'Enter Family Code',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+                elevation: 0,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => _openScanQr(context),
+              icon: Icon(
+                Icons.qr_code_scanner_rounded,
+                size: 20,
+                color: primaryColor,
+              ),
+              label: Text(
+                'Scan Family QR',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: primaryColor,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: primaryColor, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: () => _showCreateFamilyDialog(),
+              icon: Icon(
+                Icons.add_circle_outline_rounded,
+                size: 20,
+                color: primaryColor,
+              ),
+              label: Text(
+                'Create Family',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  color: primaryColor,
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: primaryColor, width: 1.5),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(22),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -432,7 +426,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _p.tint(const Color(0xFF70B29F), const Color(0xFFEAF8F5)),
+        color: const Color(0xFFEAF8F5),
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -454,11 +448,11 @@ class _PeoplePageState extends State<PeoplePage> {
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _p.pick(const Color(0xFFFCE7F0), const Color(0xFF3A2327)),
-                      border: Border.all(color: _p.card, width: 3),
+                      color: const Color(0xFFFCE7F0),
+                      border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: _p.pick(Colors.black.withValues(alpha: 0.08), _p.shadow),
+                          color: Colors.black.withValues(alpha: 0.08),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -481,10 +475,10 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   familyName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: _p.textPrimary,
+                    color: textDark,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -497,15 +491,15 @@ class _PeoplePageState extends State<PeoplePage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.tint(const Color(0xFF15803D), const Color(0xFFDCFCE7)),
+                        color: const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _onTint(const Color(0xFF15803D)),
+                          color: Color(0xFF15803D),
                         ),
                       ),
                     ),
@@ -533,7 +527,7 @@ class _PeoplePageState extends State<PeoplePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: _p.card,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: primaryColor.withValues(alpha: 0.3),
@@ -641,15 +635,18 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
       confirmDismiss: (direction) async {
         if (userId == null) return false;
+        final isSelf = userId == MainController.instance.userId;
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: const Text('Remove Member?'),
+            title: Text(isSelf ? 'Leave Family?' : 'Remove Member?'),
             content: Text(
-              'Are you sure you want to remove $name from your family?',
+              isSelf
+                  ? "You'll be removed from this family. You can rejoin later with the family code."
+                  : 'Are you sure you want to remove $name from your family?',
             ),
             actions: [
               TextButton(
@@ -661,15 +658,32 @@ class _PeoplePageState extends State<PeoplePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF4E6A),
                 ),
-                child: const Text(
-                  'Remove',
-                  style: TextStyle(color: Colors.white),
+                child: Text(
+                  isSelf ? 'Leave' : 'Remove',
+                  style: const TextStyle(color: Colors.white),
                 ),
               ),
             ],
           ),
         );
         if (confirm == true) {
+          // Leaving yourself goes through the server — it is a family-wide
+          // fact (your spot opens up, the family may retire if you were the
+          // last member) — while removing someone else is local-only, same
+          // as the rest of the People screen's writes.
+          if (isSelf) {
+            final error = await FamilyController.instance.exitFamily();
+            if (!mounted) return false;
+            if (error != null) {
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(SnackBar(content: Text(error)));
+              return false;
+            }
+            _loadFamilyData();
+            return true;
+          }
+
           final familyId = _familyData?['id']?.toString() ?? '';
           if (userId.isEmpty || familyId.isEmpty) {
             return false;
@@ -719,9 +733,9 @@ class _PeoplePageState extends State<PeoplePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Enter the 6-character family code provided by your partner.',
-              style: TextStyle(fontSize: 13, color: _p.textMuted),
+              style: TextStyle(fontSize: 13, color: textLight),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -790,9 +804,9 @@ class _PeoplePageState extends State<PeoplePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'Enter a name for your family group.',
-              style: TextStyle(fontSize: 13, color: _p.textMuted),
+              style: TextStyle(fontSize: 13, color: textLight),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -826,6 +840,11 @@ class _PeoplePageState extends State<PeoplePage> {
                 }
                 return;
               }
+              // Local-first: written to SQLite straight away so the group
+              // exists offline. allomom-api-new has no `/family/create`
+              // route yet (only `/family/partner`, `/join`, `/exit`), so this
+              // code cannot be pushed to the server until that lands — Share
+              // QR only works between devices once it can.
               try {
                 await FamilyDbService.instance.createFamily(
                   creatorUserId: userId,
@@ -850,36 +869,70 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildFamilyActionButtons() {
-    return Row(
+    return Column(
       children: [
-        // Add member button
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _showAddMemberBottomSheet(context),
-            icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
-            label: const Text(
-              'Add member',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+        Row(
+          children: [
+            // Add member button
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: () => _showAddMemberBottomSheet(context),
+                icon: const Icon(Icons.person_add_alt_1_rounded, size: 20),
+                label: const Text(
+                  'Add member',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 12),
+            // Share QR button
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _showShareQrModal(context),
+                icon: Icon(Icons.qr_code_2_rounded, size: 20, color: primaryColor),
+                label: Text(
+                  'Share QR',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: primaryColor,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  side: BorderSide(color: Colors.grey.shade200),
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 12),
-        // Share QR button
-        Expanded(
+        const SizedBox(height: 12),
+        // Scan QR button
+        SizedBox(
+          width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: () => _showShareQrModal(context),
-            icon: Icon(Icons.qr_code_2_rounded, size: 20, color: primaryColor),
+            onPressed: () => _openScanQr(context),
+            icon: Icon(
+              Icons.qr_code_scanner_rounded,
+              size: 20,
+              color: primaryColor,
+            ),
             label: Text(
-              'Share QR',
+              'Scan QR to join a family',
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -887,8 +940,8 @@ class _PeoplePageState extends State<PeoplePage> {
               ),
             ),
             style: OutlinedButton.styleFrom(
-              backgroundColor: _p.card,
-              side: BorderSide(color: _p.pick(Colors.grey.shade200, _p.border)),
+              backgroundColor: Colors.white,
+              side: BorderSide(color: Colors.grey.shade200),
               elevation: 0,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
@@ -897,8 +950,144 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
         ),
+        // Delete Family — only offered while nobody else has joined yet, so a
+        // family created by mistake can be undone. Once a second member is
+        // in it, deleting would take their membership with it, so this button
+        // disappears and leaving is done per-member instead (swipe on the
+        // member row below).
+        if (_apiFamilyMembers.length <= 1) ...[
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _confirmDeleteSoloFamily,
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                size: 20,
+                color: Color(0xFFFF4E6A),
+              ),
+              label: const Text(
+                'Delete Family',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFFFF4E6A),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFFFD5DC)),
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
+  }
+
+  Future<void> _confirmDeleteSoloFamily() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Delete Family?'),
+        content: const Text(
+          "Nobody else has joined this family yet, so it will be deleted "
+          'completely. You can create or join a family again afterwards.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4E6A),
+            ),
+            child: const Text('Delete', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final error = await FamilyController.instance.exitFamily();
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    _loadFamilyData();
+  }
+
+  Future<void> _openScanQr(BuildContext _) async {
+    if (_familyData != null && !await _confirmLeaveBeforeJoining()) return;
+    if (!mounted) return;
+    final joined = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const ScanQrPage()),
+    );
+    if (joined == true && mounted) {
+      _loadFamilyData();
+    }
+  }
+
+  /// When the caller is already in a family, joining a different one means
+  /// leaving this one first — that is a deliberate act, not a side effect of
+  /// scanning a code, so it is confirmed here rather than left to the 409 the
+  /// server would otherwise answer with.
+  ///
+  /// Returns true once the caller has left (or already had no family), false
+  /// if they backed out.
+  Future<bool> _confirmLeaveBeforeJoining() async {
+    final familyName = _familyData?['name']?.toString() ?? 'your family';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Leave your current family first'),
+        content: Text(
+          "You're already in $familyName. To join a different family, "
+          'leave this one first.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF4E6A),
+            ),
+            child: const Text(
+              'Leave & Continue',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return false;
+
+    final error = await FamilyController.instance.exitFamily();
+    if (!mounted) return false;
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return false;
+    }
+    await _loadFamilyData();
+    return true;
   }
 
   Widget _buildFamilyMembersHeader() {
@@ -906,12 +1095,12 @@ class _PeoplePageState extends State<PeoplePage> {
       children: [
         Icon(Icons.people_outline_rounded, size: 20, color: primaryColor),
         const SizedBox(width: 8),
-        Text(
+        const Text(
           'Family members',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: _p.textPrimary,
+            color: textDark,
           ),
         ),
       ],
@@ -931,11 +1120,11 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _p.card,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -950,7 +1139,7 @@ class _PeoplePageState extends State<PeoplePage> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: _p.tint(avatarLetterColor, avatarBg),
+                  color: avatarBg,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Center(
@@ -959,7 +1148,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: _onTint(avatarLetterColor),
+                      color: avatarLetterColor,
                     ),
                   ),
                 ),
@@ -973,7 +1162,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF22C55E),
-                    border: Border.all(color: _p.card, width: 2),
+                    border: Border.all(color: Colors.white, width: 2),
                   ),
                 ),
               ),
@@ -988,24 +1177,24 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   name,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: _p.textPrimary,
+                    color: textDark,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.phone_outlined,
                       size: 13,
-                      color: _p.textMuted,
+                      color: textLight,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       phone,
-                      style: TextStyle(fontSize: 12, color: _p.textMuted),
+                      style: const TextStyle(fontSize: 12, color: textLight),
                     ),
                   ],
                 ),
@@ -1016,7 +1205,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: _p.tint(badgeTextColor, badgeBg),
+                    color: badgeBg,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1024,7 +1213,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: _onTint(badgeTextColor),
+                      color: badgeTextColor,
                     ),
                   ),
                 ),
@@ -1077,9 +1266,9 @@ class _PeoplePageState extends State<PeoplePage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: ctx.palette.card,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1088,37 +1277,46 @@ class _PeoplePageState extends State<PeoplePage> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: ctx.palette.pick(Colors.grey.shade300, ctx.palette.divider),
+                color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 18),
-            Text(
+            const Text(
               'Family Invite Code',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: _p.textPrimary,
+                color: textDark,
               ),
             ),
             const SizedBox(height: 4),
-            Text(
+            const Text(
               'Share this 6-character code with your partner to join your family',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: _p.textMuted),
+              style: TextStyle(fontSize: 12, color: textLight),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: ctx.palette.inputFill,
+                color: const Color(0xFFF9FAFB),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: ctx.palette.border),
+                border: Border.all(color: const Color(0xFFE5E7EB)),
               ),
-              child: Icon(
-                Icons.qr_code_2_rounded,
+              child: QrImageView(
+                data: code,
+                version: QrVersions.auto,
                 size: 160,
-                color: _p.textPrimary,
+                backgroundColor: Colors.white,
+                eyeStyle: const QrEyeStyle(
+                  eyeShape: QrEyeShape.square,
+                  color: textDark,
+                ),
+                dataModuleStyle: const QrDataModuleStyle(
+                  dataModuleShape: QrDataModuleShape.square,
+                  color: textDark,
+                ),
               ),
             ),
             const SizedBox(height: 16),
@@ -1142,7 +1340,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: ctx.palette.tint(primaryColor, const Color(0xFFFFF0F4)),
+                  color: const Color(0xFFFFF0F4),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: primaryColor.withValues(alpha: 0.3),
@@ -1239,7 +1437,7 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildFeaturedCommunitiesHeader() {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
@@ -1247,7 +1445,7 @@ class _PeoplePageState extends State<PeoplePage> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: _p.textPrimary,
+            color: textDark,
           ),
         ),
         Text(
@@ -1295,11 +1493,11 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: _p.card,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -1312,7 +1510,7 @@ class _PeoplePageState extends State<PeoplePage> {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: _p.tint(monogramTextColor, monogramBg),
+              color: monogramBg,
             ),
             child: Center(
               child: Text(
@@ -1320,7 +1518,7 @@ class _PeoplePageState extends State<PeoplePage> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: _onTint(monogramTextColor),
+                  color: monogramTextColor,
                 ),
               ),
             ),
@@ -1328,10 +1526,10 @@ class _PeoplePageState extends State<PeoplePage> {
           const SizedBox(height: 12),
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: _p.textPrimary,
+              color: textDark,
             ),
             textAlign: TextAlign.center,
           ),
@@ -1361,12 +1559,12 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildMyCommunitiesHeader() {
-    return Text(
+    return const Text(
       'My Communities',
       style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: _p.textPrimary,
+        color: textDark,
       ),
     );
   }
@@ -1375,11 +1573,11 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: _p.card,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 10,
             offset: const Offset(0, 3),
           ),
@@ -1387,11 +1585,10 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
       child: TextField(
         controller: _searchController,
-        style: TextStyle(color: _p.textPrimary),
-        decoration: InputDecoration(
-          icon: Icon(Icons.search_rounded, color: _p.textMuted, size: 20),
+        decoration: const InputDecoration(
+          icon: Icon(Icons.search_rounded, color: textLight, size: 20),
           hintText: 'Search a community...',
-          hintStyle: TextStyle(fontSize: 13, color: _p.textMuted),
+          hintStyle: TextStyle(fontSize: 13, color: textMuted),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 14),
         ),
@@ -1412,11 +1609,11 @@ class _PeoplePageState extends State<PeoplePage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: _p.card,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
-              color: _p.pick(Colors.black.withValues(alpha: 0.02), _p.shadow),
+              color: Colors.black.withValues(alpha: 0.02),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -1429,7 +1626,7 @@ class _PeoplePageState extends State<PeoplePage> {
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: _p.tint(avatarTextColor, avatarBg),
+                color: avatarBg,
               ),
               child: Center(
                 child: Text(
@@ -1437,7 +1634,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: _onTint(avatarTextColor),
+                    color: avatarTextColor,
                   ),
                 ),
               ),
@@ -1449,10 +1646,10 @@ class _PeoplePageState extends State<PeoplePage> {
                 children: [
                   Text(
                     title,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: _p.textPrimary,
+                      color: textDark,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1462,20 +1659,20 @@ class _PeoplePageState extends State<PeoplePage> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: _p.tint(const Color(0xFF15803D), const Color(0xFFDCFCE7)),
+                      color: const Color(0xFFDCFCE7),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Row(
+                    child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check, size: 12, color: _onTint(const Color(0xFF15803D))),
-                        const SizedBox(width: 4),
+                        Icon(Icons.check, size: 12, color: Color(0xFF15803D)),
+                        SizedBox(width: 4),
                         Text(
                           'Joined',
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: _onTint(const Color(0xFF15803D)),
+                            color: Color(0xFF15803D),
                           ),
                         ),
                       ],

@@ -5,6 +5,8 @@
 /// against a newer app still runs — it just cannot perform that one effect.
 library;
 
+import 'package:flutter/material.dart';
+
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
@@ -13,9 +15,14 @@ import 'package:allomom/features/feeds/feeds_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/offline_chatbot/actions/baby_voice_action.dart';
+import 'package:allomom/features/offline_chatbot/actions/log_care_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/open_page_action.dart';
+import 'package:allomom/features/offline_chatbot/actions/open_sheet_action.dart';
+import 'package:allomom/features/offline_chatbot/actions/show_family_code_action.dart';
+import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
 import 'package:allomom/features/people/people_page.dart';
+import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
@@ -29,6 +36,7 @@ import 'package:allomom/features/settings/settings_page.dart';
 export 'package:allomom/features/offline_chatbot/actions/baby_voice_action.dart';
 export 'package:allomom/features/offline_chatbot/actions/offline_chatbot_action.dart';
 export 'package:allomom/features/offline_chatbot/actions/open_page_action.dart';
+export 'package:allomom/features/offline_chatbot/actions/open_sheet_action.dart';
 
 class OfflineChatbotActions {
   OfflineChatbotActions._();
@@ -126,6 +134,13 @@ class OfflineChatbotActions {
     builder: (_) => const PeoplePage(),
   );
 
+  static final _openCommunity = OpenPageAction(
+    name: 'open_community',
+    description: 'Opens the Community tab — other mothers\' groups and posts.',
+    label: 'Community',
+    builder: (_) => const PeoplePage(initialTab: 1),
+  );
+
   static final _openFeed = OpenPageAction(
     name: 'open_feed',
     description: 'Opens the feed.',
@@ -157,6 +172,72 @@ class OfflineChatbotActions {
   static const _enableSpeech = SetBabyVoiceAction(enable: true);
   static const _disableSpeech = SetBabyVoiceAction(enable: false);
 
+  static final _addMother = OpenSheetAction(
+    name: 'mother_add',
+    description: "Opens Add Family Member pre-set to 'Mother'.",
+    label: 'Add Mother',
+    builder: (_) =>
+        AddFamilyMemberSheet(onMemberAdded: () {}, initialRelationship: 'Mother'),
+  );
+
+  static final _addFather = OpenSheetAction(
+    name: 'father_add',
+    description: "Opens Add Family Member pre-set to 'Father'.",
+    label: 'Add Father',
+    builder: (_) =>
+        AddFamilyMemberSheet(onMemberAdded: () {}, initialRelationship: 'Father'),
+  );
+
+  static final _addBrother = OpenSheetAction(
+    name: 'brother_add',
+    description: "Opens Add Family Member pre-set to 'Brother'.",
+    label: 'Add Brother',
+    builder: (_) => AddFamilyMemberSheet(
+      onMemberAdded: () {},
+      initialRelationship: 'Brother',
+    ),
+  );
+
+  static final _addSister = OpenSheetAction(
+    name: 'sister_add',
+    description: "Opens Add Family Member pre-set to 'Sister'.",
+    label: 'Add Sister',
+    builder: (_) =>
+        AddFamilyMemberSheet(onMemberAdded: () {}, initialRelationship: 'Sister'),
+  );
+
+  static final _addRelative = OpenSheetAction(
+    name: 'relative_add',
+    description: "Opens Add Family Member pre-set to 'Relative'.",
+    label: 'Add Relative',
+    builder: (_) => AddFamilyMemberSheet(
+      onMemberAdded: () {},
+      initialRelationship: 'Relative',
+    ),
+  );
+
+  static const _showFamilyCode = ShowFamilyCodeAction();
+
+  static final _logBreakfast = LogMealAction(
+    meal: CareMeal.breakfast,
+    icon: Icons.free_breakfast_rounded,
+    color: const Color(0xffFF9800),
+  );
+
+  static final _logLunch = LogMealAction(
+    meal: CareMeal.lunch,
+    icon: Icons.lunch_dining_rounded,
+    color: const Color(0xffEF6C00),
+  );
+
+  static final _logDinner = LogMealAction(
+    meal: CareMeal.dinner,
+    icon: Icons.dinner_dining_rounded,
+    color: const Color(0xffD84315),
+  );
+
+  static const _logWater = LogWaterAction();
+
   /// Every name a flow may use, with the aliases an author is likely to reach
   /// for. Matched case-insensitively after trimming.
   static final Map<String, OfflineChatbotAction> _registry = {
@@ -174,6 +255,7 @@ class OfflineChatbotActions {
     'allocry': _openAlloCry,
     'cry': _openAlloCry,
     'cry_detection': _openAlloCry,
+    'action.tools.open_allocry': _openAlloCry,
 
     _openHealth.name: _openHealth,
     'open_health': _openHealth,
@@ -187,6 +269,7 @@ class OfflineChatbotActions {
     'scans': _openReports,
 
     _openPrescriptions.name: _openPrescriptions,
+    'open_prescription': _openPrescriptions,
     'prescriptions': _openPrescriptions,
     'medicines': _openPrescriptions,
     'medication': _openPrescriptions,
@@ -209,6 +292,9 @@ class OfflineChatbotActions {
     'pregnancy_journey': _openJourney,
     'journey': _openJourney,
     'baby_growth': _openJourney,
+    'open_pregnancy_week': _openJourney,
+    'pregnancy_week': _openJourney,
+    'action.tools.show_pregnancy_progress': _openJourney,
 
     _openFeeding.name: _openFeeding,
     'feeding_tracker': _openFeeding,
@@ -229,6 +315,11 @@ class OfflineChatbotActions {
     'my_family': _openFamily,
     'people': _openFamily,
     'contacts': _openFamily,
+
+    _openCommunity.name: _openCommunity,
+    'community': _openCommunity,
+    'communities': _openCommunity,
+    'my_community': _openCommunity,
 
     _openFeed.name: _openFeed,
     'feed': _openFeed,
@@ -258,6 +349,38 @@ class OfflineChatbotActions {
     'turn_off_speech': _disableSpeech,
     'speech_off': _disableSpeech,
     'disable_voice': _disableSpeech,
+
+    _addMother.name: _addMother,
+    'add_mother': _addMother,
+
+    _addFather.name: _addFather,
+    'add_father': _addFather,
+
+    _addBrother.name: _addBrother,
+    'add_brother': _addBrother,
+
+    _addSister.name: _addSister,
+    'add_sister': _addSister,
+
+    _addRelative.name: _addRelative,
+    'add_relative': _addRelative,
+
+    _showFamilyCode.name: _showFamilyCode,
+    'family_code': _showFamilyCode,
+    'invite_code': _showFamilyCode,
+
+    _logBreakfast.name: _logBreakfast,
+    'log_breakfast': _logBreakfast,
+
+    _logLunch.name: _logLunch,
+    'log_lunch': _logLunch,
+
+    _logDinner.name: _logDinner,
+    'log_dinner': _logDinner,
+
+    _logWater.name: _logWater,
+    'log_water': _logWater,
+    'drink_water': _logWater,
   };
 
   /// Every action name a flow may use, for the builder's reference.

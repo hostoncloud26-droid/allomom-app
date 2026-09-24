@@ -97,19 +97,29 @@ class FamilyDbService {
   }
 
   /// The family [userId] belongs to, resolved through their membership row.
+  ///
+  /// A user can end up with more than one membership row: a family made
+  /// offline via the People screen's "Create Family" (local-only — nothing
+  /// pushes it to the server) sitting alongside the real, server-known family
+  /// that `refreshFromServer` mirrors in on login. Without a deterministic
+  /// pick here, which one shows up flips on every reload. The server-confirmed
+  /// family always wins, since it is the one other devices can see too.
   Future<Family?> getMyFamily(String userId) async {
     final db = await SqLiteService().database;
-    final membership = await (db.select(db.familyMembersTable)
-          ..where((t) => t.userid.equals(userId))
-          ..limit(1))
-        .getSingleOrNull();
+    final memberships = await (db.select(db.familyMembersTable)
+          ..where((t) => t.userid.equals(userId)))
+        .get();
 
-    final familyId = membership?.familyid;
-    if (familyId != null && familyId.isNotEmpty) {
-      return getFamilyById(familyId);
+    Family? fallback;
+    for (final membership in memberships) {
+      final familyId = membership.familyid;
+      if (familyId == null || familyId.isEmpty) continue;
+      final family = await getFamilyById(familyId);
+      if (family == null) continue;
+      if (family.synced == 1) return family;
+      fallback ??= family;
     }
-
-    return null;
+    return fallback;
   }
 
   Future<void> updateFamily(FamiliesCompanion family) async {
@@ -213,24 +223,21 @@ class FamilyDbService {
     return memberUserId;
   }
 
-  /// Removes [userId] from [familyId]. The placeholder user row is soft
-  /// deleted so nothing else that references it breaks.
+  /// Removes [userId] from [familyId].
+  ///
+  /// Only the membership row goes. The `users` row is left untouched, on
+  /// purpose — matching the server's own `detach_member`: leaving a family is
+  /// not leaving the app, and `users` is one of the generically-synced
+  /// tables, so soft-deleting it here would dirty that person's whole cached
+  /// profile for the next push.
   Future<void> removeFamilyMember({
     required String familyId,
     required String userId,
   }) async {
     final db = await SqLiteService().database;
-    await db.transaction(() async {
-      await (db.delete(db.familyMembersTable)
-            ..where((t) => t.familyid.equals(familyId) & t.userid.equals(userId)))
-          .go();
-      await (db.update(db.users)..where((t) => t.id.equals(userId))).write(
-        UsersCompanion(
-          deletedAt: Value(DateTime.now()),
-          synced: const Value(0),
-        ),
-      );
-    });
+    await (db.delete(db.familyMembersTable)
+          ..where((t) => t.familyid.equals(familyId) & t.userid.equals(userId)))
+        .go();
   }
 
   /// Joins the family that owns [code]. Returns the family, or null when the
@@ -267,6 +274,12 @@ class FamilyDbService {
   }
 
   /// Leaves the current family. Returns false when the user had none.
+  ///
+  /// Mirrors the server's own `exit_family_controller`: when the leaver was
+  /// the last member — counting placeholders added from the People screen
+  /// the same way the server's `live_member_count` does — the family row
+  /// goes too, rather than sitting in SQLite as an orphan nothing ever reads
+  /// again.
   Future<bool> exitFamily(String userId) async {
     final family = await getMyFamily(userId);
     if (family == null) return false;
@@ -275,6 +288,14 @@ class FamilyDbService {
       await (db.delete(db.familyMembersTable)
             ..where((t) => t.userid.equals(userId)))
           .go();
+
+      final remaining = await (db.select(db.familyMembersTable)
+            ..where((t) => t.familyid.equals(family.id)))
+          .get();
+      if (remaining.isEmpty) {
+        await (db.delete(db.families)..where((t) => t.id.equals(family.id)))
+            .go();
+      }
     });
     return true;
   }
