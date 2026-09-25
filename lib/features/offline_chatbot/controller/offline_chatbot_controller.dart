@@ -161,6 +161,10 @@ class OfflineChatbotController extends GetxController {
 
   BotBundle? bundle;
   OfflineChatbotEngine? _engine;
+
+  /// Completes once the catalogue cached on the phone has been read (or found
+  /// missing), so readers outside the chat can wait for it on a cold start.
+  final Completer<void> _cacheLoaded = Completer<void>();
   final BotSession _session = BotSession();
   final TtsService _tts = TtsService();
 
@@ -238,6 +242,7 @@ class OfflineChatbotController extends GetxController {
   Future<void> _bootstrap() async {
     langCode.value = await AppLanguage.current();
     await _loadCached();
+    if (!_cacheLoaded.isCompleted) _cacheLoaded.complete();
     await _restoreTranscript();
 
     if (!hasBundle) {
@@ -1054,6 +1059,94 @@ class OfflineChatbotController extends GetxController {
     final words = text.trim().split(RegExp(r'\s+')).length;
     return Duration(milliseconds: (words * 180).clamp(900, 4000));
   }
+
+  /// Runs the intent filed under [key] on its own — in a fresh session, with
+  /// nothing added to the transcript and the conversation's own flow left
+  /// where it was — and returns what it says, step by step, with each step's
+  /// clip resolved the same way the chat resolves it.
+  ///
+  /// For screens outside AlloBot that speak an authored flow, like the week
+  /// on Home. Looks in her language first, then English. Empty when the
+  /// catalogue has no such intent.
+  Future<List<({String text, String? audioUrl})>> runIntentDetached(
+    String key,
+  ) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    final engine = _engine;
+    final all = bundle?.intents ?? const <BotIntent>[];
+    final trimmed = key.trim();
+    if (engine == null || trimmed.isEmpty) return const [];
+
+    final lang = langCode.value.trim().toLowerCase();
+    BotIntent? intent;
+    for (final candidate in {if (lang.isNotEmpty) lang, 'en', null}) {
+      for (final entry in all) {
+        if (entry.key != trimmed) continue;
+        if (candidate == null || entry.langCode == candidate) {
+          intent = entry;
+          break;
+        }
+      }
+      if (intent != null) break;
+    }
+    if (intent == null) return const [];
+
+    try {
+      final reply = await engine.runIntent(
+        intent,
+        session: BotSession(),
+        profile: await offlineChatbotProfile(),
+      );
+      return [
+        for (final segment in reply.segments)
+          for (final utterance in segment.utterances)
+            if (!utterance.isEmpty)
+              (
+                text: utterance.text.trim(),
+                audioUrl: _absoluteAudioUrl(utterance.audioUrl),
+              ),
+      ];
+    } catch (e) {
+      debugPrint('Chatbot: could not run "$trimmed" on its own: $e');
+      return const [];
+    }
+  }
+
+  /// The audio-library entry filed under [key] in [lang], or the English one
+  /// when that language has none. Its transcription is the line's text and its
+  /// URL the recording, so a key alone is enough to show and voice a line.
+  ///
+  /// Waits briefly for the cached catalogue on a cold start; null when the
+  /// library has no such key.
+  Future<BotAudio?> libraryAudio(String key, String lang) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    return libraryAudioNow(key, lang);
+  }
+
+  /// [libraryAudio] without waiting: whatever the catalogue in memory holds.
+  BotAudio? libraryAudioNow(String key, String lang) {
+    final audios = bundle?.audios ?? const <BotAudio>[];
+    final clean = lang.trim().toLowerCase();
+    for (final candidate in {clean, 'en'}) {
+      for (final audio in audios) {
+        if (audio.key == key && audio.langCode.toLowerCase() == candidate) {
+          return audio;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// The playable URL of [key]'s library clip in [lang], when the catalogue
+  /// has one.
+  String? libraryAudioUrl(String key, String lang) =>
+      _absoluteAudioUrl(libraryAudioNow(key, lang)?.url);
 
   /// Absolutises a clip path from the catalogue.
   ///

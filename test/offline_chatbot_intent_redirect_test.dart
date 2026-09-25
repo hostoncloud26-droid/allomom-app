@@ -480,4 +480,36 @@ void main() {
     expect(spokenLines(reply), contains('Good Mom'));
     expect(spokenLines(reply), isNot(contains('Why havent you eaten?')));
   });
+
+  test('a text_message step runs on into the redirect', () async {
+    // The catalogue has also spelled message steps `text_message`. Read as an
+    // unknown type, the greeting was treated as a question: printed, then left
+    // waiting on an answer, so the redirect after it never ran.
+    final start = BotIntent(
+      key: 'initial',
+      name: 'Start of Chat Bot',
+      type: 'flow',
+      flow: BotFlow.fromJson(const {
+        'name': 'Start of Chat Bot',
+        'steps': [
+          {'ref': 's1', 'type': 'text_message', 'question': 'Hi, Mom'},
+          {
+            'ref': 's3',
+            'type': 'intent',
+            'question': '',
+            'next_intent_ref': {'key': 'check_breakfast', 'lang_code': 'en'},
+          },
+        ],
+        'connectors': [
+          {'ref': 'c1', 'from_ref': 's1', 'to_ref': 's3', 'logic': <String, dynamic>{}},
+        ],
+      }),
+    );
+    final session = BotSession();
+
+    final reply = await engineFor([start, breakfast()])
+        .runIntent(start, session: session);
+
+    expect(spokenLines(reply), ['Hi, Mom', 'Did you eat yet?']);
+  });
 }

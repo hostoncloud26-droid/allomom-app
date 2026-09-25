@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,18 +24,6 @@ void _smallPhone(WidgetTester t) {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('the seed has Amma\'s message for every pregnancy week', () {
-    final weeks =
-        jsonDecode(File(WeeklyBabyTalk.asset).readAsStringSync())
-            as Map<String, dynamic>;
-    for (var w = 1; w <= 40; w++) {
-      final mom = (weeks['$w'] as Map)['mom'] as Map;
-      for (final lang in WeeklyBabyTalk.languages) {
-        expect(mom[lang], isA<String>(), reason: 'week $w $lang');
-      }
-    }
-  });
-
   test('completed weeks map onto the sheet', () {
     expect(WeeklyBabyTalk.pregnancyWeek(0), 1);
     expect(WeeklyBabyTalk.pregnancyWeek(6), 6);
@@ -46,8 +31,21 @@ void main() {
     expect(WeeklyBabyTalk.pregnancyWeek(42), 40);
   });
 
-  testWidgets('the week card shows the sheet message and fits', (t) async {
+  testWidgets('the week card shows what the week\'s intent says', (t) async {
     _smallPhone(t);
+    final asked = <String>[];
+    WeeklyBabyTalk.runIntent = (key) async {
+      asked.add(key);
+      return key == 'pregnancy_week_6_info'
+          ? [
+              (
+                text: 'Amma, you can see my tiny heart flickering this week!',
+                audioUrl: null,
+              ),
+            ]
+          : const [];
+    };
+    addTearDown(() => WeeklyBabyTalk.runIntent = (_) async => const []);
     await t.runAsync(() async {
       await t.pumpWidget(
         _host(
@@ -58,10 +56,10 @@ void main() {
           ),
         ),
       );
-      // The asset load and language read resolve outside the fake clock.
+      // The library lookup and language read resolve outside the fake clock.
       for (
         var i = 0;
-        i < 20 && find.textContaining('flickering').evaluate().isEmpty;
+        i < 40 && find.textContaining('flickering').evaluate().isEmpty;
         i++
       ) {
         await Future<void>.delayed(const Duration(milliseconds: 50));
@@ -69,6 +67,7 @@ void main() {
       }
     });
     expect(find.text('Week 6'), findsOneWidget);
+    expect(asked, ['pregnancy_week_6_info']);
     expect(find.textContaining('flickering'), findsOneWidget);
     expect(t.takeException(), isNull);
   });

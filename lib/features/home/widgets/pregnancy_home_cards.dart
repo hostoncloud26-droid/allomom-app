@@ -8,7 +8,6 @@ import 'package:allomom/features/overview_section/todays_care/care_catalogue.dar
 import 'package:allomom/features/overview_section/todays_care/care_custom_activity.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
 import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
-import 'package:allomom/services/app_language.dart';
 
 const _rose = Color(0xFFFF4E6A);
 const _roseDeep = Color(0xFFFF3B5C);
@@ -131,8 +130,8 @@ class _CardButton extends StatelessWidget {
 
 // ── This week ───────────────────────────────────────────────────────────────
 
-/// This week's message from the baby, from the Baby Talk sheet
-/// (see [WeeklyBabyTalk]), in her app language where the sheet has it.
+/// This week's message from the baby: what the week's AlloBot flow,
+/// `pregnancy_week_<n>_info`, says (see [WeeklyBabyTalk]).
 class PregnancyWeekCard extends StatefulWidget {
   const PregnancyWeekCard({
     super.key,
@@ -169,10 +168,10 @@ class _PregnancyWeekCardState extends State<PregnancyWeekCard> {
   }
 
   Future<void> _load() async {
-    final language = await AppLanguage.current();
-    final message = await WeeklyBabyTalk.momMessage(
+    // The week's AlloBot flow — Amma's line for her, Appa's for him, in her
+    // language — the same words the baby speaks on the card above.
+    final message = await WeeklyBabyTalk.message(
       WeeklyBabyTalk.pregnancyWeek(widget.week),
-      language,
     );
     if (!mounted) return;
     setState(() {

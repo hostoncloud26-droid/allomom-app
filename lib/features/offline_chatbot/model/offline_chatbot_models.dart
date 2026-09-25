@@ -318,7 +318,7 @@ class BotStep {
     final nextIntent = json['next_intent_ref'];
     return BotStep(
       ref: (json['ref'] ?? '').toString(),
-      type: (json['type'] ?? 'question').toString(),
+      type: normaliseType((json['type'] ?? 'question').toString()),
       question: (json['question'] ?? '').toString(),
       saveKey: json['save_key'] as String?,
       questionDataType: json['question_data_type'] as String?,
@@ -397,6 +397,17 @@ class BotStep {
       final tag = o.trim().toLowerCase();
       return tag == noHistoryOption || tag == 'no_entire_history';
     });
+  }
+
+  /// Other spellings a catalogue has used for a step type, mapped onto the
+  /// one the engine runs. A `text_message` step left unmapped was read as a
+  /// question: the flow printed it and then sat waiting for an answer, so
+  /// nothing after it — a redirect included — ever ran.
+  static const Map<String, String> typeAliases = {'text_message': 'text'};
+
+  static String normaliseType(String type) {
+    final clean = type.trim().toLowerCase();
+    return typeAliases[clean] ?? clean;
   }
 
   /// Steps that run on their own and hand straight over to the next one.

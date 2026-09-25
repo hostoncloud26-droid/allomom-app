@@ -8,7 +8,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/model/narration_audio.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/services/app_language.dart';
+import 'package:allomom/services/tts_service.dart';
 
 /// The baby's voice, played behind whatever screen the mother is on.
 ///
@@ -21,6 +24,13 @@ import 'package:allomom/services/app_language.dart';
 ///
 /// Registered permanently in `main()`, so the same player survives navigation
 /// and only ever has one clip in the air.
+///
+/// It is the app-wide voice for any key, not only the bundled ones: a key with
+/// no bundled clip is played from the AlloBot audio library
+/// (`audio.savemom.app/allomom/<lang>/<key>.mp3`), and read aloud from its text
+/// when the library has no recording either. Keys that are not in the local
+/// catalogue — the weekly baby talk, for one — hand their text over with
+/// [registerText].
 class BackgroundAudioController extends GetxController {
   static BackgroundAudioController get to => Get.find();
 
@@ -41,6 +51,17 @@ class BackgroundAudioController extends GetxController {
   /// back to a screen should not replay its greeting — but the speaker button
   /// bypasses this, so a line is never unreachable.
   final Set<String> _playedKeysThisSession = {};
+
+  /// Text for keys the local catalogue does not know, from [registerText].
+  final Map<String, String> _registeredText = {};
+
+  /// The clip a registered key should play, when its caller already knows it
+  /// — a step of an AlloBot flow, say, whose clip the engine resolved.
+  final Map<String, String> _registeredAudio = {};
+
+  /// True while a line is being voiced through [TtsService] — a library clip
+  /// or the text read aloud — rather than this controller's own player.
+  bool _speakingViaTts = false;
 
   /// Bumped on every request. A request that waited for the clip in front of
   /// it checks this before starting: if something newer came along while it
@@ -91,6 +112,9 @@ class BackgroundAudioController extends GetxController {
     );
 
     _player.onPlayerStateChanged.listen((state) {
+      // The idle player reporting "stopped" must not end a line that
+      // [TtsService] is voicing.
+      if (_speakingViaTts) return;
       isPlaying.value = state == PlayerState.playing;
     });
 
@@ -175,7 +199,26 @@ class BackgroundAudioController extends GetxController {
   /// The text the baby head card should show for [key], regardless of whether
   /// its clip is bundled or the voice is switched off.
   String textFor(String key) =>
-      NarrationCatalog.textFor(key, languageCode: languageCode.value) ?? '';
+      NarrationCatalog.textFor(key, languageCode: languageCode.value) ??
+      _registeredText[key.trim()] ??
+      '';
+
+  /// Gives a key outside the local catalogue its words, so the bubble can show
+  /// them and the line can be read aloud when no recording exists.
+  ///
+  /// [audioUrl] names the recording, when the caller already has it; without
+  /// one the key is looked up in the audio library.
+  void registerText(String key, String text, {String? audioUrl}) {
+    final trimmed = key.trim();
+    if (trimmed.isEmpty) return;
+    _registeredText[trimmed] = text.trim();
+    final url = audioUrl?.trim() ?? '';
+    if (url.isEmpty) {
+      _registeredAudio.remove(trimmed);
+    } else {
+      _registeredAudio[trimmed] = url;
+    }
+  }
 
   /// True while [key] is the line currently being spoken.
   bool isSpeaking(String key) => isPlaying.value && currentKey.value == key;
@@ -194,9 +237,10 @@ class BackgroundAudioController extends GetxController {
     };
 
     for (final path in candidates) {
-      // An empty manifest means the read failed; assume the asset is there
-      // rather than muting the whole flow over it.
-      if (_bundledAudio.isEmpty || _bundledAudio.contains(path)) {
+      // An empty manifest means the read failed; assume a catalogue key's
+      // asset is there rather than muting the whole flow over it.
+      if (_bundledAudio.contains(path) ||
+          (_bundledAudio.isEmpty && NarrationCatalog.contains(key))) {
         return NarrationAudio(key: key, asset: path, text: text);
       }
     }
@@ -263,7 +307,7 @@ class BackgroundAudioController extends GetxController {
 
     final path = clip.playerPath;
     if (path == null) {
-      debugPrint('BackgroundAudio: no clip bundled for "$trimmed"');
+      await _speakFromLibrary(trimmed, clip.text, generation);
       return;
     }
 
@@ -297,7 +341,71 @@ class BackgroundAudioController extends GetxController {
     await playByKey(key, force: true);
   }
 
+  /// Voices a key that has no bundled clip: its recording in the AlloBot
+  /// audio library, or — when there is none in her language — its text read
+  /// aloud. [TtsService] makes that choice; this keeps [isPlaying] and the
+  /// clip completer in step so the card animates and sequences still chain.
+  Future<void> _speakFromLibrary(
+    String key,
+    String text,
+    int generation,
+  ) async {
+    // The clip the library files under this key, else where the library
+    // would keep it by convention.
+    final url =
+        _registeredAudio[key] ??
+        OfflineChatbotController.instance.libraryAudioUrl(
+          key,
+          languageCode.value,
+        ) ??
+        OfflineChatbotEngine.audioUrlForKey(key, languageCode.value);
+    _completeClip();
+    final completer = Completer<void>();
+    _clipCompleter = completer;
+
+    try {
+      await _player.stop();
+    } catch (_) {}
+    if (generation != _generation) {
+      if (!completer.isCompleted) completer.complete();
+      return;
+    }
+
+    _speakingViaTts = true;
+    isPlaying.value = true;
+    try {
+      await TtsService().speakAndWait(
+        text,
+        language: languageCode.value,
+        audioUrl: url,
+        // No words to fall back on: the recording plays or nothing does.
+        recordedOnly: text.trim().isEmpty,
+      );
+    } catch (e) {
+      debugPrint('BackgroundAudio: could not voice "$key": $e');
+    } finally {
+      if (generation == _generation) {
+        _speakingViaTts = false;
+        isPlaying.value = false;
+        position.value = Duration.zero;
+      }
+      if (!completer.isCompleted) completer.complete();
+      if (identical(_clipCompleter, completer)) _clipCompleter = null;
+    }
+  }
+
+  Future<void> _stopTts() async {
+    if (!_speakingViaTts) return;
+    _speakingViaTts = false;
+    try {
+      await TtsService().stop();
+    } catch (e) {
+      debugPrint('BackgroundAudio: could not stop speech: $e');
+    }
+  }
+
   Future<void> _play(Source source) async {
+    await _stopTts();
     _completeClip();
     _clipCompleter = Completer<void>();
     try {
@@ -323,6 +431,7 @@ class BackgroundAudioController extends GetxController {
     // Anything waiting its turn behind this clip is cancelled too: an explicit
     // stop means silence, not "play the next one early".
     _generation++;
+    await _stopTts();
     try {
       await _player.stop();
     } catch (e) {

@@ -23,6 +23,7 @@ import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart' as health;
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -95,16 +96,42 @@ class _HomePageState extends State<HomePage> {
   /// Awaited line by line so the card's text keeps step with the audio, and
   /// AlloBot is held back until it finishes — two voices talking over each
   /// other on the first screen she sees is worse than a short wait.
+  /// Whether the greeting is going to play on this visit.
+  bool get _greetingWillPlay =>
+      !_homeGreetingPlayed &&
+      BackgroundAudioController.isReady &&
+      BackgroundAudioController.to.isVoiceEnabled.value;
+
+  /// This week's AlloBot flow, `pregnancy_week_<n>_info`, as keys the global
+  /// voice can play — one per step, each with its text registered for the
+  /// bubble and the clip the flow named for it (Amma's or Appa's, by who is
+  /// signed in). Empty when there is no week or the catalogue lacks the intent.
+  Future<List<String>> _weeklyInfoKeys() async {
+    final week = WeeklyBabyTalk.currentWeek();
+    if (week == null) return const [];
+    final lines = await WeeklyBabyTalk.lines(week);
+    final audio = BackgroundAudioController.to;
+    final base = WeeklyBabyTalk.intentKey(week);
+    return [
+      for (var i = 0; i < lines.length; i++)
+        () {
+          final key = '$base#$i';
+          audio.registerText(key, lines[i].text, audioUrl: lines[i].audioUrl);
+          return key;
+        }(),
+    ];
+  }
+
   Future<void> _playHomeGreeting() async {
-    if (_homeGreetingPlayed || !BackgroundAudioController.isReady) return;
-    // Muted: hand straight over to AlloBot rather than flickering the card
-    // through three lines nobody will hear.
-    if (!BackgroundAudioController.to.isVoiceEnabled.value) return;
+    if (!_greetingWillPlay) return;
     _homeGreetingPlayed = true;
 
     final flow = _flow;
+    final weeklyKeys = await _weeklyInfoKeys();
     for (final key in [
       flow.homeWelcome,
+      // The week's flow, while its card is the one on screen.
+      ...weeklyKeys,
       flow.homeFollowUp,
       // What this screen is for, said once she has been welcomed to it.
       NarrationKeys.pgHomeOpen,
@@ -113,6 +140,10 @@ class _HomePageState extends State<HomePage> {
       if (!mounted || _greetingCancelled) return;
       setState(() => _homeNarrationKey = key);
       await BackgroundAudioController.to.playByKey(key);
+      // The week has been said: now turn the page to today.
+      if (weeklyKeys.isNotEmpty && key == weeklyKeys.last) {
+        _advanceToTodayOnce(const Duration(milliseconds: 800));
+      }
     }
     if (_greetingCancelled) return;
 
@@ -139,8 +170,14 @@ class _HomePageState extends State<HomePage> {
       // where it leaves off.
       // Long enough to take in the week, short enough that today is still
       // the first thing she really reads.
-      _advanceToTodayOnce(const Duration(seconds: 8));
+      //
+      // When the baby is about to read the week out, the page waits for her
+      // instead; the greeting turns it once the week's line is done.
+      final holdForWeek = _greetingWillPlay;
+      if (!holdForWeek) _advanceToTodayOnce(const Duration(seconds: 8));
       await _playHomeGreeting();
+      // No weekly line after all, or she closed the bubble: move on anyway.
+      if (holdForWeek) _advanceToTodayOnce(const Duration(seconds: 2));
       if (!mounted) return;
       final currentUserId = MainController.instance.userId;
       if (currentUserId.isNotEmpty &&

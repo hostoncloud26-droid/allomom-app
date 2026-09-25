@@ -33,6 +33,10 @@ class TtsService {
   bool _isInitialized = false;
   bool _isPluginAvailable = true;
 
+  /// How long a recorded clip (a step's `audio_url` / `audio_key`) has to
+  /// start playing before the line is spoken by TTS instead.
+  static const Duration recordedClipTimeout = Duration(seconds: 2);
+
   bool get isSpeaking => isSpeakingNotifier.value;
   bool get isGenerating => isGeneratingNotifier.value;
   bool get isPluginAvailable => _isPluginAvailable;
@@ -178,10 +182,13 @@ class TtsService {
   /// 3. The phone's own engine, which is also where 1 and 2 land if the
   ///    server is unreachable or the clip refuses to play.
   ///
-  /// [recordedOnly] keeps voices 2 and 3 out of it: the recording plays or
-  /// nothing does. For the replies that arrive without the mother having asked
-  /// for them — the flow the page opens on — where a real voice is welcome but
-  /// a synthesised one reading the screen aloud is not.
+  /// The recording gets [recordedClipTimeout] to start; one that has not by
+  /// then is dropped and the line is spoken by 2 or 3 instead.
+  ///
+  /// [recordedOnly] keeps voices 2 and 3 out of it when there is no recording
+  /// at all: a line without a clip stays silent. For the replies that arrive
+  /// without the mother having asked for them — the flow the page opens on.
+  /// A line that does name a clip is still read aloud if the clip fails.
   Future<void> speak(
     String text, {
     VoidCallback? onComplete,
@@ -288,19 +295,20 @@ class TtsService {
     currentSpeakingText.value = text;
     isGeneratingNotifier.value = true;
 
-    // 1. The recorded clip the answer came with.
+    // 1. The recorded clip the answer came with. It gets [recordedClipTimeout]
+    // to start sounding; past that the line is read by a synthesised voice
+    // instead, so a slow or missing clip never holds the conversation up.
+    // That holds for [recordedOnly] too: the line was meant to be heard.
     if (recordedUrl.isNotEmpty) {
-      final started = await _playNetworkAudio(recordedUrl, generation, done);
+      final started = await _playNetworkAudio(
+        recordedUrl,
+        generation,
+        done,
+        startTimeout: recordedClipTimeout,
+      );
       if (started) return gate;
       if (generation != _speakGeneration) return gate;
-      debugPrint('Intent audio unplayable, falling back: $recordedUrl');
-      if (recordedOnly) {
-        isGeneratingNotifier.value = false;
-        isSpeakingNotifier.value = false;
-        currentSpeakingText.value = null;
-        done();
-        return gate;
-      }
+      debugPrint('Intent audio unplayable, falling back to TTS: $recordedUrl');
     }
 
     // 2. The online voice, only when it has been switched on and pointed
@@ -364,11 +372,17 @@ class TtsService {
   /// `setSourceUrl` + `resume` rather than `play` so a prepare failure (404,
   /// unreachable host, unsupported codec) throws here and the caller can fall
   /// back, instead of leaving the UI stuck on a clip that never sounds.
+  ///
+  /// [startTimeout] is how long the clip has, from this call, to be heard:
+  /// loading it past that throws here, and a clip loaded but still not
+  /// playing by then is handed to the device voice.
   Future<bool> _playNetworkAudio(
     String audioUrl,
     int generation,
-    VoidCallback? onComplete,
-  ) async {
+    VoidCallback? onComplete, {
+    Duration startTimeout = const Duration(seconds: 5),
+  }) async {
+    final started = Stopwatch()..start();
     try {
       await _playerCompleteSub?.cancel();
       _playerCompleteSub = _audioPlayer.onPlayerComplete.listen((_) {
@@ -387,11 +401,20 @@ class TtsService {
 
       debugPrint('TtsService streaming audio URL: $audioUrl');
 
-      await _audioPlayer.stop();
+      // release(), not stop(): handed the URL it already holds, the Android
+      // player skips preparing and reports it ready at once — even when the
+      // last attempt at that URL never finished loading. Resuming then shows
+      // "playing" while nothing sounds, and the stall check below is fooled.
+      await _audioPlayer.release();
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       await _audioPlayer.setAudioContext(_speechAudioContext);
       await _audioPlayer.setVolume(1.0);
-      await _audioPlayer.setSourceUrl(audioUrl);
+      final load = _audioPlayer.setSourceUrl(audioUrl);
+      // Past the timeout nobody awaits the load any more, but it still fails
+      // eventually (a 404 takes the player ~30s to give up on); that late
+      // error must not surface as an unhandled exception.
+      unawaited(load.catchError((_) {}));
+      await load.timeout(startTimeout - started.elapsed);
 
       if (generation != _speakGeneration) {
         await _audioPlayer.stop();
@@ -404,21 +427,40 @@ class TtsService {
       isGeneratingNotifier.value = false;
       isSpeakingNotifier.value = true;
 
-      // The clip is served off a local box, so anything that has not reached
-      // the playing state within a few seconds is stalled rather than slow.
-      // Without this the notifier would stay true forever and no voice would
-      // ever be heard.
+      // Anything not actually sounding by [startTimeout] is stalled rather
+      // than slow. The player's state is no evidence — resume() sets it to
+      // "playing" before a single sample is heard — so the check is whether
+      // the position has moved. A little grace past the deadline, so a clip
+      // that loaded just in time is not cut off before its first frame.
+      var remaining = startTimeout - started.elapsed;
+      const grace = Duration(milliseconds: 400);
+      if (remaining < grace) remaining = grace;
       unawaited(
-        Future<void>.delayed(const Duration(seconds: 5)).then((_) async {
+        Future<void>.delayed(remaining).then((_) async {
           if (generation != _speakGeneration || !_isPlayingAudioPlayer) return;
           final state = _audioPlayer.state;
-          if (state == PlayerState.playing || state == PlayerState.completed) {
+          if (state == PlayerState.completed) return;
+          Duration? position;
+          try {
+            position = await _audioPlayer.getCurrentPosition();
+          } catch (_) {}
+          if (state == PlayerState.playing &&
+              position != null &&
+              position > Duration.zero) {
             return;
           }
-          debugPrint('OmniVoice playback stalled ($state), using device TTS');
+          if (generation != _speakGeneration || !_isPlayingAudioPlayer) return;
+          debugPrint(
+            'Clip not sounding after ${started.elapsed.inMilliseconds}ms '
+            '($state, position $position), using device TTS',
+          );
           _isPlayingAudioPlayer = false;
+          // The abandoned clip may still "complete" once it gives up; that
+          // must not end the line the device voice is now reading.
+          await _playerCompleteSub?.cancel();
+          _playerCompleteSub = null;
           try {
-            await _audioPlayer.stop();
+            await _audioPlayer.release();
           } catch (_) {}
           if (generation != _speakGeneration) return;
           isSpeakingNotifier.value = false;
@@ -435,8 +477,10 @@ class TtsService {
     } catch (e) {
       debugPrint('OmniVoice playback failed: $e, falling back to flutter_tts');
       _isPlayingAudioPlayer = false;
+      await _playerCompleteSub?.cancel();
+      _playerCompleteSub = null;
       try {
-        await _audioPlayer.stop();
+        await _audioPlayer.release();
       } catch (_) {}
       return false;
     }
