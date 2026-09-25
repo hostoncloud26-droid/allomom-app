@@ -76,6 +76,12 @@ class BabyHeroBanner extends StatelessWidget {
   /// every screen's baby has Home's colours; pass false for a plain card.
   final bool showGlow;
 
+  /// How much of the card the baby takes with no bubble showing, 0..1 of what
+  /// is left once the bubble's room is kept clear. 1 keeps her exactly the
+  /// size she is beside a two-line bubble; above that she grows into the
+  /// space, still standing on the same spot.
+  final double restingBabyScale;
+
   const BabyHeroBanner({
     super.key,
     this.speechText = '',
@@ -96,6 +102,7 @@ class BabyHeroBanner extends StatelessWidget {
     this.expand = false,
     this.showBackground = true,
     this.showGlow = true,
+    this.restingBabyScale = 1.0,
   });
 
   /// Keys so layout tests can assert the bubble and the baby never overlap.
@@ -317,8 +324,10 @@ class BabyHeroBanner extends StatelessWidget {
                                   ? Align(
                                       alignment: Alignment.bottomCenter,
                                       child: SizedBox(
-                                        height: (height - _bubbleAllowance)
-                                            .clamp(0.0, height),
+                                        height:
+                                            ((height - _bubbleAllowance) *
+                                                    restingBabyScale)
+                                                .clamp(0.0, height - 26),
                                         child: _buildBaby(speaking, thinking),
                                       ),
                                     )

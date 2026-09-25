@@ -1115,6 +1115,69 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
+  /// Runs one turn of a conversation held outside the chat — in [session],
+  /// which the caller owns — and returns the whole reply: its steps, pauses,
+  /// clips and the options it ends on. Nothing is added to the transcript and
+  /// the chat's own flow is left where it was.
+  ///
+  /// With [intentKey] the intent filed under it starts (her language first,
+  /// then English; `inital`/`initial` both find the page's opening intent).
+  /// Otherwise [message] answers whatever [session] is waiting on. Null when
+  /// there is no catalogue or no such intent.
+  ///
+  /// For the AlloBaby card on Home, which runs the same opening flow as Ask
+  /// Allo and lets her answer it in place.
+  Future<BotReply?> runDetachedTurn({
+    required BotSession session,
+    String? intentKey,
+    String? message,
+  }) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    final engine = _engine;
+    if (engine == null) return null;
+    final profile = await offlineChatbotProfile();
+
+    try {
+      final key = intentKey?.trim() ?? '';
+      if (key.isEmpty) {
+        final text = message?.trim() ?? '';
+        if (text.isEmpty) return null;
+        return await engine.respond(
+          message: text,
+          session: session,
+          profile: profile,
+        );
+      }
+
+      final all = bundle?.intents ?? const <BotIntent>[];
+      final keys = {key, if (key == 'inital') 'initial'};
+      final lang = langCode.value.trim().toLowerCase();
+      BotIntent? intent;
+      for (final candidate in {if (lang.isNotEmpty) lang, 'en', null}) {
+        for (final entry in all) {
+          if (!keys.contains(entry.key)) continue;
+          if (candidate == null || entry.langCode == candidate) {
+            intent = entry;
+            break;
+          }
+        }
+        if (intent != null) break;
+      }
+      if (intent == null) return null;
+      return await engine.runIntent(intent, session: session, profile: profile);
+    } catch (e) {
+      debugPrint('Chatbot: detached turn failed: $e');
+      return null;
+    }
+  }
+
+  /// A step's clip as something the player can open: a server-relative path
+  /// gets the API host in front of it.
+  static String? resolveAudioUrl(String? url) => _absoluteAudioUrl(url);
+
   /// The audio-library entry filed under [key] in [lang], or the English one
   /// when that language has none. Its transcription is the line's text and its
   /// URL the recording, so a key alone is enough to show and voice a line.

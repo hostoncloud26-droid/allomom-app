@@ -18,6 +18,10 @@ import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
 import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/features/allobot/allobot_page.dart';
+import 'package:allomom/services/speech_activity.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
 import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart' as health;
@@ -25,9 +29,6 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
 import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -63,6 +64,10 @@ class _HomePageState extends State<HomePage> {
   /// Whether the carousel has already slid off AlloBot onto the summary.
   bool _hasAdvancedToDailySummary = false;
 
+  /// Ask Allo's opening flow, run in the AlloBaby card once the week has been
+  /// said. Static so the card keeps its last line when she comes back to Home.
+  static final AlloBabyFlowController _alloBaby = AlloBabyFlowController();
+
   /// The baby's own line while the home greeting runs, then null.
   ///
   /// The hero card is AlloBot's mouthpiece for the rest of the session, so the
@@ -83,19 +88,6 @@ class _HomePageState extends State<HomePage> {
   /// Keeps [_lastSpokenText] and the bubble in step with the player.
   final List<Worker> _audioWorkers = [];
 
-  /// Which journey's greeting to play.
-  NarrationFlow get _flow {
-    final session = MainController.instance;
-    if (session.isPregnant) return NarrationFlow.pregnant;
-    if (session.isNewMom) return NarrationFlow.newMom;
-    return NarrationFlow.prePregnancy;
-  }
-
-  /// Welcome, the line that follows it, then the first question.
-  ///
-  /// Awaited line by line so the card's text keeps step with the audio, and
-  /// AlloBot is held back until it finishes — two voices talking over each
-  /// other on the first screen she sees is worse than a short wait.
   /// Whether the greeting is going to play on this visit.
   bool get _greetingWillPlay =>
       !_homeGreetingPlayed &&
@@ -126,22 +118,19 @@ class _HomePageState extends State<HomePage> {
     if (!_greetingWillPlay) return;
     _homeGreetingPlayed = true;
 
-    final flow = _flow;
+    // Only what the AlloBot flows say, in their own recordings (or TTS when
+    // a clip will not play) — none of the bundled asset narration: the week's
+    // flow while its card is on screen, then AlloBaby's opening flow.
     final weeklyKeys = await _weeklyInfoKeys();
-    for (final key in [
-      flow.homeWelcome,
-      // The week's flow, while its card is the one on screen.
-      ...weeklyKeys,
-      flow.homeFollowUp,
-      // What this screen is for, said once she has been welcomed to it.
-      NarrationKeys.pgHomeOpen,
-      flow.homeFirstQuestion,
-    ]) {
+    for (final key in weeklyKeys) {
       if (!mounted || _greetingCancelled) return;
       setState(() => _homeNarrationKey = key);
       await BackgroundAudioController.to.playByKey(key);
-      // The week has been said: now turn the page to today.
-      if (weeklyKeys.isNotEmpty && key == weeklyKeys.last) {
+      // The week has been said: AlloBaby picks up in her own card, and the
+      // page turns to today once she has finished.
+      if (key == weeklyKeys.last) {
+        await _runAlloBabyFlow();
+        if (!mounted || _greetingCancelled) return;
         _advanceToTodayOnce(const Duration(milliseconds: 800));
       }
     }
@@ -150,9 +139,47 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _homeNarrationKey = null);
   }
 
+  /// Slides onto the AlloBaby card and runs the opening flow there, returning
+  /// once it has been said (or stopped).
+  Future<void> _runAlloBabyFlow() async {
+    if (!mounted || _guideLmp == null) return;
+    // The card carries her words from here; the week's line would otherwise
+    // linger in the bubble above it.
+    setState(() {
+      _homeNarrationKey = null;
+      _lastSpokenText = '';
+    });
+    if (_currentCarouselPage == _weekPageIndex) {
+      _animateCarouselTo(_alloBabyPageIndex);
+    }
+    await _alloBaby.start();
+  }
+
+  /// Redraws the baby card as AlloBaby starts and stops talking.
+  void _onAlloBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Whether AlloBaby's voice is sounding right now — the baby card's mouth
+  /// follows it.
+  bool get _alloBabySpeaking => _alloBaby.isRunning && TtsService().isSpeaking;
+
+  /// The docked mic was tapped to silence her: the rest of the greeting, the
+  /// AlloBaby flow and AlloBot all stand down.
+  void _onStopRequested() {
+    if (!mounted) return;
+    _greetingCancelled = true;
+    _alloBaby.stop();
+    if (_voice.isSpeaking) _voice.toggleSpeech();
+    setState(() => _homeNarrationKey = null);
+  }
+
   @override
   void initState() {
     super.initState();
+    SpeechActivity.instance.stopRequests.addListener(_onStopRequested);
+    _alloBaby.addListener(_onAlloBabyChanged);
+    TtsService().isSpeakingNotifier.addListener(_onAlloBabyChanged);
     final reopen = _weekShownThisSession && _guideLmp != null;
     _currentCarouselPage = reopen ? _todayPageIndex : 0;
     _hasAdvancedToDailySummary = reopen;
@@ -191,6 +218,11 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    SpeechActivity.instance.stopRequests.removeListener(_onStopRequested);
+    _alloBaby.removeListener(_onAlloBabyChanged);
+    TtsService().isSpeakingNotifier.removeListener(_onAlloBabyChanged);
+    // Leaving Home for another tab: the card's voice should not follow her.
+    _alloBaby.stop();
     _carouselController.dispose();
     _scrollController.removeListener(_updateDateSelectorVisibility);
     _scrollController.dispose();
@@ -261,9 +293,13 @@ class _HomePageState extends State<HomePage> {
         session.eddDate?.subtract(const Duration(days: 280));
   }
 
-  /// The carousel opens on this week, then turns to today.
+  /// The carousel opens on this week, hands over to AlloBaby, then turns to
+  /// today.
   static const _weekPageIndex = 0;
-  static const _todayPageIndex = 1;
+  static const _alloBabyPageIndex = 1;
+  // Points at AlloBaby while the Right now card is commented out; set back to
+  // 2 when it returns.
+  static const _todayPageIndex = _alloBabyPageIndex;
 
   /// Set once the week has had its moment on screen. Later visits in the same
   /// session open straight on today, which is what she comes back to check.
@@ -276,12 +312,17 @@ class _HomePageState extends State<HomePage> {
     _hasAdvancedToDailySummary = true;
     _weekShownThisSession = true;
     Future.delayed(delay, () {
-      if (!mounted || _currentCarouselPage != _weekPageIndex) return;
+      if (!mounted) return;
+      if (_currentCarouselPage != _weekPageIndex &&
+          _currentCarouselPage != _alloBabyPageIndex) {
+        return;
+      }
       _animateCarouselTo(_todayPageIndex);
     });
   }
 
   /// Brings Today's Care into view, where she can log what the card lists.
+  // ignore: unused_element — used by the Right now card, hidden for now.
   void _scrollToTodaysCare() {
     final target = _todaysCareKey.currentContext;
     if (target == null) return;
@@ -354,11 +395,14 @@ class _HomePageState extends State<HomePage> {
       _homeNarrationKey = null;
     });
     if (BackgroundAudioController.isReady) BackgroundAudioController.to.stop();
+    _alloBaby.stop();
     if (_voice.isSpeaking) _voice.toggleSpeech();
   }
 
   /// [_babyBubbleText], or nothing once she has closed that line.
   String _visibleBubbleText() {
+    // AlloBaby's words are in her own card; the baby here only talks.
+    if (_alloBaby.isRunning) return '';
     final text = _babyBubbleText();
     return text == _dismissedText ? '' : text;
   }
@@ -426,6 +470,8 @@ class _HomePageState extends State<HomePage> {
                               greetingText: "",
                               bubblePosition: SpeechBubblePosition.topCenter,
                               height: 270,
+                              restingBabyScale: 1.25,
+                              speakingOverride: _alloBabySpeaking,
                               onSpeakerTap: _homeNarrationKey != null
                                   ? null
                                   : (_voice.isVisible
@@ -444,10 +490,7 @@ class _HomePageState extends State<HomePage> {
                           // Each section says what it is the first time it is
                           // actually on screen, and never over the top of the one
                           // before it. Scrolling straight past says nothing.
-                          NarrationOnVisible(
-                            narrationKey: NarrationKeys.pgHomeSummary,
-                            child: _buildSummaryCarousel(context),
-                          ),
+                          _buildSummaryCarousel(context),
                           const SizedBox(height: 20),
 
                           // ─── QUICK ACTIONS (swipeable row of small boxes) ───
@@ -455,9 +498,8 @@ class _HomePageState extends State<HomePage> {
                           const SizedBox(height: 24),
 
                           // ─── TODAY'S CARE ───
-                          NarrationOnVisible(
+                          KeyedSubtree(
                             key: _todaysCareKey,
-                            narrationKey: NarrationKeys.pgHomeCare,
                             child: _buildTodaysCareSection(context),
                           ),
                           const SizedBox(height: 24),
@@ -513,7 +555,18 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
           ),
         ),
-        RightNowCareCard(onOpenCare: _scrollToTodaysCare),
+        AlloBabyFlowCard(
+          controller: _alloBaby,
+          onOpenChat: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AlloBotPage(autoStartListening: false),
+            ),
+          ),
+        ),
+        // Right now card hidden for now. Restore it together with
+        // `_todayPageIndex = 2` below.
+        // RightNowCareCard(onOpenCare: _scrollToTodaysCare),
       ] else
         _buildDailySummaryCard(),
     ];
@@ -529,6 +582,15 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _currentCarouselPage = index;
               });
+              // Swiped onto AlloBaby before the greeting got her there: she
+              // starts talking, unless something else is already speaking.
+              if (lmp != null &&
+                  index == _alloBabyPageIndex &&
+                  !_alloBaby.hasRun &&
+                  _homeNarrationKey == null &&
+                  !SpeechActivity.instance.isActive) {
+                _alloBaby.start();
+              }
             },
             children: pages,
           ),
