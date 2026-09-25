@@ -32,6 +32,14 @@ class OfflineChatMessage {
   /// A system note — a reset, or an error — rendered differently from a reply.
   final bool isSystem;
 
+  /// True for a line loaded back from a previous session's saved transcript.
+  ///
+  /// A message built fresh this turn is false here, which is what lets the
+  /// Chat bubble's typewriter effect tell "just said" from "read back from
+  /// last time she opened this" — a restored conversation should look exactly
+  /// as it did when she left it, not retype itself in front of her.
+  final bool restored;
+
   OfflineChatMessage({
     required this.text,
     String? id,
@@ -41,6 +49,7 @@ class OfflineChatMessage {
     List<String>? audioUrls,
     List<String>? options,
     this.isSystem = false,
+    this.restored = false,
   }) : id = id ?? const Uuid().v4(),
        timestamp = timestamp ?? DateTime.now(),
        audioUrls = audioUrls ?? const [],
@@ -69,6 +78,7 @@ class OfflineChatMessage {
         audioUrls: _stringList(json['audio_urls']),
         options: _stringList(json['options']),
         isSystem: json['is_system'] == true,
+        restored: true,
       );
 
   static List<String> _stringList(dynamic raw) {
@@ -281,7 +291,6 @@ class OfflineChatbotController extends GetxController {
       bundle: next,
       langCode: next.langCode,
       aiResolver: _resolveAi,
-      actionRunner: OfflineChatbotActions.run,
     );
   }
 
@@ -929,13 +938,6 @@ class OfflineChatbotController extends GetxController {
         }
         if (_delivery != delivery) return;
 
-        // Effects run before the words about them, which is the order the flow
-        // put them in: the page has already opened by the time "Opening your
-        // reports" appears.
-        await _runActions(segment.actions);
-        if (_delivery != delivery) return;
-        if (segment.actions.isNotEmpty) answered = true;
-
         // One message per step, not one per bubble. Two steps that ran back to
         // back are two things the baby said, and running them together into a
         // paragraph loses where one ended and the next began — a greeting and
@@ -986,6 +988,31 @@ class OfflineChatbotController extends GetxController {
         }
         for (final url in segment.imageUrls) {
           show(OfflineChatMessage(text: '', imageUrl: url));
+        }
+
+        // Effects run after the words about them, not before: a step that
+        // says "Let me take you to the community" and then navigates used to
+        // fire the navigation the instant it was scheduled — often before the
+        // line had even finished appearing.
+        //
+        // [speak] already pays this cost in the loop above — each utterance is
+        // awaited through its own playback or [_readingPause] — so the voice
+        // has finished by the time we get here. Without a voice (Chat, where
+        // every bubble types itself out — see [OfflineChatMessageBubble]'s
+        // streaming text) nothing paced the wait, so it is measured the same
+        // way the bubble times its own reveal, plus a beat so the move reads
+        // as a response to what was just said rather than something that
+        // happened to the message mid-word.
+        if (segment.actions.isNotEmpty) {
+          answered = true;
+          final combinedText = spoken.map((u) => u.text).join(' ').trim();
+          final pause = speak || combinedText.isEmpty
+              ? const Duration(seconds: 1)
+              : _textRevealPause(combinedText) + const Duration(seconds: 1);
+          await Future.delayed(pause);
+          if (_delivery != delivery) return;
+          await _runActions(segment.actions);
+          if (_delivery != delivery) return;
         }
       }
 
@@ -1059,6 +1086,16 @@ class OfflineChatbotController extends GetxController {
     final words = text.trim().split(RegExp(r'\s+')).length;
     return Duration(milliseconds: (words * 180).clamp(900, 4000));
   }
+
+  /// How long the Chat bubble's typewriter reveal takes for [text].
+  ///
+  /// Mirrors [botTextRevealDuration] in offline_chat_widgets.dart character
+  /// for character — kept as a separate constant rather than importing the
+  /// widget, since this is the one number the controller needs from a file
+  /// that otherwise belongs entirely to presentation. If that widget's pacing
+  /// changes, this needs to change with it.
+  static Duration _textRevealPause(String text) =>
+      Duration(milliseconds: (text.length * 14).clamp(250, 2200));
 
   /// Runs the intent filed under [key] on its own — in a fresh session, with
   /// nothing added to the transcript and the conversation's own flow left
@@ -1243,6 +1280,31 @@ class OfflineChatbotController extends GetxController {
         lower.startsWith('allobot is not downloaded yet');
   }
 
+  /// Drops every navigation action but the last one.
+  ///
+  /// A turn queues one action per step that ran, and the engine's `intent`
+  /// step lets several flows hand off to each other within a single turn (see
+  /// `OfflineChatbotEngine._traverse`) — each may try to open its own page.
+  /// Running all of them would push one page on top of the next, so only the
+  /// last-queued page-opener actually lands; anything queued before it is
+  /// dropped rather than silently stacking behind the one she can see.
+  List<Map<String, dynamic>> _collapseNavigationActions(
+    List<Map<String, dynamic>> actions,
+  ) {
+    bool isNavigation(Map<String, dynamic> action) {
+      final resolved = OfflineChatbotActions.find(action['name']?.toString());
+      return resolved is OpenPageAction || resolved is OpenSheetAction;
+    }
+
+    final lastNav = actions.lastIndexWhere(isNavigation);
+    if (lastNav == -1) return actions;
+
+    return [
+      for (var i = 0; i < actions.length; i++)
+        if (i == lastNav || !isNavigation(actions[i])) actions[i],
+    ];
+  }
+
   /// Performs a segment's side effects, surfacing only what went wrong.
   ///
   /// A flow says its own "done" message in a text step, so a successful action
@@ -1250,7 +1312,7 @@ class OfflineChatbotController extends GetxController {
   /// becomes a system line, because silently doing nothing would leave the
   /// flow's next message claiming something that never happened.
   Future<void> _runActions(List<Map<String, dynamic>> actions) async {
-    for (final action in actions) {
+    for (final action in _collapseNavigationActions(actions)) {
       if (action['executed'] == true) {
         final dynamic res = action['result'];
         if (res is ActionResult && !res.handled) {

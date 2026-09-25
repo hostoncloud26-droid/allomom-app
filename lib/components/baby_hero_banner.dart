@@ -189,7 +189,7 @@ class BabyHeroBanner extends StatelessWidget {
             ? null
             : BoxDecoration(
                 borderRadius: BorderRadius.circular(28),
-                color: p.pick(const Color(0xFFFFF2F5), _darkWash),
+                color: p.pick(const Color(0xFFFFF2F5), p.accentSoft),
                 border: Border.all(
                   color: p.pick(const Color(0xFFFFE2E8), p.accentBorder),
                   width: 1.2,

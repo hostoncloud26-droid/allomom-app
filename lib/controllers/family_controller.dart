@@ -479,6 +479,22 @@ class FamilyController extends GetxController {
     return null;
   }
 
+  /// Removes [userId] — another member, never the caller — from the current
+  /// family. Returns null on success, or a message.
+  Future<String?> removeMember(String userId) async {
+    final response = await FamilyApi.removeFamilyMember(userId);
+
+    if (!response.success) {
+      debugPrint('⚠️ [FamilyController] removeMember failed: ${response.detail}');
+      return response.networkError
+          ? 'No connection — removing a member needs you to be online.'
+          : response.detail;
+    }
+
+    await _mirror(response.item);
+    return null;
+  }
+
   /// Leaves the current family. Returns null on success, or a message.
   ///
   /// The local membership rows go with it, so the screens stop showing a

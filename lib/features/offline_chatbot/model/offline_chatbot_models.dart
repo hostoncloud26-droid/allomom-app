@@ -418,6 +418,7 @@ class BotStep {
         'image',
         'ai',
         'action',
+        'custom_action',
         'intent',
       ].contains(type);
 }

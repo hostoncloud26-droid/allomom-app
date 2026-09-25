@@ -9,12 +9,8 @@ library;
 
 import 'dart:convert';
 
-import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_actions.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_matching.dart';
 import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
-
-/// Runner that executes client-side actions during flow graph traversal.
-typedef ActionRunner = Future<ActionResult> Function(String? name, dynamic data);
 
 /// Templates read the caller-supplied user facts under this reserved key, e.g.
 /// {profile.due_date}.
@@ -488,7 +484,6 @@ class OfflineChatbotEngine {
     required this.bundle,
     this.langCode,
     this.aiResolver,
-    this.actionRunner,
   });
 
   final BotBundle bundle;
@@ -497,10 +492,6 @@ class OfflineChatbotEngine {
   /// Where `ai` steps get their answers. Null leaves them unanswered, which is
   /// what a build with no inference available should do.
   final AiResolver? aiResolver;
-
-  /// Executes client-side actions during flow graph traversal so their results
-  /// can populate session variables for subsequent steps.
-  final ActionRunner? actionRunner;
 
   /// Where the audio library is served from. A clip filed under a key lives at
   /// `<base>/<lang_code>/<key>.mp3` — so
@@ -752,44 +743,16 @@ class OfflineChatbotEngine {
           reply.addImage(renderTemplate(curr.imageUrl ?? '', session.data));
           break;
         case 'action':
+        case 'custom_action':
+          // Queued for the controller to run once this turn's reply has
+          // actually been shown, not run here: this step is reached while
+          // walking the graph to work out what the turn *says*, well before
+          // anything is on screen. Running a navigation action's side effect
+          // this early is what used to send the mother to another page the
+          // instant the flow was matched — before she had even seen the line
+          // introducing it.
           final payload = _actionPayload(curr, session.data);
-          final runner = actionRunner ?? OfflineChatbotActions.run;
-          Map<String, dynamic> resultData = const {};
-
-          try {
-            final res = await runner(payload['name']?.toString(), payload['data']);
-            resultData = res.data;
-            payload['executed'] = true;
-            payload['result'] = res;
-          } catch (_) {}
-
-          final savedValue = <String, dynamic>{
-            ...payload,
-            if (resultData.isNotEmpty) ...resultData,
-            if (resultData.isNotEmpty)
-              'data': {
-                if (payload['data'] is Map)
-                  ...payload['data'] as Map<String, dynamic>,
-                ...resultData,
-              },
-            'result': resultData,
-          };
-
-          _save(session, curr.saveKey, savedValue);
-          if (curr.saveKey != null && curr.saveKey!.isNotEmpty) {
-            final key = curr.saveKey!;
-            // Also support aliases (e.g. check_in <=> checkin)
-            if (key.contains('_')) {
-              _save(session, key.replaceAll('_', ''), savedValue);
-            } else if (key == 'checkin') {
-              _save(session, 'check_in', savedValue);
-            } else if (key == 'checkout') {
-              _save(session, 'check_out', savedValue);
-            }
-          }
-          if (resultData.isNotEmpty) {
-            session.data.addAll(resultData);
-          }
+          _save(session, curr.saveKey, payload);
           reply.addAction(payload);
           break;
         case 'ai':
