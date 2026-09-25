@@ -191,7 +191,7 @@ class _MyHealthPageState extends State<MyHealthPage> {
           const ReportsPage(showAppBar: false),
 
           // Tab 2: Prescriptions
-          const PrescriptionsPage(),
+          const PrescriptionsPage(showAppBar: false),
 
           // Tab 3: Profile
           const HealthProfilePage(),

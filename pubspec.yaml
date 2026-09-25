@@ -98,6 +98,7 @@ flutter:
   assets:
     - assets/animations/
     - assets/allobaby/
+    - assets/Quick Actions/
     - assets/allowear/
     # The baby's onboarding voice. One mp3 per narration keyword, per language;
     # add a `assets/audio/<code>/onboard/` line here as each language lands.

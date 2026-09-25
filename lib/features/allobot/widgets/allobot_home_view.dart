@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
@@ -187,7 +188,11 @@ class _AlloBotGeminiOrbState extends State<AlloBotGeminiOrb>
                   ),
 
               // The baby, as on the Home banner.
-              SizedBox(width: 150, height: 150, child: _buildBaby()),
+              SizedBox(
+                width: 150,
+                height: 150,
+                child: BabyOnScreen(child: _buildBaby()),
+              ),
             ],
           );
         },
@@ -195,22 +200,16 @@ class _AlloBotGeminiOrbState extends State<AlloBotGeminiOrb>
     );
   }
 
-  /// The Home banner's baby: the still, or its Lottie clip while speaking or
-  /// thinking. The square still shares the clips' framing, so the swap does
-  /// not make her jump in size.
+  /// The Home banner's baby: breathing and blinking at rest, talking while
+  /// speaking. The square still shares the clips' framing and is only the
+  /// fallback if a clip fails to decode.
   Widget _buildBaby() {
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
       fit: BoxFit.contain,
     );
-    final clip = widget.isSpeaking
-        ? BabyAnimations.speaking
-        : widget.isThinking
-        ? BabyAnimations.idle
-        : null;
-    if (clip == null) return still;
     return Image.asset(
-      clip,
+      widget.isSpeaking ? BabyAnimations.speaking : BabyAnimations.idle,
       fit: BoxFit.contain,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => still,

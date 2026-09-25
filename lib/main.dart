@@ -22,6 +22,7 @@ import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -123,6 +124,8 @@ class AllomomApp extends StatelessWidget {
       builder: (_) {
         return GetMaterialApp(
           navigatorKey: rootNavigatorKey,
+          // Lets the baby popup tell a sheet over a screen from a new screen.
+          navigatorObservers: [BabyOnScreen.observer],
           title: 'Allomom',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,
@@ -132,7 +135,15 @@ class AllomomApp extends StatelessWidget {
           // including when "System" hands the choice to the phone.
           builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
             value: ThemeController.overlayFor(Theme.of(context).brightness),
-            child: child ?? const SizedBox.shrink(),
+            // The baby's popup for screens with no baby card of their own,
+            // above the navigator so it rides over every route and sheet.
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                child ?? const SizedBox.shrink(),
+                const BabyBottomAvatar(),
+              ],
+            ),
           ),
           home: _home(),
         );

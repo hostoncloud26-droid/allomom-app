@@ -103,7 +103,9 @@ class CycleSummaryCard extends StatelessWidget {
                   alignment: Alignment.topLeft,
                   child: SizedBox(
                     width: constraints.maxWidth,
-                    child: p == null ? _buildInvite(context) : _buildTracking(context, p),
+                    child: p == null
+                        ? _buildInvite(context)
+                        : _buildTracking(context, p),
                   ),
                 ),
               ),
@@ -146,10 +148,7 @@ class CycleSummaryCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const _SectionHeader(
-          icon: Icons.water_drop_rounded,
-          text: 'MY CYCLE',
-        ),
+        const _SectionHeader(icon: Icons.water_drop_rounded, text: 'MY CYCLE'),
         const SizedBox(height: 12),
         Text(
           'Track your monthly cycle',

@@ -181,29 +181,23 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                 icon: Icon(Icons.arrow_back_ios_new_rounded, color: _pal.textPrimary, size: 20),
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
+              // The page's own header below says what it is and carries the
+              // list and add buttons, so the bar only needs to lead back.
               title: Text(
-                'Prescription Timings',
+                'Prescriptions',
                 style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: _pal.textPrimary,
                 ),
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.list_alt_rounded, color: Color(0xFFFF3B5C)),
-                  tooltip: 'All Prescriptions',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const MyPrescriptionList()),
-                    );
-                  },
-                ),
-              ],
             )
           : null,
-      body: RefreshIndicator(
+      // Keeps the header clear of the status bar when there is no app bar and
+      // no parent one to do it — a no-op under either.
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
         color: const Color(0xFFFF3B5C),
         onRefresh: _loadTimings,
         child: SingleChildScrollView(
@@ -388,6 +382,7 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

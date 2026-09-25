@@ -111,83 +111,126 @@ class _CareCountSheetState extends State<CareCountSheet> {
     final target = widget.target;
     final total = widget.loggedToday + _count;
 
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        14,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 28,
-      ),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
+    // The baby peeks over the top of the sheet, hands on the rim.
+    return BabySheetPeek(
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          14,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 44,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.palette.pick(
-                  const Color(0xFFE2E8F0),
-                  context.palette.divider,
-                ),
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
           ),
-          const SizedBox(height: 16),
-
-          // This sheet counts glasses, cups and snacks. Only water has a
-          // recorded line, so the others open without one rather than being
-          // given somebody else's.
-          if (widget.narrationKey != null) ...[
-            BabyPromptBar(
-              narrationKey: widget.narrationKey,
-              margin: EdgeInsets.zero,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: context.palette.pick(
+                    const Color(0xFFE2E8F0),
+                    context.palette.divider,
+                  ),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-          ],
 
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: widget.color.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(widget.icon, color: widget.color, size: 22),
+            // This sheet counts glasses, cups and snacks. Only water has a
+            // recorded line, so the others open without one rather than being
+            // given somebody else's.
+            if (widget.narrationKey != null) ...[
+              BabySheetPrompt(
+                narrationKey: widget.narrationKey,
+                margin: EdgeInsets.zero,
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.title,
-                      style: GoogleFonts.manrope(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: context.palette.pick(
-                          const Color(0xFF1E2024),
-                          context.palette.textPrimary,
+              const SizedBox(height: 16),
+            ],
+
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: widget.color.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(widget.icon, color: widget.color, size: 22),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.title,
+                        style: GoogleFonts.manrope(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: context.palette.pick(
+                            const Color(0xFF1E2024),
+                            context.palette.textPrimary,
+                          ),
                         ),
                       ),
-                    ),
-                    if (widget.subtitle != null) ...[
-                      const SizedBox(height: 2),
+                      if (widget.subtitle != null) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.subtitle!,
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: context.palette.pick(
+                              const Color(0xFF64748B),
+                              context.palette.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+
+            // ─── STEPPER ───
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _StepperButton(
+                  icon: Icons.remove_rounded,
+                  enabled: _count > 1,
+                  color: widget.color,
+                  onTap: () => _setCount(_count - 1),
+                ),
+                Expanded(
+                  child: Column(
+                    children: [
                       Text(
-                        widget.subtitle!,
+                        '$_count',
                         style: GoogleFonts.manrope(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
+                          fontSize: 44,
+                          fontWeight: FontWeight.w800,
+                          height: 1.05,
+                          color: widget.color,
+                        ),
+                      ),
+                      Text(
+                        _unitFor(_count),
+                        style: GoogleFonts.manrope(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
                           color: context.palette.pick(
                             const Color(0xFF64748B),
                             context.palette.textSecondary,
@@ -195,132 +238,92 @@ class _CareCountSheetState extends State<CareCountSheet> {
                         ),
                       ),
                     ],
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 22),
-
-          // ─── STEPPER ───
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _StepperButton(
-                icon: Icons.remove_rounded,
-                enabled: _count > 1,
-                color: widget.color,
-                onTap: () => _setCount(_count - 1),
-              ),
-              Expanded(
-                child: Column(
-                  children: [
-                    Text(
-                      '$_count',
-                      style: GoogleFonts.manrope(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w800,
-                        height: 1.05,
-                        color: widget.color,
-                      ),
-                    ),
-                    Text(
-                      _unitFor(_count),
-                      style: GoogleFonts.manrope(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: context.palette.pick(
-                          const Color(0xFF64748B),
-                          context.palette.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _StepperButton(
-                icon: Icons.add_rounded,
-                enabled: _count < widget.maxPerLog,
-                color: widget.color,
-                onTap: () => _setCount(_count + 1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-
-          // ─── PRESETS ───
-          if (widget.presets.isNotEmpty)
-            Row(
-              children: [
-                for (final preset in widget.presets) ...[
-                  Expanded(
-                    child: _PresetChip(
-                      label: '$preset ${_unitFor(preset)}',
-                      selected: _count == preset,
-                      color: widget.color,
-                      onTap: () => _setCount(preset),
-                    ),
                   ),
-                  if (preset != widget.presets.last) const SizedBox(width: 8),
-                ],
+                ),
+                _StepperButton(
+                  icon: Icons.add_rounded,
+                  enabled: _count < widget.maxPerLog,
+                  color: widget.color,
+                  onTap: () => _setCount(_count + 1),
+                ),
               ],
             ),
-
-          if (target != null) ...[
             const SizedBox(height: 20),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: (total / target).clamp(0.0, 1.0),
-                minHeight: 6,
-                backgroundColor: context.palette.pick(
-                  const Color(0xFFF1F5F9),
-                  context.palette.surface,
-                ),
-                valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+
+            // ─── PRESETS ───
+            if (widget.presets.isNotEmpty)
+              Row(
+                children: [
+                  for (final preset in widget.presets) ...[
+                    Expanded(
+                      child: _PresetChip(
+                        label: '$preset ${_unitFor(preset)}',
+                        selected: _count == preset,
+                        color: widget.color,
+                        onTap: () => _setCount(preset),
+                      ),
+                    ),
+                    if (preset != widget.presets.last) const SizedBox(width: 8),
+                  ],
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              total >= target
-                  ? "That hits today's goal of $target ${_unitFor(target)} 🎉"
-                  : 'Today: ${widget.loggedToday} logged · $total of $target '
-                        '${_unitFor(target)} after this',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: context.palette.pick(
-                  const Color(0xFF64748B),
-                  context.palette.textSecondary,
+
+            if (target != null) ...[
+              const SizedBox(height: 20),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (total / target).clamp(0.0, 1.0),
+                  minHeight: 6,
+                  backgroundColor: context.palette.pick(
+                    const Color(0xFFF1F5F9),
+                    context.palette.surface,
+                  ),
+                  valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                total >= target
+                    ? "That hits today's goal of $target ${_unitFor(target)} 🎉"
+                    : 'Today: ${widget.loggedToday} logged · $total of $target '
+                          '${_unitFor(target)} after this',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: context.palette.pick(
+                    const Color(0xFF64748B),
+                    context.palette.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 22),
+
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, _count),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.color,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  'Log $_count ${_unitFor(_count)}',
+                  style: GoogleFonts.manrope(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                  ),
                 ),
               ),
             ),
           ],
-          const SizedBox(height: 22),
-
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context, _count),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.color,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                'Log $_count ${_unitFor(_count)}',
-                style: GoogleFonts.manrope(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

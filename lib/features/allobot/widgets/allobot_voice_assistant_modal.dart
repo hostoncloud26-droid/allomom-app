@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import 'package:speech_to_text/speech_recognition_error.dart';
@@ -506,21 +507,23 @@ class _AlloBotVoiceAssistantModalState extends State<AlloBotVoiceAssistantModal>
             child: SizedBox(
               width: 85,
               height: 85,
-              child: Image.asset(
-                isBotTalking ? BabyAnimations.speaking : BabyAnimations.idle,
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
-                errorBuilder: (context, error, stackTrace) {
-                  return Image.asset(
-                    'assets/allobaby/AlloMombaby.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (c, e, s) => const Icon(
-                      Icons.child_care_rounded,
-                      size: 48,
-                      color: Color(0xFFFF4E6A),
-                    ),
-                  );
-                },
+              child: BabyOnScreen(
+                child: Image.asset(
+                  isBotTalking ? BabyAnimations.speaking : BabyAnimations.idle,
+                  fit: BoxFit.contain,
+                  gaplessPlayback: true,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/allobaby/AlloMombaby.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (c, e, s) => const Icon(
+                        Icons.child_care_rounded,
+                        size: 48,
+                        color: Color(0xFFFF4E6A),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ),

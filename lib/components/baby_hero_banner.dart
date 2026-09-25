@@ -3,6 +3,7 @@ import 'dart:ui' show ImageFilter;
 import 'package:flutter/material.dart';
 
 import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
@@ -27,6 +28,10 @@ class BabyHeroBanner extends StatelessWidget {
   /// Outer margin. The onboarding screens place the card inside a full-width
   /// column, so they inset it the same 20px the home page does.
   final EdgeInsetsGeometry? margin;
+
+  /// When set, a ✕ on the bubble's corner calls this — Home uses it to stop
+  /// the baby and put the bubble away until she has something new to say.
+  final VoidCallback? onClose;
 
   /// A `NarrationKeys` constant. When set, the card speaks that line as it
   /// appears, shows the line's text in the bubble in place of [speechText], and
@@ -67,6 +72,10 @@ class BabyHeroBanner extends StatelessWidget {
   /// colours (the Ask Allo orb's nebula, recoloured).
   final bool showBackground;
 
+  /// Whether the theme-coloured glow sits behind the baby. On everywhere, so
+  /// every screen's baby has Home's colours; pass false for a plain card.
+  final bool showGlow;
+
   const BabyHeroBanner({
     super.key,
     this.speechText = '',
@@ -76,6 +85,7 @@ class BabyHeroBanner extends StatelessWidget {
     this.babyHeight,
     this.onTap,
     this.onSpeakerTap,
+    this.onClose,
     this.margin,
     this.narrationKey,
     this.autoPlayNarration = true,
@@ -85,6 +95,7 @@ class BabyHeroBanner extends StatelessWidget {
     this.thinkingOverride = false,
     this.expand = false,
     this.showBackground = true,
+    this.showGlow = true,
   });
 
   /// Keys so layout tests can assert the bubble and the baby never overlap.
@@ -109,8 +120,19 @@ class BabyHeroBanner extends StatelessWidget {
   /// unchanged and only the slack above it is new.
   static const expandedBabyExtent = 140.0;
 
+  /// What a two-line bubble takes from the card: its padding, its lines, the
+  /// tail, the gap under it and the card's own top and bottom padding. The
+  /// baby keeps this much clear when there is no bubble, so she stays the same
+  /// size whether it is showing or not.
+  static const _bubbleAllowance = 18.0 + 8 + 36 + 2 * 13.5 * 1.45 + 6;
+
+  /// The card's pink wash, dimmed to a rose-tinted dark for dark mode.
+  static const _darkWash = Color(0xFF2A1D21);
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => BabyOnScreen(child: _build(context));
+
+  Widget _build(BuildContext context) {
     final key = narrationKey;
     if (key == null) {
       return _buildCard(
@@ -148,6 +170,7 @@ class BabyHeroBanner extends StatelessWidget {
     final showBubble =
         bubblePosition != SpeechBubblePosition.none && text.isNotEmpty;
     final compact = !expand && height < compactHeight && showBubble;
+    final p = context.palette;
 
     return GestureDetector(
       onTap: onTap,
@@ -209,16 +232,25 @@ class BabyHeroBanner extends StatelessWidget {
                   },
                 ),
 
-              // No card: a glow behind the baby instead, under the bubble so
-              // it never tints it. The baby takes the lower part of the card.
-              if (!showBackground)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  height: (expand ? 320.0 : height) * 0.72,
-                  child: const _ThemeNebula(),
-                ),
+              // A glow behind the baby, under the bubble so it never tints it.
+              // The baby takes the lower part of the card.
+              if (showGlow)
+                compact
+                    // Side by side: the glow sits behind the baby on the left.
+                    ? Positioned(
+                        left: 0,
+                        top: 0,
+                        bottom: 0,
+                        width: _compactBabyWidth + 40,
+                        child: const BabyThemeNebula(),
+                      )
+                    : Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: (expand ? 320.0 : height) * 0.72,
+                        child: const BabyThemeNebula(),
+                      ),
 
               // Bubble on top, baby filling whatever room is left below it.
               //
@@ -231,68 +263,93 @@ class BabyHeroBanner extends StatelessWidget {
               // height it needs, the baby scales into the remainder.
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 18, 16, 8),
-                child: Column(
-                  mainAxisAlignment: compact
-                      ? MainAxisAlignment.center
-                      : MainAxisAlignment.start,
-                  children: [
-                    if (showBubble)
-                      // Compact: Flexible hands the bubble the real content
-                      // box, so an unusually long prompt is trimmed instead of
-                      // overflowing the card. Full: capped at 55% so the baby
-                      // always keeps ~40% of the card, however long the prompt.
-                      if (compact)
-                        Flexible(
-                          child: _buildSpeechBubble(
-                            context,
-                            text,
-                            speakerTap,
-                            speaking,
-                          ),
-                        )
-                      else
-                        ConstrainedBox(
-                          // Expanding: the card has no height to take a share
-                          // of, and the bubble caps itself at four lines.
-                          constraints: BoxConstraints(
-                            maxHeight: expand ? double.infinity : height * 0.55,
-                          ),
-                          child: _buildSpeechBubble(
-                            context,
-                            text,
-                            speakerTap,
-                            speaking,
-                          ),
-                        ),
-                    if (!compact) ...[
-                      if (showBubble) const SizedBox(height: 6),
-                      Expanded(
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight:
-                                babyHeight ??
-                                (expand ? expandedBabyExtent : double.infinity),
-                          ),
-                          child: _buildBaby(speaking, thinking),
-                        ),
+                child: compact
+                    ? _buildCompactRow(
+                        context,
+                        text,
+                        speakerTap,
+                        speaking,
+                        thinking,
+                      )
+                    : Column(
+                        mainAxisAlignment: compact
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.start,
+                        children: [
+                          if (showBubble)
+                            // Compact: Flexible hands the bubble the real content
+                            // box, so an unusually long prompt is trimmed instead of
+                            // overflowing the card. Full: capped at 55% so the baby
+                            // always keeps ~40% of the card, however long the prompt.
+                            if (compact)
+                              Flexible(
+                                child: _buildSpeechBubble(
+                                  context,
+                                  text,
+                                  speakerTap,
+                                  speaking,
+                                ),
+                              )
+                            else
+                              ConstrainedBox(
+                                // Expanding: the card has no height to take a share
+                                // of, and the bubble caps itself at four lines.
+                                constraints: BoxConstraints(
+                                  maxHeight: expand
+                                      ? double.infinity
+                                      : height * 0.55,
+                                ),
+                                child: _buildSpeechBubble(
+                                  context,
+                                  text,
+                                  speakerTap,
+                                  speaking,
+                                ),
+                              ),
+                          if (!compact) ...[
+                            if (showBubble) const SizedBox(height: 6),
+                            Expanded(
+                              child:
+                                  !showBubble && !expand && babyHeight == null
+                                  // No bubble: keep her the size she is beside a
+                                  // two-line one, standing where she stood, rather
+                                  // than growing to fill the card when it closes.
+                                  ? Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: SizedBox(
+                                        height: (height - _bubbleAllowance)
+                                            .clamp(0.0, height),
+                                        child: _buildBaby(speaking, thinking),
+                                      ),
+                                    )
+                                  : ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxHeight:
+                                            babyHeight ??
+                                            (expand
+                                                ? expandedBabyExtent
+                                                : double.infinity),
+                                      ),
+                                      child: _buildBaby(speaking, thinking),
+                                    ),
+                            ),
+                          ],
+                          if (greetingText.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Text(
+                              greetingText,
+                              textAlign: TextAlign.center,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1E2024),
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
-                    ],
-                    if (greetingText.isNotEmpty) ...[
-                      const SizedBox(height: 6),
-                      Text(
-                        greetingText,
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E2024),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
               ),
             ],
           ),
@@ -301,11 +358,50 @@ class BabyHeroBanner extends StatelessWidget {
     );
   }
 
-  /// The animated baby using Lottie.
+  /// How wide the baby stands in a short card, beside her bubble.
+  double get _compactBabyWidth => ((height - 26) * 0.85).clamp(60.0, 140.0);
+
+  /// A short card — too short to stack the bubble over the baby — with the
+  /// two side by side instead, the bubble's tail pointing at her. The vitals
+  /// and nutrition screens keep their card short to leave room for the data.
+  Widget _buildCompactRow(
+    BuildContext context,
+    String text,
+    VoidCallback? speakerTap,
+    bool speaking,
+    bool thinking,
+  ) {
+    return Row(
+      // Stretch, so the baby gets the card's full height to stand in.
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: _compactBabyWidth,
+          child: _buildBaby(speaking, thinking),
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _buildSpeechBubble(
+              context,
+              text,
+              speakerTap,
+              speaking,
+              tailLeft: true,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// The animated baby.
   ///
-  /// Mouth moves only while there is sound ([BabyAnimations.speaking]).
-  /// While thinking / generating, plays the breathing and blinking clip
-  /// ([BabyAnimations.idle]).
+  /// Mouth moves only while there is sound ([BabyAnimations.speaking]);
+  /// otherwise — resting or thinking — she breathes and blinks
+  /// ([BabyAnimations.idle]). The PNG still is only a fallback for a clip that
+  /// fails to decode.
   Widget _buildBaby(bool speaking, bool thinking) {
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
@@ -323,41 +419,25 @@ class BabyHeroBanner extends StatelessWidget {
       },
     );
 
-    if (speaking) {
-      return KeyedSubtree(
-        key: babyKey,
-        child: Image.asset(
-          BabyAnimations.speaking,
-          fit: BoxFit.contain,
-          alignment: Alignment.bottomCenter,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) => still,
-        ),
-      );
-    }
-
-    if (thinking) {
-      return KeyedSubtree(
-        key: babyKey,
-        child: Image.asset(
-          BabyAnimations.idle,
-          fit: BoxFit.contain,
-          alignment: Alignment.bottomCenter,
-          gaplessPlayback: true,
-          errorBuilder: (context, error, stackTrace) => still,
-        ),
-      );
-    }
-
-    return KeyedSubtree(key: babyKey, child: still);
+    return KeyedSubtree(
+      key: babyKey,
+      child: Image.asset(
+        speaking ? BabyAnimations.speaking : BabyAnimations.idle,
+        fit: BoxFit.contain,
+        alignment: Alignment.bottomCenter,
+        gaplessPlayback: true,
+        errorBuilder: (context, error, stackTrace) => still,
+      ),
+    );
   }
 
   Widget _buildSpeechBubble(
     BuildContext context,
     String text,
     VoidCallback? speakerTap,
-    bool speaking,
-  ) {
+    bool speaking, {
+    bool tailLeft = false,
+  }) {
     final label = Text(
       text,
       textAlign: TextAlign.center,
@@ -372,21 +452,24 @@ class BabyHeroBanner extends StatelessWidget {
       ),
     );
 
-    return Container(
+    final bubble = Container(
       key: bubbleKey,
       constraints: const BoxConstraints(maxWidth: 320),
       child: CustomPaint(
         painter: _ChatBubbleTailPainter(
           color: Colors.white,
           shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
+          tailLeft: tailLeft,
         ),
         child: Container(
-          padding: EdgeInsets.fromLTRB(
-            22,
-            14,
-            speakerTap == null ? 22 : 12,
-            22,
-          ),
+          padding: tailLeft
+              ? EdgeInsets.fromLTRB(
+                  _ChatBubbleTailPainter.sideTail + 14,
+                  12,
+                  speakerTap == null ? 14 : 10,
+                  12,
+                )
+              : EdgeInsets.fromLTRB(22, 14, speakerTap == null ? 22 : 12, 22),
           child: speakerTap == null
               ? label
               : Row(
@@ -400,6 +483,68 @@ class BabyHeroBanner extends StatelessWidget {
                     ),
                   ],
                 ),
+        ),
+      ),
+    );
+
+    final close = onClose;
+    if (close == null) return bubble;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        bubble,
+        Positioned(
+          top: -10,
+          right: -8,
+          child: BabyBubbleCloseButton(onTap: close),
+        ),
+      ],
+    );
+  }
+}
+
+/// The small round ✕ on a speech bubble's corner — the Home card's and the
+/// bottom popup's.
+class BabyBubbleCloseButton extends StatelessWidget {
+  const BabyBubbleCloseButton({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Semantics(
+      button: true,
+      label: 'Close',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        // A bigger target than the 26px disc, so it is easy to hit.
+        child: Padding(
+          padding: const EdgeInsets.all(4),
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: BoxDecoration(
+              color: p.pick(Colors.white, p.surface),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: p.pick(const Color(0xFFFFE2E8), p.border),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.15),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(
+              Icons.close_rounded,
+              size: 16,
+              color: p.pick(const Color(0xFF5B5F6B), p.textSecondary),
+            ),
+          ),
         ),
       ),
     );
@@ -453,7 +598,18 @@ class _ChatBubbleTailPainter extends CustomPainter {
   final Color color;
   final Color shadowColor;
 
-  _ChatBubbleTailPainter({required this.color, required this.shadowColor});
+  /// Tail on the left edge, pointing at a baby beside the bubble, instead of
+  /// down at one below it.
+  final bool tailLeft;
+
+  _ChatBubbleTailPainter({
+    required this.color,
+    required this.shadowColor,
+    this.tailLeft = false,
+  });
+
+  /// How far a side tail reaches out from the bubble.
+  static const double sideTail = 8.0;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -461,23 +617,42 @@ class _ChatBubbleTailPainter extends CustomPainter {
     const double tailWidth = 16.0;
     const double tailHeight = 8.0;
 
-    final Path path = Path();
-    final bubbleRect = Rect.fromLTWH(
-      0,
-      0,
-      size.width,
-      size.height - tailHeight,
-    );
-    path.addRRect(
-      RRect.fromRectAndRadius(bubbleRect, const Radius.circular(radius)),
-    );
+    final Path path;
+    if (tailLeft) {
+      final body = Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(sideTail, 0, size.width - sideTail, size.height),
+            const Radius.circular(20),
+          ),
+        );
+      // Overlaps the body and is unioned in, so there is no seam at the join.
+      final y = size.height / 2;
+      final tail = Path()
+        ..moveTo(sideTail + 2, y - 8)
+        ..lineTo(0, y)
+        ..lineTo(sideTail + 2, y + 8)
+        ..close();
+      path = Path.combine(PathOperation.union, body, tail);
+    } else {
+      path = Path();
+      final bubbleRect = Rect.fromLTWH(
+        0,
+        0,
+        size.width,
+        size.height - tailHeight,
+      );
+      path.addRRect(
+        RRect.fromRectAndRadius(bubbleRect, const Radius.circular(radius)),
+      );
 
-    // Tail pointing downwards in the center
-    final centerX = size.width / 2;
-    path.moveTo(centerX - tailWidth / 2, size.height - tailHeight);
-    path.lineTo(centerX, size.height);
-    path.lineTo(centerX + tailWidth / 2, size.height - tailHeight);
-    path.close();
+      // Tail pointing downwards in the center
+      final centerX = size.width / 2;
+      path.moveTo(centerX - tailWidth / 2, size.height - tailHeight);
+      path.lineTo(centerX, size.height);
+      path.lineTo(centerX + tailWidth / 2, size.height - tailHeight);
+      path.close();
+    }
 
     // Draw shadow
     canvas.drawShadow(path, shadowColor, 8.0, true);
@@ -490,7 +665,8 @@ class _ChatBubbleTailPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _ChatBubbleTailPainter oldDelegate) =>
+      oldDelegate.tailLeft != tailLeft;
 }
 
 /// Slim version of [BabyHeroBanner] for when the keyboard is open.
@@ -528,7 +704,9 @@ class BabyPromptBar extends StatelessWidget {
   static const barKey = Key('babyPromptBar');
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => BabyOnScreen(child: _build());
+
+  Widget _build() {
     final key = narrationKey;
     if (key == null) return _buildBar(text, onSpeakerTap, speakingOverride);
 
@@ -563,21 +741,18 @@ class BabyPromptBar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            child: speaking
-                // Zoomed onto the face: the clip is the full-body frame, and
-                // at this size only the face reads.
-                ? Transform.scale(
-                    scale: 2.0,
-                    alignment: const Alignment(0, -0.3),
-                    child: Image.asset(
-                      BabyAnimations.speaking,
-                      fit: BoxFit.cover,
-                      gaplessPlayback: true,
-                      errorBuilder: (context, error, stackTrace) =>
-                          _stillBabyHead(),
-                    ),
-                  )
-                : _stillBabyHead(),
+            // Zoomed onto the face: the clips are the full-body frame, and
+            // at this size only the face reads.
+            child: Transform.scale(
+              scale: 2.0,
+              alignment: const Alignment(0, -0.3),
+              child: Image.asset(
+                speaking ? BabyAnimations.speaking : BabyAnimations.idle,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                errorBuilder: (context, error, stackTrace) => _stillBabyHead(),
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -703,11 +878,11 @@ class BabyPrompt extends StatelessWidget {
   }
 }
 
-/// The glow behind the baby when it has no card: four discs in the theme's
+/// The glow behind the baby: four discs in the theme's
 /// pinks, blurred until they read as one wash — the Ask Allo orb's nebula in
 /// Allomom's own colours.
-class _ThemeNebula extends StatelessWidget {
-  const _ThemeNebula();
+class BabyThemeNebula extends StatelessWidget {
+  const BabyThemeNebula({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -782,6 +957,174 @@ class _ThemeNebula extends StatelessWidget {
           shape: BoxShape.circle,
           color: color.withValues(alpha: opacity),
         ),
+      ),
+    );
+  }
+}
+
+/// The baby peeking over the top edge of a bottom sheet, hands on the rim,
+/// as in the AlloMom designs' Log Food sheet.
+///
+/// Wraps the sheet's own container: the sheet keeps its shape, and the baby
+/// sits above it with the edge running under her chin. The sheet must be shown
+/// on a transparent background (`showModalBottomSheet(backgroundColor:
+/// Colors.transparent)`, as every sheet here already is) so the head shows
+/// over the scrim rather than inside a white slab.
+class BabySheetPeek extends StatelessWidget {
+  const BabySheetPeek({super.key, required this.child, this.babyWidth = 120});
+
+  final Widget child;
+  final double babyWidth;
+
+  static const asset = 'assets/allobaby/bottomsheetbaby.png';
+  static const babyKey = Key('babySheetPeekBaby');
+
+  // The drawing inside the 2400 × 1200 canvas, measured from its alpha.
+  static const _contentWidth = 910 / 2400;
+  static const _contentHeight = 726 / 1200;
+  static const _contentAspect = 910 / 726;
+
+  /// Where the sheet's edge meets her: just under the chin, so the hands rest
+  /// on the rim.
+  static const _edgeAt = 0.88;
+
+  double get _babyHeight => babyWidth / _contentAspect;
+
+  @override
+  Widget build(BuildContext context) {
+    final above = _babyHeight * _edgeAt;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Padding(padding: EdgeInsets.only(top: above), child: child),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: IgnorePointer(
+            child: Center(
+              child: SizedBox(
+                key: babyKey,
+                width: babyWidth,
+                height: _babyHeight,
+                // The canvas has a wide transparent margin; clip to the
+                // drawing so the size above is the baby's, not the margin's.
+                child: ClipRect(
+                  child: OverflowBox(
+                    maxWidth: babyWidth / _contentWidth,
+                    maxHeight: _babyHeight / _contentHeight,
+                    alignment: const Alignment(-0.0164, -0.422),
+                    child: Image.asset(
+                      asset,
+                      fit: BoxFit.fill,
+                      errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The baby's line inside a bottom sheet: a soft pink box with a heart, her
+/// words and the speaker — the sheet-sized partner of [BabySheetPeek].
+///
+/// Takes the same narration as [BabyPromptBar], which it replaces in sheets:
+/// the line plays when the sheet opens and the speaker replays or stops it.
+class BabySheetPrompt extends StatelessWidget {
+  const BabySheetPrompt({
+    super.key,
+    this.text = '',
+    this.narrationKey,
+    this.onSpeakerTap,
+    this.margin = EdgeInsets.zero,
+  });
+
+  final String text;
+  final String? narrationKey;
+  final VoidCallback? onSpeakerTap;
+  final EdgeInsetsGeometry margin;
+
+  static const promptKey = Key('babySheetPrompt');
+
+  @override
+  Widget build(BuildContext context) {
+    final key = narrationKey;
+    final Widget body = key == null
+        ? _build(context, text, onSpeakerTap, false)
+        : BabyNarration(
+            narrationKey: key,
+            fallbackText: text,
+            builder: (context, state) => _build(
+              context,
+              state.text,
+              state.onSpeakerTap,
+              state.speaking,
+            ),
+          );
+    return BabyOnScreen(child: body);
+  }
+
+  Widget _build(
+    BuildContext context,
+    String label,
+    VoidCallback? speakerTap,
+    bool speaking,
+  ) {
+    final p = context.palette;
+    const rose = Color(0xFFFF4E6A);
+    return Container(
+      key: promptKey,
+      margin: margin,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: p.pick(const Color(0xFFFFF1F4), rose.withValues(alpha: 0.12)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: p.pick(const Color(0xFFFFD3DC), rose.withValues(alpha: 0.35)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: p.pick(Colors.white, p.card),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: rose.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(Icons.favorite_rounded, color: rose, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label.replaceAll('\n', ' '),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w500,
+                color: p.pick(const Color(0xFF2D3142), p.textPrimary),
+                height: 1.4,
+              ),
+            ),
+          ),
+          if (speakerTap != null) ...[
+            const SizedBox(width: 10),
+            NarrationSpeakerButton(onTap: speakerTap, speaking: speaking),
+          ],
+        ],
       ),
     );
   }
