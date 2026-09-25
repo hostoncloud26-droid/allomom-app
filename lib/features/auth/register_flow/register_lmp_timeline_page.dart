@@ -41,7 +41,7 @@ class RegisterLmpTimelinePage extends StatelessWidget {
   }
 }
 
-class RegisterLmpStepView extends StatefulWidget {
+class RegisterLmpStepView extends StatelessWidget {
   final DateTime selectedDate;
   final ValueChanged<DateTime> onDateChanged;
   final VoidCallback onCalculate;
@@ -57,14 +57,9 @@ class RegisterLmpStepView extends StatefulWidget {
     this.status = 'Pregnant',
   });
 
-  @override
-  State<RegisterLmpStepView> createState() => _RegisterLmpStepViewState();
-}
-
-class _RegisterLmpStepViewState extends State<RegisterLmpStepView> {
   bool get _isPregnant {
-    if (widget.isPregnancyFlow) return true;
-    final s = widget.status.toLowerCase().trim();
+    if (isPregnancyFlow) return true;
+    final s = status.toLowerCase().trim();
     return s.contains('pregnan') && !s.startsWith('pre');
   }
 
@@ -77,8 +72,8 @@ class _RegisterLmpStepViewState extends State<RegisterLmpStepView> {
           child: SingleChildScrollView(
             physics: const ClampingScrollPhysics(),
             child: LmpWheelPicker(
-              selectedDate: widget.selectedDate,
-              onDateChanged: widget.onDateChanged,
+              selectedDate: selectedDate,
+              onDateChanged: onDateChanged,
               isPregnant: _isPregnant,
             ),
           ),
@@ -91,7 +86,7 @@ class _RegisterLmpStepViewState extends State<RegisterLmpStepView> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: widget.onCalculate,
+            onPressed: onCalculate,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF5277),
               shape: RoundedRectangleBorder(
@@ -103,7 +98,7 @@ class _RegisterLmpStepViewState extends State<RegisterLmpStepView> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  widget.isPregnancyFlow ? 'Calculate Due Date' : 'Calculate My Cycle',
+                  isPregnancyFlow ? 'Calculate Due Date' : 'Calculate My Cycle',
                   style: GoogleFonts.poppins(
                     fontSize: 15.5,
                     fontWeight: FontWeight.w600,

@@ -46,7 +46,7 @@ class RegisterPartnerDetailsPage extends StatelessWidget {
   }
 }
 
-class RegisterPartnerStepView extends StatelessWidget {
+class RegisterPartnerStepView extends StatefulWidget {
   final TextEditingController partnerNameController;
   final TextEditingController partnerPhoneController;
   final String partnerWord;
@@ -67,7 +67,56 @@ class RegisterPartnerStepView extends StatelessWidget {
   });
 
   @override
+  State<RegisterPartnerStepView> createState() => _RegisterPartnerStepViewState();
+}
+
+class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
+  @override
+  void initState() {
+    super.initState();
+    widget.partnerNameController.addListener(_onTextChanged);
+    widget.partnerPhoneController.addListener(_onTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant RegisterPartnerStepView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.partnerNameController != widget.partnerNameController) {
+      oldWidget.partnerNameController.removeListener(_onTextChanged);
+      widget.partnerNameController.addListener(_onTextChanged);
+    }
+    if (oldWidget.partnerPhoneController != widget.partnerPhoneController) {
+      oldWidget.partnerPhoneController.removeListener(_onTextChanged);
+      widget.partnerPhoneController.addListener(_onTextChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.partnerNameController.removeListener(_onTextChanged);
+    widget.partnerPhoneController.removeListener(_onTextChanged);
+    super.dispose();
+  }
+
+  void _onTextChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _isValid {
+    final name = widget.partnerNameController.text.trim();
+    final phone = widget.partnerPhoneController.text.trim();
+    return name.isNotEmpty && phone.length == 10;
+  }
+
+  bool get _hasAnyInput {
+    return widget.partnerNameController.text.trim().isNotEmpty ||
+        widget.partnerPhoneController.text.trim().isNotEmpty;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final isValid = _isValid;
+    final hasAnyInput = _hasAnyInput;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -79,7 +128,7 @@ class RegisterPartnerStepView extends StatelessWidget {
               children: [
                 // Name field
                 Text(
-                  "$partnerWord's Name (Optional)",
+                  "${widget.partnerWord}'s Name",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -104,14 +153,14 @@ class RegisterPartnerStepView extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
-                          controller: partnerNameController,
+                          controller: widget.partnerNameController,
                           style: GoogleFonts.poppins(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: const Color(0xFF1E2024),
                           ),
                           decoration: InputDecoration(
-                            hintText: "Enter $partnerWord's Name",
+                            hintText: "Enter ${widget.partnerWord}'s Name",
                             hintStyle: GoogleFonts.poppins(
                               color: const Color(0xFF9CA3AF),
                               fontSize: 13.5,
@@ -129,7 +178,7 @@ class RegisterPartnerStepView extends StatelessWidget {
 
                 // Phone field
                 Text(
-                  "$partnerWord's Phone Number (Optional)",
+                  "${widget.partnerWord}'s Phone Number",
                   style: GoogleFonts.poppins(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -154,7 +203,7 @@ class RegisterPartnerStepView extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: TextField(
-                          controller: partnerPhoneController,
+                          controller: widget.partnerPhoneController,
                           keyboardType: TextInputType.phone,
                           inputFormatters: [
                             FilteringTextInputFormatter.digitsOnly,
@@ -185,13 +234,15 @@ class RegisterPartnerStepView extends StatelessWidget {
                 // Skip Button inside scrollable
                 Center(
                   child: TextButton(
-                    onPressed: onSkip,
+                    onPressed: widget.onSkip,
                     child: Text(
                       'Skip for now',
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: const Color(0xFF8E95A5),
+                        color: hasAnyInput
+                            ? const Color(0xFF9CA3AF)
+                            : const Color(0xFFFF4E6A),
                       ),
                     ),
                   ),
@@ -208,9 +259,10 @@ class RegisterPartnerStepView extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: onSave,
+            onPressed: isValid ? widget.onSave : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF5277),
+              disabledBackgroundColor: const Color(0xFFE5E7EB),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
@@ -227,14 +279,14 @@ class RegisterPartnerStepView extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 15.5,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: isValid ? Colors.white : const Color(0xFF9CA3AF),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                const Icon(
+                Icon(
                   Icons.arrow_forward_rounded,
-                  color: Colors.white,
+                  color: isValid ? Colors.white : const Color(0xFF9CA3AF),
                   size: 20,
                 ),
               ],

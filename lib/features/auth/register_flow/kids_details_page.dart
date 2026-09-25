@@ -56,14 +56,20 @@ class KidsDetailsPage extends StatelessWidget {
 class KidsDetailsStepView extends StatelessWidget {
   final List<Baby> children;
   final VoidCallback onAddChild;
+  final void Function(Baby baby)? onDeleteChild;
+  final String? deletingChildId;
   final bool isLoading;
+  final bool isNewMom;
   final VoidCallback onComplete;
 
   const KidsDetailsStepView({
     super.key,
     required this.children,
     required this.onAddChild,
+    this.onDeleteChild,
+    this.deletingChildId,
     required this.isLoading,
+    this.isNewMom = false,
     required this.onComplete,
   });
 
@@ -71,6 +77,8 @@ class KidsDetailsStepView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isRequirementMet = !isNewMom || children.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -170,38 +178,91 @@ class KidsDetailsStepView extends StatelessWidget {
                       separatorBuilder: (_, __) => const SizedBox(width: 10),
                       itemBuilder: (context, index) {
                         final child = children[index];
-                        return Container(
-                          width: 150,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFF0F3),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: const Color(0xFFFFD1DC)),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                child.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.poppins(
-                                  fontSize: 13.5,
-                                  fontWeight: FontWeight.bold,
-                                  color: const Color(0xFF1E2024),
+                        final isDeleting = deletingChildId == child.id;
+                        return Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Container(
+                              width: 160,
+                              padding: const EdgeInsets.fromLTRB(12, 10, 26, 10),
+                              decoration: BoxDecoration(
+                                color: isDeleting
+                                    ? const Color(0xFFF3F4F6)
+                                    : const Color(0xFFFFF0F3),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: isDeleting
+                                      ? const Color(0xFFE5E7EB)
+                                      : const Color(0xFFFFD1DC),
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _dateFmt.format(child.deliveryDate),
-                                style: GoogleFonts.poppins(
-                                  fontSize: 11,
-                                  color: const Color(0xFF6B7280),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    child.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDeleting
+                                          ? const Color(0xFF9CA3AF)
+                                          : const Color(0xFF1E2024),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _dateFmt.format(child.deliveryDate),
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 11,
+                                      color: isDeleting
+                                          ? const Color(0xFF9CA3AF)
+                                          : const Color(0xFF6B7280),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (onDeleteChild != null)
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: InkWell(
+                                  onTap: isDeleting ? null : () => onDeleteChild!(child),
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      shape: BoxShape.circle,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.08),
+                                          blurRadius: 4,
+                                          offset: const Offset(0, 1),
+                                        ),
+                                      ],
+                                    ),
+                                    child: isDeleting
+                                        ? const SizedBox(
+                                            width: 13,
+                                            height: 13,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFFFF4E6A),
+                                            ),
+                                          )
+                                        : const Icon(
+                                            Icons.close_rounded,
+                                            size: 13,
+                                            color: Color(0xFFFF4E6A),
+                                          ),
+                                  ),
                                 ),
                               ),
-                            ],
-                          ),
+                          ],
                         );
                       },
                     ),
@@ -218,9 +279,13 @@ class KidsDetailsStepView extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: isLoading ? null : onComplete,
+            onPressed: isLoading
+                ? null
+                : (isRequirementMet ? onComplete : onAddChild),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5277),
+              backgroundColor: isRequirementMet
+                  ? const Color(0xFFFF5277)
+                  : const Color(0xFFE5E7EB),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
@@ -236,11 +301,15 @@ class KidsDetailsStepView extends StatelessWidget {
                     ),
                   )
                 : Text(
-                    'Complete Setup',
+                    isRequirementMet
+                        ? 'Complete Setup'
+                        : 'Add at least 1 Child to Continue',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: isRequirementMet
+                          ? Colors.white
+                          : const Color(0xFF9CA3AF),
                     ),
                   ),
           ),

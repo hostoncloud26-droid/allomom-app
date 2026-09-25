@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:allomom/services/auth/secure_token_store.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/services/sync/sync_service.dart';
 
@@ -35,6 +36,10 @@ class HealthVitalSyncService {
 
   /// Pushes queued vitals — new readings and deletions — now.
   Future<void> syncUnsyncedVitals() async {
+    if (!SecureTokenStore.instance.hasSession) {
+      debugPrint('HealthVitalSyncService: skipping sync, no active session');
+      return;
+    }
     try {
       await SyncService.instance.syncModule('vitals');
     } catch (e) {

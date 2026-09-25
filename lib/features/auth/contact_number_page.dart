@@ -45,6 +45,7 @@ class ContactNumberStepView extends StatelessWidget {
       children: [
         Expanded(
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
