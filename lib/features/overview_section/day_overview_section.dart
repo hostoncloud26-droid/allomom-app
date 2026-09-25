@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 import 'package:allomom/features/overview_section/nutrition/nutrition_overview_section.dart';
 import 'package:allomom/features/overview_section/vitals/vitals_overview_section.dart';
 
@@ -31,17 +29,10 @@ class DayOverviewSection extends StatelessWidget {
         children: [
           _buildForTodayCard(context),
           const SizedBox(height: 24),
-          // The lines belong to the sections, so the baby says the same thing
-          // about them wherever they appear, once.
-          NarrationOnVisible(
-            narrationKey: NarrationKeys.pgHomeVitals,
-            child: VitalsOverviewSection(date: _day),
-          ),
+          // No narration here: these two sections stay silent.
+          VitalsOverviewSection(date: _day),
           const SizedBox(height: 24),
-          NarrationOnVisible(
-            narrationKey: NarrationKeys.pgNutritionOpen,
-            child: NutritionOverviewSection(date: _day),
-          ),
+          NutritionOverviewSection(date: _day),
         ],
       ),
     );

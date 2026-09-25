@@ -136,6 +136,11 @@ class NarrationKeys {
   static const pgJourneyComplete = 'pg_journey_complete';
   static const pgJourneyDelete = 'pg_journey_delete';
 
+  // ─── Welcome your baby (completing the pregnancy), one per step ───
+  static const pgBirthDate = 'pg_birth_date';
+  static const pgBirthDetails = 'pg_birth_details';
+  static const pgBirthPhoto = 'pg_birth_photo';
+
   // ─── Care schedules ───
   static const pgAncOpen = 'pg_anc_open';
   static const pgAncEmpty = 'pg_anc_empty';

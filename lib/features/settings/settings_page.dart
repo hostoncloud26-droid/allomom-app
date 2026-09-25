@@ -4,6 +4,7 @@ import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
+import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
 import 'package:allomom/features/people/people_page.dart';
@@ -227,6 +228,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     title: 'Log out',
                     isLogout: true,
                     onTap: () => _showLogoutConfirmation(context),
+                  ),
+                  _buildItemDivider(),
+
+                  // 14. Delete account
+                  _buildListTile(
+                    icon: Icons.delete_forever_rounded,
+                    title: 'Delete account',
+                    subtitle: 'Permanently remove your account and data',
+                    isLogout: true,
+                    onTap: () => _showDeleteAccountConfirmation(context),
                   ),
 
                   const SizedBox(height: 100),
@@ -957,5 +968,179 @@ class _SettingsPageState extends State<SettingsPage> {
         ],
       ),
     );
+  }
+
+  /// Deleting is for good, so she types DELETE before the button wakes up —
+  /// a tap alone is too easy to make by accident on a row next to Log out.
+  void _showDeleteAccountConfirmation(BuildContext context) {
+    final confirm = TextEditingController();
+    var deleting = false;
+    String? error;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          final armed = confirm.text.trim().toUpperCase() == 'DELETE';
+
+          Future<void> delete() async {
+            setDialogState(() {
+              deleting = true;
+              error = null;
+            });
+            final failure = await AuthController.instance.deleteAccount();
+            if (failure != null) {
+              if (ctx.mounted) {
+                setDialogState(() {
+                  deleting = false;
+                  error = failure;
+                });
+              }
+              return;
+            }
+            if (ctx.mounted) Navigator.pop(ctx);
+            if (!context.mounted) return;
+            // Back to where a fresh install starts: the phone no longer
+            // remembers her language either.
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const LanguageSelectionPage()),
+              (route) => false,
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Your account has been deleted.')),
+            );
+          }
+
+          return AlertDialog(
+            backgroundColor: _cardTheme,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+            title: Text(
+              'Delete your account?',
+              style: TextStyle(fontWeight: FontWeight.bold, color: _textDark),
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'This permanently deletes your AlloMom account. It cannot '
+                    'be undone.',
+                    style: TextStyle(fontSize: 13, color: _textSecondary),
+                  ),
+                  const SizedBox(height: 10),
+                  for (final line in const [
+                    'Your profile and personal details',
+                    'Your pregnancy and baby records',
+                    'Your place in your family, on every device',
+                    'Your sign-in on every device',
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(top: 2),
+                            child: Icon(
+                              Icons.remove_circle_outline_rounded,
+                              size: 14,
+                              color: _logoutRed,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              line,
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: _textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Reports saved to your Google Drive stay in your Drive.',
+                    style: TextStyle(fontSize: 12, color: _textMuted),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(
+                    'Type DELETE to confirm',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: _textDark,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: confirm,
+                    enabled: !deleting,
+                    autocorrect: false,
+                    textCapitalization: TextCapitalization.characters,
+                    onChanged: (_) => setDialogState(() {}),
+                    style: TextStyle(color: _textDark),
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'DELETE',
+                      hintStyle: TextStyle(color: _textMuted),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  if (error != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      error!,
+                      style: const TextStyle(fontSize: 12, color: _logoutRed),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: deleting ? null : () => Navigator.pop(ctx),
+                child: Text('Cancel', style: TextStyle(color: _textMuted)),
+              ),
+              ElevatedButton(
+                onPressed: armed && !deleting ? delete : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _logoutRed,
+                  disabledBackgroundColor: _logoutRed.withValues(alpha: 0.35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 0,
+                ),
+                child: deleting
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Delete',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ],
+          );
+        },
+      ),
+    ).whenComplete(confirm.dispose);
   }
 }

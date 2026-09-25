@@ -14,6 +14,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:allomom/features/overview_section/todays_care/care_catalogue.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/vitals_controller.dart';
@@ -83,6 +84,7 @@ class AlloBotContextLoader {
       part: part,
       isPregnant: isPregnant,
       pregnancyDay: session.currentPregnancyDay,
+      babyAgeDays: WeeklyBabyTalk.babyAgeDays(),
     );
 
     final todayTotals = await _todayTotals(userId, careItems);
@@ -145,7 +147,9 @@ class AlloBotContextLoader {
   static Future<List<AncVisitContext>> _ancVisits(String? pregnancyId) async {
     if (pregnancyId == null || pregnancyId.isEmpty) return const [];
     try {
-      final rows = await PregnancyCareDbService.instance.getAncVisits(pregnancyId);
+      final rows = await PregnancyCareDbService.instance.getAncVisits(
+        pregnancyId,
+      );
       return rows
           .map(
             (row) => AncVisitContext(
@@ -171,8 +175,9 @@ class AlloBotContextLoader {
   ) async {
     if (userId.isEmpty) return const [];
     try {
-      final rows = await PregnancyCareDbService.instance
-          .getVaccinations(pregnancyId ?? '');
+      final rows = await PregnancyCareDbService.instance.getVaccinations(
+        pregnancyId ?? '',
+      );
       return rows
           .map(
             (row) => VaccineContext(
@@ -197,8 +202,9 @@ class AlloBotContextLoader {
   ) async {
     if (userId.isEmpty) return const [];
     try {
-      final rows = await PregnancyCareDbService.instance
-          .getReportChecklists(pregnancyId ?? '');
+      final rows = await PregnancyCareDbService.instance.getReportChecklists(
+        pregnancyId ?? '',
+      );
       return rows
           .map(
             (row) => LabReportContext(
@@ -254,8 +260,11 @@ class AlloBotContextLoader {
 
     for (final key in keys) {
       try {
-        final rows = await VitalsSqLiteService()
-            .getVitalsHistory(userId, key, fromDate: startOfToday);
+        final rows = await VitalsSqLiteService().getVitalsHistory(
+          userId,
+          key,
+          fromDate: startOfToday,
+        );
         if (rows.isEmpty) continue;
 
         var total = 0.0;
@@ -293,11 +302,15 @@ class AlloBotContextLoader {
 
     for (final key in mealVitalKeys) {
       try {
-        final rows = await VitalsSqLiteService()
-            .getVitalsHistory(userId, key, fromDate: startOfToday);
+        final rows = await VitalsSqLiteService().getVitalsHistory(
+          userId,
+          key,
+          fromDate: startOfToday,
+        );
         for (final row in rows) {
           final data = _decodeData(row);
-          final note = (data['items'] ?? data['details'] ?? data['note'])
+          final note =
+              (data['items'] ?? data['details'] ?? data['note'])
                   ?.toString()
                   .trim() ??
               '';

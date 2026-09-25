@@ -12,11 +12,41 @@ class TodaysCareSection extends StatefulWidget {
 
 class _TodaysCareSectionState extends State<TodaysCareSection> {
   final List<Map<String, dynamic>> _items = [
-    {'icon': Icons.local_hospital, 'title': 'ANC check-up', 'subtitle': 'Thursday at Kallur PHC', 'done': true, 'color': const Color(0xff6C63FF)},
-    {'icon': Icons.medication, 'title': 'Iron tablet', 'subtitle': 'After lunch', 'done': true, 'color': primaryColor},
-    {'icon': Icons.water_drop_outlined, 'title': 'Drink water', 'subtitle': '5 of 8 glasses', 'done': true, 'color': const Color(0xff26C6DA)},
-    {'icon': Icons.child_friendly, 'title': 'Count my kicks', 'subtitle': 'Once a day', 'done': false, 'color': primaryColor},
-    {'icon': Icons.favorite_border, 'title': 'How do you feel?', 'subtitle': 'Log any symptoms', 'done': false, 'color': primaryColor},
+    {
+      'icon': Icons.local_hospital,
+      'title': 'ANC check-up',
+      'subtitle': 'Thursday at Kallur PHC',
+      'done': true,
+      'color': const Color(0xff6C63FF),
+    },
+    {
+      'icon': Icons.medication,
+      'title': 'Iron tablet',
+      'subtitle': 'After lunch',
+      'done': true,
+      'color': primaryColor,
+    },
+    {
+      'icon': Icons.water_drop_outlined,
+      'title': 'Drink water',
+      'subtitle': '5 of 8 glasses',
+      'done': true,
+      'color': const Color(0xff26C6DA),
+    },
+    {
+      'icon': Icons.child_friendly,
+      'title': 'Count my kicks',
+      'subtitle': 'Once a day',
+      'done': false,
+      'color': primaryColor,
+    },
+    {
+      'icon': Icons.favorite_border,
+      'title': 'How do you feel?',
+      'subtitle': 'Log any symptoms',
+      'done': false,
+      'color': primaryColor,
+    },
   ];
 
   int get _doneCount => _items.where((i) => i['done'] == true).length;
@@ -71,7 +101,10 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
           borderRadius: BorderRadius.circular(18),
           boxShadow: [
             BoxShadow(
-              color: context.palette.pick(Colors.black.withValues(alpha: 0.02), context.palette.shadow),
+              color: context.palette.pick(
+                Colors.black.withValues(alpha: 0.02),
+                context.palette.shadow,
+              ),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -127,7 +160,13 @@ class _TodaysCareSectionState extends State<TodaysCareSection> {
                 height: 32,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: context.palette.pick(Colors.grey.shade300, context.palette.textMuted), width: 2),
+                  border: Border.all(
+                    color: context.palette.pick(
+                      Colors.grey.shade300,
+                      context.palette.textMuted,
+                    ),
+                    width: 2,
+                  ),
                 ),
               ),
           ],

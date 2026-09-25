@@ -36,7 +36,7 @@ class CycleSummaryCard extends StatelessWidget {
   static final _shortFmt = DateFormat('d MMM');
 
   Future<void> _startTracking(BuildContext context) async {
-    final saved = await CycleSetupSheet.show(context, isFirstSetup: true);
+    final saved = await CycleSetupSheet.show(context);
     if (saved) onChanged();
   }
 
@@ -88,56 +88,69 @@ class CycleSummaryCard extends StatelessWidget {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            // The carousel gives every card the same fixed height, and the
-            // text inside this one grows with her system font scale. Scaling
-            // the block down when it would not fit keeps the card whole
-            // instead of overflowing it.
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.topLeft,
-                  child: SizedBox(
-                    width: constraints.maxWidth,
-                    child: p == null
-                        ? _buildInvite(context)
-                        : _buildTracking(context, p),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            Column(
+        // Home's carousel gives the card a fixed height; My Health lays it in
+        // a scroll view with none. Only the first can have its content fill
+        // the space left above the buttons.
+        child: LayoutBuilder(
+          builder: (context, outer) {
+            final content = p == null
+                ? _buildInvite(context)
+                : _buildTracking(context, p);
+            return Column(
+              mainAxisSize: outer.hasBoundedHeight
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _PrimaryButton(
-                  icon: p == null
-                      ? Icons.add_circle_outline_rounded
-                      : Icons.insights_rounded,
-                  label: p == null ? 'Start Tracking' : 'View My Cycle',
-                  onTap: () => p == null
-                      ? _startTracking(context)
-                      : _openTracker(context),
-                ),
-                const SizedBox(height: 8),
-                GestureDetector(
-                  onTap: onRegisterPregnancy,
-                  behavior: HitTestBehavior.opaque,
-                  child: Text(
-                    'Expecting? Register your pregnancy →',
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: CycleColors.accent,
+                // In the carousel the text grows with her system font scale.
+                // Scaling the block down when it would not fit keeps the card
+                // whole instead of overflowing it.
+                if (outer.hasBoundedHeight)
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) => FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.topLeft,
+                        child: SizedBox(
+                          width: constraints.maxWidth,
+                          child: content,
+                        ),
+                      ),
                     ),
-                  ),
+                  )
+                else
+                  content,
+                const SizedBox(height: 12),
+                Column(
+                  children: [
+                    _PrimaryButton(
+                      icon: p == null
+                          ? Icons.add_circle_outline_rounded
+                          : Icons.insights_rounded,
+                      label: p == null ? 'Start Tracking' : 'View My Cycle',
+                      onTap: () => p == null
+                          ? _startTracking(context)
+                          : _openTracker(context),
+                    ),
+                    const SizedBox(height: 8),
+                    GestureDetector(
+                      onTap: onRegisterPregnancy,
+                      behavior: HitTestBehavior.opaque,
+                      child: Text(
+                        'Expecting? Register your pregnancy →',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: CycleColors.accent,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );

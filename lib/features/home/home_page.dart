@@ -17,6 +17,7 @@ import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_conf
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
+import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
@@ -142,7 +143,7 @@ class _HomePageState extends State<HomePage> {
   /// Slides onto the AlloBaby card and runs the opening flow there, returning
   /// once it has been said (or stopped).
   Future<void> _runAlloBabyFlow() async {
-    if (!mounted || _guideLmp == null) return;
+    if (!mounted || !_hasWeekCards) return;
     // The card carries her words from here; the week's line would otherwise
     // linger in the bubble above it.
     setState(() {
@@ -180,7 +181,7 @@ class _HomePageState extends State<HomePage> {
     SpeechActivity.instance.stopRequests.addListener(_onStopRequested);
     _alloBaby.addListener(_onAlloBabyChanged);
     TtsService().isSpeakingNotifier.addListener(_onAlloBabyChanged);
-    final reopen = _weekShownThisSession && _guideLmp != null;
+    final reopen = _weekShownThisSession && _hasWeekCards;
     _currentCarouselPage = reopen ? _todayPageIndex : 0;
     _hasAdvancedToDailySummary = reopen;
     _carouselController = PageController(initialPage: _currentCarouselPage);
@@ -293,13 +294,22 @@ class _HomePageState extends State<HomePage> {
         session.eddDate?.subtract(const Duration(days: 280));
   }
 
+  /// The baby's week (41–142) when she is not pregnant but has a baby in the
+  /// 1000 days; null otherwise.
+  int? get _babyWeek => WeeklyBabyTalk.currentBabyWeek();
+
+  /// Whether the carousel opens on a week card — her pregnancy's, or her
+  /// baby's once it is born.
+  bool get _hasWeekCards => _guideLmp != null || _babyWeek != null;
+
   /// The carousel opens on this week, hands over to AlloBaby, then turns to
   /// today.
   static const _weekPageIndex = 0;
   static const _alloBabyPageIndex = 1;
-  // Points at AlloBaby while the Right now card is commented out; set back to
-  // 2 when it returns.
-  static const _todayPageIndex = _alloBabyPageIndex;
+
+  /// Pregnancy: AlloBaby, while the Right now card is commented out (set back
+  /// to 2 when it returns). Baby: the postpartum summary after AlloBaby.
+  int get _todayPageIndex => _babyWeek != null ? 2 : _alloBabyPageIndex;
 
   /// Set once the week has had its moment on screen. Later visits in the same
   /// session open straight on today, which is what she comes back to check.
@@ -308,7 +318,7 @@ class _HomePageState extends State<HomePage> {
   /// Slides from this week to today after [delay], once, and only if she is
   /// still looking at the week — never out from under a page she chose.
   void _advanceToTodayOnce(Duration delay) {
-    if (_hasAdvancedToDailySummary || _guideLmp == null) return;
+    if (_hasAdvancedToDailySummary || !_hasWeekCards) return;
     _hasAdvancedToDailySummary = true;
     _weekShownThisSession = true;
     Future.delayed(delay, () {
@@ -544,8 +554,32 @@ class _HomePageState extends State<HomePage> {
   Widget _buildSummaryCarousel(BuildContext context) {
     final session = MainController.instance;
     final lmp = _guideLmp;
+    final babyWeek = lmp == null ? _babyWeek : null;
+    final babyBirth = babyWeek == null ? null : WeeklyBabyTalk.youngestBirth();
+    final alloBabyCard = AlloBabyFlowCard(
+      controller: _alloBaby,
+      onOpenChat: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const AlloBotPage(autoStartListening: false),
+        ),
+      ),
+    );
     final pages = <Widget>[
-      if (lmp != null) ...[
+      if (babyWeek != null && babyBirth != null) ...[
+        // Her pregnancy's week card, carried on after the birth.
+        BabyWeekCard(
+          week: babyWeek,
+          birth: babyBirth,
+          babyName: BabyController.instance.youngest?.name,
+          onOpenJourney: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+          ),
+        ),
+        alloBabyCard,
+        _buildDailySummaryCard(),
+      ] else if (lmp != null) ...[
         PregnancyWeekCard(
           week: session.currentGestationalWeek,
           trimester: session.currentTrimester,
@@ -555,15 +589,7 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
           ),
         ),
-        AlloBabyFlowCard(
-          controller: _alloBaby,
-          onOpenChat: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AlloBotPage(autoStartListening: false),
-            ),
-          ),
-        ),
+        alloBabyCard,
         // Right now card hidden for now. Restore it together with
         // `_todayPageIndex = 2` below.
         // RightNowCareCard(onOpenCare: _scrollToTodaysCare),
@@ -584,7 +610,7 @@ class _HomePageState extends State<HomePage> {
               });
               // Swiped onto AlloBaby before the greeting got her there: she
               // starts talking, unless something else is already speaking.
-              if (lmp != null &&
+              if (_hasWeekCards &&
                   index == _alloBabyPageIndex &&
                   !_alloBaby.hasRun &&
                   _homeNarrationKey == null &&
@@ -1194,6 +1220,9 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/Prescriptions.png',
         page: const PrescriptionsPage(),
       ),
+      // The trackers, straight from AlloBot's catalogue so they open the same
+      // pages and carry the same art as the Agents tab.
+      for (final id in _trackerActionIds) ?AlloBotFeatureCatalog.byId(id),
     ];
 
     return Column(
@@ -1246,6 +1275,20 @@ class _HomePageState extends State<HomePage> {
 
   /// Width and height of each Quick Actions box.
   static const _quickActionSize = 112.0;
+
+  /// Trackers added after the headline features, in the order shown.
+  static const _trackerActionIds = [
+    'daily_activity',
+    'heart_rate',
+    'hrv',
+    'sleep',
+    'hemoglobin',
+    'water',
+    'breakfast',
+    'dinner',
+    'snacks',
+    'drinks',
+  ];
 
   /// One Quick Actions entry. AlloBot's feature type, so it opens the same way
   /// and carries the same illustration.

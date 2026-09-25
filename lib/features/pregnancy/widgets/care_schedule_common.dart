@@ -743,7 +743,10 @@ Future<void> showCareDetailSheet(
         final child = Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 8)],
+            if (icon != null) ...[
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+            ],
             Text(
               label,
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),

@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/components/lmp_wheel_picker.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/pregnancy_care_scheduler.dart';
 
 const _accent = Color(0xFFFF3B5C);
 
 // Ink follows light / dark mode; the accent stays the brand pink.
-Color _inkOf(BuildContext context) => context.palette.pick(
-  const Color(0xFF1E2024),
-  context.palette.textPrimary,
-);
+Color _inkOf(BuildContext context) =>
+    context.palette.pick(const Color(0xFF1E2024), context.palette.textPrimary);
 Color _mutedOf(BuildContext context) => context.palette.pick(
   const Color(0xFF6B707B),
   context.palette.textSecondary,
@@ -23,12 +24,14 @@ Color _mutedOf(BuildContext context) => context.palette.pick(
 Color _pick(BuildContext context, Color light, Color dark) =>
     context.palette.pick(light, dark);
 
-/// Registers a pregnancy and books its whole care schedule locally.
+/// Registers a pregnancy from one question: the first day of her last period.
 ///
-/// Three steps: the LMP date, which pregnancy months the mother will attend an
-/// ANC check-up in, then a review of every ANC visit, vaccine dose and lab test
-/// that is about to be created. Confirming writes the pregnancy plus the
-/// schedule into SQLite with `synced = 0`.
+/// Everything else follows from that date. Confirming creates the pregnancy
+/// and books its whole care schedule — ANC visits in the recommended months,
+/// every vaccine dose and every lab test — into SQLite with `synced = 0`. The
+/// schedule is not laid out here: it is waiting for her in the journey the
+/// moment she lands there, and listing forty rows before she has even started
+/// only made a one-question screen look like a form.
 class PregnancyConfirmationPage extends StatefulWidget {
   const PregnancyConfirmationPage({super.key});
 
@@ -39,115 +42,54 @@ class PregnancyConfirmationPage extends StatefulWidget {
 
 class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   static final _dateFmt = DateFormat('dd MMM yyyy');
-  static final _shortFmt = DateFormat('dd MMM');
 
-  static const _stepTitles = ['LMP date', 'ANC months', 'Review plan'];
-
-  int _step = 0;
-  late DateTime _selectedLmpDate;
-  final Set<int> _ancMonths = {...defaultAncMonths};
-  bool _includeOptional = true;
+  /// Starts on today, as sign-up's wheels do: she scrolls back from now. It
+  /// used to open on a made-up "eight weeks ago", which read as her answer.
+  late DateTime _lmp = _today;
   bool _isSubmitting = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Default to approximately 8 weeks ago
+  static DateTime get _today {
     final now = DateTime.now();
-    _selectedLmpDate = DateTime(
-      now.year,
-      now.month,
-      now.day,
-    ).subtract(const Duration(days: 56));
+    return DateTime(now.year, now.month, now.day);
   }
 
   // ─── DERIVED VALUES ─────────────────────────────────────────
 
-  DateTime get _calculatedEdd =>
-      _selectedLmpDate.add(const Duration(days: 280));
+  DateTime get _edd => _lmp.add(const Duration(days: 280));
 
   /// Completed weeks, counted exactly as `PregnancyController` does — this is
   /// a preview of what home will say once she registers, so it must not round
   /// the week up when home rounds it down.
-  int get _calculatedGestationalWeek {
-    final days = DateTime.now().difference(_selectedLmpDate).inDays;
+  int get _week {
+    final days = _today.difference(_lmp).inDays;
     return days >= 0 ? days ~/ 7 : 0;
   }
 
-  String get _calculatedTrimester {
-    final week = _calculatedGestationalWeek;
-    if (week < 13) return '1st Trimester';
-    if (week < 28) return '2nd Trimester';
-    return '3rd Trimester';
+  String get _trimester {
+    final week = _week;
+    if (week < 13) return '1st trimester';
+    if (week < 28) return '2nd trimester';
+    return '3rd trimester';
   }
 
-  int get _daysRemaining {
-    final days = _calculatedEdd.difference(DateTime.now()).inDays;
+  int get _daysLeft {
+    final days = _edd.difference(_today).inDays;
     return days < 0 ? 0 : days;
   }
 
-  PregnancyCarePlanPreview get _preview => PregnancyCareScheduler.preview(
-    lmpDate: _selectedLmpDate,
-    ancMonths: _ancMonths.toList(),
-    includeOptional: _includeOptional,
-  );
-
-  List<ScheduledReport> get _dueReports => _includeOptional
-      ? reportSchedule
-      : reportSchedule.where((r) => r.isRequired).toList();
-
   // ─── ACTIONS ────────────────────────────────────────────────
 
-  Future<void> _pickLmpDate() async {
-    final now = DateTime.now();
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedLmpDate,
-      firstDate: now.subtract(const Duration(days: 280)),
-      lastDate: now,
-      helpText: 'SELECT FIRST DAY OF LAST PERIOD (LMP)',
-      builder: (context, child) => Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: context.palette.isDark
-              ? ColorScheme.dark(
-                  primary: _accent,
-                  onPrimary: Colors.white,
-                  surface: context.palette.card,
-                  onSurface: context.palette.textPrimary,
-                )
-              : ColorScheme.light(
-                  primary: _accent,
-                  onPrimary: Colors.white,
-                  surface: Colors.white,
-                  onSurface: _inkOf(context),
-                ),
-        ),
-        child: child!,
-      ),
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedLmpDate = DateTime(picked.year, picked.month, picked.day);
-      });
-    }
-  }
-
-  void _goToStep(int step) {
-    setState(() => _step = step.clamp(0, _stepTitles.length - 1));
-  }
-
   Future<void> _submit() async {
+    final lmp = _lmp;
     setState(() => _isSubmitting = true);
 
     try {
       final session = MainController.instance;
 
-      // 1. The pregnancy itself. Creating it server-side is what generates the
-      //    ANC, vaccination and lab-report schedules from this LMP.
+      // 1. The pregnancy itself.
       final pregnancyId = await PregnancyController.instance.createPregnancy(
-        lmpDate: _selectedLmpDate,
-        eddDate: _calculatedEdd,
+        lmpDate: lmp,
+        eddDate: _edd,
       );
 
       if (pregnancyId == null) {
@@ -161,21 +103,18 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
         return;
       }
 
-      // 2. The ANC / vaccination / lab-report schedule hanging off it.
-      final result = await PregnancyCareScheduler.instance.scheduleFor(
+      // 2. Its care schedule: ANC visits in the recommended months, plus every
+      //    vaccine dose and lab test on its clinical date.
+      await PregnancyCareScheduler.instance.scheduleFor(
         pregnancyId: pregnancyId,
         userId: session.userId,
-        lmpDate: _selectedLmpDate,
-        ancMonths: _ancMonths.toList(),
-        includeOptional: _includeOptional,
+        lmpDate: lmp,
+        ancMonths: defaultAncMonths,
+        includeOptional: true,
       );
 
       if (!mounted) return;
-      _toast(
-        'Journey created — ${result.ancVisits} ANC visits, '
-        '${result.vaccinations} vaccinations and ${result.reports} lab tests '
-        'scheduled ✨',
-      );
+      _toast('Your pregnancy journey is ready ✨');
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
@@ -199,18 +138,16 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
 
   @override
   Widget build(BuildContext context) {
+    final background = _pick(
+      context,
+      const Color(0xFFFAF6F7),
+      context.palette.scaffoldSoft,
+    );
+
     return Scaffold(
-      backgroundColor: _pick(
-        context,
-        const Color(0xFFFAF6F7),
-        context.palette.scaffoldSoft,
-      ),
+      backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: _pick(
-          context,
-          const Color(0xFFFAF6F7),
-          context.palette.scaffoldSoft,
-        ),
+        backgroundColor: background,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
@@ -219,9 +156,7 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
             color: _inkOf(context),
             size: 20,
           ),
-          onPressed: _step == 0
-              ? () => Navigator.maybePop(context)
-              : () => _goToStep(_step - 1),
+          onPressed: () => Navigator.maybePop(context),
         ),
         centerTitle: true,
         title: Text(
@@ -236,474 +171,117 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
       body: SafeArea(
         child: Column(
           children: [
-            _buildStepIndicator(),
             Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
-                child: switch (_step) {
-                  0 => _buildLmpStep(),
-                  1 => _buildAncStep(),
-                  _ => _buildReviewStep(),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: Column(
+                          children: [
+                            const SizedBox(height: 8),
+                            _buildHeader(),
+                            const SizedBox(height: 16),
+                            const Spacer(flex: 1),
+                            LmpWheelPicker(
+                              selectedDate: _lmp,
+                              onDateChanged: (date) =>
+                                  setState(() => _lmp = date),
+                            ),
+                            const SizedBox(height: 16),
+                            const Spacer(flex: 1),
+                            _buildSummary(),
+                            const SizedBox(height: 16),
+                            const Spacer(flex: 1),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
                 },
               ),
             ),
-            _buildFooter(),
+            _buildFooter(background),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStepIndicator() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      child: Row(
-        children: [
-          for (var i = 0; i < _stepTitles.length; i++) ...[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: i <= _step
-                          ? _accent
-                          : _pick(
-                              context,
-                              const Color(0xFFF0D9DE),
-                              context.palette.accentBorder,
-                            ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _stepTitles[i],
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: i == _step
-                          ? FontWeight.w700
-                          : FontWeight.w500,
-                      color: i <= _step
-                          ? _accent
-                          : _pick(
-                              context,
-                              const Color(0xFFB6AEB1),
-                              context.palette.textMuted,
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (i != _stepTitles.length - 1) const SizedBox(width: 8),
-          ],
-        ],
-      ),
+  /// The baby asks the question herself, in the same card and the same words
+  /// as sign-up — this is that step again for a mother who skipped it then.
+  /// Her bubble is the only instruction the page needs.
+  Widget _buildHeader() {
+    return const BabyHeroBanner(
+      narrationKey: NarrationKeys.pregLmp,
+      speechText: 'Mommy, when did your last period start?',
+      height: 210,
     );
   }
 
-  // ─── STEP 1 · LMP ───────────────────────────────────────────
-
-  Widget _buildLmpStep() {
+  /// What that date means, in one row: the due date she will repeat to
+  /// everyone, then her week and the days left.
+  Widget _buildSummary() {
+    final p = context.palette;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: 150,
-          child: Image.asset(
-            'assets/allobaby/Baby3D.png',
-            fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => Image.asset(
-              'assets/allobaby/BabyIllustration.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                width: 90,
-                height: 90,
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: context.palette.tint(_accent, const Color(0xFFFFF0F4)),
+                  color: _accent.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.child_care_rounded,
-                  size: 50,
+                  Icons.favorite_rounded,
+                  size: 13,
                   color: _accent,
                 ),
               ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'When was the first day of\nyour last period (LMP)?',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            height: 1.25,
-            color: _inkOf(context),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          "Your LMP date sets your baby's gestational age, your due date and "
-          'every appointment we schedule next.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
-        ),
-        const SizedBox(height: 24),
-
-        _Card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _CardLabel(
-                icon: Icons.calendar_today_rounded,
-                text: 'LAST MENSTRUAL PERIOD (LMP)',
-              ),
-              const SizedBox(height: 14),
-              InkWell(
-                onTap: _pickLmpDate,
-                borderRadius: BorderRadius.circular(16),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: context.palette.tint(
-                      _accent,
-                      const Color(0xFFFFF0F4),
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: _pick(
-                        context,
-                        const Color(0xFFFFD2DC),
-                        context.palette.accentBorder,
-                      ),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.event_note_rounded,
-                        color: _accent,
-                        size: 22,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        _dateFmt.format(_selectedLmpDate),
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: _inkOf(context),
-                        ),
-                      ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: context.palette.card,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          'Change',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: _accent,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+              const SizedBox(width: 8),
+              Text(
+                'This is the date I will meet you, Mommy! 💕',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: _inkOf(context),
+                  letterSpacing: 0.1,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-
-        Row(
-          children: [
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFFFF0F4),
-                icon: Icons.event_available_rounded,
-                iconColor: const Color(0xFFFF4E6A),
-                title: 'Estimated Due',
-                value: _dateFmt.format(_calculatedEdd),
-              ),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          decoration: BoxDecoration(
+            color: p.card,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: _pick(context, const Color(0xFFF0F1F5), p.border),
+              width: 1.2,
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFF3E8FF),
-                icon: Icons.child_care_rounded,
-                iconColor: const Color(0xFF8B5CF6),
-                title: 'Current Stage',
-                value: 'Week $_calculatedGestationalWeek',
-                subtitle: _calculatedTrimester,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFEDF6FF),
-                icon: Icons.hourglass_bottom_rounded,
-                iconColor: const Color(0xFF3898EC),
-                title: 'Days Left',
-                value: '$_daysRemaining d',
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  // ─── STEP 2 · ANC MONTHS ────────────────────────────────────
-
-  Widget _buildAncStep() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          'Which months will you go\nfor your ANC check-up?',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            height: 1.25,
-            color: _inkOf(context),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Pick the pregnancy months you plan to visit your doctor in. Each '
-          'visit is booked on the same day of the month as your LMP.',
-          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
-        ),
-        const SizedBox(height: 16),
-
-        Row(
-          children: [
-            _QuickChip(
-              label: 'All 10 months',
-              onTap: () => setState(() {
-                _ancMonths
-                  ..clear()
-                  ..addAll(pregnancyMonths);
-              }),
-            ),
-            const SizedBox(width: 8),
-            _QuickChip(
-              label: 'Recommended',
-              onTap: () => setState(() {
-                _ancMonths
-                  ..clear()
-                  ..addAll(defaultAncMonths);
-              }),
-            ),
-            const SizedBox(width: 8),
-            _QuickChip(label: 'Clear', onTap: () => setState(_ancMonths.clear)),
-          ],
-        ),
-        const SizedBox(height: 16),
-
-        for (final month in pregnancyMonths)
-          _MonthRow(
-            month: month,
-            selected: _ancMonths.contains(month),
-            dateLabel: _dateFmt.format(
-              addMonthsClamped(_selectedLmpDate, month),
-            ),
-            onTap: () => setState(() {
-              if (!_ancMonths.remove(month)) _ancMonths.add(month);
-            }),
-          ),
-
-        const SizedBox(height: 6),
-        _InfoNote(
-          text: _ancMonths.isEmpty
-              ? 'No ANC visits will be booked. Your vaccinations and lab tests '
-                    'are still scheduled on their clinical dates.'
-              : '${_ancMonths.length} ANC visit'
-                    '${_ancMonths.length == 1 ? '' : 's'} will be booked.',
-        ),
-      ],
-    );
-  }
-
-  // ─── STEP 3 · REVIEW ────────────────────────────────────────
-
-  Widget _buildReviewStep() {
-    final preview = _preview;
-    final reportsByMonth = <int, List<ScheduledReport>>{};
-    for (final report in _dueReports) {
-      reportsByMonth.putIfAbsent(report.month, () => []).add(report);
-    }
-    final months = reportsByMonth.keys.toList()..sort();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          "Here's your care plan",
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            color: _inkOf(context),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Due ${_dateFmt.format(_calculatedEdd)} · everything below is saved '
-          'on this device.',
-          style: TextStyle(fontSize: 13, color: _mutedOf(context), height: 1.45),
-        ),
-        const SizedBox(height: 18),
-
-        Row(
-          children: [
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFFFF0F4),
-                icon: Icons.local_hospital_rounded,
-                iconColor: const Color(0xFFFF4E6A),
-                title: 'ANC visits',
-                value: '${preview.ancCount}',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFEFFAF3),
-                icon: Icons.vaccines_rounded,
-                iconColor: const Color(0xFF10B981),
-                title: 'Vaccines',
-                value: '${preview.vaccineCount}',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _EstimateChip(
-                bg: const Color(0xFFEDF6FF),
-                icon: Icons.science_rounded,
-                iconColor: const Color(0xFF3898EC),
-                title: 'Lab tests',
-                value: '${preview.reportCount}',
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 18),
-
-        // ── ANC visits ──
-        _Section(
-          icon: Icons.local_hospital_rounded,
-          color: const Color(0xFFFF4E6A),
-          title: 'ANC check-ups',
-          subtitle: preview.ancCount == 0
-              ? 'None selected'
-              : '${preview.ancCount} visits',
-          child: preview.ancCount == 0
-              ? _EmptyRow(
-                  text: 'You did not pick any ANC months.',
-                  onFix: () => _goToStep(1),
-                )
-              : Column(
-                  children: [
-                    for (final entry in preview.ancDates.entries)
-                      _PlanRow(
-                        title: 'ANC · ${monthLabel(entry.key)}',
-                        trailing: _shortFmt.format(entry.value),
-                        subtitle: 'Trimester ${trimesterForMonth(entry.key)}',
-                      ),
-                  ],
-                ),
-        ),
-        const SizedBox(height: 12),
-
-        // ── Vaccinations ──
-        _Section(
-          icon: Icons.vaccines_rounded,
-          color: const Color(0xFF10B981),
-          title: 'Vaccinations',
-          subtitle: '${vaccineSchedule.length} doses',
-          child: Column(
+          child: Row(
             children: [
-              for (final vaccine in vaccineSchedule)
-                _PlanRow(
-                  title: vaccine.name,
-                  subtitle: '${monthLabel(vaccine.month)} · ${vaccine.purpose}',
-                  trailing: _shortFmt.format(
-                    addMonthsClamped(_selectedLmpDate, vaccine.month),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // ── Lab reports ──
-        _Section(
-          icon: Icons.science_rounded,
-          color: const Color(0xFF3898EC),
-          title: 'Lab tests & scans',
-          subtitle: '${_dueReports.length} tests',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SwitchListTile.adaptive(
-                value: _includeOptional,
-                onChanged: (v) => setState(() => _includeOptional = v),
-                activeThumbColor: const Color(0xFF3898EC),
-                contentPadding: EdgeInsets.zero,
-                dense: true,
-                title: Text(
-                  'Include optional tests',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
-                    color: _inkOf(context),
-                  ),
-                ),
-                subtitle: Text(
-                  'TB screening and NST are only done when your doctor '
-                  'asks for them',
-                  style: TextStyle(fontSize: 11, color: _mutedOf(context)),
-                ),
+              _Stat(
+                value: _dateFmt.format(_edd),
+                label: 'Due date',
+                valueColor: _accent,
               ),
-              const SizedBox(height: 4),
-              for (final month in months) ...[
-                Padding(
-                  padding: const EdgeInsets.only(top: 8, bottom: 4),
-                  child: Text(
-                    '${monthLabel(month)} · '
-                    '${_shortFmt.format(addMonthsClamped(_selectedLmpDate, month))}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF3898EC),
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-                for (final report in reportsByMonth[month]!)
-                  _PlanRow(
-                    title: report.name,
-                    subtitle: report.purpose,
-                    badge: report.isRequired ? null : 'Optional',
-                  ),
-              ],
+              _StatDivider(),
+              _Stat(value: 'Week $_week', label: _trimester),
+              _StatDivider(),
+              _Stat(value: '$_daysLeft', label: 'days to go'),
             ],
           ),
         ),
@@ -711,41 +289,20 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
     );
   }
 
-  // ─── FOOTER ─────────────────────────────────────────────────
-
-  Widget _buildFooter() {
-    final isLast = _step == _stepTitles.length - 1;
+  Widget _buildFooter(Color background) {
+    final ready = !_isSubmitting;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-      decoration: BoxDecoration(
-        color: _pick(
-          context,
-          const Color(0xFFFAF6F7),
-          context.palette.scaffoldSoft,
-        ),
-        border: Border(
-          top: BorderSide(
-            color: _pick(
-              context,
-              Colors.black.withValues(alpha: 0.04),
-              context.palette.divider,
-            ),
-          ),
-        ),
-      ),
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+      color: background,
       child: SizedBox(
         width: double.infinity,
         height: 54,
         child: ElevatedButton(
-          onPressed: _isSubmitting
-              ? null
-              : isLast
-              ? _submit
-              : () => _goToStep(_step + 1),
+          onPressed: ready ? _submit : null,
           style: ElevatedButton.styleFrom(
             backgroundColor: _accent,
-            disabledBackgroundColor: _accent.withValues(alpha: 0.5),
+            disabledBackgroundColor: _accent.withValues(alpha: 0.4),
             elevation: 0,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(18),
@@ -760,19 +317,13 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
                     strokeWidth: 2,
                   ),
                 )
-              : Row(
+              : const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      isLast
-                          ? Icons.favorite_rounded
-                          : Icons.arrow_forward_rounded,
-                      color: Colors.white,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 10),
+                    Icon(Icons.favorite_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 10),
                     Text(
-                      isLast ? 'Create Pregnancy Journey' : 'Continue',
+                      'Start my journey',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -787,473 +338,42 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   }
 }
 
-// ─── SHARED PIECES ────────────────────────────────────────────
+// ─── PIECES ───────────────────────────────────────────────────
 
-class _Card extends StatelessWidget {
-  const _Card({required this.child});
+class _Stat extends StatelessWidget {
+  const _Stat({required this.value, required this.label, this.valueColor});
 
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: _pick(
-            context,
-            const Color(0xFFF0F1F5),
-            context.palette.border,
-          ),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _pick(
-              context,
-              Colors.black.withValues(alpha: 0.03),
-              context.palette.shadow,
-            ),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class _CardLabel extends StatelessWidget {
-  const _CardLabel({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: _accent, size: 16),
-        const SizedBox(width: 8),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: _accent,
-            letterSpacing: 0.6,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EstimateChip extends StatelessWidget {
-  const _EstimateChip({
-    required this.bg,
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.value,
-    this.subtitle,
-  });
-
-  final Color bg;
-  final IconData icon;
-  final Color iconColor;
-  final String title;
   final String value;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.palette.tint(iconColor, bg),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: context.palette.card,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: iconColor, size: 13),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w800,
-              color: _inkOf(context),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle ?? title,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 10,
-              color: context.palette.textSecondary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickChip extends StatelessWidget {
-  const _QuickChip({required this.label, required this.onTap});
-
   final String label;
-  final VoidCallback onTap;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: context.palette.card,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: _pick(
-              context,
-              const Color(0xFFF0D9DE),
-              context.palette.accentBorder,
-            ),
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w700,
-            color: _accent,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MonthRow extends StatelessWidget {
-  const _MonthRow({
-    required this.month,
-    required this.dateLabel,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int month;
-  final String dateLabel;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected
-              ? context.palette.tint(_accent, const Color(0xFFFFF0F4))
-              : context.palette.card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected
-                ? _pick(
-                    context,
-                    const Color(0xFFFFD2DC),
-                    context.palette.accentBorder,
-                  )
-                : _pick(
-                    context,
-                    const Color(0xFFF0F1F5),
-                    context.palette.border,
-                  ),
-            width: selected ? 1.4 : 1.2,
-          ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: selected ? _accent : Colors.transparent,
-                border: selected
-                    ? null
-                    : Border.all(
-                        color: _pick(
-                          context,
-                          const Color(0xFFD0D5DD),
-                          context.palette.textMuted,
-                        ),
-                        width: 1.6,
-                      ),
-              ),
-              child: selected
-                  ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    monthLabel(month),
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight: FontWeight.w600,
-                      color: _inkOf(context),
-                    ),
-                  ),
-                  Text(
-                    'Trimester ${trimesterForMonth(month)}',
-                    style: TextStyle(fontSize: 11, color: _mutedOf(context)),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              dateLabel,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: selected
-                    ? _accent
-                    : _pick(
-                        context,
-                        const Color(0xFF8E95A5),
-                        context.palette.textMuted,
-                      ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Section extends StatelessWidget {
-  const _Section({
-    required this.icon,
-    required this.color,
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return _Card(
+    return Expanded(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: _inkOf(context),
-                  ),
-                ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w600,
-                  color: _mutedOf(context),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _PlanRow extends StatelessWidget {
-  const _PlanRow({
-    required this.title,
-    this.subtitle,
-    this.trailing,
-    this.badge,
-  });
-
-  final String title;
-  final String? subtitle;
-  final String? trailing;
-  final String? badge;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 5, right: 8),
-            child: Container(
-              width: 5,
-              height: 5,
-              decoration: BoxDecoration(
-                color: _pick(
-                  context,
-                  const Color(0xFFD0D5DD),
-                  context.palette.textMuted,
-                ),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: _inkOf(context),
-                        ),
-                      ),
-                    ),
-                    if (badge != null) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _pick(
-                            context,
-                            const Color(0xFFF1F5F9),
-                            context.palette.surface,
-                          ),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          badge!,
-                          style: TextStyle(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w700,
-                            color: _pick(
-                              context,
-                              const Color(0xFF64748B),
-                              context.palette.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                if (subtitle != null)
-                  Text(
-                    subtitle!,
-                    style: TextStyle(fontSize: 11, color: _mutedOf(context), height: 1.35),
-                  ),
-              ],
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            Text(
-              trailing!,
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                color: _pick(
-                  context,
-                  const Color(0xFF8E95A5),
-                  context.palette.textMuted,
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyRow extends StatelessWidget {
-  const _EmptyRow({required this.text, required this.onFix});
-
-  final String text;
-  final VoidCallback onFix;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(text, style: TextStyle(fontSize: 12, color: _mutedOf(context))),
-          ),
-          TextButton(
-            onPressed: onFix,
+          FittedBox(
+            fit: BoxFit.scaleDown,
             child: Text(
-              'Pick months',
+              value,
+              maxLines: 1,
               style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: _accent,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: valueColor ?? _inkOf(context),
               ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: _mutedOf(context),
             ),
           ),
         ],
@@ -1262,39 +382,9 @@ class _EmptyRow extends StatelessWidget {
   }
 }
 
-class _InfoNote extends StatelessWidget {
-  const _InfoNote({required this.text});
-
-  final String text;
-
+class _StatDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: context.palette.tint(_accent, const Color(0xFFFFF0F4)),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline_rounded, size: 16, color: _accent),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontSize: 11.5,
-                color: _pick(
-                  context,
-                  const Color(0xFF8A5A63),
-                  const Color(0xFFE8B4BE),
-                ),
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    return Container(width: 1, height: 38, color: context.palette.divider);
   }
 }

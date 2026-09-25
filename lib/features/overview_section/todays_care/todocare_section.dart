@@ -9,7 +9,9 @@ import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/overview_section/todays_care/care_catalogue.dart';
 import 'package:allomom/features/overview_section/todays_care/care_custom_activity.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
@@ -145,6 +147,7 @@ class _TodocareSectionState extends State<TodocareSection> {
     final hours = <CareItem, int>{};
     final customById = <String, CareCustomActivity>{};
 
+    final babyAgeDays = WeeklyBabyTalk.babyAgeDays();
     final groups = <_CareGroup>[];
     for (final window in parts) {
       final items = <CareItem>[];
@@ -152,6 +155,7 @@ class _TodocareSectionState extends State<TodocareSection> {
         part: window,
         isPregnant: session.isPregnant,
         pregnancyDay: session.currentPregnancyDay,
+        babyAgeDays: babyAgeDays,
       )) {
         items.add(item);
         hours[item] = careHourFor(item.id, window);
@@ -325,6 +329,14 @@ class _TodocareSectionState extends State<TodocareSection> {
           fromDate: _startOfToday(),
         );
         if (rows.isNotEmpty) done.add(key);
+        // Also by window, for items that recur through the day (feeds).
+        for (final row in rows) {
+          final raw = row['createdAt'];
+          final at = raw is DateTime
+              ? raw
+              : DateTime.tryParse(raw?.toString() ?? '');
+          if (at != null) done.add('$key@${CareDayPart.at(at.toLocal()).name}');
+        }
       } catch (e) {
         debugPrint('⚠️ [TodocareSection] Could not read "$key" vitals: $e');
       }
@@ -367,7 +379,11 @@ class _TodocareSectionState extends State<TodocareSection> {
     CareActionKind.checkoff => _completedActions.contains(
       item.actionValue?.toLowerCase().trim(),
     ),
-    CareActionKind.navigate => _navigateDone.contains(item.doneVitalKey),
+    CareActionKind.navigate => _navigateDone.contains(
+      item.donePerPart
+          ? '${item.doneVitalKey}@${_partOf(item).name}'
+          : item.doneVitalKey,
+    ),
   };
 
   int _countFor(CareItem item) => _countsToday[item.countVitalKey] ?? 0;
@@ -568,6 +584,10 @@ class _TodocareSectionState extends State<TodocareSection> {
         await Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const KickCounterPage()));
+      case CareDestination.feedingTracker:
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const FeedingTrackerPage()));
       case null:
         return;
     }
@@ -613,7 +633,9 @@ class _TodocareSectionState extends State<TodocareSection> {
 
   /// The day as the timeline reads it: from 5 AM, when the morning window
   /// opens, round to 4 AM.
-  static final List<int> _dayHours = [for (var i = 0; i < 24; i++) (5 + i) % 24];
+  static final List<int> _dayHours = [
+    for (var i = 0; i < 24; i++) (5 + i) % 24,
+  ];
 
   /// The hours the window the clock is in covers, for the home card.
   List<int> get _windowHours =>
@@ -811,16 +833,15 @@ class _TodocareSectionState extends State<TodocareSection> {
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: isDone
-                ? const Color(0xFF10B981).withValues(alpha: p.isDark ? 0.45 : 0.4)
+                ? const Color(
+                    0xFF10B981,
+                  ).withValues(alpha: p.isDark ? 0.45 : 0.4)
                 : item.color.withValues(alpha: p.isDark ? 0.5 : 0.38),
             width: 1.3,
           ),
           boxShadow: [
             BoxShadow(
-              color: p.pick(
-                item.color.withValues(alpha: 0.08),
-                p.shadow,
-              ),
+              color: p.pick(item.color.withValues(alpha: 0.08), p.shadow),
               blurRadius: 10,
               offset: const Offset(0, 3),
             ),
@@ -1065,7 +1086,10 @@ class _EmptySlot extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: p.pick(const Color(0xFFF1F3F6), p.surface.withValues(alpha: 0.6)),
+        color: p.pick(
+          const Color(0xFFF1F3F6),
+          p.surface.withValues(alpha: 0.6),
+        ),
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
           onTap: onTap,
@@ -1112,7 +1136,11 @@ class _AddActivityButton extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.add_circle_rounded, size: 17, color: Colors.white),
+              const Icon(
+                Icons.add_circle_rounded,
+                size: 17,
+                color: Colors.white,
+              ),
               const SizedBox(width: 6),
               Text(
                 'ADD ACTIVITY',
@@ -1319,7 +1347,10 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
                 ),
                 items: [
                   for (final h in widget.hours)
-                    DropdownMenuItem(value: h, child: Text(widget.hourLabel(h))),
+                    DropdownMenuItem(
+                      value: h,
+                      child: Text(widget.hourLabel(h)),
+                    ),
                 ],
                 onChanged: (h) {
                   if (h != null) setState(() => _hour = h);

@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -875,8 +877,22 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     return 310;
   }
 
+  /// Sign-in and registration are drawn for the light theme only — the page
+  /// itself paints a light background — so the flow is pinned to it. Left to
+  /// follow a dark app theme, the baby card turned dark on a light page and
+  /// the status bar icons went white on white.
   @override
   Widget build(BuildContext context) {
+    return Theme(
+      data: AppTheme.light,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: ThemeController.overlayFor(Brightness.light),
+        child: Builder(builder: _buildFlow),
+      ),
+    );
+  }
+
+  Widget _buildFlow(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
     return PopScope(

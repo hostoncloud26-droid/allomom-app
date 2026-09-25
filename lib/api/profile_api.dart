@@ -14,4 +14,9 @@ class ProfileApi {
   /// local database after sign-in, and its `server_time` becomes the first
   /// sync watermark.
   static Future<APIResponse> getAll() => ApiBase.get('/me/profile/get_all');
+
+  /// Deletes the caller's account for good: personal details scrubbed, every
+  /// session revoked, family left, pregnancies and babies removed. The token
+  /// that made the call stops working once it returns.
+  static Future<APIResponse> deleteAccount() => ApiBase.delete('/me/account');
 }

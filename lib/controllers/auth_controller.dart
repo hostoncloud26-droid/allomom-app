@@ -1,12 +1,20 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/auth_api.dart';
+import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/controllers/theme_controller.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/auth/secure_token_store.dart';
+import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/services/sync/sync_service.dart';
 
 /// The result of a verify-OTP round trip, as the OTP screen needs it.
@@ -173,6 +181,74 @@ class AuthController extends GetxController {
     } finally {
       _setBusy(false);
     }
+  }
+
+  /// Deletes her account on the server, then forgets it on this phone.
+  ///
+  /// Returns null once it is gone, or what went wrong — in which case nothing
+  /// on the phone is touched, so she is still signed in and can try again.
+  Future<String?> deleteAccount() async {
+    _setBusy(true);
+    try {
+      final response = await ProfileApi.deleteAccount();
+      if (!response.success) {
+        return response.detail.isNotEmpty
+            ? response.detail
+            : 'Could not delete your account. Please try again.';
+      }
+      // Her conversation with AlloBot lives on the phone, not the server.
+      OfflineChatbotController.instance.resetConversation(
+        announce: false,
+        restart: false,
+      );
+      await _forgetSession();
+      await _wipeDevice();
+      return null;
+    } catch (e) {
+      debugPrint('⚠️ [AuthController] account deletion failed: $e');
+      return 'Could not reach AlloMom. Check your connection and try again.';
+    } finally {
+      _setBusy(false);
+    }
+  }
+
+  /// Leaves the phone as a fresh install would find it, once the account it
+  /// held is gone: every table, every preference, the secure store and the
+  /// cache directory. Each part is tried on its own, so one that fails does
+  /// not keep the rest behind.
+  Future<void> _wipeDevice() async {
+    Future<void> attempt(String what, Future<void> Function() wipe) async {
+      try {
+        await wipe();
+      } catch (e) {
+        debugPrint('⚠️ [AuthController] could not clear $what: $e');
+      }
+    }
+
+    await attempt('local database', () async {
+      final db = await SqLiteService().database;
+      await db.clearAllData();
+    });
+    await attempt('preferences', () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+    });
+    await attempt(
+      'secure storage',
+      () => const FlutterSecureStorage().deleteAll(),
+    );
+    await attempt('cache', () async {
+      final cache = await getTemporaryDirectory();
+      if (!await cache.exists()) return;
+      await for (final entry in cache.list()) {
+        await entry.delete(recursive: true);
+      }
+    });
+
+    // What was read out of those preferences into memory goes back to its
+    // defaults too, so the next screen does not carry her choices over.
+    AppLanguage.forget();
+    await ThemeController.instance.setThemeMode('system');
   }
 
   Future<void> _forgetSession() async {

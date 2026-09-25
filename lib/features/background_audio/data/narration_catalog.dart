@@ -262,6 +262,14 @@ class NarrationCatalog {
     NarrationKeys.pgJourneyDelete:
         "Mommy, this will gently remove our whole record and we'd start again from the beginning. Are you sure?",
 
+    // ─── Welcome your baby ───
+    NarrationKeys.pgBirthDate:
+        "I'm here, Mommy! Tell me the day I was born.",
+    NarrationKeys.pgBirthDetails:
+        'How did I arrive, Mommy? Am I a boy or a girl, and how much did I weigh?',
+    NarrationKeys.pgBirthPhoto:
+        "Add my very first photo, Mommy. You can skip it and add one later.",
+
     // ─── Care schedules ───
     NarrationKeys.pgAncOpen:
         "All our doctor visits are here, Mommy. I'll call you before every one.",

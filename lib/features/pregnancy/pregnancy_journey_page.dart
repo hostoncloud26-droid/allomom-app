@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
@@ -23,6 +22,7 @@ import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/pregnancy/widgets/welcome_baby_sheet.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 
@@ -47,7 +47,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   Color get _inkMuted => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
   Color get _inkMuted2 => _p.textMuted;
   Color get _inkMuted3 => _p.pick(const Color(0xFF8A90A0), _p.textMuted);
-  Color get _inkFaint => _p.pick(const Color(0xFFB6BAC5), _p.textMuted);
   Color get _inkFaint2 => _p.pick(const Color(0xFFBDC3CE), _p.textMuted);
   Color get _inkFaint3 => _p.pick(const Color(0xFF9EA5B4), _p.textMuted);
   Color get _card => _p.card;
@@ -244,11 +243,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: _ink,
-            size: 20,
-          ),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _ink, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
@@ -279,11 +274,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
             },
           ),
           PopupMenuButton<String>(
-            icon: Icon(
-              Icons.more_vert_rounded,
-              color: _ink,
-              size: 22,
-            ),
+            icon: Icon(Icons.more_vert_rounded, color: _ink, size: 22),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
@@ -631,11 +622,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               Text(
                 'Enter your LMP date to unlock week-by-week baby development, doctor visit schedules, vaccination reminders, and daily care tracking.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: _inkSec,
-                  height: 1.45,
-                ),
+                style: TextStyle(fontSize: 13, color: _inkSec, height: 1.45),
               ),
               const SizedBox(height: 22),
 
@@ -787,11 +774,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: _inkSec,
-                    height: 1.35,
-                  ),
+                  style: TextStyle(fontSize: 12, color: _inkSec, height: 1.35),
                 ),
               ],
             ),
@@ -1054,10 +1037,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: _card,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: _card, shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: 13),
           ),
           const SizedBox(height: 4),
@@ -1152,7 +1132,11 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               );
             },
           ),
-          Divider(color: _p.pick(const Color(0xFFF3F4F6), _p.divider), height: 20, thickness: 1),
+          Divider(
+            color: _p.pick(const Color(0xFFF3F4F6), _p.divider),
+            height: 20,
+            thickness: 1,
+          ),
           _buildScheduleRow(
             icon: Icons.vaccines_rounded,
             iconBg: const Color(0xFFF3E8FF),
@@ -1168,7 +1152,11 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               );
             },
           ),
-          Divider(color: _p.pick(const Color(0xFFF3F4F6), _p.divider), height: 20, thickness: 1),
+          Divider(
+            color: _p.pick(const Color(0xFFF3F4F6), _p.divider),
+            height: 20,
+            thickness: 1,
+          ),
           _buildScheduleRow(
             icon: Icons.science_rounded,
             iconBg: const Color(0xFFEDF6FF),
@@ -1208,9 +1196,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               width: 38,
               height: 38,
               decoration: BoxDecoration(
-              color: _p.tint(iconColor, iconBg),
-              shape: BoxShape.circle,
-            ),
+                color: _p.tint(iconColor, iconBg),
+                shape: BoxShape.circle,
+              ),
               child: Center(child: Icon(icon, color: iconColor, size: 18)),
             ),
             const SizedBox(width: 12),
@@ -1238,11 +1226,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right_rounded,
-              size: 22,
-              color: _inkFaint2,
-            ),
+            Icon(Icons.chevron_right_rounded, size: 22, color: _inkFaint2),
           ],
         ),
       ),
@@ -1336,11 +1320,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           const SizedBox(height: 4),
           Text(
             'Celebrate your delivery! Mark this pregnancy journey as completed to record birth milestones and transition to newborn care.',
-            style: TextStyle(
-              fontSize: 12.5,
-              color: _inkSec2,
-              height: 1.4,
-            ),
+            style: TextStyle(fontSize: 12.5, color: _inkSec2, height: 1.4),
           ),
           const SizedBox(height: 14),
           SizedBox(
@@ -1398,10 +1378,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _p.tint(
-                const Color(0xFFEF4444),
-                const Color(0xFFFEF2F2),
-              ),
+              color: _p.tint(const Color(0xFFEF4444), const Color(0xFFFEF2F2)),
               shape: BoxShape.circle,
             ),
             child: const Icon(
@@ -1456,11 +1433,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       children: [
         Row(
           children: [
-            Icon(
-              Icons.history_edu_rounded,
-              size: 16,
-              color: _inkSec,
-            ),
+            Icon(Icons.history_edu_rounded, size: 16, color: _inkSec),
             const SizedBox(width: 6),
             Text(
               'PAST PREGNANCY JOURNEYS (${_completedPregnancies.length})',
@@ -1653,642 +1626,61 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
 
   static const _rose = Color(0xFFFF3B5C);
   Color get _roseSoft => _p.tint(_rose, const Color(0xFFFFF0F4));
-  Color get _roseBorder =>
-      _p.pick(const Color(0xFFFFD3DC), _p.accentBorder);
+  Color get _roseBorder => _p.pick(const Color(0xFFFFD3DC), _p.accentBorder);
 
-  void _showCompletePregnancyModal(BuildContext context) {
+  /// "Welcome your baby": a three-step sheet — delivery date, then delivery
+  /// type, gender and weight, then the first photo.
+  Future<void> _showCompletePregnancyModal(BuildContext context) async {
     final pregId = _pregnancyInfo?['id']?.toString();
     if (pregId == null || pregId.isEmpty) return;
 
-    DateTime deliveryDate = DateTime.now();
-    String deliveryType = 'Normal Delivery';
-    String babyGender = 'Baby Boy 👦';
-    String? babyPhotoPath;
-    final weightController = TextEditingController();
-    bool isSubmitting = false;
+    var babyCount = 0;
+    final saved = await WelcomeBabySheet.show(
+      context,
+      onSubmit: (d) async {
+        // Local-only: written to SQLite with synced = 0.
+        await HealthDbService.instance.completePregnancy(
+          pregId,
+          deliveredAt: d.deliveryDate,
+        );
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          final isTwins = babyGender.startsWith('Twins');
+        // The delivery produces the baby: a birth record linked to this
+        // pregnancy, with its own health record and a vaccination and
+        // milestone schedule anchored on the DOB.
+        final babyIds = await BabyRepository.instance.recordBirthsForPregnancy(
+          pregnancyId: pregId,
+          deliveryDate: d.deliveryDate,
+          gender: d.gender,
+          deliveryType: d.deliveryType,
+          weight: d.weightKg,
+          photo: d.photoPath,
+          babyCount: 1,
+        );
+        babyCount = babyIds.length;
 
-          return Container(
-            padding: EdgeInsets.only(
-              left: 24,
-              right: 24,
-              top: 14,
-              bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-            ),
-            decoration: BoxDecoration(
-              color: _card,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
-            ),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: _p.pick(const Color(0xFFE9EAEF), _p.divider),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ─── HEADER ───
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: _roseSoft,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.celebration_rounded,
-                          color: _rose,
-                          size: 22,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Welcome your baby',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                color: _ink,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'A few details to complete your journey 🎉',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: _inkMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ─── BABY PHOTO ───
-                  Center(
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () async {
-                            final path = await _pickBabyPhoto();
-                            if (path != null) {
-                              setModalState(() => babyPhotoPath = path);
-                            }
-                          },
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: [
-                              Container(
-                                width: 96,
-                                height: 96,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _roseSoft,
-                                  border: Border.all(
-                                    color: _roseBorder,
-                                    width: 2,
-                                  ),
-                                  image: babyPhotoPath == null
-                                      ? null
-                                      : DecorationImage(
-                                          image: FileImage(
-                                            File(babyPhotoPath!),
-                                          ),
-                                          fit: BoxFit.cover,
-                                        ),
-                                ),
-                                child: babyPhotoPath != null
-                                    ? null
-                                    : const Icon(
-                                        Icons.child_care_rounded,
-                                        size: 40,
-                                        color: Color(0xFFFF9DB1),
-                                      ),
-                              ),
-                              Positioned(
-                                right: -2,
-                                bottom: -2,
-                                child: Container(
-                                  padding: const EdgeInsets.all(7),
-                                  decoration: BoxDecoration(
-                                    color: _rose,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: _card,
-                                      width: 2.5,
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    babyPhotoPath == null
-                                        ? Icons.add_a_photo_rounded
-                                        : Icons.edit_rounded,
-                                    size: 14,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          babyPhotoPath == null
-                              ? 'Add first photo'
-                              : 'Tap to change',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: _rose,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // ─── DELIVERY DATE ───
-                  _modalLabel('DELIVERY DATE'),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: deliveryDate,
-                        firstDate: DateTime.now().subtract(
-                          const Duration(days: 90),
-                        ),
-                        lastDate: DateTime.now().add(const Duration(days: 7)),
-                      );
-                      if (picked != null) {
-                        setModalState(() => deliveryDate = picked);
-                      }
-                    },
-                    borderRadius: BorderRadius.circular(16),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 15,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _roseSoft,
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.event_available_rounded,
-                            size: 19,
-                            color: _rose,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            _dateFmt.format(deliveryDate),
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: _ink,
-                            ),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Change',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              color: _rose,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ─── DELIVERY TYPE ───
-                  _modalLabel('DELIVERY TYPE'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: ['Normal Delivery', 'Cesarean (C-Section)']
-                        .map(
-                          (type) => _choiceChip(
-                            label: type,
-                            selected: deliveryType == type,
-                            onTap: () =>
-                                setModalState(() => deliveryType = type),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ─── BABY ───
-                  _modalLabel('BABY'),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: ['Baby Boy 👦', 'Baby Girl 👧', 'Twins 👶👶']
-                        .map(
-                          (gender) => _choiceChip(
-                            label: gender,
-                            selected: babyGender == gender,
-                            onTap: () =>
-                                setModalState(() => babyGender = gender),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ─── BIRTH WEIGHT ───
-                  _modalLabel('BIRTH WEIGHT'),
-                  TextField(
-                    controller: weightController,
-                    // Twins would need one weight each, and this form has room
-                    // for a single number, so it is skipped for them entirely
-                    // rather than recorded against the wrong baby.
-                    enabled: !isTwins,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: _ink,
-                    ),
-                    decoration: InputDecoration(
-                      hintText: isTwins ? 'Add for each baby later' : '3.2',
-                      hintStyle: TextStyle(
-                        fontSize: 13.5,
-                        color: _inkFaint,
-                      ),
-                      prefixIcon: const Icon(
-                        Icons.monitor_weight_rounded,
-                        size: 19,
-                        color: _rose,
-                      ),
-                      suffixText: isTwins ? null : 'kg',
-                      suffixStyle: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _inkMuted,
-                      ),
-                      filled: true,
-                      fillColor: isTwins
-                          ? _p.pick(const Color(0xFFF6F7FA), _p.inputFill)
-                          : _roseSoft,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 15,
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      disabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: const BorderSide(color: _rose, width: 1.4),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // ─── WHAT HAPPENS NEXT ───
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _p.inputFill,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.auto_awesome_rounded,
-                          size: 16,
-                          color: _inkFaint,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            isTwins
-                                ? "We'll add both babies with their own "
-                                      'vaccination schedule and milestones.'
-                                : "We'll set up your baby's vaccination "
-                                      'schedule and milestones from this date.',
-                            style: TextStyle(
-                              fontSize: 11.5,
-                              height: 1.45,
-                              color: _inkMuted,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 22),
-
-                  // ─── SUBMIT ───
-                  SizedBox(
-                    width: double.infinity,
-                    height: 54,
-                    child: ElevatedButton(
-                      onPressed: isSubmitting
-                          ? null
-                          : () async {
-                              setModalState(() => isSubmitting = true);
-
-                              try {
-                                // Local-only: written to SQLite with synced = 0.
-                                await HealthDbService.instance
-                                    .completePregnancy(
-                                      pregId,
-                                      deliveredAt: deliveryDate,
-                                    );
-
-                                // The delivery produces the baby: a birth
-                                // record linked to this pregnancy, with its
-                                // own health record and a vaccination and
-                                // milestone schedule anchored on the DOB.
-                                final babyIds = await BabyRepository.instance
-                                    .recordBirthsForPregnancy(
-                                      pregnancyId: pregId,
-                                      deliveryDate: deliveryDate,
-                                      gender: _genderValueFor(babyGender),
-                                      deliveryType: _deliveryTypeValueFor(
-                                        deliveryType,
-                                      ),
-                                      weight: double.tryParse(
-                                        weightController.text.trim(),
-                                      ),
-                                      photo: babyPhotoPath,
-                                      babyCount: _babyCountFor(babyGender),
-                                    );
-
-                                // She is no longer pregnant. 'new_mom' is a
-                                // non-pregnant status that also tells the app
-                                // she is postpartum rather than never-pregnant.
-                                await MainController.instance
-                                    .setPregnancyStatus('new_mom');
-                                await _loadAllPregnancyData();
-
-                                if (context.mounted) {
-                                  speak(
-                                    NarrationKeys.pgConfJourneyDone,
-                                    force: true,
-                                  );
-                                  Navigator.pop(ctx);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        babyIds.length > 1
-                                            ? 'Congratulations Amma! ${babyIds.length} babies added to your family! 👶👶🎉'
-                                            : 'Congratulations Amma! Baby added to your family! 👶🎉',
-                                      ),
-                                      backgroundColor: _rose,
-                                      behavior: SnackBarBehavior.floating,
-                                      action: SnackBarAction(
-                                        label: 'Add details',
-                                        textColor: Colors.white,
-                                        onPressed: _openMyBabies,
-                                      ),
-                                    ),
-                                  );
-                                }
-                              } catch (e) {
-                                debugPrint(
-                                  'Error completing pregnancy $pregId: $e',
-                                );
-                                setModalState(() => isSubmitting = false);
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Failed to complete pregnancy',
-                                      ),
-                                      backgroundColor: Color(0xFFEF4444),
-                                    ),
-                                  );
-                                }
-                              }
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _rose,
-                        disabledBackgroundColor: _roseBorder,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: isSubmitting
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(
-                                color: Colors.white,
-                                strokeWidth: 2,
-                              ),
-                            )
-                          : Text(
-                              'Complete Journey',
-                              style: TextStyle(
-                                fontSize: 16.5,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+        // She is no longer pregnant. 'new_mom' is a non-pregnant status that
+        // also tells the app she is postpartum rather than never-pregnant.
+        await MainController.instance.setPregnancyStatus('new_mom');
+      },
     );
-  }
+    if (saved == null || !mounted) return;
 
-  Widget _modalLabel(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 10.5,
-        fontWeight: FontWeight.w700,
-        letterSpacing: 0.7,
-        color: _inkMuted,
-      ),
-    ),
-  );
-
-  Widget _choiceChip({
-    required String label,
-    required bool selected,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
-        decoration: BoxDecoration(
-          color: selected ? _rose : _roseSoft,
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: selected ? _rose : _roseBorder),
+    await _loadAllPregnancyData();
+    if (!mounted) return;
+    speak(NarrationKeys.pgConfJourneyDone, force: true);
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          babyCount > 1
+              ? 'Congratulations Amma! $babyCount babies added to your family! 👶👶🎉'
+              : 'Congratulations Amma! Baby added to your family! 👶🎉',
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w600,
-            color: selected ? Colors.white : _inkSoft,
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Lets the mother snap or choose the baby's first photo.
-  ///
-  /// Resolves the local file path, or null if she backed out. The path is
-  /// stored as-is in `birth_records.photo`; nothing is uploaded.
-  Future<String?> _pickBabyPhoto() async {
-    final source = await showModalBottomSheet<ImageSource>(
-      context: context,
-      backgroundColor: _card,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetCtx) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 42,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 18),
-                decoration: BoxDecoration(
-                  color: _p.pick(const Color(0xFFE9EAEF), _p.divider),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              Text(
-                "Baby's first photo",
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                  color: _ink,
-                ),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  Expanded(
-                    child: _photoSourceTile(
-                      icon: Icons.photo_camera_rounded,
-                      label: 'Camera',
-                      onTap: () => Navigator.pop(sheetCtx, ImageSource.camera),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _photoSourceTile(
-                      icon: Icons.photo_library_rounded,
-                      label: 'Gallery',
-                      onTap: () => Navigator.pop(sheetCtx, ImageSource.gallery),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    if (source == null) return null;
-
-    try {
-      final picked = await ImagePicker().pickImage(
-        source: source,
-        imageQuality: 85,
-        maxWidth: 1440,
-      );
-      return picked?.path;
-    } catch (e) {
-      debugPrint('Error picking baby photo: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Could not add photo: $e')));
-      }
-      return null;
-    }
-  }
-
-  Widget _photoSourceTile({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 18),
-        decoration: BoxDecoration(
-          color: _roseSoft,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _roseBorder),
-        ),
-        child: Column(
-          children: [
-            Icon(icon, size: 26, color: _rose),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: _ink,
-              ),
-            ),
-          ],
+        backgroundColor: _rose,
+        behavior: SnackBarBehavior.floating,
+        action: SnackBarAction(
+          label: 'Add details',
+          textColor: Colors.white,
+          onPressed: _openMyBabies,
         ),
       ),
     );
@@ -2724,10 +2116,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     Text(
                       '${babyAgeLabel(baby.deliveryDate)} old  ·  '
                       'Born ${_dateFmt.format(baby.deliveryDate)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _inkSoft,
-                      ),
+                      style: TextStyle(fontSize: 12, color: _inkSoft),
                     ),
                   ],
                 ),
@@ -2837,10 +2226,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               ),
             ),
             const SizedBox(height: 7),
-            Text(
-              label,
-              style: TextStyle(fontSize: 11, color: _inkMuted),
-            ),
+            Text(label, style: TextStyle(fontSize: 11, color: _inkMuted)),
           ],
         ),
       ),
@@ -2931,11 +2317,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               padding: const EdgeInsets.symmetric(vertical: 14),
               child: Text(
                 total == 0 ? emptyMessage : allDoneMessage,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.4,
-                  color: _inkMuted,
-                ),
+                style: TextStyle(fontSize: 12, height: 1.4, color: _inkMuted),
               ),
             )
           else
@@ -3076,10 +2458,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     subtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: _inkMuted,
-                    ),
+                    style: TextStyle(fontSize: 11, color: _inkMuted),
                   ),
                 ],
               ),
@@ -3110,10 +2489,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: _roseSoft,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: _roseSoft, shape: BoxShape.circle),
             child: const Icon(Icons.favorite_rounded, color: _rose, size: 19),
           ),
           const SizedBox(width: 12),
@@ -3131,10 +2507,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 ),
                 Text(
                   'Register a new pregnancy journey',
-                  style: TextStyle(
-                    fontSize: 11.5,
-                    color: _inkMuted,
-                  ),
+                  style: TextStyle(fontSize: 11.5, color: _inkMuted),
                 ),
               ],
             ),
@@ -3223,10 +2596,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                           : names.join(', '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: _inkSoft,
-                      ),
+                      style: TextStyle(fontSize: 12, color: _inkSoft),
                     ),
                   ],
                 ),
@@ -3318,26 +2688,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     await _loadAllPregnancyData();
   }
 
-  /// Maps the modal's baby chip onto `birth_records.gender`. "Twins" says
-  /// how many babies there are, not what they are, so it carries no gender.
-  static String? _genderValueFor(String label) {
-    if (label.startsWith('Baby Boy')) return 'male';
-    if (label.startsWith('Baby Girl')) return 'female';
-    return null;
-  }
-
-  /// Twins get one birth record each — each baby needs its own immunisation
-  /// schedule and milestone checklist.
-  static int _babyCountFor(String label) => label.startsWith('Twins') ? 2 : 1;
-
-  /// Maps the modal's delivery chip onto `birth_records.delivery_type`.
-  static String? _deliveryTypeValueFor(String label) {
-    if (label.startsWith('Normal')) return 'normal';
-    if (label.startsWith('Cesarean')) return 'c-section';
-
-    return null;
-  }
-
   Future<void> _openMyBabies() async {
     await Navigator.of(
       context,
@@ -3363,9 +2713,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: _p.tint(
-                const Color(0xFFEF4444),
-                const Color(0xFFFEF2F2),
-              ),
+                  const Color(0xFFEF4444),
+                  const Color(0xFFFEF2F2),
+                ),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -3385,11 +2735,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ),
         content: Text(
           'Are you sure you want to delete this pregnancy record? This will permanently remove your gestational timeline from the database.',
-          style: TextStyle(
-            fontSize: 13.5,
-            color: _inkSec2,
-            height: 1.45,
-          ),
+          style: TextStyle(fontSize: 13.5, color: _inkSec2, height: 1.45),
         ),
         actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         actions: [
@@ -3397,10 +2743,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
             onPressed: () => Navigator.pop(ctx),
             child: Text(
               'Cancel',
-              style: TextStyle(
-                color: _inkSec,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: _inkSec, fontWeight: FontWeight.w600),
             ),
           ),
           ElevatedButton(

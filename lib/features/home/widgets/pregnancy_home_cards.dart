@@ -242,13 +242,145 @@ class _PregnancyWeekCardState extends State<PregnancyWeekCard> {
   }
 }
 
+// ── Baby's week ─────────────────────────────────────────────────────────────
+
+/// The pregnancy week card, carried on after the birth: the baby's week in the
+/// 1000 days (41 is the birth week, then one more each week up to 142) and
+/// that week's message from its AlloBot flow.
+class BabyWeekCard extends StatefulWidget {
+  const BabyWeekCard({
+    super.key,
+    required this.week,
+    required this.birth,
+    this.babyName,
+    this.onOpenJourney,
+  });
+
+  /// 41–142, as [WeeklyBabyTalk.babyWeekOf] counts it.
+  final int week;
+  final DateTime birth;
+  final String? babyName;
+  final VoidCallback? onOpenJourney;
+
+  @override
+  State<BabyWeekCard> createState() => _BabyWeekCardState();
+}
+
+class _BabyWeekCardState extends State<BabyWeekCard> {
+  String? _message;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant BabyWeekCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.week != widget.week) _load();
+  }
+
+  Future<void> _load() async {
+    final message = await WeeklyBabyTalk.message(widget.week);
+    if (!mounted) return;
+    setState(() {
+      _message = message;
+      _loaded = true;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final week = widget.week;
+    final name = widget.babyName?.trim();
+    final who = name == null || name.isEmpty ? 'Baby' : name;
+    final progress =
+        (week - WeeklyBabyTalk.birthWeek) /
+        (WeeklyBabyTalk.lastWeek - WeeklyBabyTalk.birthWeek);
+
+    return _SectionCard(
+      icon: Icons.child_care_rounded,
+      label: 'THIS WEEK',
+      trailing: Text(
+        '${WeeklyBabyTalk.lastWeek - week} weeks to 1000 days',
+        style: TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+          color: p.textMuted,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            week == WeeklyBabyTalk.birthWeek
+                ? 'Week $week · Birth week'
+                : 'Week $week',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              color: p.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '$who is ${WeeklyBabyTalk.ageLabel(widget.birth)}',
+            style: TextStyle(fontSize: 13, color: p.textSecondary),
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              minHeight: 5,
+              color: _rose,
+              backgroundColor: p.tint(_rose, const Color(0xFFFFF0F4)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: !_loaded
+                ? const SizedBox.shrink()
+                : SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
+                    child: Text(
+                      _message ??
+                          '$who is learning something new every day. Feed, '
+                              'cuddle and talk to your baby — it all helps them grow.',
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        color: p.textSecondary,
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+          ),
+          const SizedBox(height: 10),
+          _CardButton(
+            icon: Icons.child_friendly_rounded,
+            label: 'Baby Journey',
+            onTap: widget.onOpenJourney,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── AlloBaby ────────────────────────────────────────────────────────────────
 
 /// Ask Allo's opening flow, run in place on Home: the baby greets her and
 /// carries on into whatever the flow redirects to, one step at a time, each
 /// shown as it is said. Choices the flow ends on are answered right here.
 class AlloBabyFlowCard extends StatelessWidget {
-  const AlloBabyFlowCard({super.key, required this.controller, this.onOpenChat});
+  const AlloBabyFlowCard({
+    super.key,
+    required this.controller,
+    this.onOpenChat,
+  });
 
   final AlloBabyFlowController controller;
 
@@ -443,6 +575,7 @@ class _RightNowCareCardState extends State<RightNowCareCard> {
         part: part,
         isPregnant: session.isPregnant,
         pregnancyDay: session.currentPregnancyDay,
+        babyAgeDays: WeeklyBabyTalk.babyAgeDays(),
       ))
         (item: item, hour: careHourFor(item.id, part)),
       for (final custom in _customs)
