@@ -114,7 +114,16 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
       );
 
       if (!mounted) return;
-      _toast('Your pregnancy journey is ready ✨');
+      // Registered offline: the row is queued, and its schedule is generated
+      // by the server once it syncs.
+      final savedOffline =
+          PregnancyController.instance.activePregnancy?.synced == 0;
+      _toast(
+        savedOffline
+            ? "Saved on this phone ✨ Your care schedule will appear once "
+                  "you're back online."
+            : 'Your pregnancy journey is ready ✨',
+      );
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;

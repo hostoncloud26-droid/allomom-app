@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/services/sync/sync_service.dart';
 
 class ConnectionController extends GetxController {
   static ConnectionController get instance =>
@@ -146,11 +148,19 @@ class ConnectionController extends GetxController {
         return;
       }
 
+      final wasAvailable = _isInternetAvailable.value;
       final hasInternet = await _pingGoogle();
       if (hasInternet) {
         debugPrint("Internet is available");
         _isInternetAvailable.value = true;
         update();
+        // Coming back online flushes whatever was queued offline — a
+        // pregnancy registered without a connection among it — rather than
+        // leaving it for the next five-minute tick. Only on the transition:
+        // this check runs every 30 seconds.
+        if (!wasAvailable && MainController.instance.isAuthenticated) {
+          unawaited(SyncService.instance.syncAll());
+        }
         await HealthVitalsController.instance.syncUnsyncedVitals();
       } else {
         debugPrint("Internet is not available");

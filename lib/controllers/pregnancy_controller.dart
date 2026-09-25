@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:uuid/uuid.dart';
 
 import 'package:allomom/api/pregnancy_api.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -12,10 +13,10 @@ import 'package:allomom/services/sync/sync_service.dart';
 
 /// The active pregnancy and its three schedules.
 ///
-/// Reads come from the local database so every screen works offline. Creating a
-/// pregnancy is the one operation that needs the server: the ANC, vaccination
-/// and report schedules are generated there from the LMP, so the app waits for
-/// them rather than seeding a second, divergent copy locally.
+/// Reads come from the local database so every screen works offline. The ANC,
+/// vaccination and report schedules are generated on the server from the LMP,
+/// never locally — a pregnancy registered offline is saved on its own and its
+/// calendar arrives with the first sync that reaches the server.
 class PregnancyController extends GetxController {
   static PregnancyController get instance =>
       Get.isRegistered<PregnancyController>()
@@ -153,10 +154,18 @@ class PregnancyController extends GetxController {
 
   /// Registers a pregnancy and pulls back the schedules the server generated.
   ///
-  /// Returns the new pregnancy id, or null if the call could not be made. This
-  /// one write is deliberately online-only: seeding nine ANC visits, four
-  /// vaccinations and sixteen reports locally and then reconciling them against
-  /// a server that generated its own set would duplicate the entire calendar.
+  /// Returns the new pregnancy id, or null if it could not be registered.
+  ///
+  /// Offline, the pregnancy is saved locally with `synced = 0` and no
+  /// schedule, and [SyncService] pushes it on its next pass; the server seeds
+  /// the ANC visits, vaccinations and reports when that row first arrives, and
+  /// the modules after `pregnancy` pull them down. The schedule is never
+  /// generated here — reconciling a local set against the server's own would
+  /// duplicate the entire calendar.
+  ///
+  /// The id is generated here in both cases, so a POST that reached the
+  /// server but lost its response and a later sync of the same row name one
+  /// pregnancy, not two.
   Future<String?> createPregnancy({
     required DateTime lmpDate,
     DateTime? eddDate,
@@ -165,7 +174,9 @@ class PregnancyController extends GetxController {
     int? livingChildren,
     Map<String, dynamic>? data,
   }) async {
+    final id = const Uuid().v4();
     final response = await PregnancyApi.create({
+      'id': id,
       'lmp_date': SyncCodec.isoDate(lmpDate),
       if (eddDate != null) 'edd_date': SyncCodec.isoDate(eddDate),
       'status': 'active',
@@ -176,6 +187,18 @@ class PregnancyController extends GetxController {
       'seed_schedules': true,
     });
 
+    if (response.networkError) {
+      return _createLocally(
+        id: id,
+        lmpDate: lmpDate,
+        eddDate: eddDate ?? lmpDate.add(const Duration(days: 280)),
+        gravidity: gravidity,
+        parity: parity,
+        livingChildren: livingChildren,
+        data: data,
+      );
+    }
+
     if (!response.success || response.item is! Map) {
       debugPrint('❌ [PregnancyController] create failed: ${response.detail}');
       return null;
@@ -183,7 +206,55 @@ class PregnancyController extends GetxController {
 
     await _persistDetail(Map<String, dynamic>.from(response.item as Map));
     await MainController.instance.loadFromLocal();
-    return response.id?.toString();
+    return response.id?.toString() ?? id;
+  }
+
+  /// The offline half of [createPregnancy]: the pregnancy row alone, queued.
+  Future<String?> _createLocally({
+    required String id,
+    required DateTime lmpDate,
+    required DateTime eddDate,
+    int? gravidity,
+    int? parity,
+    int? livingChildren,
+    Map<String, dynamic>? data,
+  }) async {
+    final session = MainController.instance;
+    final healthId = session.healthDataId;
+    // Every read is scoped to the health record, so a row without one would
+    // be saved and then never shown.
+    if (healthId.isEmpty) {
+      debugPrint('❌ [PregnancyController] offline create: no health record');
+      return null;
+    }
+
+    final now = DateTime.now();
+    final db = await _db;
+    await db
+        .into(db.pregnancies)
+        .insert(
+          PregnanciesCompanion.insert(
+            id: id,
+            lmpDate: drift.Value(lmpDate),
+            eddDate: drift.Value(eddDate),
+            healthId: drift.Value(healthId),
+            status: const drift.Value('active'),
+            createdBy: drift.Value(
+              session.userId.isEmpty ? null : session.userId,
+            ),
+            data: drift.Value(SyncCodec.encodeJson(data)),
+            gravidity: drift.Value(gravidity ?? 0),
+            parity: drift.Value(parity ?? 0),
+            livingChildren: drift.Value(livingChildren ?? 0),
+            createdAt: drift.Value(now),
+            updatedAt: drift.Value(now),
+            synced: const drift.Value(0),
+          ),
+        );
+
+    debugPrint('📴 [PregnancyController] saved pregnancy $id offline');
+    await session.loadFromLocal();
+    return id;
   }
 
   /// Applies a change locally, then pushes it.

@@ -62,9 +62,14 @@ timestamps and owner keys are the server's to set.
 | `BabyController` | Babies, their immunizations and milestones. |
 | `VitalsController` | The vitals stream — every measurement, with its history. |
 
-Creating a pregnancy or a baby is the one kind of write that needs the network:
-the server generates the care schedules, and seeding a second set locally would
-duplicate the whole calendar.
+The care schedules are generated only by the server — seeding a second set
+locally would duplicate the whole calendar. Creating a baby therefore needs the
+network. Creating a pregnancy does not: offline, `PregnancyController` saves the
+bare pregnancy row with a client UUID and `synced = 0`; when `/sync/pregnancy`
+inserts it, the server seeds its ANC, vaccination and report rows (the module's
+`on_insert` hook), and the `anc` / `pregnancy_vaccination` / `report_checklist`
+passes that follow pull them down. `ConnectionController` runs a sync as soon as
+the connection comes back.
 
 ## Tokens
 
