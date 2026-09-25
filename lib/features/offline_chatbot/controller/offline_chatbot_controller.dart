@@ -599,7 +599,7 @@ class OfflineChatbotController extends GetxController {
       final reply = await engine.runIntent(
         targetIntent,
         session: _session,
-        profile: offlineChatbotProfile(),
+        profile: await offlineChatbotProfile(),
       );
 
       // Already on screen from her last visit: keep the session and its
@@ -873,7 +873,7 @@ class OfflineChatbotController extends GetxController {
       final reply = await engine.respond(
         message: message,
         session: _session,
-        profile: offlineChatbotProfile(),
+        profile: await offlineChatbotProfile(),
       );
       await _deliverReply(reply, delivery, speak: speak);
     } catch (e) {

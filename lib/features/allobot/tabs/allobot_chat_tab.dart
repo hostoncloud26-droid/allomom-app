@@ -121,14 +121,27 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
                 onOptionSelected: _send,
               );
             }),
-            OfflineChatbotComposer(
-              input: _input,
-              focusNode: _inputFocus,
-              onSend: _send,
-              controller: controller,
-              onMicTap: _openVoice,
-              hintText: 'Message AlloBot…',
-            ),
+            // While the flow waits on an option, the options bar is the only
+            // way to answer, so the composer steps aside.
+            Obx(() {
+              if (controller.activeOptions.isNotEmpty) {
+                if (_inputFocus.hasFocus) {
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _inputFocus.unfocus(),
+                  );
+                }
+                // Clears the docked mic, which the composer used to hold off.
+                return const SizedBox(height: 40);
+              }
+              return OfflineChatbotComposer(
+                input: _input,
+                focusNode: _inputFocus,
+                onSend: _send,
+                controller: controller,
+                onMicTap: _openVoice,
+                hintText: 'Message AlloBot…',
+              );
+            }),
           ],
         ),
       ),

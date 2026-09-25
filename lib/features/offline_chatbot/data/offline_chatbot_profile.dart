@@ -15,12 +15,13 @@
 /// authoring.
 library;
 
-import 'package:get/get.dart';
+import 'dart:convert';
+
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/controllers/family_controller.dart';
-import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/vitals_controller.dart';
+import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// Shown in place of a reading that has never been taken, so a template that
 /// asks for it renders a sentence rather than a blank.
@@ -332,84 +333,176 @@ bool _activeToday() {
   return false;
 }
 
-/// Whether meals or hydration have been recorded today.
-Map<String, dynamic> _todayNutrition() {
+/// How many glasses of water a day the My Health tile counts towards.
+const int _waterTargetGlasses = 10;
+
+/// Every meal the My Health page tracks, with the legacy breakfast spelling
+/// earlier builds wrote.
+const Map<String, List<String>> _mealKeys = {
+  'breakfast': ['breakfast', 'break_fast'],
+  'lunch': ['lunch'],
+  'dinner': ['dinner'],
+};
+
+Map<String, dynamic> _rowData(Map<String, dynamic> row) {
+  final raw = row['data'];
+  if (raw is Map) return Map<String, dynamic>.from(raw);
+  if (raw is String && raw.trim().isNotEmpty) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {}
+  }
+  return const {};
+}
+
+double _rowValue(Map<String, dynamic> row) =>
+    (row['value'] as num?)?.toDouble() ?? 0;
+
+DateTime? _rowTime(Map<String, dynamic> row) {
+  final at = row['createdAt'];
+  if (at is DateTime) return at;
+  if (at is String) return DateTime.tryParse(at);
+  return null;
+}
+
+/// What she wrote about a row — the same fields the My Health tiles show.
+String? _rowNote(Map<String, dynamic> row) {
+  final data = _rowData(row);
+  for (final key in const ['items', 'details', 'drink', 'note']) {
+    final text = data[key]?.toString().trim() ?? '';
+    if (text.isNotEmpty) return text;
+  }
+  return null;
+}
+
+/// Portions in a row, honouring `data['count']` where a flow wrote one.
+int _rowCount(Map<String, dynamic> row) {
+  final count = _rowData(row)['count'];
+  if (count is num && count > 0) return count.toInt();
+  final parsed = int.tryParse(count?.toString() ?? '');
+  return parsed != null && parsed > 0 ? parsed : 1;
+}
+
+String _clock(DateTime at) {
+  final hour12 = at.hour % 12 == 0 ? 12 : at.hour % 12;
+  return '${_pad(hour12)}:${_pad(at.minute)} ${at.hour >= 12 ? 'PM' : 'AM'}';
+}
+
+int _whole(double value) => value.round();
+
+/// Today's meals, snacks, drinks and water, read straight from the local
+/// vitals table on every turn — the same rows the My Health nutrition tiles
+/// show. It used to read the in-memory controllers, which are only refreshed
+/// by a sync, so a breakfast logged a minute ago still read as missed.
+Future<Map<String, dynamic>> _todayNutrition() async {
   final now = DateTime.now();
   final startOfToday = DateTime(now.year, now.month, now.day);
   final endOfToday = startOfToday.add(const Duration(days: 1));
+  final userId = MainController.instance.userId;
+
+  final service = VitalsSqLiteService();
+  Future<List<Map<String, dynamic>>> today(String key) async {
+    try {
+      final rows = await service.getVitalsHistory(
+        userId,
+        key,
+        fromDate: startOfToday,
+        toDate: endOfToday,
+      );
+      return rows.where((row) {
+        final at = _rowTime(row);
+        return at == null || at.isBefore(endOfToday);
+      }).toList();
+    } catch (_) {
+      // A read that fails reads as nothing logged, not as a failed turn.
+      return const [];
+    }
+  }
+
+  List<Map<String, dynamic>> newestFirst(List<Map<String, dynamic>> rows) {
+    final sorted = [...rows];
+    sorted.sort((a, b) {
+      final at = _rowTime(a), bt = _rowTime(b);
+      if (at == null || bt == null) return 0;
+      return bt.compareTo(at);
+    });
+    return sorted;
+  }
+
+  final nutrition = <String, dynamic>{};
+  var totalCalories = 0.0;
+
+  // ── Meals ──
+  for (final entry in _mealKeys.entries) {
+    final rows = newestFirst([
+      for (final key in entry.value) ...await today(key),
+    ]);
+    final calories = rows.fold<double>(0, (sum, row) => sum + _rowValue(row));
+    totalCalories += calories;
+
+    final items = rows.map(_rowNote).whereType<String>().toList();
+    final latest = rows.isEmpty ? null : _rowTime(rows.first);
+
+    nutrition['had_${entry.key}'] = rows.isNotEmpty;
+    nutrition[entry.key] = <String, dynamic>{
+      'had': rows.isNotEmpty,
+      'calories': _whole(calories),
+      'times_logged': rows.length,
+      if (items.isNotEmpty) 'items': items.join(', '),
+      if (latest != null) 'last_logged_at': _clock(latest),
+    };
+  }
+
+  // ── Snacks and drinks ──
+  for (final key in const ['snacks', 'drinks']) {
+    final rows = newestFirst(await today(key));
+    final calories = rows.fold<double>(0, (sum, row) => sum + _rowValue(row));
+    totalCalories += calories;
+    final items = rows.map(_rowNote).whereType<String>().toList();
+    final latest = rows.isEmpty ? null : _rowTime(rows.first);
+
+    nutrition[key] = <String, dynamic>{
+      'had': rows.isNotEmpty,
+      'count': rows.fold<int>(0, (sum, row) => sum + _rowCount(row)),
+      'calories': _whole(calories),
+      if (items.isNotEmpty) 'items': items.join(', '),
+      if (latest != null) 'last_logged_at': _clock(latest),
+    };
+  }
+
+  // ── Water ──
+  final waterRows = newestFirst(await today('water'));
+  final glasses = _whole(
+    waterRows.fold<double>(0, (sum, row) => sum + _rowValue(row)),
+  ).clamp(0, 1 << 30);
+  final lastWater = waterRows
+      .where((row) => _rowValue(row) > 0)
+      .map(_rowTime)
+      .whereType<DateTime>()
+      .firstOrNull;
   final twoHoursAgo = now.subtract(const Duration(hours: 2));
 
-  bool hadBreakfast = false;
-  bool hadLunch = false;
-  bool hadDinner = false;
-  bool hadWaterWithin2Hrs = false;
-
-  try {
-    if (Get.isRegistered<HealthVitalsController>()) {
-      for (final v in HealthVitalsController.instance.vitals) {
-        final k = v.key.toLowerCase().trim();
-        final at = v.createdAt;
-        final isToday =
-            (at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
-                at.isBefore(endOfToday);
-        if (isToday) {
-          if (k == 'breakfast' || k == 'break_fast') hadBreakfast = true;
-          if (k == 'lunch') hadLunch = true;
-          if (k == 'dinner') hadDinner = true;
-        }
-        if (k == 'water') {
-          if (at.isAfter(twoHoursAgo) &&
-              at.isBefore(now.add(const Duration(minutes: 1)))) {
-            hadWaterWithin2Hrs = true;
-          }
-        }
-      }
-    }
-  } catch (_) {}
-
-  try {
-    if (Get.isRegistered<VitalsController>()) {
-      final vc = VitalsController.instance;
-      for (final row in [
-        ...vc.readings('breakfast'),
-        ...vc.readings('break_fast')
-      ]) {
-        final at = row.createdAt;
-        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
-            at.isBefore(endOfToday)) {
-          hadBreakfast = true;
-        }
-      }
-      for (final row in vc.readings('lunch')) {
-        final at = row.createdAt;
-        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
-            at.isBefore(endOfToday)) {
-          hadLunch = true;
-        }
-      }
-      for (final row in vc.readings('dinner')) {
-        final at = row.createdAt;
-        if ((at.isAfter(startOfToday) || at.isAtSameMomentAs(startOfToday)) &&
-            at.isBefore(endOfToday)) {
-          hadDinner = true;
-        }
-      }
-      for (final row in vc.readings('water')) {
-        final at = row.createdAt;
-        if (at.isAfter(twoHoursAgo) &&
-            at.isBefore(now.add(const Duration(minutes: 1)))) {
-          hadWaterWithin2Hrs = true;
-        }
-      }
-    }
-  } catch (_) {}
-
-  return <String, dynamic>{
-    'had_breakfast': hadBreakfast,
-    'had_lunch': hadLunch,
-    'had_dinner': hadDinner,
-    'had_water_within_2_hrs': hadWaterWithin2Hrs,
+  nutrition['had_water_within_2_hrs'] =
+      lastWater != null && lastWater.isAfter(twoHoursAgo);
+  nutrition['water'] = <String, dynamic>{
+    'glasses': glasses,
+    'target_glasses': _waterTargetGlasses,
+    'glasses_left': (_waterTargetGlasses - glasses).clamp(
+      0,
+      _waterTargetGlasses,
+    ),
+    if (lastWater != null) 'last_logged_at': _clock(lastWater),
+    if (lastWater != null)
+      'minutes_since_last': now.difference(lastWater).inMinutes,
   };
+
+  nutrition['total_calories'] = _whole(totalCalories);
+  nutrition['meals_logged'] = _mealKeys.keys
+      .where((meal) => nutrition['had_$meal'] == true)
+      .length;
+
+  return nutrition;
 }
 
 /// How many babies are already here.
@@ -428,7 +521,9 @@ int _babyCount(MainController main) {
 /// The engine both nests this under `profile` and spreads it at the top level,
 /// so a flow can write `{profile.vitals.hr}` — the form the builder's palette
 /// offers — or the bare `{vitals.hr}`, and get the same value.
-Map<String, dynamic> offlineChatbotProfile() {
+///
+/// Rebuilt on every send, so what she logged a moment ago is already in it.
+Future<Map<String, dynamic>> offlineChatbotProfile() async {
   final now = DateTime.now();
   final main = MainController.instance;
 
@@ -443,6 +538,7 @@ Map<String, dynamic> offlineChatbotProfile() {
       '${_pad(hour12)}:${_pad(now.minute)}:${_pad(now.second)} $amPm';
 
   final parents = _parents(main);
+  final nutrition = await _todayNutrition();
 
   return <String, dynamic>{
     'type': _type(main),
@@ -457,7 +553,7 @@ Map<String, dynamic> offlineChatbotProfile() {
     'babies': _babies(),
     'baby_count': _babyCount(main),
     'active_today': _activeToday(),
-    'today_nutrition': _todayNutrition(),
+    'today_nutrition': nutrition,
 
     'current_date': now.day,
     'current_month': now.month,
@@ -480,7 +576,7 @@ Map<String, dynamic> offlineChatbotProfile() {
 
 /// Every `profile.` path the current data offers, for showing an author which
 /// placeholders will resolve. Walks nested maps into dotted paths.
-List<String> offlineChatbotProfileKeys() {
+Future<List<String>> offlineChatbotProfileKeys() async {
   final paths = <String>[];
 
   void walk(dynamic value, String prefix) {
@@ -498,7 +594,7 @@ List<String> offlineChatbotProfileKeys() {
     }
   }
 
-  walk(offlineChatbotProfile(), '');
+  walk(await offlineChatbotProfile(), '');
   paths.sort();
   return paths;
 }
