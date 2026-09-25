@@ -80,9 +80,9 @@ class AuthFlowPage extends StatefulWidget {
 }
 
 class _AuthFlowPageState extends State<AuthFlowPage> {
-  late final PageController _pageController;
   final List<AuthFlowStep> _stepHistory = [];
   late AuthFlowStep _currentStep;
+  bool _isForward = true;
 
   // Language state
   String _selectedLanguageCode = 'en';
@@ -166,7 +166,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     super.initState();
     _currentStep = widget.initialStep;
     _stepHistory.add(_currentStep);
-    _pageController = PageController(initialPage: _currentStep.index);
 
     _selectedLanguageCode = widget.initialLanguage;
     _selectedRole = widget.initialRole;
@@ -201,7 +200,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     _phoneController.dispose();
     _nameController.dispose();
     _dayController.dispose();
@@ -300,17 +298,13 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     if (_currentStep == step) return;
     FocusScope.of(context).unfocus();
     setState(() {
+      _isForward = true;
       _currentStep = step;
       if (_stepHistory.isEmpty || _stepHistory.last != step) {
         _stepHistory.add(step);
       }
       _updateNarrationForStep(step);
     });
-    _pageController.animateToPage(
-      step.index,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-    );
     if (BackgroundAudioController.isReady) {
       BackgroundAudioController.to.playByKey(_narrationKey, force: true);
     }
@@ -321,11 +315,13 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         prevStep == AuthFlowStep.role ||
         prevStep == AuthFlowStep.verifyOtp ||
         prevStep == AuthFlowStep.contact ||
-        prevStep == AuthFlowStep.language) {
+        prevStep == AuthFlowStep.language ||
+        prevStep == AuthFlowStep.dadSetup) {
       _status = '';
       _lmpDate = null;
       _eddDate = null;
       _cycleLength = 28;
+      _registerPregnancyForPartner = false;
       final now = DateTime.now();
       _selectedLmpDate = DateTime(now.year, now.month, now.day);
     } else if (prevStep == AuthFlowStep.status) {
@@ -349,15 +345,11 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       final prevStep = _stepHistory.last;
       FocusScope.of(context).unfocus();
       setState(() {
+        _isForward = false;
         _resetStepState(prevStep);
         _currentStep = prevStep;
         _updateNarrationForStep(prevStep);
       });
-      _pageController.animateToPage(
-        prevStep.index,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-      );
       if (BackgroundAudioController.isReady) {
         BackgroundAudioController.to.playByKey(_narrationKey, force: true);
       }
@@ -873,6 +865,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   }
 
   Future<void> _completeRegistration() async {
+    if (isNewMomRegistrationLabel(_status) && _children.isEmpty) {
+      _showMessage('Please add at least one child to continue', isError: true);
+      return;
+    }
     setState(() => _isSavingRegistration = true);
     try {
       final isDadRole = _isDad;
@@ -982,6 +978,129 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     );
   }
 
+  Widget _buildCurrentStepView(bool isKeyboardOpen) {
+    switch (_currentStep) {
+      case AuthFlowStep.language:
+        return LanguageStepView(
+          selectedLanguageCode: _selectedLanguageCode,
+          onLanguageSelected: _handleLanguageSelected,
+          onProceed: _handleLanguageProceed,
+        );
+      case AuthFlowStep.contact:
+        return ContactNumberStepView(
+          phoneController: _phoneController,
+          countryCode: _countryCode,
+          isLoading: _isLoading,
+          onSendOtp: _handleSendOtp,
+          onGoogleSignIn: _handleGoogleSignIn,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case AuthFlowStep.verifyOtp:
+        return VerifyOtpStepView(
+          phone: _phoneController.text.trim(),
+          countryCode: _countryCode,
+          otpControllers: _otpControllers,
+          otpFocusNodes: _otpFocusNodes,
+          focusedIndex: _focusedOtpIndex,
+          isVerifying: _isVerifying,
+          isResending: _isResending,
+          onVerifyOtp: _handleVerifyOtp,
+          onResendOtp: _handleResendOtp,
+          onWhereCodeTapped: () =>
+              _say(NarrationKeys.onbOtpWhere),
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case AuthFlowStep.role:
+        return RoleSelectionStepView(
+          selectedRole: _selectedRole,
+          onRoleSelected: _handleRoleSelected,
+          onProceed: _handleRoleProceed,
+        );
+      case AuthFlowStep.name:
+        return RegisterNameStepView(
+          nameController: _nameController,
+          googleEmail: _googleEmail,
+          googlePhotoUrl: _googlePhotoUrl,
+          onNext: _handleNameNext,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case AuthFlowStep.status:
+        return RegisterStatusStepView(
+          selectedStatus: _status,
+          onStatusSelected: _handleStatusSelected,
+          onNext: _handleStatusNext,
+        );
+      case AuthFlowStep.lmp:
+        return RegisterLmpStepView(
+          selectedDate: _selectedLmpDate,
+          onDateChanged: (d) => setState(() => _selectedLmpDate = d),
+          onCalculate: _handleLmpCalculate,
+          isPregnancyFlow: _isPregnancyFlow,
+          status: _status,
+        );
+      case AuthFlowStep.edd:
+        return RegisterEddStepView(
+          eddDate: _eddDate ?? DateTime.now().add(const Duration(days: 280)),
+          narrationKey: _narrationKey,
+          onHintSelected: _say,
+          onConfirm: _handleEddConfirm,
+        );
+      case AuthFlowStep.cyclePrediction:
+        return RegisterCyclePredictionStepView(
+          lmpDate: _lmpDate ?? DateTime.now(),
+          cycleLength: _cycleLength,
+          narrationKey: _narrationKey,
+          onHintSelected: _say,
+          onCycleLengthChanged: (len) => setState(() => _cycleLength = len),
+          onNext: _handleCycleConfirm,
+        );
+      case AuthFlowStep.partner:
+        return RegisterPartnerStepView(
+          partnerNameController: _partnerNameController,
+          partnerPhoneController: _partnerPhoneController,
+          partnerWord: _isDad ? 'Mommy' : 'Daddy',
+          isDad: _isDad,
+          onSave: _handlePartnerSave,
+          onSkip: _handlePartnerSkip,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case AuthFlowStep.family:
+        return FamilyDetailsStepView(
+          hasKids: _hasKids,
+          onHasKidsChanged: (val) => setState(() => _hasKids = val),
+          isLoading: _isSavingRegistration,
+          onNext: _handleFamilyNext,
+        );
+      case AuthFlowStep.kids:
+        return KidsDetailsStepView(
+          children: _children,
+          onAddChild: _openAddChildSheet,
+          onDeleteChild: _handleDeleteChild,
+          deletingChildId: _deletingBabyId,
+          isLoading: _isSavingRegistration,
+          isNewMom: isNewMomRegistrationLabel(_status),
+          onComplete: _completeRegistration,
+        );
+      case AuthFlowStep.dadSetup:
+        return DadFamilySetupStepView(
+          onJoinByCode: _handleDadJoinByCode,
+          onRegisterPregnancy: _handleDadRegisterPregnancy,
+          onContinue: _handleDadContinue,
+          partnerWord: 'Mommy',
+        );
+      case AuthFlowStep.joinCode:
+        return JoinFamilyCodeStepView(
+          codeController: _joinCodeController,
+          isChecking: _isCheckingCode,
+          isJoining: _isJoiningCode,
+          errorMessage: _codeErrorMessage,
+          onJoin: _handleJoinFamilyCode,
+          onCancel: _handleBackNavigation,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+    }
+  }
+
   Widget _buildFlow(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
 
@@ -1071,7 +1190,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
                       ),
 
                       // ═══════════════════════════════════════════════════════
-                      // ─── SECTION 2: BOTTOM CONTAINER WITH PAGEVIEW ───────
+                      // ─── SECTION 2: BOTTOM CONTAINER WITH SLIDE TRANSITION ─
                       // ═══════════════════════════════════════════════════════
                       Container(
                         width: double.infinity,
@@ -1100,132 +1219,45 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
                           alignment: Alignment.topCenter,
                           child: SizedBox(
                             height: _getStepHeight(_currentStep, isKeyboardOpen),
-                            child: PageView.builder(
-                              controller: _pageController,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: AuthFlowStep.values.length,
-                              itemBuilder: (context, index) {
-                                final step = AuthFlowStep.values[index];
-                                switch (step) {
-                                  case AuthFlowStep.language:
-                                    return LanguageStepView(
-                                      selectedLanguageCode: _selectedLanguageCode,
-                                      onLanguageSelected: _handleLanguageSelected,
-                                      onProceed: _handleLanguageProceed,
-                                    );
-                                  case AuthFlowStep.contact:
-                                    return ContactNumberStepView(
-                                      phoneController: _phoneController,
-                                      countryCode: _countryCode,
-                                      isLoading: _isLoading,
-                                      onSendOtp: _handleSendOtp,
-                                      onGoogleSignIn: _handleGoogleSignIn,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case AuthFlowStep.verifyOtp:
-                                    return VerifyOtpStepView(
-                                      phone: _phoneController.text.trim(),
-                                      countryCode: _countryCode,
-                                      otpControllers: _otpControllers,
-                                      otpFocusNodes: _otpFocusNodes,
-                                      focusedIndex: _focusedOtpIndex,
-                                      isVerifying: _isVerifying,
-                                      isResending: _isResending,
-                                      onVerifyOtp: _handleVerifyOtp,
-                                      onResendOtp: _handleResendOtp,
-                                      onWhereCodeTapped: () =>
-                                          _say(NarrationKeys.onbOtpWhere),
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case AuthFlowStep.role:
-                                    return RoleSelectionStepView(
-                                      selectedRole: _selectedRole,
-                                      onRoleSelected: _handleRoleSelected,
-                                      onProceed: _handleRoleProceed,
-                                    );
-                                  case AuthFlowStep.name:
-                                    return RegisterNameStepView(
-                                      nameController: _nameController,
-                                      googleEmail: _googleEmail,
-                                      googlePhotoUrl: _googlePhotoUrl,
-                                      onNext: _handleNameNext,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case AuthFlowStep.status:
-                                    return RegisterStatusStepView(
-                                      selectedStatus: _status,
-                                      onStatusSelected: _handleStatusSelected,
-                                      onNext: _handleStatusNext,
-                                    );
-                                  case AuthFlowStep.lmp:
-                                    return RegisterLmpStepView(
-                                      selectedDate: _selectedLmpDate,
-                                      onDateChanged: (d) => setState(() => _selectedLmpDate = d),
-                                      onCalculate: _handleLmpCalculate,
-                                      isPregnancyFlow: _isPregnancyFlow,
-                                      status: _status,
-                                    );
-                                  case AuthFlowStep.edd:
-                                    return RegisterEddStepView(
-                                      eddDate: _eddDate ?? DateTime.now().add(const Duration(days: 280)),
-                                      narrationKey: _narrationKey,
-                                      onHintSelected: _say,
-                                      onConfirm: _handleEddConfirm,
-                                    );
-                                  case AuthFlowStep.cyclePrediction:
-                                    return RegisterCyclePredictionStepView(
-                                      lmpDate: _lmpDate ?? DateTime.now(),
-                                      cycleLength: _cycleLength,
-                                      narrationKey: _narrationKey,
-                                      onHintSelected: _say,
-                                      onCycleLengthChanged: (len) => setState(() => _cycleLength = len),
-                                      onNext: _handleCycleConfirm,
-                                    );
-                                  case AuthFlowStep.partner:
-                                    return RegisterPartnerStepView(
-                                      partnerNameController: _partnerNameController,
-                                      partnerPhoneController: _partnerPhoneController,
-                                      partnerWord: _isDad ? 'Mommy' : 'Daddy',
-                                      isDad: _isDad,
-                                      onSave: _handlePartnerSave,
-                                      onSkip: _handlePartnerSkip,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case AuthFlowStep.family:
-                                    return FamilyDetailsStepView(
-                                      hasKids: _hasKids,
-                                      onHasKidsChanged: (val) => setState(() => _hasKids = val),
-                                      isLoading: _isSavingRegistration,
-                                      onNext: _handleFamilyNext,
-                                    );
-                                  case AuthFlowStep.kids:
-                                    return KidsDetailsStepView(
-                                      children: _children,
-                                      onAddChild: _openAddChildSheet,
-                                      onDeleteChild: _handleDeleteChild,
-                                      deletingChildId: _deletingBabyId,
-                                      isLoading: _isSavingRegistration,
-                                      onComplete: _completeRegistration,
-                                    );
-                                  case AuthFlowStep.dadSetup:
-                                    return DadFamilySetupStepView(
-                                      onJoinByCode: _handleDadJoinByCode,
-                                      onRegisterPregnancy: _handleDadRegisterPregnancy,
-                                      onContinue: _handleDadContinue,
-                                      partnerWord: 'Mommy',
-                                    );
-                                  case AuthFlowStep.joinCode:
-                                    return JoinFamilyCodeStepView(
-                                      codeController: _joinCodeController,
-                                      isChecking: _isCheckingCode,
-                                      isJoining: _isJoiningCode,
-                                      errorMessage: _codeErrorMessage,
-                                      onJoin: _handleJoinFamilyCode,
-                                      onCancel: _handleBackNavigation,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                }
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeInOutCubic,
+                              switchOutCurve: Curves.easeInOutCubic,
+                              transitionBuilder: (child, animation) {
+                                final bool isIncoming =
+                                    child.key == ValueKey(_currentStep);
+                                final inTween = Tween<Offset>(
+                                  begin: _isForward
+                                      ? const Offset(1.0, 0.0)
+                                      : const Offset(-1.0, 0.0),
+                                  end: Offset.zero,
+                                );
+                                final outTween = Tween<Offset>(
+                                  begin: _isForward
+                                      ? const Offset(-1.0, 0.0)
+                                      : const Offset(1.0, 0.0),
+                                  end: Offset.zero,
+                                );
+
+                                return SlideTransition(
+                                  position: (isIncoming ? inTween : outTween)
+                                      .animate(animation),
+                                  child: child,
+                                );
                               },
+                              layoutBuilder: (currentChild, previousChildren) {
+                                return Stack(
+                                  alignment: Alignment.topCenter,
+                                  children: <Widget>[
+                                    ...previousChildren,
+                                    if (currentChild != null) currentChild,
+                                  ],
+                                );
+                              },
+                              child: KeyedSubtree(
+                                key: ValueKey(_currentStep),
+                                child: _buildCurrentStepView(isKeyboardOpen),
+                              ),
                             ),
                           ),
                         ),

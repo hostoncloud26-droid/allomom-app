@@ -30,7 +30,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _macController;
 
   // Selected State
-  String _gender = 'Female';
   DateTime? _dob;
   String _pregnancyStatus = notPregnantStatus;
   DateTime? _lmpDate;
@@ -66,10 +65,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       text: session.allowearMacAddress ?? '',
     );
 
-    _gender = session.gender.isNotEmpty
-        ? (session.gender[0].toUpperCase() +
-              session.gender.substring(1).toLowerCase())
-        : 'Female';
     _dob = session.dob;
     _pregnancyStatus = _normalizeStatus(session.pregnancyStatus);
     _lmpDate = session.lmpDate;
@@ -160,7 +155,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final success = await session.updateProfile({
       'name': _nameController.text.trim(),
       'email': orNull(_emailController.text),
-      'gender': _gender.toLowerCase(),
       'dob': SyncCodec.isoDate(_dob),
       'bio': orNull(_bioController.text),
       'city': orNull(_cityController.text),
@@ -270,39 +264,19 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             keyboardType: TextInputType.phone,
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildDropdownField<String>(
-                                  label: 'Gender',
-                                  value: _gender,
-                                  items: const ['Female', 'Male', 'Other'],
-                                  icon: Icons.female_rounded,
-                                  onChanged: (val) {
-                                    if (val != null) {
-                                      setState(() => _gender = val);
-                                    }
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildDateTile(
-                                  label: 'Date of Birth',
-                                  date: _dob,
-                                  hint: 'Select DOB',
-                                  icon: Icons.cake_outlined,
-                                  onTap: () => _selectDate(
-                                    context: context,
-                                    initialDate: _dob ?? DateTime(1995, 1, 1),
-                                    firstDate: DateTime(1940),
-                                    lastDate: DateTime.now(),
-                                    onDateSelected: (d) =>
-                                        setState(() => _dob = d),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          _buildDateTile(
+                            label: 'Date of Birth',
+                            date: _dob,
+                            hint: 'Select DOB',
+                            icon: Icons.cake_outlined,
+                            onTap: () => _selectDate(
+                              context: context,
+                              initialDate: _dob ?? DateTime(1995, 1, 1),
+                              firstDate: DateTime(1940),
+                              lastDate: DateTime.now(),
+                              onDateSelected: (d) =>
+                                  setState(() => _dob = d),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           _buildTextField(

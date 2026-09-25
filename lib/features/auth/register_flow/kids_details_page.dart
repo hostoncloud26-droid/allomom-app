@@ -59,6 +59,7 @@ class KidsDetailsStepView extends StatelessWidget {
   final void Function(Baby baby)? onDeleteChild;
   final String? deletingChildId;
   final bool isLoading;
+  final bool isNewMom;
   final VoidCallback onComplete;
 
   const KidsDetailsStepView({
@@ -68,6 +69,7 @@ class KidsDetailsStepView extends StatelessWidget {
     this.onDeleteChild,
     this.deletingChildId,
     required this.isLoading,
+    this.isNewMom = false,
     required this.onComplete,
   });
 
@@ -75,6 +77,8 @@ class KidsDetailsStepView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isRequirementMet = !isNewMom || children.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -275,9 +279,13 @@ class KidsDetailsStepView extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: isLoading ? null : onComplete,
+            onPressed: isLoading
+                ? null
+                : (isRequirementMet ? onComplete : onAddChild),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF5277),
+              backgroundColor: isRequirementMet
+                  ? const Color(0xFFFF5277)
+                  : const Color(0xFFE5E7EB),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(25),
               ),
@@ -293,11 +301,15 @@ class KidsDetailsStepView extends StatelessWidget {
                     ),
                   )
                 : Text(
-                    'Complete Setup',
+                    isRequirementMet
+                        ? 'Complete Setup'
+                        : 'Add at least 1 Child to Continue',
                     style: GoogleFonts.poppins(
-                      fontSize: 16,
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: isRequirementMet
+                          ? Colors.white
+                          : const Color(0xFF9CA3AF),
                     ),
                   ),
           ),

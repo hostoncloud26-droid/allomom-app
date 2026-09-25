@@ -81,9 +81,9 @@ class RegisterFlowPage extends StatefulWidget {
 }
 
 class _RegisterFlowPageState extends State<RegisterFlowPage> {
-  late final PageController _pageController;
   final List<RegisterStep> _stepHistory = [];
   late RegisterStep _currentStep;
+  bool _isForward = true;
 
   // Flow State
   late String _userName;
@@ -141,7 +141,6 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     super.initState();
     _currentStep = widget.initialStep;
     _stepHistory.add(_currentStep);
-    _pageController = PageController(initialPage: _currentStep.index);
 
     _userName = widget.userName;
     _selectedRole = widget.selectedRole;
@@ -171,7 +170,6 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
 
   @override
   void dispose() {
-    _pageController.dispose();
     _nameController.dispose();
     _dayController.dispose();
     _monthController.dispose();
@@ -239,28 +237,25 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     if (_currentStep == step) return;
     FocusScope.of(context).unfocus();
     setState(() {
+      _isForward = true;
       _currentStep = step;
       if (_stepHistory.isEmpty || _stepHistory.last != step) {
         _stepHistory.add(step);
       }
       _updateNarrationForStep(step);
     });
-    _pageController.animateToPage(
-      step.index,
-      duration: const Duration(milliseconds: 350),
-      curve: Curves.easeInOut,
-    );
     if (BackgroundAudioController.isReady) {
       BackgroundAudioController.to.playByKey(_narrationKey, force: true);
     }
   }
 
   void _resetStepState(RegisterStep prevStep) {
-    if (prevStep == RegisterStep.name) {
+    if (prevStep == RegisterStep.name || prevStep == RegisterStep.dadSetup) {
       _status = '';
       _lmpDate = null;
       _eddDate = null;
       _cycleLength = 28;
+      _registerPregnancyForPartner = false;
       final now = DateTime.now();
       _selectedLmpDate = DateTime(now.year, now.month, now.day);
     } else if (prevStep == RegisterStep.status) {
@@ -284,15 +279,11 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
       final prevStep = _stepHistory.last;
       FocusScope.of(context).unfocus();
       setState(() {
+        _isForward = false;
         _resetStepState(prevStep);
         _currentStep = prevStep;
         _updateNarrationForStep(prevStep);
       });
-      _pageController.animateToPage(
-        prevStep.index,
-        duration: const Duration(milliseconds: 350),
-        curve: Curves.easeInOut,
-      );
       if (BackgroundAudioController.isReady) {
         BackgroundAudioController.to.playByKey(_narrationKey, force: true);
       }
@@ -624,6 +615,10 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   }
 
   Future<void> _completeRegistration() async {
+    if (isNewMomRegistrationLabel(_status) && _children.isEmpty) {
+      _showMessage('Please add at least one child to continue', isError: true);
+      return;
+    }
     setState(() => _isSavingFamily = true);
     try {
       final isDadRole = _isDad;
@@ -719,6 +714,93 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     return 310;
   }
 
+  Widget _buildCurrentStepView(bool isKeyboardOpen) {
+    switch (_currentStep) {
+      case RegisterStep.name:
+        return RegisterNameStepView(
+          nameController: _nameController,
+          googleEmail: _googleEmail,
+          googlePhotoUrl: _googlePhotoUrl,
+          onNext: _handleNameNext,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case RegisterStep.status:
+        return RegisterStatusStepView(
+          selectedStatus: _status,
+          onStatusSelected: _handleStatusSelected,
+          onNext: _handleStatusNext,
+        );
+      case RegisterStep.lmp:
+        return RegisterLmpStepView(
+          selectedDate: _selectedLmpDate,
+          onDateChanged: (d) => setState(() => _selectedLmpDate = d),
+          onCalculate: _handleLmpCalculate,
+          isPregnancyFlow: _isPregnancyFlow,
+          status: _status,
+        );
+      case RegisterStep.edd:
+        return RegisterEddStepView(
+          eddDate: _eddDate ?? DateTime.now().add(const Duration(days: 280)),
+          narrationKey: _narrationKey,
+          onHintSelected: _say,
+          onConfirm: _handleEddConfirm,
+        );
+      case RegisterStep.cyclePrediction:
+        return RegisterCyclePredictionStepView(
+          lmpDate: _lmpDate ?? DateTime.now(),
+          cycleLength: _cycleLength,
+          narrationKey: _narrationKey,
+          onHintSelected: _say,
+          onCycleLengthChanged: (len) => setState(() => _cycleLength = len),
+          onNext: _handleCycleConfirm,
+        );
+      case RegisterStep.partner:
+        return RegisterPartnerStepView(
+          partnerNameController: _partnerNameController,
+          partnerPhoneController: _partnerPhoneController,
+          partnerWord: _isDad ? 'Mommy' : 'Daddy',
+          isDad: _isDad,
+          onSave: _handlePartnerSave,
+          onSkip: _handlePartnerSkip,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+      case RegisterStep.family:
+        return FamilyDetailsStepView(
+          hasKids: _hasKids,
+          onHasKidsChanged: (val) => setState(() => _hasKids = val),
+          isLoading: _isSavingFamily,
+          onNext: _handleFamilyNext,
+        );
+      case RegisterStep.kids:
+        return KidsDetailsStepView(
+          children: _children,
+          onAddChild: _openAddChildSheet,
+          onDeleteChild: _handleDeleteChild,
+          deletingChildId: _deletingBabyId,
+          isLoading: _isSavingFamily,
+          isNewMom: isNewMomRegistrationLabel(_status),
+          onComplete: _completeRegistration,
+        );
+      case RegisterStep.dadSetup:
+        return DadFamilySetupStepView(
+          onJoinByCode: _handleDadJoinByCode,
+          onRegisterPregnancy: _handleDadRegisterPregnancy,
+          onContinue: _handleDadContinue,
+          partnerWord: 'Mommy',
+        );
+      case RegisterStep.joinCode:
+        return JoinFamilyCodeStepView(
+          codeController: _joinCodeController,
+          isChecking: _isCheckingCode,
+          isJoining: _isJoiningCode,
+          errorMessage: _codeErrorMessage,
+          onJoin: _handleJoinFamilyCode,
+          onCancel: _handleBackNavigation,
+          isKeyboardOpen: isKeyboardOpen,
+        );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
@@ -806,7 +888,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                       ),
 
                       // ═══════════════════════════════════════════════════════
-                      // ─── SECTION 2: BOTTOM CONTAINER WITH PAGEVIEW ───────
+                      // ─── SECTION 2: BOTTOM CONTAINER WITH SLIDE TRANSITION ─
                       // ═══════════════════════════════════════════════════════
                       Container(
                         width: double.infinity,
@@ -835,96 +917,45 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                           alignment: Alignment.topCenter,
                           child: SizedBox(
                             height: _getStepHeight(_currentStep, isKeyboardOpen),
-                            child: PageView.builder(
-                              controller: _pageController,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: RegisterStep.values.length,
-                              itemBuilder: (context, index) {
-                                final step = RegisterStep.values[index];
-                                switch (step) {
-                                  case RegisterStep.name:
-                                    return RegisterNameStepView(
-                                      nameController: _nameController,
-                                      googleEmail: _googleEmail,
-                                      googlePhotoUrl: _googlePhotoUrl,
-                                      onNext: _handleNameNext,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case RegisterStep.status:
-                                    return RegisterStatusStepView(
-                                      selectedStatus: _status,
-                                      onStatusSelected: _handleStatusSelected,
-                                      onNext: _handleStatusNext,
-                                    );
-                                  case RegisterStep.lmp:
-                                    return RegisterLmpStepView(
-                                      selectedDate: _selectedLmpDate,
-                                      onDateChanged: (d) => setState(() => _selectedLmpDate = d),
-                                      onCalculate: _handleLmpCalculate,
-                                      isPregnancyFlow: _isPregnancyFlow,
-                                      status: _status,
-                                    );
-                                  case RegisterStep.edd:
-                                    return RegisterEddStepView(
-                                      eddDate: _eddDate ?? DateTime.now().add(const Duration(days: 280)),
-                                      narrationKey: _narrationKey,
-                                      onHintSelected: _say,
-                                      onConfirm: _handleEddConfirm,
-                                    );
-                                  case RegisterStep.cyclePrediction:
-                                    return RegisterCyclePredictionStepView(
-                                      lmpDate: _lmpDate ?? DateTime.now(),
-                                      cycleLength: _cycleLength,
-                                      narrationKey: _narrationKey,
-                                      onHintSelected: _say,
-                                      onCycleLengthChanged: (len) => setState(() => _cycleLength = len),
-                                      onNext: _handleCycleConfirm,
-                                    );
-                                  case RegisterStep.partner:
-                                    return RegisterPartnerStepView(
-                                      partnerNameController: _partnerNameController,
-                                      partnerPhoneController: _partnerPhoneController,
-                                      partnerWord: _isDad ? 'Mommy' : 'Daddy',
-                                      isDad: _isDad,
-                                      onSave: _handlePartnerSave,
-                                      onSkip: _handlePartnerSkip,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                  case RegisterStep.family:
-                                    return FamilyDetailsStepView(
-                                      hasKids: _hasKids,
-                                      onHasKidsChanged: (val) => setState(() => _hasKids = val),
-                                      isLoading: _isSavingFamily,
-                                      onNext: _handleFamilyNext,
-                                    );
-                                  case RegisterStep.kids:
-                                    return KidsDetailsStepView(
-                                      children: _children,
-                                      onAddChild: _openAddChildSheet,
-                                      onDeleteChild: _handleDeleteChild,
-                                      deletingChildId: _deletingBabyId,
-                                      isLoading: _isSavingFamily,
-                                      onComplete: _completeRegistration,
-                                    );
-                                  case RegisterStep.dadSetup:
-                                    return DadFamilySetupStepView(
-                                      onJoinByCode: _handleDadJoinByCode,
-                                      onRegisterPregnancy: _handleDadRegisterPregnancy,
-                                      onContinue: _handleDadContinue,
-                                      partnerWord: 'Mommy',
-                                    );
-                                  case RegisterStep.joinCode:
-                                    return JoinFamilyCodeStepView(
-                                      codeController: _joinCodeController,
-                                      isChecking: _isCheckingCode,
-                                      isJoining: _isJoiningCode,
-                                      errorMessage: _codeErrorMessage,
-                                      onJoin: _handleJoinFamilyCode,
-                                      onCancel: _handleBackNavigation,
-                                      isKeyboardOpen: isKeyboardOpen,
-                                    );
-                                }
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 320),
+                              switchInCurve: Curves.easeInOutCubic,
+                              switchOutCurve: Curves.easeInOutCubic,
+                              transitionBuilder: (child, animation) {
+                                final bool isIncoming =
+                                    child.key == ValueKey(_currentStep);
+                                final inTween = Tween<Offset>(
+                                  begin: _isForward
+                                      ? const Offset(1.0, 0.0)
+                                      : const Offset(-1.0, 0.0),
+                                  end: Offset.zero,
+                                );
+                                final outTween = Tween<Offset>(
+                                  begin: _isForward
+                                      ? const Offset(-1.0, 0.0)
+                                      : const Offset(1.0, 0.0),
+                                  end: Offset.zero,
+                                );
+
+                                return SlideTransition(
+                                  position: (isIncoming ? inTween : outTween)
+                                      .animate(animation),
+                                  child: child,
+                                );
                               },
+                              layoutBuilder: (currentChild, previousChildren) {
+                                return Stack(
+                                  alignment: Alignment.topCenter,
+                                  children: <Widget>[
+                                    ...previousChildren,
+                                    if (currentChild != null) currentChild,
+                                  ],
+                                );
+                              },
+                              child: KeyedSubtree(
+                                key: ValueKey(_currentStep),
+                                child: _buildCurrentStepView(isKeyboardOpen),
+                              ),
                             ),
                           ),
                         ),
