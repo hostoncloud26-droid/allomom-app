@@ -228,253 +228,251 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: _p.divider,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
+    // The baby peeks over the top of the sheet, hands on the rim.
+    return BabySheetPeek(
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 24,
+          right: 24,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        decoration: BoxDecoration(
+          color: _p.card,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: _p.tint(
-                      const Color(0xFFFF3B5C),
-                      const Color(0xFFFFF0F4),
-                    ),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.child_care_rounded,
-                    color: Color(0xFFFF3B5C),
-                    size: 22,
+                    color: _p.divider,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.title,
-                        style: GoogleFonts.outfit(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
-                        ),
-                      ),
-                      Text(
-                        widget.pregnancyId != null
-                            ? 'Linked to this pregnancy'
-                            : "We'll set up their vaccines & milestones",
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: _inkSoft,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // The sheet's own baby head card: slim, because a bottom sheet
-            // over an open keyboard has no room for the full one.
-            if (_narrates) ...[
-              BabyPromptBar(
-                narrationKey: _narrationKey,
-                margin: EdgeInsets.zero,
               ),
               const SizedBox(height: 16),
-            ] else
-              const SizedBox(height: 4),
-
-            _label("BABY'S NAME (OPTIONAL)"),
-            TextField(
-              controller: _name,
-              focusNode: _nameFocus,
-              textCapitalization: TextCapitalization.words,
-              style: TextStyle(color: _p.textPrimary),
-              decoration: _fieldDecoration('e.g. Aarav'),
-            ),
-            const SizedBox(height: 16),
-
-            _label('DATE OF BIRTH'),
-            InkWell(
-              onTap: _pickDob,
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: _field,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _dob == null
-                        ? context.palette.pick(
-                            const Color(0xFFFFC9D4),
-                            const Color(0xFF6B2E3A),
-                          )
-                        : _line,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.cake_rounded,
-                      size: 18,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _p.tint(
+                        const Color(0xFFFF3B5C),
+                        const Color(0xFFFFF0F4),
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.child_care_rounded,
                       color: Color(0xFFFF3B5C),
+                      size: 22,
                     ),
-                    const SizedBox(width: 10),
-                    Text(
-                      _dob == null ? 'Select date' : _dateFmt.format(_dob!),
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w700,
-                        color: _dob == null
-                            ? _inkMuted
-                            : _ink,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (_dob != null)
-                      Text(
-                        babyAgeLabel(_dob),
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: _inkSoft,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            _label('GENDER'),
-            _chips(
-              options: babyGenderOptions,
-              selected: _gender,
-              onSelected: (v) => setState(() => _gender = v),
-            ),
-            const SizedBox(height: 16),
-
-            _label('DELIVERY TYPE'),
-            _chips(
-              options: deliveryTypeOptions,
-              selected: _deliveryType,
-              onSelected: (v) => setState(() => _deliveryType = v),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('BIRTH WEIGHT (KG)'),
-                      TextField(
-                        controller: _weight,
-                        keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true,
-                        ),
-                        style: TextStyle(color: _p.textPrimary),
-                        decoration: _fieldDecoration('3.2'),
-                      ),
-                    ],
                   ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          style: GoogleFonts.outfit(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w800,
+                            color: _ink,
+                          ),
+                        ),
+                        Text(
+                          widget.pregnancyId != null
+                              ? 'Linked to this pregnancy'
+                              : "We'll set up their vaccines & milestones",
+                          style: TextStyle(fontSize: 12, color: _inkSoft),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // The sheet's own baby head card: slim, because a bottom sheet
+              // over an open keyboard has no room for the full one.
+              if (_narrates) ...[
+                BabySheetPrompt(
+                  narrationKey: _narrationKey,
+                  margin: EdgeInsets.zero,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _label('BLOOD GROUP'),
-                      DropdownButtonFormField<String>(
-                        initialValue: _bloodGroup,
-                        isExpanded: true,
-                        dropdownColor: _p.card,
-                        style: TextStyle(fontSize: 16, color: _p.textPrimary),
-                        decoration: _fieldDecoration('Select'),
-                        items: bloodGroupOptions
-                            .map(
-                              (g) =>
-                                  DropdownMenuItem(value: g, child: Text(g)),
+                const SizedBox(height: 16),
+              ] else
+                const SizedBox(height: 4),
+
+              _label("BABY'S NAME (OPTIONAL)"),
+              TextField(
+                controller: _name,
+                focusNode: _nameFocus,
+                textCapitalization: TextCapitalization.words,
+                style: TextStyle(color: _p.textPrimary),
+                decoration: _fieldDecoration('e.g. Aarav'),
+              ),
+              const SizedBox(height: 16),
+
+              _label('DATE OF BIRTH'),
+              InkWell(
+                onTap: _pickDob,
+                borderRadius: BorderRadius.circular(14),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _field,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: _dob == null
+                          ? context.palette.pick(
+                              const Color(0xFFFFC9D4),
+                              const Color(0xFF6B2E3A),
                             )
-                            .toList(),
-                        onChanged: (v) => setState(() => _bloodGroup = v),
+                          : _line,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.cake_rounded,
+                        size: 18,
+                        color: Color(0xFFFF3B5C),
                       ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _dob == null ? 'Select date' : _dateFmt.format(_dob!),
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: _dob == null ? _inkMuted : _ink,
+                        ),
+                      ),
+                      const Spacer(),
+                      if (_dob != null)
+                        Text(
+                          babyAgeLabel(_dob),
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: _inkSoft,
+                          ),
+                        ),
                     ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 22),
-
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: _saving ? null : _save,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF3B5C),
-                  disabledBackgroundColor: _p.pick(
-                    const Color(0xFFFFC9D4),
-                    const Color(0xFFFF3B5C).withValues(alpha: 0.35),
-                  ),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
-                child: _saving
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : Text(
-                        _isEdit ? 'Save changes' : 'Add baby',
-                        style: GoogleFonts.outfit(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              _label('GENDER'),
+              _chips(
+                options: babyGenderOptions,
+                selected: _gender,
+                onSelected: (v) => setState(() => _gender = v),
+              ),
+              const SizedBox(height: 16),
+
+              _label('DELIVERY TYPE'),
+              _chips(
+                options: deliveryTypeOptions,
+                selected: _deliveryType,
+                onSelected: (v) => setState(() => _deliveryType = v),
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label('BIRTH WEIGHT (KG)'),
+                        TextField(
+                          controller: _weight,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          style: TextStyle(color: _p.textPrimary),
+                          decoration: _fieldDecoration('3.2'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _label('BLOOD GROUP'),
+                        DropdownButtonFormField<String>(
+                          initialValue: _bloodGroup,
+                          isExpanded: true,
+                          dropdownColor: _p.card,
+                          style: TextStyle(fontSize: 16, color: _p.textPrimary),
+                          decoration: _fieldDecoration('Select'),
+                          items: bloodGroupOptions
+                              .map(
+                                (g) =>
+                                    DropdownMenuItem(value: g, child: Text(g)),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _bloodGroup = v),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF3B5C),
+                    disabledBackgroundColor: _p.pick(
+                      const Color(0xFFFFC9D4),
+                      const Color(0xFFFF3B5C).withValues(alpha: 0.35),
+                    ),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _saving
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : Text(
+                          _isEdit ? 'Save changes' : 'Add baby',
+                          style: GoogleFonts.outfit(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

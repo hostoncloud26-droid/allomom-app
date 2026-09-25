@@ -407,4 +407,109 @@ void main() {
     expect(spokenLines(reply), ['Round and round']);
     expect(session.isActive, isFalse);
   });
+
+  test('a profile condition after an answer still reads the nested profile',
+      () async {
+    // "How are you?" -> any answer -> redirect into a flow that branches on
+    // `profile.today_nutrition.had_breakfast`, as check_breakfast_test does.
+    final start = BotIntent(
+      key: 'initial',
+      name: 'Start of Chat Bot',
+      type: 'flow',
+      flow: BotFlow(
+        name: 'Start of Chat Bot',
+        steps: const [
+          BotStep(
+            ref: 's1',
+            type: 'question',
+            question: 'How are you doing Mom?',
+            options: ['Good', 'Bad'],
+          ),
+          BotStep(
+            ref: 's2',
+            type: 'intent',
+            nextIntentKey: 'check_breakfast',
+            nextIntentLang: 'en',
+          ),
+        ],
+        connectors: const [BotConnector(ref: 'c1', fromRef: 's1', toRef: 's2')],
+      ),
+    );
+
+    Map<String, dynamic> clause(String op) => {
+          'match': 'all',
+          'conditions': [
+            {
+              'variable': 'profile.today_nutrition.had_breakfast',
+              'operator': op,
+              'value': '',
+            },
+          ],
+        };
+    final check = BotIntent(
+      key: 'check_breakfast',
+      name: 'Check Breakfast',
+      type: 'flow',
+      flow: BotFlow(
+        name: 'Check Breakfast',
+        steps: const [
+          BotStep(ref: 's1', type: 'text', question: 'Good Mom'),
+          BotStep(ref: 's2', type: 'text', question: 'Why havent you eaten?'),
+        ],
+        connectors: [
+          BotConnector(ref: 'c1', toRef: 's1', logic: clause('is_true')),
+          BotConnector(ref: 'c2', toRef: 's2', logic: clause('is_false')),
+        ],
+      ),
+    );
+
+    // The profile carries its own `profile` key, the person block.
+    final profile = <String, dynamic>{
+      'profile': {'name': 'Deeksha'},
+      'today_nutrition': {'had_breakfast': true},
+    };
+    final engine = engineFor([start, check]);
+    final session = BotSession();
+    await engine.runIntent(start, session: session, profile: profile);
+    final reply = await engine.respond(
+      message: 'Good',
+      session: session,
+      profile: profile,
+    );
+
+    expect(spokenLines(reply), contains('Good Mom'));
+    expect(spokenLines(reply), isNot(contains('Why havent you eaten?')));
+  });
+
+  test('a text_message step runs on into the redirect', () async {
+    // The catalogue has also spelled message steps `text_message`. Read as an
+    // unknown type, the greeting was treated as a question: printed, then left
+    // waiting on an answer, so the redirect after it never ran.
+    final start = BotIntent(
+      key: 'initial',
+      name: 'Start of Chat Bot',
+      type: 'flow',
+      flow: BotFlow.fromJson(const {
+        'name': 'Start of Chat Bot',
+        'steps': [
+          {'ref': 's1', 'type': 'text_message', 'question': 'Hi, Mom'},
+          {
+            'ref': 's3',
+            'type': 'intent',
+            'question': '',
+            'next_intent_ref': {'key': 'check_breakfast', 'lang_code': 'en'},
+          },
+        ],
+        'connectors': [
+          {'ref': 'c1', 'from_ref': 's1', 'to_ref': 's3', 'logic': <String, dynamic>{}},
+        ],
+      }),
+    );
+    final session = BotSession();
+
+    final reply = await engineFor([start, breakfast()])
+        .runIntent(start, session: session);
+
+    expect(spokenLines(reply), ['Hi, Mom', 'Did you eat yet?']);
+  });
 }

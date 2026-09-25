@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
@@ -187,7 +188,11 @@ class _AlloBotGeminiOrbState extends State<AlloBotGeminiOrb>
                   ),
 
               // The baby, as on the Home banner.
-              SizedBox(width: 150, height: 150, child: _buildBaby()),
+              SizedBox(
+                width: 150,
+                height: 150,
+                child: BabyOnScreen(child: _buildBaby()),
+              ),
             ],
           );
         },
@@ -195,22 +200,16 @@ class _AlloBotGeminiOrbState extends State<AlloBotGeminiOrb>
     );
   }
 
-  /// The Home banner's baby: the still, or its Lottie clip while speaking or
-  /// thinking. The square still shares the clips' framing, so the swap does
-  /// not make her jump in size.
+  /// The Home banner's baby: breathing and blinking at rest, talking while
+  /// speaking. The square still shares the clips' framing and is only the
+  /// fallback if a clip fails to decode.
   Widget _buildBaby() {
     final still = Image.asset(
       'assets/allobaby/AlloMombabySquare.png',
       fit: BoxFit.contain,
     );
-    final clip = widget.isSpeaking
-        ? BabyAnimations.speaking
-        : widget.isThinking
-        ? BabyAnimations.idle
-        : null;
-    if (clip == null) return still;
     return Image.asset(
-      clip,
+      widget.isSpeaking ? BabyAnimations.speaking : BabyAnimations.idle,
       fit: BoxFit.contain,
       gaplessPlayback: true,
       errorBuilder: (_, __, ___) => still,
@@ -240,10 +239,15 @@ class AlloBotSuggestionChip extends StatelessWidget {
     super.key,
     required this.text,
     required this.onTap,
+    this.large = false,
   });
 
   final String text;
   final ValueChanged<String> onTap;
+
+  /// The bigger size a flow option is shown in, when the options are the
+  /// only thing on screen to answer with.
+  final bool large;
 
   /// Keyword → icon and colour. First match wins.
   static const List<(List<String>, IconData, Color)> _icons = [
@@ -307,12 +311,16 @@ class AlloBotSuggestionChip extends StatelessWidget {
         onTap(text);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: large
+            ? const EdgeInsets.symmetric(horizontal: 26, vertical: 14)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(
           color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(large ? 30 : 20),
           border: Border.all(
-            color: isDark
+            color: large
+                ? primaryColor.withValues(alpha: isDark ? 0.45 : 0.35)
+                : isDark
                 ? Colors.white.withValues(alpha: 0.08)
                 : Colors.grey.shade200,
             width: 1.5,
@@ -323,15 +331,17 @@ class AlloBotSuggestionChip extends StatelessWidget {
           children: [
             Icon(
               match?.$2 ?? Icons.auto_awesome_rounded,
-              size: 14,
+              size: large ? 20 : 14,
               color: match?.$3 ?? primaryColor,
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: large ? 8 : 6),
             Text(
               text,
               style: TextStyle(
-                color: isDark ? Colors.white70 : Colors.grey.shade700,
-                fontSize: 12,
+                color: large
+                    ? (isDark ? Colors.white : Colors.grey.shade800)
+                    : (isDark ? Colors.white70 : Colors.grey.shade700),
+                fontSize: large ? 16 : 12,
                 fontWeight: FontWeight.w600,
               ),
             ),

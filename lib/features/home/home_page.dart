@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -16,14 +17,18 @@ import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_conf
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
+import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/features/allobot/allobot_page.dart';
+import 'package:allomom/services/speech_activity.dart';
+import 'package:allomom/services/tts_service.dart';
+import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
 import 'package:allomom/features/cycle_tracker/cycle_tracker_page.dart';
 import 'package:allomom/features/my_health/my_health_page.dart' as health;
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -49,12 +54,19 @@ class _HomePageState extends State<HomePage> {
   /// rather than a guessed scroll offset.
   final GlobalKey _dateScopeAnchorKey = GlobalKey();
 
+  /// Today's Care, which the "right now" card scrolls down to.
+  final GlobalKey _todaysCareKey = GlobalKey();
+
   /// AlloBot's proactive companion: greets her on open and works through the
   /// day's questions. Owned here so it lives as long as the screen.
   final HomeVoiceController _voice = HomeVoiceController();
 
   /// Whether the carousel has already slid off AlloBot onto the summary.
   bool _hasAdvancedToDailySummary = false;
+
+  /// Ask Allo's opening flow, run in the AlloBaby card once the week has been
+  /// said. Static so the card keeps its last line when she comes back to Home.
+  static final AlloBabyFlowController _alloBaby = AlloBabyFlowController();
 
   /// The baby's own line while the home greeting runs, then null.
   ///
@@ -68,52 +80,131 @@ class _HomePageState extends State<HomePage> {
   /// card from flickering through them a second time.
   static bool _homeGreetingPlayed = false;
 
-  /// Which journey's greeting to play.
-  NarrationFlow get _flow {
-    final session = MainController.instance;
-    if (session.isPregnant) return NarrationFlow.pregnant;
-    if (session.isNewMom) return NarrationFlow.newMom;
-    return NarrationFlow.prePregnancy;
+  /// The last line the baby said while Home was in front — the bubble only
+  /// ever shows what she actually said, never a canned greeting. Static so a
+  /// revisit picks up her last line instead of an empty bubble.
+  static String _lastSpokenText = '';
+
+  /// Keeps [_lastSpokenText] and the bubble in step with the player.
+  final List<Worker> _audioWorkers = [];
+
+  /// Whether the greeting is going to play on this visit.
+  bool get _greetingWillPlay =>
+      !_homeGreetingPlayed &&
+      BackgroundAudioController.isReady &&
+      BackgroundAudioController.to.isVoiceEnabled.value;
+
+  /// This week's AlloBot flow, `pregnancy_week_<n>_info`, as keys the global
+  /// voice can play — one per step, each with its text registered for the
+  /// bubble and the clip the flow named for it (Amma's or Appa's, by who is
+  /// signed in). Empty when there is no week or the catalogue lacks the intent.
+  Future<List<String>> _weeklyInfoKeys() async {
+    final week = WeeklyBabyTalk.currentWeek();
+    if (week == null) return const [];
+    final lines = await WeeklyBabyTalk.lines(week);
+    final audio = BackgroundAudioController.to;
+    final base = WeeklyBabyTalk.intentKey(week);
+    return [
+      for (var i = 0; i < lines.length; i++)
+        () {
+          final key = '$base#$i';
+          audio.registerText(key, lines[i].text, audioUrl: lines[i].audioUrl);
+          return key;
+        }(),
+    ];
   }
 
-  /// Welcome, the line that follows it, then the first question.
-  ///
-  /// Awaited line by line so the card's text keeps step with the audio, and
-  /// AlloBot is held back until it finishes — two voices talking over each
-  /// other on the first screen she sees is worse than a short wait.
   Future<void> _playHomeGreeting() async {
-    if (_homeGreetingPlayed || !BackgroundAudioController.isReady) return;
-    // Muted: hand straight over to AlloBot rather than flickering the card
-    // through three lines nobody will hear.
-    if (!BackgroundAudioController.to.isVoiceEnabled.value) return;
+    if (!_greetingWillPlay) return;
     _homeGreetingPlayed = true;
 
-    final flow = _flow;
-    for (final key in [
-      flow.homeWelcome,
-      flow.homeFollowUp,
-      // What this screen is for, said once she has been welcomed to it.
-      NarrationKeys.pgHomeOpen,
-      flow.homeFirstQuestion,
-    ]) {
-      if (!mounted) return;
+    // Only what the AlloBot flows say, in their own recordings (or TTS when
+    // a clip will not play) — none of the bundled asset narration: the week's
+    // flow while its card is on screen, then AlloBaby's opening flow.
+    final weeklyKeys = await _weeklyInfoKeys();
+    for (final key in weeklyKeys) {
+      if (!mounted || _greetingCancelled) return;
       setState(() => _homeNarrationKey = key);
       await BackgroundAudioController.to.playByKey(key);
+      // The week has been said: AlloBaby picks up in her own card, and the
+      // page turns to today once she has finished.
+      if (key == weeklyKeys.last) {
+        await _runAlloBabyFlow();
+        if (!mounted || _greetingCancelled) return;
+        _advanceToTodayOnce(const Duration(milliseconds: 800));
+      }
     }
+    if (_greetingCancelled) return;
 
     if (mounted) setState(() => _homeNarrationKey = null);
+  }
+
+  /// Slides onto the AlloBaby card and runs the opening flow there, returning
+  /// once it has been said (or stopped).
+  Future<void> _runAlloBabyFlow() async {
+    if (!mounted || _guideLmp == null) return;
+    // The card carries her words from here; the week's line would otherwise
+    // linger in the bubble above it.
+    setState(() {
+      _homeNarrationKey = null;
+      _lastSpokenText = '';
+    });
+    if (_currentCarouselPage == _weekPageIndex) {
+      _animateCarouselTo(_alloBabyPageIndex);
+    }
+    await _alloBaby.start();
+  }
+
+  /// Redraws the baby card as AlloBaby starts and stops talking.
+  void _onAlloBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Whether AlloBaby's voice is sounding right now — the baby card's mouth
+  /// follows it.
+  bool get _alloBabySpeaking => _alloBaby.isRunning && TtsService().isSpeaking;
+
+  /// The docked mic was tapped to silence her: the rest of the greeting, the
+  /// AlloBaby flow and AlloBot all stand down.
+  void _onStopRequested() {
+    if (!mounted) return;
+    _greetingCancelled = true;
+    _alloBaby.stop();
+    if (_voice.isSpeaking) _voice.toggleSpeech();
+    setState(() => _homeNarrationKey = null);
   }
 
   @override
   void initState() {
     super.initState();
-    _carouselController = PageController();
+    SpeechActivity.instance.stopRequests.addListener(_onStopRequested);
+    _alloBaby.addListener(_onAlloBabyChanged);
+    TtsService().isSpeakingNotifier.addListener(_onAlloBabyChanged);
+    final reopen = _weekShownThisSession && _guideLmp != null;
+    _currentCarouselPage = reopen ? _todayPageIndex : 0;
+    _hasAdvancedToDailySummary = reopen;
+    _carouselController = PageController(initialPage: _currentCarouselPage);
     _scrollController.addListener(_updateDateSelectorVisibility);
     _voice.addListener(_onVoiceChanged);
+    if (BackgroundAudioController.isReady) {
+      final audio = BackgroundAudioController.to;
+      _audioWorkers
+        ..add(ever<String>(audio.currentText, _onNarrationText))
+        ..add(ever<bool>(audio.isPlaying, (_) => _onNarrationState()));
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // The baby says hello first, in her own recorded voice; AlloBot picks up
       // where it leaves off.
+      // Long enough to take in the week, short enough that today is still
+      // the first thing she really reads.
+      //
+      // When the baby is about to read the week out, the page waits for her
+      // instead; the greeting turns it once the week's line is done.
+      final holdForWeek = _greetingWillPlay;
+      if (!holdForWeek) _advanceToTodayOnce(const Duration(seconds: 8));
       await _playHomeGreeting();
+      // No weekly line after all, or she closed the bubble: move on anyway.
+      if (holdForWeek) _advanceToTodayOnce(const Duration(seconds: 2));
       if (!mounted) return;
       final currentUserId = MainController.instance.userId;
       if (currentUserId.isNotEmpty &&
@@ -127,11 +218,19 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    SpeechActivity.instance.stopRequests.removeListener(_onStopRequested);
+    _alloBaby.removeListener(_onAlloBabyChanged);
+    TtsService().isSpeakingNotifier.removeListener(_onAlloBabyChanged);
+    // Leaving Home for another tab: the card's voice should not follow her.
+    _alloBaby.stop();
     _carouselController.dispose();
     _scrollController.removeListener(_updateDateSelectorVisibility);
     _scrollController.dispose();
     _voice.removeListener(_onVoiceChanged);
     _voice.dispose();
+    for (final worker in _audioWorkers) {
+      worker.dispose();
+    }
     super.dispose();
   }
 
@@ -178,46 +277,63 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  /// Keeps the carousel in step with the conversation.
-  ///
-  /// A new question brings her back to AlloBot — which is what makes the ANC
-  /// calendar's hand-off work, since that pops back here and the questions
-  /// need to be in front of her. When the questions run out it slides on to
-  /// the Daily Summary instead: a visible card with nothing left to ask means
-  /// AlloBot has said its last word, and parking her there would hide the
-  /// summary behind a finished conversation.
+  /// When AlloBot runs out of questions, move on from the week to today —
+  /// its last word is the natural moment to turn the page.
   void _syncCarouselWithVoice() {
-    if (!_voice.isVisible) return;
+    if (!_voice.isVisible || _voice.prompt != null) return;
+    _advanceToTodayOnce(const Duration(milliseconds: 1800));
+  }
 
-    if (_voice.prompt != null) {
-      _hasAdvancedToDailySummary = false;
-      // Only when she is not already looking at it, so answering a question
-      // does not animate the page she is on.
-      if (_currentCarouselPage != _alloBotPageIndex) {
-        _animateCarouselTo(_alloBotPageIndex);
-      }
-      return;
-    }
+  /// Her LMP, for the week and day cards. Worked back from the due date when
+  /// only that was entered; null when she is not pregnant or gave neither.
+  DateTime? get _guideLmp {
+    final session = MainController.instance;
+    if (!session.isPregnant) return null;
+    return session.lmpDate ??
+        session.eddDate?.subtract(const Duration(days: 280));
+  }
 
-    // Once only: otherwise every later rebuild would drag her off whatever
-    // page she had swiped to.
-    if (_hasAdvancedToDailySummary) return;
+  /// The carousel opens on this week, hands over to AlloBaby, then turns to
+  /// today.
+  static const _weekPageIndex = 0;
+  static const _alloBabyPageIndex = 1;
+  // Points at AlloBaby while the Right now card is commented out; set back to
+  // 2 when it returns.
+  static const _todayPageIndex = _alloBabyPageIndex;
+
+  /// Set once the week has had its moment on screen. Later visits in the same
+  /// session open straight on today, which is what she comes back to check.
+  static bool _weekShownThisSession = false;
+
+  /// Slides from this week to today after [delay], once, and only if she is
+  /// still looking at the week — never out from under a page she chose.
+  void _advanceToTodayOnce(Duration delay) {
+    if (_hasAdvancedToDailySummary || _guideLmp == null) return;
     _hasAdvancedToDailySummary = true;
-
-    // The delay lets the last line be read, and spoken, before the page moves.
-    Future.delayed(const Duration(milliseconds: 1800), () {
+    _weekShownThisSession = true;
+    Future.delayed(delay, () {
       if (!mounted) return;
-      // Nothing to move on from if she dismissed the card meanwhile.
-      if (!_voice.isVisible) return;
-      _animateCarouselTo(_dailySummaryPageIndex);
+      if (_currentCarouselPage != _weekPageIndex &&
+          _currentCarouselPage != _alloBabyPageIndex) {
+        return;
+      }
+      _animateCarouselTo(_todayPageIndex);
     });
   }
 
-  /// AlloBot's page, which leads the carousel while it is visible.
-  int get _alloBotPageIndex => 0;
-
-  /// The Daily Summary's page, which shifts by one when AlloBot is showing.
-  int get _dailySummaryPageIndex => _voice.isVisible ? 1 : 0;
+  /// Brings Today's Care into view, where she can log what the card lists.
+  // ignore: unused_element — used by the Right now card, hidden for now.
+  void _scrollToTodaysCare() {
+    final target = _todaysCareKey.currentContext;
+    if (target == null) return;
+    Scrollable.ensureVisible(
+      target,
+      duration: const Duration(milliseconds: 450),
+      curve: Curves.easeOutCubic,
+      // Just under the sticky date strip, which covers the top of the page.
+      alignment: 0.05,
+    );
+  }
 
   void _animateCarouselTo(int page) {
     if (!_carouselController.hasClients) return;
@@ -239,22 +355,77 @@ class _HomePageState extends State<HomePage> {
     Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
-  /// What the baby card's bubble says.
+  /// Remembers a line when it starts, if Home is the screen she is saying it
+  /// on.
   ///
-  /// AlloBot's current line while it is talking, and the plain greeting
-  /// otherwise. Long lines are trimmed: the bubble is a fixed shape over the
-  /// illustration, and the full text is on the card below it anyway.
-  String _babyBubbleText(MainController session, bool isPregnant, String name) {
-    if (_voice.isVisible) {
-      final spoken = _voice.prompt?.question ?? _voice.message;
-      return spoken.length > 90 ? '${spoken.substring(0, 88)}…' : spoken;
-    }
+  /// Only a change of line counts. Stopping does not: a page pushed over Home
+  /// stops its own clip as it is popped, by which time Home is back on top —
+  /// and treating that as Home's line left the other page's words in this
+  /// bubble.
+  void _onNarrationText(String line) {
+    if (!mounted) return;
+    final text = line.trim();
+    final onTop = ModalRoute.of(context)?.isCurrent ?? true;
+    if (text.isNotEmpty && onTop) _lastSpokenText = text;
+    setState(() {});
+  }
 
-    if (isPregnant) return "Good Morning, $name ❤️";
-    if (session.isNewMom) {
-      return "Hello, $name 💕\nHow are you and baby doing?";
-    }
-    return "Welcome, $name 💕\nReady to start your care journey?";
+  /// Playing and stopping only redraw the card (speaking or not).
+  void _onNarrationState() {
+    if (mounted) setState(() {});
+  }
+
+  /// The line she closed with the ✕. The bubble stays away until the baby
+  /// says something else.
+  static String? _dismissedText;
+
+  /// Set when she closes the bubble mid-greeting, so the rest of the welcome
+  /// is not played at her.
+  bool _greetingCancelled = false;
+
+  /// The ✕ on the bubble: stops the baby — the recorded lines and AlloBot —
+  /// and puts the bubble away.
+  void _closeBabyBubble() {
+    final shown = _homeNarrationKey != null && BackgroundAudioController.isReady
+        ? BackgroundAudioController.to.currentText.value.trim()
+        : _babyBubbleText();
+    setState(() {
+      _dismissedText = shown;
+      _greetingCancelled = true;
+      _homeNarrationKey = null;
+    });
+    if (BackgroundAudioController.isReady) BackgroundAudioController.to.stop();
+    _alloBaby.stop();
+    if (_voice.isSpeaking) _voice.toggleSpeech();
+  }
+
+  /// [_babyBubbleText], or nothing once she has closed that line.
+  String _visibleBubbleText() {
+    // AlloBaby's words are in her own card; the baby here only talks.
+    if (_alloBaby.isRunning) return '';
+    final text = _babyBubbleText();
+    return text == _dismissedText ? '' : text;
+  }
+
+  /// What the baby card's bubble says: only ever a line that was spoken.
+  ///
+  /// A recorded narration while it plays, AlloBot's current line while it is
+  /// talking, and otherwise the last thing she said here. Empty — no bubble —
+  /// before she has said anything. Long lines are trimmed: the bubble is a
+  /// fixed shape over the illustration.
+  String _babyBubbleText() {
+    final audio = BackgroundAudioController.isReady
+        ? BackgroundAudioController.to
+        : null;
+    final narrating =
+        audio != null &&
+        audio.isPlaying.value &&
+        audio.currentKey.value.isNotEmpty;
+
+    final spoken = !narrating && _voice.isVisible
+        ? (_voice.prompt?.question ?? _voice.message)
+        : _lastSpokenText;
+    return spoken.length > 90 ? '${spoken.substring(0, 88)}…' : spoken;
   }
 
   @override
@@ -262,112 +433,104 @@ class _HomePageState extends State<HomePage> {
     return AnimatedBuilder(
       animation: MainController.instance,
       builder: (context, child) {
-        final session = MainController.instance;
-        final isPregnant = session.isPregnant;
-        final name = session.userName;
-
         return Scaffold(
           backgroundColor: context.palette.scaffoldSoft,
           body: SafeArea(
             bottom: false,
             child: Stack(
               children: [
-            CustomScrollView(
-              controller: _scrollController,
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // No name-and-due-date header. Week, trimester and the
-                      // due date are all spelled out on the Daily Summary card
-                      // a scroll below, and saying them twice pushed the baby
-                      // — the thing she actually talks to — down the screen.
-                      const SizedBox(height: 10),
+                CustomScrollView(
+                  controller: _scrollController,
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // No name-and-due-date header. Week, trimester and the
+                          // due date are all spelled out on the Daily Summary card
+                          // a scroll below, and saying them twice pushed the baby
+                          // — the thing she actually talks to — down the screen.
+                          const SizedBox(height: 10),
 
-                      // ─── HERO BABY CARD ───
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: BabyHeroBanner(
-                          // The bubble carries whatever AlloBot is saying, so
-                          // the words come from the baby that is speaking them
-                          // rather than from a card elsewhere on the page.
-                          //
-                          // While the recorded greeting runs, `narrationKey`
-                          // takes the bubble over; the controller plays the
-                          // lines, so the card itself does not autoplay.
-                          narrationKey: _homeNarrationKey,
-                          autoPlayNarration: false,
-                          speechText: _babyBubbleText(
-                            session,
-                            isPregnant,
-                            name,
+                          // ─── HERO BABY CARD ───
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: BabyHeroBanner(
+                              // The bubble carries whatever AlloBot is saying, so
+                              // the words come from the baby that is speaking them
+                              // rather than from a card elsewhere on the page.
+                              //
+                              // While the recorded greeting runs, `narrationKey`
+                              // takes the bubble over; the controller plays the
+                              // lines, so the card itself does not autoplay.
+                              narrationKey: _homeNarrationKey,
+                              autoPlayNarration: false,
+                              speechText: _visibleBubbleText(),
+                              greetingText: "",
+                              bubblePosition: SpeechBubblePosition.topCenter,
+                              height: 270,
+                              restingBabyScale: 1.25,
+                              speakingOverride: _alloBabySpeaking,
+                              onSpeakerTap: _homeNarrationKey != null
+                                  ? null
+                                  : (_voice.isVisible
+                                        ? _voice.toggleSpeech
+                                        : null),
+                              // The card is the baby talking, not a shortcut: the
+                              // ✕ puts the bubble away, and Kick Count lives in
+                              // Quick Actions.
+                              onClose: _closeBabyBubble,
+                            ),
                           ),
-                          greetingText: "",
-                          bubblePosition: SpeechBubblePosition.topCenter,
-                          height: 270,
-                          showBackground: false,
-                          onSpeakerTap: _homeNarrationKey != null
-                              ? null
-                              : (_voice.isVisible ? _voice.toggleSpeech : null),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const KickCounterPage(),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                          const SizedBox(height: 16),
 
-                      // ─── SWIPEABLE CAROUSEL (DAILY SUMMARY, QUICK ACTIONS) ───
-                      //
-                      // Each section says what it is the first time it is
-                      // actually on screen, and never over the top of the one
-                      // before it. Scrolling straight past says nothing.
-                      NarrationOnVisible(
-                        narrationKey: NarrationKeys.pgHomeSummary,
-                        child: _buildSummaryCarousel(context),
-                      ),
-                      const SizedBox(height: 20),
+                          // ─── SWIPEABLE CAROUSEL (THIS WEEK, RIGHT NOW) ───
+                          //
+                          // Each section says what it is the first time it is
+                          // actually on screen, and never over the top of the one
+                          // before it. Scrolling straight past says nothing.
+                          _buildSummaryCarousel(context),
+                          const SizedBox(height: 20),
 
-                      // ─── TODAY'S CARE ───
-                      NarrationOnVisible(
-                        narrationKey: NarrationKeys.pgHomeCare,
-                        child: _buildTodaysCareSection(context),
-                      ),
-                      const SizedBox(height: 24),
+                          // ─── QUICK ACTIONS (swipeable row of small boxes) ───
+                          _buildQuickActionsCard(context),
+                          const SizedBox(height: 24),
 
-                      // ─── OVERVIEW (VITALS & NUTRITION TILES) ───
-                      // Everything in here reports on the selected day; the
-                      // date strip that drives it rides above as an overlay.
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        child: DayOverviewSection(
-                          key: _dateScopeAnchorKey,
-                          date: _selectedDate,
-                        ),
-                      ),
+                          // ─── TODAY'S CARE ───
+                          KeyedSubtree(
+                            key: _todaysCareKey,
+                            child: _buildTodaysCareSection(context),
+                          ),
+                          const SizedBox(height: 24),
 
-                      const SizedBox(height: 120),
-                    ],
-                  ),
+                          // ─── OVERVIEW (VITALS & NUTRITION TILES) ───
+                          // Everything in here reports on the selected day; the
+                          // date strip that drives it rides above as an overlay.
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 20),
+                            child: DayOverviewSection(
+                              key: _dateScopeAnchorKey,
+                              date: _selectedDate,
+                            ),
+                          ),
+
+                          const SizedBox(height: 120),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
 
-            // ─── Sticky date selector (overlay only) ───
-            // SafeArea already keeps the status bar clear, so the strip
-            // starts at the top of the safe area with no scrim.
-            StickyDateSelectorOverlay(
-              visible: _showDateSelector,
-              top: 0,
-              selectedDate: _selectedDate,
-              onDateSelected: _onDateSelected,
-            ),
+                // ─── Sticky date selector (overlay only) ───
+                // SafeArea already keeps the status bar clear, so the strip
+                // starts at the top of the safe area with no scrim.
+                StickyDateSelectorOverlay(
+                  visible: _showDateSelector,
+                  top: 0,
+                  selectedDate: _selectedDate,
+                  onDateSelected: _onDateSelected,
+                ),
               ],
             ),
           ),
@@ -379,9 +542,33 @@ class _HomePageState extends State<HomePage> {
   // ─── HEADER / APP BAR ─────────────────────────────────────
   // ─── SWIPEABLE SUMMARY CAROUSEL ────────────────────────────
   Widget _buildSummaryCarousel(BuildContext context) {
+    final session = MainController.instance;
+    final lmp = _guideLmp;
     final pages = <Widget>[
-      _buildDailySummaryCard(),
-      _buildQuickActionsCard(context),
+      if (lmp != null) ...[
+        PregnancyWeekCard(
+          week: session.currentGestationalWeek,
+          trimester: session.currentTrimester,
+          daysLeft: session.daysLeftUntilEdd,
+          onOpenJourney: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+          ),
+        ),
+        AlloBabyFlowCard(
+          controller: _alloBaby,
+          onOpenChat: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const AlloBotPage(autoStartListening: false),
+            ),
+          ),
+        ),
+        // Right now card hidden for now. Restore it together with
+        // `_todayPageIndex = 2` below.
+        // RightNowCareCard(onOpenCare: _scrollToTodaysCare),
+      ] else
+        _buildDailySummaryCard(),
     ];
 
     return Column(
@@ -395,43 +582,55 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _currentCarouselPage = index;
               });
+              // Swiped onto AlloBaby before the greeting got her there: she
+              // starts talking, unless something else is already speaking.
+              if (lmp != null &&
+                  index == _alloBabyPageIndex &&
+                  !_alloBaby.hasRun &&
+                  _homeNarrationKey == null &&
+                  !SpeechActivity.instance.isActive) {
+                _alloBaby.start();
+              }
             },
             children: pages,
           ),
         ),
-        const SizedBox(height: 16),
+        // Dots only when there is somewhere to swipe to.
+        if (pages.length > 1) ...[
+          const SizedBox(height: 16),
 
-        // Carousel Dot Indicators
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(pages.length, (index) {
-            final isActive = _currentCarouselPage == index;
-            return GestureDetector(
-              onTap: () {
-                _carouselController.animateToPage(
-                  index,
-                  duration: const Duration(milliseconds: 350),
-                  curve: Curves.easeOutCubic,
-                );
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                margin: const EdgeInsets.symmetric(horizontal: 4),
-                height: 6,
-                width: isActive ? 24 : 6,
-                decoration: BoxDecoration(
-                  color: isActive
-                      ? const Color(0xFFFF3B5C)
-                      : context.palette.pick(
-                          const Color(0xFFE2E4E9),
-                          const Color(0xFF3A3A40),
-                        ),
-                  borderRadius: BorderRadius.circular(3),
+          // Carousel Dot Indicators
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(pages.length, (index) {
+              final isActive = _currentCarouselPage == index;
+              return GestureDetector(
+                onTap: () {
+                  _carouselController.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 350),
+                    curve: Curves.easeOutCubic,
+                  );
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  height: 6,
+                  width: isActive ? 24 : 6,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? const Color(0xFFFF3B5C)
+                        : context.palette.pick(
+                            const Color(0xFFE2E4E9),
+                            const Color(0xFF3A3A40),
+                          ),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              ),
-            );
-          }),
-        ),
+              );
+            }),
+          ),
+        ],
       ],
     );
   }
@@ -923,230 +1122,233 @@ class _HomePageState extends State<HomePage> {
     // a mother who is not pregnant can reach it from home, the summary card
     // beside this one having turned into her cycle.
     final journeyOrKicks = isPregnant
-        ? {
-            'title': 'Kick Count',
-            'subtitle': 'Fetal Tracker',
-            'icon': Icons.pets_rounded,
-            'color': const Color(0xFFFF4E6A),
-            'bg': const Color(0xFFFFF0F4),
-            'page': const KickCounterPage(),
-          }
-        : {
-            'title': session.hasKids ? 'Baby Journey' : 'My Journey',
-            'subtitle': session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
-            'icon': Icons.child_care_rounded,
-            'color': const Color(0xFFFF4E6A),
-            'bg': const Color(0xFFFFF0F4),
-            'page': const PregnancyJourneyPage(),
-          };
+        ? _quickAction(
+            id: 'kick_counter',
+            title: 'Kick Count',
+            subtitle: 'Fetal Tracker',
+            icon: Icons.pregnant_woman_rounded,
+            color: const Color(0xFFFF4E6A),
+            image: 'assets/Quick Actions/Kick Count.png',
+            page: const KickCounterPage(),
+          )
+        : _quickAction(
+            id: 'journey',
+            title: session.hasKids ? 'Baby Journey' : 'My Journey',
+            subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
+            icon: session.hasKids
+                ? Icons.child_friendly_rounded
+                : Icons.pregnant_woman_rounded,
+            color: const Color(0xFFFF8A5B),
+            image: session.hasKids
+                ? 'assets/allobaby/BabyCare.png'
+                : 'assets/allobaby/Pregnancy Care.png',
+            page: const PregnancyJourneyPage(),
+          );
 
+    // Illustrations from assets/Quick Actions/. The journey slot, which only
+    // shows for a mother who is not pregnant, keeps its AlloBaby artwork.
     final features = [
-      {
-        'title': 'AlloCry',
-        'subtitle': 'Cry Analyzer',
-        'icon': Icons.graphic_eq_rounded,
-        'color': const Color(0xFF8B5CF6),
-        'bg': const Color(0xFFF7F4FF),
-        'page': const AlloCryPage(),
-      },
+      _quickAction(
+        id: 'my_health',
+        title: 'My Health',
+        subtitle: 'Vitals & Care',
+        icon: Icons.monitor_heart_rounded,
+        color: const Color(0xFFFF4E6A),
+        image: 'assets/Quick Actions/Health.png',
+        page: const MyHealthPage(),
+      ),
+      _quickAction(
+        id: 'allocry',
+        title: 'AlloCry',
+        subtitle: 'Cry Analyzer',
+        icon: Icons.hearing_rounded,
+        color: const Color(0xFF8B5CF6),
+        image: 'assets/Quick Actions/AlloCry.png',
+        page: const AlloCryPage(),
+      ),
       journeyOrKicks,
-      {
-        'title': 'Prescription',
-        'subtitle': 'Medications',
-        'icon': Icons.medication_rounded,
-        'color': const Color(0xFF6366F1),
-        'bg': const Color(0xFFEEF2FF),
-        'page': const PrescriptionsPage(),
-      },
-      {
-        'title': 'Reports',
-        'subtitle': 'Lab & Scans',
-        'icon': Icons.description_rounded,
-        'color': const Color(0xFF3B82F6),
-        'bg': const Color(0xFFEFF6FF),
-        'page': const ReportsPage(),
-      },
-      {
-        'title': 'Feeding',
-        'subtitle': 'Baby Nutrition',
-        'icon': Icons.child_care_rounded,
-        'color': const Color(0xFFF59E0B),
-        'bg': const Color(0xFFFFF7ED),
-        'page': const FeedingTrackerPage(),
-      },
-      {
-        'title': 'My Health',
-        'subtitle': 'Vitals & Care',
-        'icon': Icons.favorite_rounded,
-        'color': const Color(0xFFFF3B5C),
-        'bg': const Color(0xFFFFF0F4),
-        'page': const MyHealthPage(),
-      },
+      _quickAction(
+        id: 'reports',
+        title: 'Reports',
+        subtitle: 'Lab & Scans',
+        icon: Icons.biotech_rounded,
+        color: const Color(0xFF3B82F6),
+        image: 'assets/Quick Actions/Reports.png',
+        page: const ReportsPage(),
+      ),
+      _quickAction(
+        id: 'feeding_tracker',
+        title: 'Feeding',
+        subtitle: 'Baby Nutrition',
+        icon: Icons.local_drink_rounded,
+        color: const Color(0xFFF59E0B),
+        image: 'assets/Quick Actions/Feeding.png',
+        page: const FeedingTrackerPage(),
+      ),
+      _quickAction(
+        id: 'prescriptions',
+        title: 'Prescription',
+        subtitle: 'Medications',
+        icon: Icons.medication_rounded,
+        color: const Color(0xFF6366F1),
+        image: 'assets/Quick Actions/Prescriptions.png',
+        page: const PrescriptionsPage(),
+      ),
     ];
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: context.palette.card,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: context.palette.pick(
-              const Color(0xFFF0F1F5),
-              context.palette.border,
-            ),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: context.palette.pick(
-                Colors.black.withValues(alpha: 0.03),
-                context.palette.shadow,
-              ),
-              blurRadius: 20,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header with Grid Icon
-            Row(
-              children: [
-                const Icon(
-                  Icons.grid_view_rounded,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              Icon(Icons.grid_view_rounded, color: Color(0xFF6366F1), size: 16),
+              SizedBox(width: 6),
+              Text(
+                'QUICK ACTIONS',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                   color: Color(0xFF6366F1),
-                  size: 16,
+                  letterSpacing: 0.8,
                 ),
-                const SizedBox(width: 6),
-                const Text(
-                  'QUICK ACTIONS',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF6366F1),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
 
-            // 3-column x 2-row Grid
-            Expanded(
-              child: Column(
-                children: [
-                  for (int row = 0; row < 2; row++) ...[
-                    if (row > 0) const SizedBox(height: 12),
-                    Expanded(
-                      child: Row(
-                        children: [
-                          for (int col = 0; col < 3; col++) ...[
-                            if (col > 0) const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildFullGridFeatureItem(
-                                context,
-                                features[row * 3 + col],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
-                ],
+        // AlloConnect's Home slider: a row of small square boxes she swipes
+        // through, about three on screen at a time.
+        SizedBox(
+          height: _quickActionSize,
+          child: ListView.separated(
+            clipBehavior: Clip.none,
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            itemCount: features.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) => SizedBox(
+              width: _quickActionSize,
+              child: _QuickActionBox(
+                feature: features[index],
+                onTap: () =>
+                    AlloBotFeatureCatalog.open(context, features[index]),
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildFullGridFeatureItem(
-    BuildContext context,
-    Map<String, dynamic> f,
-  ) {
-    final title = f['title'] as String;
-    final subtitle = f['subtitle'] as String;
-    final icon = f['icon'] as IconData;
-    final color = f['color'] as Color;
-    final bg = f['bg'] as Color;
-    final page = f['page'] as Widget?;
+  /// Width and height of each Quick Actions box.
+  static const _quickActionSize = 112.0;
 
-    return GestureDetector(
-      onTap: () {
-        if (page != null) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => page));
-        }
-      },
-      child: Container(
-        height: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-        decoration: BoxDecoration(
-          color: context.palette.pick(
-            bg.withValues(alpha: 0.5),
-            color.withValues(alpha: 0.12),
-          ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: context.palette.pick(bg, color.withValues(alpha: 0.25)),
-            width: 1.2,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: context.palette.card,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withValues(alpha: 0.15),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Center(child: Icon(icon, color: color, size: 22)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: context.palette.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
-                color: context.palette.textMuted,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  /// One Quick Actions entry. AlloBot's feature type, so it opens the same way
+  /// and carries the same illustration.
+  AlloBotFeature _quickAction({
+    required String id,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required Widget page,
+    String? image,
+  }) => AlloBotFeature(
+    id: id,
+    title: title,
+    subtitle: subtitle,
+    category: FeatureCategory.care,
+    icon: icon,
+    color: color,
+    image: image,
+    pageBuilder: (_) => page,
+  );
 
   // ─── TODAY'S CARE ─────────────────────────────────────────
   Widget _buildTodaysCareSection(BuildContext context) {
     return const TodocareSection();
+  }
+}
+
+/// One Quick Actions box: the illustration (or a tinted icon where there is
+/// none) over a one-line name, on a soft square card.
+class _QuickActionBox extends StatelessWidget {
+  const _QuickActionBox({required this.feature, required this.onTap});
+
+  final AlloBotFeature feature;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final image = feature.image;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border)),
+        boxShadow: [
+          BoxShadow(
+            color: p.pick(Colors.black.withValues(alpha: 0.03), p.shadow),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: image != null
+                      ? Image.asset(image, fit: BoxFit.contain)
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: p.tint(
+                              feature.color,
+                              feature.color.withValues(alpha: 0.10),
+                            ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            feature.icon,
+                            size: 30,
+                            color: feature.color,
+                          ),
+                        ),
+                ),
+                const SizedBox(height: 8),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    feature.title,
+                    maxLines: 1,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: p.textPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

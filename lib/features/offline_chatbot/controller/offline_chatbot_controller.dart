@@ -171,6 +171,10 @@ class OfflineChatbotController extends GetxController {
 
   BotBundle? bundle;
   OfflineChatbotEngine? _engine;
+
+  /// Completes once the catalogue cached on the phone has been read (or found
+  /// missing), so readers outside the chat can wait for it on a cold start.
+  final Completer<void> _cacheLoaded = Completer<void>();
   final BotSession _session = BotSession();
   final TtsService _tts = TtsService();
 
@@ -248,6 +252,7 @@ class OfflineChatbotController extends GetxController {
   Future<void> _bootstrap() async {
     langCode.value = await AppLanguage.current();
     await _loadCached();
+    if (!_cacheLoaded.isCompleted) _cacheLoaded.complete();
     await _restoreTranscript();
 
     if (!hasBundle) {
@@ -608,7 +613,7 @@ class OfflineChatbotController extends GetxController {
       final reply = await engine.runIntent(
         targetIntent,
         session: _session,
-        profile: offlineChatbotProfile(),
+        profile: await offlineChatbotProfile(),
       );
 
       // Already on screen from her last visit: keep the session and its
@@ -882,7 +887,7 @@ class OfflineChatbotController extends GetxController {
       final reply = await engine.respond(
         message: message,
         session: _session,
-        profile: offlineChatbotProfile(),
+        profile: await offlineChatbotProfile(),
       );
       await _deliverReply(reply, delivery, speak: speak);
     } catch (e) {
@@ -1091,6 +1096,157 @@ class OfflineChatbotController extends GetxController {
   /// changes, this needs to change with it.
   static Duration _textRevealPause(String text) =>
       Duration(milliseconds: (text.length * 14).clamp(250, 2200));
+
+  /// Runs the intent filed under [key] on its own — in a fresh session, with
+  /// nothing added to the transcript and the conversation's own flow left
+  /// where it was — and returns what it says, step by step, with each step's
+  /// clip resolved the same way the chat resolves it.
+  ///
+  /// For screens outside AlloBot that speak an authored flow, like the week
+  /// on Home. Looks in her language first, then English. Empty when the
+  /// catalogue has no such intent.
+  Future<List<({String text, String? audioUrl})>> runIntentDetached(
+    String key,
+  ) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    final engine = _engine;
+    final all = bundle?.intents ?? const <BotIntent>[];
+    final trimmed = key.trim();
+    if (engine == null || trimmed.isEmpty) return const [];
+
+    final lang = langCode.value.trim().toLowerCase();
+    BotIntent? intent;
+    for (final candidate in {if (lang.isNotEmpty) lang, 'en', null}) {
+      for (final entry in all) {
+        if (entry.key != trimmed) continue;
+        if (candidate == null || entry.langCode == candidate) {
+          intent = entry;
+          break;
+        }
+      }
+      if (intent != null) break;
+    }
+    if (intent == null) return const [];
+
+    try {
+      final reply = await engine.runIntent(
+        intent,
+        session: BotSession(),
+        profile: await offlineChatbotProfile(),
+      );
+      return [
+        for (final segment in reply.segments)
+          for (final utterance in segment.utterances)
+            if (!utterance.isEmpty)
+              (
+                text: utterance.text.trim(),
+                audioUrl: _absoluteAudioUrl(utterance.audioUrl),
+              ),
+      ];
+    } catch (e) {
+      debugPrint('Chatbot: could not run "$trimmed" on its own: $e');
+      return const [];
+    }
+  }
+
+  /// Runs one turn of a conversation held outside the chat — in [session],
+  /// which the caller owns — and returns the whole reply: its steps, pauses,
+  /// clips and the options it ends on. Nothing is added to the transcript and
+  /// the chat's own flow is left where it was.
+  ///
+  /// With [intentKey] the intent filed under it starts (her language first,
+  /// then English; `inital`/`initial` both find the page's opening intent).
+  /// Otherwise [message] answers whatever [session] is waiting on. Null when
+  /// there is no catalogue or no such intent.
+  ///
+  /// For the AlloBaby card on Home, which runs the same opening flow as Ask
+  /// Allo and lets her answer it in place.
+  Future<BotReply?> runDetachedTurn({
+    required BotSession session,
+    String? intentKey,
+    String? message,
+  }) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    final engine = _engine;
+    if (engine == null) return null;
+    final profile = await offlineChatbotProfile();
+
+    try {
+      final key = intentKey?.trim() ?? '';
+      if (key.isEmpty) {
+        final text = message?.trim() ?? '';
+        if (text.isEmpty) return null;
+        return await engine.respond(
+          message: text,
+          session: session,
+          profile: profile,
+        );
+      }
+
+      final all = bundle?.intents ?? const <BotIntent>[];
+      final keys = {key, if (key == 'inital') 'initial'};
+      final lang = langCode.value.trim().toLowerCase();
+      BotIntent? intent;
+      for (final candidate in {if (lang.isNotEmpty) lang, 'en', null}) {
+        for (final entry in all) {
+          if (!keys.contains(entry.key)) continue;
+          if (candidate == null || entry.langCode == candidate) {
+            intent = entry;
+            break;
+          }
+        }
+        if (intent != null) break;
+      }
+      if (intent == null) return null;
+      return await engine.runIntent(intent, session: session, profile: profile);
+    } catch (e) {
+      debugPrint('Chatbot: detached turn failed: $e');
+      return null;
+    }
+  }
+
+  /// A step's clip as something the player can open: a server-relative path
+  /// gets the API host in front of it.
+  static String? resolveAudioUrl(String? url) => _absoluteAudioUrl(url);
+
+  /// The audio-library entry filed under [key] in [lang], or the English one
+  /// when that language has none. Its transcription is the line's text and its
+  /// URL the recording, so a key alone is enough to show and voice a line.
+  ///
+  /// Waits briefly for the cached catalogue on a cold start; null when the
+  /// library has no such key.
+  Future<BotAudio?> libraryAudio(String key, String lang) async {
+    await _cacheLoaded.future.timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    return libraryAudioNow(key, lang);
+  }
+
+  /// [libraryAudio] without waiting: whatever the catalogue in memory holds.
+  BotAudio? libraryAudioNow(String key, String lang) {
+    final audios = bundle?.audios ?? const <BotAudio>[];
+    final clean = lang.trim().toLowerCase();
+    for (final candidate in {clean, 'en'}) {
+      for (final audio in audios) {
+        if (audio.key == key && audio.langCode.toLowerCase() == candidate) {
+          return audio;
+        }
+      }
+    }
+    return null;
+  }
+
+  /// The playable URL of [key]'s library clip in [lang], when the catalogue
+  /// has one.
+  String? libraryAudioUrl(String key, String lang) =>
+      _absoluteAudioUrl(libraryAudioNow(key, lang)?.url);
 
   /// Absolutises a clip path from the catalogue.
   ///

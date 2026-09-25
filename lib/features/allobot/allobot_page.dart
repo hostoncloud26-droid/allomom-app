@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/tabs/allobot_ask_ai_tab.dart';
@@ -91,7 +92,10 @@ class _AlloBotPageState extends State<AlloBotPage> {
     final isKeyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
     final p = context.palette;
 
-    return Scaffold(
+    // The baby's own screen: no bottom popup anywhere in it, on any tab.
+    return BabyOnScreen(
+      wholeScreen: true,
+      child: Scaffold(
       // Ask Allo paints its own gradient; the status-bar strip above it takes
       // the gradient's top colour so the two meet without a seam.
       backgroundColor: _currentIndex == 0
@@ -287,6 +291,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
                 });
               },
             ),
+    ),
     );
   }
 

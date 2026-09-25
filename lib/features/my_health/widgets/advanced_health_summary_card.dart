@@ -394,7 +394,7 @@ class _RingPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final c = Offset(size.width / 2, size.height / 2);
-    final strokeWidth = size.width <= 72 ? 4.5 : 5.0;
+    final strokeWidth = size.width <= 72 ? 4.5 : 7.0;
     final r = size.width / 2 - strokeWidth;
     final stroke = Paint()
       ..style = PaintingStyle.stroke
@@ -680,14 +680,16 @@ class HealthSummaryCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                // Bigger than AlloKonnect's 68px: the score is the card's
+                // headline, and at 68 it read as squeezed next to the text.
                 SizedBox(
-                  width: 68,
-                  height: 68,
+                  width: 88,
+                  height: 88,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       CustomPaint(
-                        size: const Size(68, 68),
+                        size: const Size(88, 88),
                         painter: _RingPainter(
                           progress: data.overallScore / 100,
                           color: statusColor,
@@ -702,7 +704,7 @@ class HealthSummaryCard extends StatelessWidget {
                           Text(
                             '${data.overallScore}',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 26,
                               fontWeight: FontWeight.w800,
                               color: textColor,
                               height: 1,
@@ -711,7 +713,7 @@ class HealthSummaryCard extends StatelessWidget {
                           Text(
                             '/100',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 11.5,
                               color: subTextColor,
                               height: 1.2,
                               fontWeight: FontWeight.w600,
@@ -722,26 +724,22 @@ class HealthSummaryCard extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 18),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        headlineText,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: textColor,
-                          height: 1.42,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                    ],
+                  child: Text(
+                    headlineText,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: textColor,
+                      height: 1.42,
+                    ),
                   ),
                 ),
               ],
             ),
+            // Room between the score and the tiles, which used to touch it.
+            const SizedBox(height: 18),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,

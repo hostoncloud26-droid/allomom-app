@@ -39,10 +39,6 @@ class _MyHealthProfileCardState extends State<MyHealthProfileCard> {
   String? _token;
   bool _loadingToken = false;
 
-  /// True once a request has failed — the panel says so instead of showing a
-  /// code that leads nowhere.
-  bool _tokenFailed = false;
-
   @override
   void initState() {
     super.initState();
@@ -51,10 +47,7 @@ class _MyHealthProfileCardState extends State<MyHealthProfileCard> {
 
   Future<void> _loadToken({bool force = false}) async {
     if (_loadingToken) return;
-    setState(() {
-      _loadingToken = true;
-      _tokenFailed = false;
-    });
+    setState(() => _loadingToken = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -80,12 +73,9 @@ class _MyHealthProfileCardState extends State<MyHealthProfileCard> {
         await prefs.setString(_cacheToken, token);
         await prefs.setString(_cacheAt, DateTime.now().toIso8601String());
         if (mounted) setState(() => _token = token);
-      } else {
-        if (mounted) setState(() => _tokenFailed = true);
       }
     } catch (e) {
       debugPrint('MyHealthProfileCard: could not create QR token: $e');
-      if (mounted) setState(() => _tokenFailed = true);
     } finally {
       if (mounted) setState(() => _loadingToken = false);
     }
@@ -255,63 +245,35 @@ class _MyHealthProfileCardState extends State<MyHealthProfileCard> {
     );
   }
 
-  /// The code, a spinner while the token is on its way, or — when the server
-  /// could not issue one — a note and a retry, never a code that goes nowhere.
-  Widget _qrPanel(Color primaryColor) {
+  /// What the code carries: the secure-token link once the server issues
+  /// one, and until then a placeholder built from her user id.
+  ///
+  /// TODO: allomom-api-new has no `/stokens/create` yet, so the token request
+  /// fails and the placeholder is what shows. It does not open anything when
+  /// scanned — the scan-to-view logic is still to be decided.
+  String _qrData() {
     final token = _token;
     if (token != null && token.isNotEmpty) {
-      return QrImageView(
-        padding: const EdgeInsets.all(2),
-        data: '${MyHealthProfileCard.healthProfileUrlBase}$token',
-        version: QrVersions.auto,
-        backgroundColor: Colors.white,
-        eyeStyle: const QrEyeStyle(
-          eyeShape: QrEyeShape.square,
-          color: Colors.black,
-        ),
-        dataModuleStyle: const QrDataModuleStyle(
-          dataModuleShape: QrDataModuleShape.square,
-          color: Colors.black,
-        ),
-      );
+      return '${MyHealthProfileCard.healthProfileUrlBase}$token';
     }
-    if (_loadingToken || !_tokenFailed) {
-      return Center(
-        child: SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(strokeWidth: 2, color: primaryColor),
-        ),
-      );
-    }
-    return GestureDetector(
-      onTap: () => _loadToken(force: true),
-      behavior: HitTestBehavior.opaque,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.qr_code_2_rounded, size: 34, color: _ink.withValues(alpha: 0.35)),
-            const SizedBox(height: 4),
-            Text(
-              'QR unavailable',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: _ink.withValues(alpha: 0.7),
-              ),
-            ),
-            Text(
-              'Tap to retry',
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-          ],
-        ),
+    return '${MyHealthProfileCard.healthProfileUrlBase}'
+        '${MainController.instance.userId}';
+  }
+
+  /// Always a code — never a spinner or an "unavailable" note in its place.
+  Widget _qrPanel(Color primaryColor) {
+    return QrImageView(
+      padding: const EdgeInsets.all(2),
+      data: _qrData(),
+      version: QrVersions.auto,
+      backgroundColor: Colors.white,
+      eyeStyle: const QrEyeStyle(
+        eyeShape: QrEyeShape.square,
+        color: Colors.black,
+      ),
+      dataModuleStyle: const QrDataModuleStyle(
+        dataModuleShape: QrDataModuleShape.square,
+        color: Colors.black,
       ),
     );
   }

@@ -235,17 +235,21 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
       .where((w) => w.length > 2 && !_stopWords.contains(w))
       .toSet();
 
-  /// "Try asking" chips, as AlloKonnect ranks them: before the first message,
-  /// the opening questions; afterwards, the options the flow is waiting on,
-  /// or else the catalogue's triggers ranked by overlap with the last turn.
+  /// The flow is waiting on one of its node's options: they replace the
+  /// "Try asking" chips, and the Features slider and the composer step aside
+  /// so the options are the only thing to answer with.
+  bool get _showingOptions => controller.activeOptions.isNotEmpty;
+
+  /// "Try asking" chips, as AlloKonnect ranks them: the options the flow is
+  /// waiting on; otherwise, before the first message, the opening questions,
+  /// and afterwards the catalogue's triggers ranked by overlap with the last
+  /// turn.
   List<String> _suggestionTexts({
     required bool hasInteracted,
     String? lastUserText,
     String? lastReplyText,
   }) {
-    if (hasInteracted && controller.activeOptions.isNotEmpty) {
-      return controller.activeOptions.toList();
-    }
+    if (_showingOptions) return controller.activeOptions.toList();
     if (_openingSuggestions.isEmpty) {
       _openingSuggestions = _drawOpeningSuggestions();
     }
@@ -472,7 +476,10 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             builder: (context, constraints) => Obx(() {
               // Clears the docked mic, unless the composer below already lifts
               // the content above it.
-              final bottomGap = controller.isKeyboardMode.value ? 8.0 : 40.0;
+              final bottomGap =
+                  controller.isKeyboardMode.value && !_showingOptions
+                  ? 8.0
+                  : 40.0;
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
@@ -494,6 +501,15 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         ),
         Obx(() {
           if (!controller.isKeyboardMode.value) {
+            return const SizedBox(height: 12);
+          }
+          if (_showingOptions) {
+            // The composer is going away; take the keyboard with it.
+            if (_inputFocus.hasFocus) {
+              WidgetsBinding.instance.addPostFrameCallback(
+                (_) => _inputFocus.unfocus(),
+              );
+            }
             return const SizedBox(height: 12);
           }
           return OfflineChatbotComposer(
@@ -545,6 +561,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         lastUserText: hasInteracted ? messages[lastUserIndex].text : null,
         lastReplyText: spoken,
       );
+      final showingOptions = _showingOptions;
       final isDark = _p.isDark;
       final headerStyle = GoogleFonts.outfit(
         fontSize: 14,
@@ -589,43 +606,70 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             children: [
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Try asking:', style: headerStyle),
-              ),
-              const SizedBox(height: 8),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: SingleChildScrollView(
-                  key: ValueKey(suggestions.join('|')),
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  clipBehavior: Clip.none,
-                  child: Row(
-                    children: [
-                      for (final text in suggestions)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: AlloBotSuggestionChip(
-                            text: text,
-                            onTap: _send,
-                          ),
-                        ),
-                    ],
-                  ),
+                child: Text(
+                  showingOptions ? 'Options' : 'Try asking:',
+                  style: showingOptions
+                      ? headerStyle.copyWith(fontSize: 18)
+                      : headerStyle,
                 ),
               ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Features', style: headerStyle),
+              SizedBox(height: showingOptions ? 14 : 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                // Options wrap onto more rows rather than scroll, so every
+                // answer is in view at the bigger size.
+                child: showingOptions
+                    ? SizedBox(
+                        key: ValueKey(suggestions.join('|')),
+                        width: double.infinity,
+                        child: Wrap(
+                          alignment: WrapAlignment.center,
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: [
+                            for (final text in suggestions)
+                              AlloBotSuggestionChip(
+                                text: text,
+                                onTap: _send,
+                                large: true,
+                              ),
+                          ],
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        key: ValueKey(suggestions.join('|')),
+                        scrollDirection: Axis.horizontal,
+                        physics: const BouncingScrollPhysics(),
+                        clipBehavior: Clip.none,
+                        child: Row(
+                          children: [
+                            for (final text in suggestions)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: AlloBotSuggestionChip(
+                                  text: text,
+                                  onTap: _send,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
               ),
-              const SizedBox(height: 8),
-              AlloBotFeatureSlider(
-                // A feature's page may have recorded something, so the view
-                // is rebuilt once she comes back from it.
-                onFeatureOpened: () {
-                  if (mounted) setState(() {});
-                },
-              ),
+              if (!showingOptions) ...[
+                const SizedBox(height: 14),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Features', style: headerStyle),
+                ),
+                const SizedBox(height: 8),
+                AlloBotFeatureSlider(
+                  // A feature's page may have recorded something, so the view
+                  // is rebuilt once she comes back from it.
+                  onFeatureOpened: () {
+                    if (mounted) setState(() {});
+                  },
+                ),
+              ],
             ],
           ),
         ],

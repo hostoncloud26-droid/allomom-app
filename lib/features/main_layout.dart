@@ -12,6 +12,10 @@ import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
+import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/services/speech_activity.dart';
+import 'package:allomom/services/tts_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -75,34 +79,48 @@ class _MainLayoutState extends State<MainLayout> {
         },
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const AlloBotPage(autoStartListening: false),
-            ),
-          );
+      // The mic doubles as the baby's off switch: while anything is being said
+      // it pulses and shows stop, and a tap silences her instead of opening
+      // Ask Allo. Hosted directly rather than in a FloatingActionButton, which
+      // would clip the pulse rings to its own bounds.
+      floatingActionButton: ListenableBuilder(
+        listenable: Listenable.merge([
+          _tts.isSpeakingNotifier,
+          _tts.isGeneratingNotifier,
+        ]),
+        builder: (context, _) {
+          if (!BackgroundAudioController.isReady) return _micButton(context);
+          // Read here so Obx tracks the clip player as well as the voice.
+          return Obx(() {
+            BackgroundAudioController.to.isPlaying.value;
+            return _micButton(context);
+          });
         },
-        child: Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: primaryGradient,
-            boxShadow: [
-              BoxShadow(
-                color: primaryColor.withValues(alpha: 0.4),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.mic, color: Colors.white, size: 28),
-        ),
       ),
+    );
+  }
+
+  final TtsService _tts = TtsService();
+
+  Widget _micButton(BuildContext context) {
+    final speaking = SpeechActivity.instance.isActive;
+    return AlloBotMicButton(
+      isListening: speaking,
+      isSpeaking: speaking,
+      gradient: primaryGradient,
+      color: primaryColor,
+      onTap: () {
+        if (SpeechActivity.instance.isActive) {
+          SpeechActivity.instance.stopAll();
+          return;
+        }
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const AlloBotPage(autoStartListening: false),
+          ),
+        );
+      },
     );
   }
 }

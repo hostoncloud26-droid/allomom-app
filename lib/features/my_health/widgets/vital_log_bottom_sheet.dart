@@ -322,7 +322,9 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
       {'key': 'feeding', 'label': 'Feeding', 'icon': Icons.local_drink_rounded},
     ];
 
-    return Container(
+    // The baby peeks over the top of the sheet, hands on the rim.
+    return BabySheetPeek(
+      child: Container(
       margin: EdgeInsets.only(bottom: bottomInset),
       decoration: BoxDecoration(
         color: _p.card,
@@ -352,7 +354,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
               // The baby head card for the sheet, when this vital has a line.
               // Slim, because the keyboard takes most of the sheet.
               if (_narrationKey != null) ...[
-                BabyPromptBar(
+                BabySheetPrompt(
                   narrationKey: _narrationKey,
                   margin: EdgeInsets.zero,
                 ),
@@ -510,6 +512,7 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
           ),
         ),
       ),
+    ),
     );
   }
 

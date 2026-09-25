@@ -984,10 +984,14 @@ class OfflineChatbotEngine {
         // "i am not good".
         final answer = selected ?? trimmed;
 
-        session.data[profileKey] = profile;
+        // Spread first, then nest: the profile has its own `profile` key (the
+        // person block), and writing the nest first let that overwrite it —
+        // so `{profile.today_nutrition.had_breakfast}` read as missing on
+        // every step after an answer. Same order as a turn's context.
         for (final entry in profile.entries) {
           session.data[entry.key] = entry.value;
         }
+        session.data[profileKey] = profile;
         session.data[messageKey] = answer;
         session.data.putIfAbsent(triggerMessageKey, () => answer);
 

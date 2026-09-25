@@ -99,6 +99,7 @@ flutter:
   assets:
     - assets/animations/
     - assets/allobaby/
+    - assets/Quick Actions/
     - assets/allowear/
     # The baby's onboarding voice. One mp3 per narration keyword, per language;
     # add a `assets/audio/<code>/onboard/` line here as each language lands.
@@ -109,9 +110,6 @@ flutter:
     # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"
     # and ml1 for which of the five cry types it is. Both run fully offline.
     - assets/ml/
-    # AlloBot's curated maternal Q&A corpus. Bundled from lib/ rather than
-    # copied into assets/ so the sheets stay in one place for editing.
-    - lib/seeds/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

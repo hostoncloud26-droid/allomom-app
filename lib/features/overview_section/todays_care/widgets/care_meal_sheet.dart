@@ -143,238 +143,196 @@ class _CareMealSheetState extends State<CareMealSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        24,
-        14,
-        24,
-        MediaQuery.of(context).viewInsets.bottom + 28,
-      ),
-      decoration: BoxDecoration(
-        color: context.palette.card,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(32),
-          topRight: Radius.circular(32),
+    // The baby peeks over the top of the sheet, hands on the rim.
+    return BabySheetPeek(
+      child: Container(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          14,
+          24,
+          MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: context.palette.pick(
-                    const Color(0xFFE2E8F0),
-                    context.palette.divider,
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // The baby head card for the sheet — slim, since the keyboard
-            // takes most of it once she starts typing.
-            const BabyPromptBar(
-              narrationKey: NarrationKeys.pgNutritionMeal,
-              margin: EdgeInsets.zero,
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: context.palette.card,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(32),
+            topRight: Radius.circular(32),
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: widget.color.withValues(alpha: 0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(widget.icon, color: widget.color, size: 22),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Log ${widget.meal.label}',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: context.palette.pick(
-                            const Color(0xFF1E2024),
-                            context.palette.textPrimary,
-                          ),
-                        ),
-                      ),
-                      if (widget.suggestion != null) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.suggestion!,
-                          style: GoogleFonts.manrope(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: context.palette.pick(
-                              const Color(0xFF64748B),
-                              context.palette.textSecondary,
-                            ),
-                            height: 1.3,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            Text(
-              'Portion',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: context.palette.pick(
-                  const Color(0xFF475569),
-                  context.palette.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                for (var i = 0; i < _portions.length; i++) ...[
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => _selectPortion(i),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 150),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _selectedPortion == i
-                              ? context.palette.tint(
-                                  widget.color,
-                                  widget.color.withValues(alpha: 0.12),
-                                )
-                              : context.palette.pick(
-                                  const Color(0xFFF8FAFC),
-                                  context.palette.inputFill,
-                                ),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: _selectedPortion == i
-                                ? widget.color
-                                : context.palette.pick(
-                                    const Color(0xFFE2E8F0),
-                                    context.palette.border,
-                                  ),
-                            width: _selectedPortion == i ? 1.4 : 1,
-                          ),
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              _portions[i].emoji,
-                              style: const TextStyle(fontSize: 18),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              _portions[i].label,
-                              style: GoogleFonts.manrope(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: _selectedPortion == i
-                                    ? widget.color
-                                    : context.palette.pick(
-                                        const Color(0xFF475569),
-                                        context.palette.textSecondary,
-                                      ),
-                              ),
-                            ),
-                            Text(
-                              '~${_caloriesFor(i)} kcal',
-                              style: GoogleFonts.manrope(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w500,
-                                color: context.palette.pick(
-                                  const Color(0xFF94A3B8),
-                                  context.palette.textMuted,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  if (i != _portions.length - 1) const SizedBox(width: 8),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            Text(
-              'What did you have? (optional)',
-              style: GoogleFonts.manrope(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: context.palette.pick(
-                  const Color(0xFF475569),
-                  context.palette.textSecondary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _detailsController,
-              style: GoogleFonts.manrope(
-                fontSize: 13.5,
-                color: context.palette.pick(null, context.palette.textPrimary),
-              ),
-              decoration: _fieldDecoration(
-                'e.g. Oats porridge with almonds & milk',
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            GestureDetector(
-              onTap: () =>
-                  setState(() => _isCustomCalories = !_isCustomCalories),
-              child: Row(
-                children: [
-                  Icon(
-                    _isCustomCalories
-                        ? Icons.keyboard_arrow_down_rounded
-                        : Icons.keyboard_arrow_right_rounded,
-                    size: 20,
                     color: context.palette.pick(
-                      const Color(0xFF64748B),
-                      context.palette.textSecondary,
+                      const Color(0xFFE2E8F0),
+                      context.palette.divider,
                     ),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  Text(
-                    'Enter exact calories',
-                    style: GoogleFonts.manrope(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w700,
-                      color: context.palette.pick(
-                        const Color(0xFF475569),
-                        context.palette.textSecondary,
-                      ),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // The baby head card for the sheet — slim, since the keyboard
+              // takes most of it once she starts typing.
+              const BabySheetPrompt(
+                narrationKey: NarrationKeys.pgNutritionMeal,
+                margin: EdgeInsets.zero,
+              ),
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: widget.color.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(widget.icon, color: widget.color, size: 22),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Log ${widget.meal.label}',
+                          style: GoogleFonts.manrope(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: context.palette.pick(
+                              const Color(0xFF1E2024),
+                              context.palette.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (widget.suggestion != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            widget.suggestion!,
+                            style: GoogleFonts.manrope(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                              color: context.palette.pick(
+                                const Color(0xFF64748B),
+                                context.palette.textSecondary,
+                              ),
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
               ),
-            ),
-            if (_isCustomCalories) ...[
+              const SizedBox(height: 20),
+
+              Text(
+                'Portion',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: context.palette.pick(
+                    const Color(0xFF475569),
+                    context.palette.textSecondary,
+                  ),
+                ),
+              ),
               const SizedBox(height: 8),
+              Row(
+                children: [
+                  for (var i = 0; i < _portions.length; i++) ...[
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _selectPortion(i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedPortion == i
+                                ? context.palette.tint(
+                                    widget.color,
+                                    widget.color.withValues(alpha: 0.12),
+                                  )
+                                : context.palette.pick(
+                                    const Color(0xFFF8FAFC),
+                                    context.palette.inputFill,
+                                  ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: _selectedPortion == i
+                                  ? widget.color
+                                  : context.palette.pick(
+                                      const Color(0xFFE2E8F0),
+                                      context.palette.border,
+                                    ),
+                              width: _selectedPortion == i ? 1.4 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                _portions[i].emoji,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _portions[i].label,
+                                style: GoogleFonts.manrope(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: _selectedPortion == i
+                                      ? widget.color
+                                      : context.palette.pick(
+                                          const Color(0xFF475569),
+                                          context.palette.textSecondary,
+                                        ),
+                                ),
+                              ),
+                              Text(
+                                '~${_caloriesFor(i)} kcal',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: context.palette.pick(
+                                    const Color(0xFF94A3B8),
+                                    context.palette.textMuted,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (i != _portions.length - 1) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              Text(
+                'What did you have? (optional)',
+                style: GoogleFonts.manrope(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: context.palette.pick(
+                    const Color(0xFF475569),
+                    context.palette.textSecondary,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
               TextField(
-                controller: _caloriesController,
-                keyboardType: TextInputType.number,
+                controller: _detailsController,
                 style: GoogleFonts.manrope(
                   fontSize: 13.5,
                   color: context.palette.pick(
@@ -382,44 +340,92 @@ class _CareMealSheetState extends State<CareMealSheet> {
                     context.palette.textPrimary,
                   ),
                 ),
-                decoration: _fieldDecoration('e.g. 350').copyWith(
-                  suffixText: 'kcal',
-                  suffixStyle: GoogleFonts.manrope(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                decoration: _fieldDecoration(
+                  'e.g. Oats porridge with almonds & milk',
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              GestureDetector(
+                onTap: () =>
+                    setState(() => _isCustomCalories = !_isCustomCalories),
+                child: Row(
+                  children: [
+                    Icon(
+                      _isCustomCalories
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_right_rounded,
+                      size: 20,
+                      color: context.palette.pick(
+                        const Color(0xFF64748B),
+                        context.palette.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      'Enter exact calories',
+                      style: GoogleFonts.manrope(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                        color: context.palette.pick(
+                          const Color(0xFF475569),
+                          context.palette.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_isCustomCalories) ...[
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _caloriesController,
+                  keyboardType: TextInputType.number,
+                  style: GoogleFonts.manrope(
+                    fontSize: 13.5,
                     color: context.palette.pick(
-                      const Color(0xFF64748B),
-                      context.palette.textSecondary,
+                      null,
+                      context.palette.textPrimary,
+                    ),
+                  ),
+                  decoration: _fieldDecoration('e.g. 350').copyWith(
+                    suffixText: 'kcal',
+                    suffixStyle: GoogleFonts.manrope(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: context.palette.pick(
+                        const Color(0xFF64748B),
+                        context.palette.textSecondary,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 22),
+
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.color,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Save ${widget.meal.label}',
+                    style: GoogleFonts.manrope(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
                     ),
                   ),
                 ),
               ),
             ],
-            const SizedBox(height: 22),
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.color,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  elevation: 0,
-                ),
-                child: Text(
-                  'Save ${widget.meal.label}',
-                  style: GoogleFonts.manrope(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );

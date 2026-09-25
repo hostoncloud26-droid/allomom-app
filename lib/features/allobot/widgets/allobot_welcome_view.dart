@@ -17,6 +17,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/components/baby_animations.dart';
+import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
@@ -341,7 +343,9 @@ class _CategoryChip extends StatelessWidget {
           color: selected ? null : p.card,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? Colors.transparent : p.pick(const Color(0xFFE5E7EB), p.border),
+            color: selected
+                ? Colors.transparent
+                : p.pick(const Color(0xFFE5E7EB), p.border),
             width: 1.5,
           ),
           boxShadow: selected
@@ -358,7 +362,9 @@ class _CategoryChip extends StatelessWidget {
           child: Text(
             label,
             style: GoogleFonts.poppins(
-              color: selected ? Colors.white : p.pick(const Color(0xFF4B5563), p.textSecondary),
+              color: selected
+                  ? Colors.white
+                  : p.pick(const Color(0xFF4B5563), p.textSecondary),
               fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
@@ -461,11 +467,20 @@ class AlloBotOrb extends StatelessWidget {
 
           // The baby. No disc behind her: she sits straight on the nebula,
           // which is why she can be bigger than the 92px core used to allow.
-          Image.asset(
-            'assets/allobaby/AlloMombabySquare.png',
-            width: 108 * scale,
-            height: 108 * scale,
-            fit: BoxFit.contain,
+          BabyOnScreen(
+            child: Image.asset(
+              BabyAnimations.idle,
+              width: 108 * scale,
+              height: 108 * scale,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              errorBuilder: (_, __, ___) => Image.asset(
+                'assets/allobaby/AlloMombabySquare.png',
+                width: 108 * scale,
+                height: 108 * scale,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
         ],
       ),
@@ -642,7 +657,10 @@ class _FeatureSuggestionCardState extends State<FeatureSuggestionCard> {
                                   fontSize: 13,
                                   height: 1.2,
                                   fontWeight: FontWeight.w700,
-                                  color: p.pick(const Color(0xFF1E2024), p.textPrimary),
+                                  color: p.pick(
+                                    const Color(0xFF1E2024),
+                                    p.textPrimary,
+                                  ),
                                 ),
                               ),
                               const SizedBox(height: 2),
@@ -653,7 +671,10 @@ class _FeatureSuggestionCardState extends State<FeatureSuggestionCard> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 10.5,
                                   height: 1.25,
-                                  color: p.pick(const Color(0xFF8E95A5), p.textMuted),
+                                  color: p.pick(
+                                    const Color(0xFF8E95A5),
+                                    p.textMuted,
+                                  ),
                                 ),
                               ),
                             ],
