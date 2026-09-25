@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/sync/sync_service.dart';
+import 'package:allomom/services/auth/secure_token_store.dart';
 
 class ConnectionController extends GetxController {
   static ConnectionController get instance =>
@@ -161,7 +162,9 @@ class ConnectionController extends GetxController {
         if (!wasAvailable && MainController.instance.isAuthenticated) {
           unawaited(SyncService.instance.syncAll());
         }
-        await HealthVitalsController.instance.syncUnsyncedVitals();
+        if (SecureTokenStore.instance.hasSession) {
+          await HealthVitalsController.instance.syncUnsyncedVitals();
+        }
       } else {
         debugPrint("Internet is not available");
         _isInternetAvailable.value = false;

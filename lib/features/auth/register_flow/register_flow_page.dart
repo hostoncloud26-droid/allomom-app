@@ -117,6 +117,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
 
   // Step 7: Kids State
   List<Baby> _children = const [];
+  String? _deletingBabyId;
 
   // Step 8: Join Code State
   final TextEditingController _joinCodeController = TextEditingController();
@@ -235,10 +236,13 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   }
 
   void _goToStep(RegisterStep step) {
+    if (_currentStep == step) return;
     FocusScope.of(context).unfocus();
     setState(() {
       _currentStep = step;
-      _stepHistory.add(step);
+      if (_stepHistory.isEmpty || _stepHistory.last != step) {
+        _stepHistory.add(step);
+      }
       _updateNarrationForStep(step);
     });
     _pageController.animateToPage(
@@ -251,12 +255,36 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     }
   }
 
+  void _resetStepState(RegisterStep prevStep) {
+    if (prevStep == RegisterStep.name) {
+      _status = '';
+      _lmpDate = null;
+      _eddDate = null;
+      _cycleLength = 28;
+      final now = DateTime.now();
+      _selectedLmpDate = DateTime(now.year, now.month, now.day);
+    } else if (prevStep == RegisterStep.status) {
+      _lmpDate = null;
+      _eddDate = null;
+      _cycleLength = 28;
+      final now = DateTime.now();
+      _selectedLmpDate = DateTime(now.year, now.month, now.day);
+    } else if (prevStep == RegisterStep.lmp ||
+        prevStep == RegisterStep.cyclePrediction) {
+      _cycleLength = 28;
+    }
+  }
+
   void _handleBackNavigation() {
     if (_stepHistory.length > 1) {
       _stepHistory.removeLast();
+      while (_stepHistory.length > 1 && _stepHistory.last == _currentStep) {
+        _stepHistory.removeLast();
+      }
       final prevStep = _stepHistory.last;
       FocusScope.of(context).unfocus();
       setState(() {
+        _resetStepState(prevStep);
         _currentStep = prevStep;
         _updateNarrationForStep(prevStep);
       });
@@ -504,8 +532,16 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   void _handlePartnerSave() {
     final pName = _partnerNameController.text.trim();
     final pPhone = _partnerPhoneController.text.trim();
-    if (pName.isNotEmpty) _partnerName = pName;
-    if (pPhone.isNotEmpty) _partnerPhone = pPhone;
+    if (pName.isEmpty) {
+      _showMessage("Please enter ${_isDad ? "Mommy's" : "Partner's"} name", isError: true);
+      return;
+    }
+    if (pPhone.length != 10) {
+      _showMessage('Please enter a valid 10-digit mobile number', isError: true);
+      return;
+    }
+    _partnerName = pName;
+    _partnerPhone = pPhone;
     _goToStep(RegisterStep.family);
   }
 
@@ -516,24 +552,74 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   // ─── STEP 5: FAMILY ACTIONS ───
   Future<void> _handleFamilyNext() async {
     if (_hasKids) {
-      await _loadChildren();
       _goToStep(RegisterStep.kids);
+      unawaited(_loadChildren());
     } else {
       await _completeRegistration();
     }
   }
 
   Future<void> _loadChildren() async {
-    await MainController.instance.ensureHealthRecord();
     final babies = await BabyRepository.instance.getBabies();
     if (!mounted) return;
     setState(() => _children = babies);
+    unawaited(MainController.instance.ensureHealthRecord());
   }
 
   Future<void> _openAddChildSheet() async {
     final babyId = await showBabyFormSheet(context);
     if (babyId != null && mounted) {
       await _loadChildren();
+    }
+  }
+
+  Future<void> _handleDeleteChild(Baby baby) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Remove ${baby.name}?',
+          style: GoogleFonts.outfit(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'Are you sure you want to remove ${baby.name}?',
+          style: GoogleFonts.poppins(fontSize: 13.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.poppins(color: const Color(0xFF6B7280)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Remove',
+              style: GoogleFonts.poppins(
+                color: const Color(0xFFFF4E6A),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _deletingBabyId = baby.id);
+      try {
+        await BabyRepository.instance.deleteBaby(baby.id);
+      } finally {
+        if (mounted) {
+          _deletingBabyId = null;
+          await _loadChildren();
+        }
+      }
     }
   }
 
@@ -791,6 +877,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                                       cycleLength: _cycleLength,
                                       narrationKey: _narrationKey,
                                       onHintSelected: _say,
+                                      onCycleLengthChanged: (len) => setState(() => _cycleLength = len),
                                       onNext: _handleCycleConfirm,
                                     );
                                   case RegisterStep.partner:
@@ -814,6 +901,8 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                                     return KidsDetailsStepView(
                                       children: _children,
                                       onAddChild: _openAddChildSheet,
+                                      onDeleteChild: _handleDeleteChild,
+                                      deletingChildId: _deletingBabyId,
                                       isLoading: _isSavingFamily,
                                       onComplete: _completeRegistration,
                                     );

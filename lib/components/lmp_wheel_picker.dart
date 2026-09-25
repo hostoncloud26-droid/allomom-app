@@ -88,10 +88,11 @@ class _LmpWheelPickerState extends State<LmpWheelPicker> {
   @override
   void didUpdateWidget(covariant LmpWheelPicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isPregnant != widget.isPregnant) {
+    if (oldWidget.isPregnant != widget.isPregnant ||
+        oldWidget.selectedDate != widget.selectedDate) {
       _monthController.dispose();
       _dayController.dispose();
-      _initData(_selectedDate);
+      _initData(widget.selectedDate);
       setState(() {});
     }
   }

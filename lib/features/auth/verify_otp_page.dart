@@ -74,11 +74,12 @@ class VerifyOtpStepView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: Center(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                 RichText(
                   text: TextSpan(
                     text: 'Enter 6-Digit OTP sent to ',
@@ -177,6 +178,7 @@ class VerifyOtpStepView extends StatelessWidget {
             ),
           ),
         ),
+      ),
 
         const SizedBox(height: 12),
 

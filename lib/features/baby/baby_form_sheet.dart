@@ -94,6 +94,13 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
   /// introduction.
   bool get _narrates => !_isEdit;
 
+  bool get _isValid =>
+      _dob != null &&
+      _gender != null &&
+      _gender!.trim().isNotEmpty &&
+      _deliveryType != null &&
+      _deliveryType!.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
@@ -149,6 +156,30 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please pick your baby's date of birth"),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final gender = _gender;
+    if (gender == null || gender.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select baby's gender"),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final deliveryType = _deliveryType;
+    if (deliveryType == null || deliveryType.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please select delivery type"),
           backgroundColor: Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
         ),
@@ -440,11 +471,11 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                 width: double.infinity,
                 height: 52,
                 child: ElevatedButton(
-                  onPressed: _saving ? null : _save,
+                  onPressed: (_saving || !_isValid) ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF3B5C),
                     disabledBackgroundColor: _p.pick(
-                      const Color(0xFFFFC9D4),
+                      const Color(0xFFE5E7EB),
                       const Color(0xFFFF3B5C).withValues(alpha: 0.35),
                     ),
                     elevation: 0,
@@ -466,7 +497,7 @@ class _BabyFormSheetState extends State<_BabyFormSheet> {
                           style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: _isValid ? Colors.white : const Color(0xFF9CA3AF),
                           ),
                         ),
                 ),

@@ -6,6 +6,7 @@ import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/services/health_vital_sync_service.dart';
+import 'package:allomom/services/auth/secure_token_store.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class HealthVitalsController extends GetxController {
@@ -464,6 +465,14 @@ class HealthVitalsController extends GetxController {
       fetchLatestVitals(showLoading: false);
 
   Future<void> syncUnsyncedVitals() async {
+    // 0. User must be authenticated to sync with server
+    if (!SecureTokenStore.instance.hasSession) {
+      debugPrint(
+        "🔒 [HealthVitalsController] Not logged in, skipping vitals sync.",
+      );
+      return;
+    }
+
     // 1. Prevent concurrent syncs
     if (_isSyncing) {
       debugPrint(
