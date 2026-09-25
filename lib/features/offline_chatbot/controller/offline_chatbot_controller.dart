@@ -1280,6 +1280,31 @@ class OfflineChatbotController extends GetxController {
         lower.startsWith('allobot is not downloaded yet');
   }
 
+  /// Drops every navigation action but the last one.
+  ///
+  /// A turn queues one action per step that ran, and the engine's `intent`
+  /// step lets several flows hand off to each other within a single turn (see
+  /// `OfflineChatbotEngine._traverse`) — each may try to open its own page.
+  /// Running all of them would push one page on top of the next, so only the
+  /// last-queued page-opener actually lands; anything queued before it is
+  /// dropped rather than silently stacking behind the one she can see.
+  List<Map<String, dynamic>> _collapseNavigationActions(
+    List<Map<String, dynamic>> actions,
+  ) {
+    bool isNavigation(Map<String, dynamic> action) {
+      final resolved = OfflineChatbotActions.find(action['name']?.toString());
+      return resolved is OpenPageAction || resolved is OpenSheetAction;
+    }
+
+    final lastNav = actions.lastIndexWhere(isNavigation);
+    if (lastNav == -1) return actions;
+
+    return [
+      for (var i = 0; i < actions.length; i++)
+        if (i == lastNav || !isNavigation(actions[i])) actions[i],
+    ];
+  }
+
   /// Performs a segment's side effects, surfacing only what went wrong.
   ///
   /// A flow says its own "done" message in a text step, so a successful action
@@ -1287,7 +1312,7 @@ class OfflineChatbotController extends GetxController {
   /// becomes a system line, because silently doing nothing would leave the
   /// flow's next message claiming something that never happened.
   Future<void> _runActions(List<Map<String, dynamic>> actions) async {
-    for (final action in actions) {
+    for (final action in _collapseNavigationActions(actions)) {
       if (action['executed'] == true) {
         final dynamic res = action['result'];
         if (res is ActionResult && !res.handled) {

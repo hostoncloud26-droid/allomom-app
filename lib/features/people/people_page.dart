@@ -621,6 +621,23 @@ class _PeoplePageState extends State<PeoplePage> {
     }
 
     final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'M';
+    final isSelf = userId != null && userId == MainController.instance.userId;
+
+    // Self-removal isn't offered here — the only way to leave a family is
+    // "Delete Family", and that's only ever available once you're the sole
+    // remaining member. So your own row doesn't swipe at all.
+    if (isSelf) {
+      return _buildFamilyMemberCard(
+        name: name,
+        phone: phone,
+        badgeText: relation,
+        badgeBg: badgeBg,
+        badgeTextColor: badgeText,
+        avatarLetter: avatarLetter,
+        avatarBg: avatarBg,
+        avatarLetterColor: avatarLetterColor,
+      );
+    }
 
     return Dismissible(
       key: ValueKey('fam_member_${userId}_$index'),
@@ -650,18 +667,15 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
       confirmDismiss: (direction) async {
         if (userId == null) return false;
-        final isSelf = userId == MainController.instance.userId;
         final confirm = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(20),
             ),
-            title: Text(isSelf ? 'Leave Family?' : 'Remove Member?'),
+            title: const Text('Remove Member?'),
             content: Text(
-              isSelf
-                  ? "You'll be removed from this family. You can rejoin later with the family code."
-                  : 'Are you sure you want to remove $name from your family?',
+              'Are you sure you want to remove $name from your family?',
             ),
             actions: [
               TextButton(
@@ -673,50 +687,30 @@ class _PeoplePageState extends State<PeoplePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFFF4E6A),
                 ),
-                child: Text(
-                  isSelf ? 'Leave' : 'Remove',
-                  style: const TextStyle(color: Colors.white),
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ],
           ),
         );
         if (confirm == true) {
-          // Leaving yourself goes through the server — it is a family-wide
-          // fact (your spot opens up, the family may retire if you were the
-          // last member) — while removing someone else is local-only, same
-          // as the rest of the People screen's writes.
-          if (isSelf) {
-            final error = await FamilyController.instance.exitFamily();
-            if (!mounted) return false;
-            if (error != null) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text(error)));
-              return false;
-            }
-            _loadFamilyData();
-            return true;
-          }
-
-          final familyId = _familyData?['id']?.toString() ?? '';
-          if (userId.isEmpty || familyId.isEmpty) {
+          if (userId.isEmpty) {
             return false;
           }
-          try {
-            await FamilyDbService.instance.removeFamilyMember(
-              familyId: familyId,
-              userId: userId,
-            );
-            _loadFamilyData();
-            return true;
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Failed to remove: $e')));
-            }
+          // Server-side, so the removal actually reaches the member's own
+          // device rather than only vanishing from this phone's SQLite copy.
+          final error = await FamilyController.instance.removeMember(userId);
+          if (!mounted) return false;
+          if (error != null) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(SnackBar(content: Text(error)));
+            return false;
           }
+          _loadFamilyData();
+          return true;
         }
         return false;
       },
@@ -806,7 +800,9 @@ class _PeoplePageState extends State<PeoplePage> {
 
   void _showCreateFamilyDialog() {
     speak(NarrationKeys.pgFamilyCreate, force: true);
-    final nameCtrl = TextEditingController();
+    final familyNameCtrl = TextEditingController();
+    final partnerNameCtrl = TextEditingController();
+    final partnerPhoneCtrl = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -820,14 +816,38 @@ class _PeoplePageState extends State<PeoplePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Enter a name for your family group.',
+              // The server always creates the family together with its second
+              // parent in one call, so this asks for both rather than leaving
+              // the family half-built until someone edits it in afterwards.
+              'Enter your family and partner details.',
               style: TextStyle(fontSize: 13, color: textLight),
             ),
             const SizedBox(height: 14),
             TextField(
-              controller: nameCtrl,
+              controller: familyNameCtrl,
               decoration: InputDecoration(
-                hintText: "e.g. Anand's Family",
+                hintText: "Family name, e.g. Anand's Family",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: partnerNameCtrl,
+              decoration: InputDecoration(
+                hintText: "Partner's name",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: partnerPhoneCtrl,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                hintText: "Partner's phone (optional)",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -842,7 +862,17 @@ class _PeoplePageState extends State<PeoplePage> {
           ),
           ElevatedButton(
             onPressed: () async {
-              final name = nameCtrl.text.trim();
+              final familyName = familyNameCtrl.text.trim();
+              final partnerName = partnerNameCtrl.text.trim();
+              final partnerPhone = partnerPhoneCtrl.text.trim();
+              if (partnerName.isEmpty) {
+                ScaffoldMessenger.of(ctx).showSnackBar(
+                  const SnackBar(
+                    content: Text("Enter your partner's name"),
+                  ),
+                );
+                return;
+              }
               Navigator.pop(ctx);
               final userId = MainController.instance.userId;
               if (userId.isEmpty) {
@@ -855,25 +885,24 @@ class _PeoplePageState extends State<PeoplePage> {
                 }
                 return;
               }
-              // Local-first: written to SQLite straight away so the group
-              // exists offline. allomom-api-new has no `/family/create`
-              // route yet (only `/family/partner`, `/join`, `/exit`), so this
-              // code cannot be pushed to the server until that lands — Share
-              // QR only works between devices once it can.
-              try {
-                await FamilyDbService.instance.createFamily(
-                  creatorUserId: userId,
-                  name: name.isNotEmpty ? name : null,
-                );
-                speak(NarrationKeys.pgFamilyCreated, force: true);
-                _loadFamilyData();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to create family: $e')),
-                  );
-                }
+              // Reuses the same /family/partner call the registration flow's
+              // partner step is built on — the only endpoint that creates a
+              // family server-side, so the code it mints is one another
+              // device can actually join by.
+              final error = await FamilyController.instance.linkPartner(
+                name: partnerName,
+                phone: partnerPhone.isNotEmpty ? partnerPhone : null,
+                familyName: familyName.isNotEmpty ? familyName : null,
+              );
+              if (!mounted) return;
+              if (error != null) {
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(error)));
+                return;
               }
+              speak(NarrationKeys.pgFamilyCreated, force: true);
+              _loadFamilyData();
             },
             style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
             child: const Text('Create', style: TextStyle(color: Colors.white)),
@@ -935,41 +964,17 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        // Scan QR button
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => _openScanQr(context),
-            icon: Icon(
-              Icons.qr_code_scanner_rounded,
-              size: 20,
-              color: primaryColor,
-            ),
-            label: Text(
-              'Scan QR to join a family',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: Colors.white,
-              side: BorderSide(color: Colors.grey.shade200),
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
-              ),
-            ),
-          ),
-        ),
+        // Scanning a QR to join a *different* family isn't offered here —
+        // doing that means leaving this one first, and leaving is only ever
+        // possible via "Delete Family" below, which itself only shows once
+        // you're solo. So this screen never offers a way to leave a family
+        // that still has other members in it.
+        //
         // Delete Family — only offered while nobody else has joined yet, so a
         // family created by mistake can be undone. Once a second member is
-        // in it, deleting would take their membership with it, so this button
-        // disappears and leaving is done per-member instead (swipe on the
-        // member row below).
+        // in it, deleting would take their membership with it, so there is no
+        // way to leave from this screen at all — removing yourself is never
+        // offered, only removing others.
         if (_apiFamilyMembers.length <= 1) ...[
           const SizedBox(height: 12),
           SizedBox(
@@ -1043,9 +1048,11 @@ class _PeoplePageState extends State<PeoplePage> {
     _loadFamilyData();
   }
 
+  /// Only ever reached from the no-family screen — once a family exists,
+  /// there is no "scan QR to join a different one" offered, since joining a
+  /// different family means leaving this one first, and leaving is only ever
+  /// possible via "Delete Family", which itself only shows once you're solo.
   Future<void> _openScanQr(BuildContext _) async {
-    if (_familyData != null && !await _confirmLeaveBeforeJoining()) return;
-    if (!mounted) return;
     final joined = await Navigator.push<bool>(
       context,
       MaterialPageRoute(builder: (_) => const ScanQrPage()),
@@ -1053,56 +1060,6 @@ class _PeoplePageState extends State<PeoplePage> {
     if (joined == true && mounted) {
       _loadFamilyData();
     }
-  }
-
-  /// When the caller is already in a family, joining a different one means
-  /// leaving this one first — that is a deliberate act, not a side effect of
-  /// scanning a code, so it is confirmed here rather than left to the 409 the
-  /// server would otherwise answer with.
-  ///
-  /// Returns true once the caller has left (or already had no family), false
-  /// if they backed out.
-  Future<bool> _confirmLeaveBeforeJoining() async {
-    final familyName = _familyData?['name']?.toString() ?? 'your family';
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Leave your current family first'),
-        content: Text(
-          "You're already in $familyName. To join a different family, "
-          'leave this one first.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF4E6A),
-            ),
-            child: const Text(
-              'Leave & Continue',
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return false;
-
-    final error = await FamilyController.instance.exitFamily();
-    if (!mounted) return false;
-    if (error != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error)));
-      return false;
-    }
-    await _loadFamilyData();
-    return true;
   }
 
   Widget _buildFamilyMembersHeader() {
