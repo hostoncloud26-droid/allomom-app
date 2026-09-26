@@ -1167,9 +1167,8 @@ class _PeoplePageState extends State<PeoplePage> {
     required String avatarLetter,
     required Color avatarBg,
     required Color avatarLetterColor,
-    // Overrides the trailing chat button — the baby has no chat, so its card
-    // opens Baby Journey instead. Every other member keeps the plain icon,
-    // which currently does nothing when tapped.
+    // Only the baby's card has a trailing action (opens Baby Journey) — every
+    // other member has nothing to tap here, so no button is shown for them.
     IconData trailingIcon = Icons.chat_bubble_outline_rounded,
     VoidCallback? onTrailingTap,
   }) {
@@ -1277,23 +1276,25 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
 
-          // Chat Action Button (Baby Journey, for the baby's card)
-          GestureDetector(
-            onTap: onTrailingTap,
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: primaryColor.withValues(alpha: 0.08),
-              ),
-              child: Icon(
-                trailingIcon,
-                color: primaryColor,
-                size: 18,
+          // Trailing action — only the baby's card has one (opens Baby
+          // Journey). Every other member gets no button here.
+          if (onTrailingTap != null)
+            GestureDetector(
+              onTap: onTrailingTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primaryColor.withValues(alpha: 0.08),
+                ),
+                child: Icon(
+                  trailingIcon,
+                  color: primaryColor,
+                  size: 18,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
@@ -1313,6 +1314,7 @@ class _PeoplePageState extends State<PeoplePage> {
           familyID: _familyData?['id']?.toString(),
           onMemberAdded: _loadFamilyData,
           initialRelationship: initialRelationship,
+          existingMembers: _apiFamilyMembers,
         );
       },
     );

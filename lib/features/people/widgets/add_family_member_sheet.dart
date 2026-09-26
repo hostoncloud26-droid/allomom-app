@@ -15,11 +15,18 @@ class AddFamilyMemberSheet extends StatefulWidget {
   /// user pick it again.
   final String? initialRelationship;
 
+  /// The family's current members (as the People screen already has them
+  /// loaded), used to catch "this phone number is already in your family"
+  /// before submitting rather than letting the server silently update the
+  /// existing member's relation.
+  final List<dynamic> existingMembers;
+
   const AddFamilyMemberSheet({
     super.key,
     this.familyID,
     required this.onMemberAdded,
     this.initialRelationship,
+    this.existingMembers = const [],
   });
 
   @override
@@ -72,13 +79,31 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     super.dispose();
   }
 
+  /// The last 10 digits of [phone], which is what two numbers actually need
+  /// to share to be "the same number" regardless of country code or spacing.
+  String _phoneKey(String phone) {
+    final digits = phone.replaceAll(RegExp(r'\D'), '');
+    return digits.length <= 10 ? digits : digits.substring(digits.length - 10);
+  }
+
   bool _validate() {
     if (_nameController.text.trim().isEmpty) {
       _showMsg('Please enter member name');
       return false;
     }
-    if (_phoneController.text.trim().length < 10) {
+    final phone = _phoneController.text.trim();
+    if (phone.length < 10) {
       _showMsg('Please enter a valid 10-digit phone number');
+      return false;
+    }
+    final enteredKey = _phoneKey(phone);
+    final alreadyInFamily = widget.existingMembers.any((m) {
+      if (m is! Map) return false;
+      final existingPhone = (m['phone'] ?? '').toString();
+      return existingPhone.isNotEmpty && _phoneKey(existingPhone) == enteredKey;
+    });
+    if (alreadyInFamily) {
+      _showMsg('This phone number already belongs to a member of your family');
       return false;
     }
     if (_ageController.text.trim().isEmpty) {
