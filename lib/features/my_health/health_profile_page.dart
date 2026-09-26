@@ -210,24 +210,8 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
 
     return Scaffold(
       backgroundColor: _p.scaffoldSoft,
-      appBar: AppBar(
-        backgroundColor: _p.scaffoldSoft,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: _p.pick(const Color(0xFF2D3142), _p.textPrimary), size: 20),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Health Profile',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: _textStrong,
-          ),
-        ),
-      ),
+      // No app bar of its own: it is the Profile tab of My Health, whose
+      // app bar already says "My Profile".
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         physics: const BouncingScrollPhysics(),

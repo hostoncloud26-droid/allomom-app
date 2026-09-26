@@ -32,6 +32,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   // Selected State
   DateTime? _dob;
+  // 'male' or 'female'; also picks the Mom / Dad avatar.
+  String _gender = 'female';
   String _pregnancyStatus = notPregnantStatus;
   DateTime? _lmpDate;
   DateTime? _eddDate;
@@ -67,6 +69,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
 
     _dob = session.dob;
+    _gender = session.gender.trim().toLowerCase() == 'male' ? 'male' : 'female';
     _pregnancyStatus = _normalizeStatus(session.pregnancyStatus);
     _lmpDate = session.lmpDate;
     _eddDate = session.eddDate;
@@ -157,6 +160,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       'name': _nameController.text.trim(),
       'email': orNull(_emailController.text),
       'dob': SyncCodec.isoDate(_dob),
+      'gender': _gender,
       'bio': orNull(_bioController.text),
       'city': orNull(_cityController.text),
       'pincode': orNull(_pincodeController.text),
@@ -263,6 +267,56 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             hint: 'Mobile number',
                             icon: Icons.phone_outlined,
                             keyboardType: TextInputType.phone,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Gender',
+                            style: GoogleFonts.poppins(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: p.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final option in const [
+                                ('female', 'Female'),
+                                ('male', 'Male'),
+                              ])
+                                ChoiceChip(
+                                  avatar: QuickActionImage(
+                                    QuickActionImages.person(gender: option.$1),
+                                    size: 22,
+                                  ),
+                                  label: Text(
+                                    option.$2,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  selected: _gender == option.$1,
+                                  showCheckmark: false,
+                                  selectedColor: const Color(0xFFFF4E6A),
+                                  labelStyle: TextStyle(
+                                    color: _gender == option.$1
+                                        ? Colors.white
+                                        : p.textSecondary,
+                                  ),
+                                  backgroundColor: p.pick(
+                                    const Color(0xFFF3F4F6),
+                                    p.inputFill,
+                                  ),
+                                  onSelected: (sel) {
+                                    if (sel) {
+                                      setState(() => _gender = option.$1);
+                                    }
+                                  },
+                                ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           _buildDateTile(
@@ -678,9 +732,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 ),
                               )
                             : Image.asset(
-                                QuickActionImages.person(
-                                  gender: MainController.instance.gender,
-                                ),
+                                QuickActionImages.person(gender: _gender),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => const Icon(
                                   Icons.face_3_rounded,
