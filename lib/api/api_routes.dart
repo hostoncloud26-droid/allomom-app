@@ -7,11 +7,18 @@ class Apiroutes extends GetxController {
       ? Get.find<Apiroutes>()
       : Get.put(Apiroutes(), permanent: true);
 
-  String baseUrl = "http://10.0.2.2:8000";
+  // Physical device over USB debugging: run `adb reverse tcp:8000 tcp:8000`
+  // once per USB reconnect, tunneling this port straight to the backend
+  // running on your machine.
+  //String baseUrl = "http://127.0.0.1:8000";
+
+  // Emulator (10.0.2.2 is the special alias for the host machine's localhost
+  // — only resolves inside the emulator, never on a real device):
+  // String baseUrl = "http://10.0.2.2:8000";
 
   // String baseUrl = "http://192.168.0.18:8000";
 
-  // String baseUrl = "https://api.allomom.savemom.app";
+   String baseUrl = "https://api.allomom.savemom.app";
 
   @override
   void onInit() {

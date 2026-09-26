@@ -6,6 +6,7 @@ import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 import 'package:allomom/features/people/widgets/scan_qr_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
@@ -68,9 +69,18 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
-    await FamilyController.instance.refreshFromServer();
+    final refreshed = await FamilyController.instance.refreshFromServer();
     if (!mounted) return;
     await _loadFamilyDataInner();
+    if (!refreshed && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't refresh your family list — showing the last saved version.",
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _loadFamilyDataInner() async {
@@ -96,6 +106,12 @@ class _PeoplePageState extends State<PeoplePage> {
       final members = await FamilyDbService.instance.getFamilyMembers(
         family.id,
       );
+      // Babies aren't family members server-side — they live in their own
+      // table (BabyRepository) — so they never come back from
+      // getFamilyMembers. The card below still wants to show them (with the
+      // baby icon that opens Baby Journey), so they're merged in here as
+      // members shaped the same way the real ones are.
+      final babies = await BabyRepository.instance.getBabies();
       if (!mounted) return;
       setState(() {
         _familyData = {
@@ -105,18 +121,28 @@ class _PeoplePageState extends State<PeoplePage> {
           'profileImage': family.profileImage,
           'bannerImage': family.bannerImage,
         };
-        _apiFamilyMembers = members
-            .map(
-              (m) => {
-                'userid': m.userId,
-                'id': m.userId,
-                'name': m.name,
-                'phone': m.phone ?? '',
-                'relation': m.relation,
-                'image': m.image,
-              },
-            )
-            .toList();
+        _apiFamilyMembers = [
+          ...members.map(
+            (m) => {
+              'userid': m.userId,
+              'id': m.userId,
+              'name': m.name,
+              'phone': m.phone ?? '',
+              'relation': m.relation,
+              'image': m.image,
+            },
+          ),
+          ...babies.map(
+            (b) => {
+              'userid': 'baby_${b.id}',
+              'id': 'baby_${b.id}',
+              'name': b.name,
+              'phone': '',
+              'relation': 'child',
+              'image': null,
+            },
+          ),
+        ];
         _isLoadingFamily = false;
       });
     } catch (e) {
@@ -144,8 +170,7 @@ class _PeoplePageState extends State<PeoplePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            mediumSpacingBox(),
+            _buildHeader(context),
             _buildTabSwitcher(),
             mediumSpacingBox(),
             Expanded(
@@ -160,16 +185,30 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   // ─── HEADER ────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 12),
-      child: Text(
-        'People',
-        style: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-          color: textDark,
-        ),
+  Widget _buildHeader(BuildContext context) {
+    if (!Navigator.canPop(context)) {
+      return const SizedBox(height: 12);
+    }
+    return Padding(
+      padding: const EdgeInsets.only(left: 20, right: 20, top: 12),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'People',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+              color: textDark,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -312,7 +351,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
   Widget _buildNoFamilyCard() {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
@@ -326,18 +365,6 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
       child: Column(
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFCE7F0),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 42)),
-            ),
-          ),
-          const SizedBox(height: 18),
           const Text(
             'No Family Group Yet',
             style: TextStyle(
@@ -442,47 +469,72 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8F5),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Illustration graphic area
-          SizedBox(
-            height: 140,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(painter: _FamilyTreeIllustrationPainter()),
+          // Illustration banner graphic area
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: double.infinity,
+                height: 190,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFFFF0F5),
+                      Color(0xFFF3FBF9),
+                    ],
+                  ),
                 ),
+                child: Center(
+                  child: Icon(
+                    Icons.family_restroom_rounded,
+                    size: 84,
+                    color: primaryColor.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+              if (_familyData?['profileImage'] != null &&
+                  _familyData!['profileImage'].toString().isNotEmpty)
                 Positioned(
                   left: 20,
-                  bottom: -15,
+                  bottom: -18,
                   child: Container(
-                    width: 76,
-                    height: 76,
+                    width: 60,
+                    height: 60,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFFCE7F0),
                       border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
-                    ),
-                    child: const Center(
-                      child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 38)),
+                      image: DecorationImage(
+                        image: NetworkImage(_familyData!['profileImage']),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Title & member count & family code
           Padding(
@@ -1712,75 +1764,3 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 }
 
-// Custom Painter for the Family Banner illustration background
-class _FamilyTreeIllustrationPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintTree = Paint()
-      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
-      ..style = PaintingStyle.fill;
-
-    final paintStem = Paint()
-      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final w = size.width;
-    final h = size.height;
-
-    // Draw fence line
-    canvas.drawLine(Offset(0, h * 0.7), Offset(w, h * 0.7), paintStem);
-    for (double x = 40; x < w; x += 30) {
-      canvas.drawLine(Offset(x, h * 0.7), Offset(x, h * 0.8), paintStem);
-    }
-
-    // Draw stylized tree tops on sides
-    canvas.drawOval(Rect.fromLTWH(w * 0.05, 20, 60, 40), paintTree);
-    canvas.drawOval(Rect.fromLTWH(w * 0.12, 35, 55, 45), paintTree);
-
-    canvas.drawOval(Rect.fromLTWH(w * 0.75, 25, 60, 40), paintTree);
-    canvas.drawOval(Rect.fromLTWH(w * 0.82, 30, 50, 45), paintTree);
-
-    // Clouds
-    final paintCloud = Paint()
-      ..color = Colors.white.withValues(alpha: 0.7)
-      ..style = PaintingStyle.fill;
-    canvas.drawOval(Rect.fromLTWH(w * 0.2, 10, 50, 20), paintCloud);
-    canvas.drawOval(Rect.fromLTWH(w * 0.65, 12, 45, 18), paintCloud);
-
-    // Simple stylized family silhouettes in the middle
-    final paintRed = Paint()..color = const Color(0xFFE14B60);
-    final paintNavy = Paint()..color = const Color(0xFF334155);
-
-    // Person 1 (Mother)
-    canvas.drawCircle(Offset(w * 0.45, h * 0.4), 10, paintNavy);
-    final path1 = Path()
-      ..moveTo(w * 0.45, h * 0.48)
-      ..lineTo(w * 0.41, h * 0.7)
-      ..lineTo(w * 0.49, h * 0.7)
-      ..close();
-    canvas.drawPath(path1, paintRed);
-
-    // Person 2 (Father)
-    canvas.drawCircle(Offset(w * 0.53, h * 0.38), 11, paintNavy);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.505, h * 0.47, 15, 25),
-        const Radius.circular(4),
-      ),
-      paintNavy,
-    );
-
-    // Child
-    canvas.drawCircle(Offset(w * 0.61, h * 0.5), 7, paintNavy);
-    final pathChild = Path()
-      ..moveTo(w * 0.61, h * 0.55)
-      ..lineTo(w * 0.58, h * 0.7)
-      ..lineTo(w * 0.64, h * 0.7)
-      ..close();
-    canvas.drawPath(pathChild, paintRed);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

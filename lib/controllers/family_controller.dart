@@ -366,10 +366,16 @@ class FamilyController extends GetxController {
   }
 
   /// Pulls the family from the server and mirrors it locally.
-  Future<void> refreshFromServer() async {
+  ///
+  /// Returns false on failure, without touching local data — a caller that
+  /// cares (the People screen) can then tell the difference between "this is
+  /// the current family" and "this is whatever was last cached, which may be
+  /// stale", instead of silently presenting a failed refresh as up to date.
+  Future<bool> refreshFromServer() async {
     final response = await FamilyApi.getMyFamily();
-    if (!response.success) return;
+    if (!response.success) return false;
     await _mirror(response.item);
+    return true;
   }
 
   // ── Writes ─────────────────────────────────────────────────────────────────
@@ -555,9 +561,29 @@ class FamilyController extends GetxController {
   Future<void> _mirror(dynamic item) async {
     if (item is! Map) {
       // A caller with no family yet answers `item: null`, which is an ordinary
-      // state rather than a failure. Re-reading the local tables rather than
-      // blanking them keeps a family created offline — the People screen can
-      // do that — from being thrown away by a server that has not seen it yet.
+      // state rather than a failure. But this only reaches `_mirror` when
+      // `response.success` was true (`refreshFromServer` returns early
+      // otherwise), so the server *was* reached and is affirmatively saying
+      // "you have no family" — not "I haven't heard about yours yet".
+      //
+      // The one case that answer can still be wrong for is a family created
+      // offline that hasn't been pushed up yet (`Families.synced == 0`); for
+      // that one, keep the local copy rather than let this response erase it.
+      // Otherwise — including someone else removing this user from a family
+      // the server already knows about — clear the stale local copy so this
+      // device stops showing a household (and its members) the caller is no
+      // longer part of.
+      final me = _meId;
+      final localFamily = me.isEmpty
+          ? null
+          : await FamilyDbService.instance.getMyFamily(me);
+      if (localFamily == null || localFamily.synced == 1) {
+        if (me.isNotEmpty) {
+          await FamilyDbService.instance.exitFamily(me);
+        }
+        _family = null;
+        _partner = null;
+      }
       await loadFromLocal();
       return;
     }
