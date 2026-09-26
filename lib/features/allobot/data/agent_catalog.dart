@@ -94,6 +94,7 @@ class AgentSpec {
     this.vitalKeys = const [],
     this.fixedStatus,
     this.keywords = const [],
+    this.image,
   });
 
   final String id;
@@ -116,6 +117,11 @@ class AgentSpec {
 
   /// Extra words search should match, beyond the name and the description.
   final List<String> keywords;
+
+  /// 3D illustration from `assets/Quick Actions/`, shown in place of [icon]
+  /// wherever this agent appears — the Agents grid, AlloBot's feature cards
+  /// and home Quick Actions.
+  final String? image;
 
   /// What the pill says right now, read from what has actually been recorded.
   AgentStatus get status {
@@ -162,6 +168,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.care,
       fixedStatus: AgentStatus.listening,
       keywords: ['cry', 'baby', 'sound', 'audio'],
+      image: 'assets/Quick Actions/AlloCry.png',
       pageBuilder: _alloCry,
     ),
     AgentSpec(
@@ -174,6 +181,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.care,
       vitalKeys: ['kick_count', 'kicks'],
       keywords: ['kicks', 'movement', 'baby'],
+      image: 'assets/Quick Actions/Kick Count.png',
       pageBuilder: _kickCounter,
     ),
     AgentSpec(
@@ -186,6 +194,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.care,
       vitalKeys: ['feeding'],
       keywords: ['feed', 'breastfeeding', 'bottle', 'milk'],
+      image: 'assets/Quick Actions/Feeding.png',
       pageBuilder: _feedingTracker,
     ),
     AgentSpec(
@@ -198,6 +207,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.care,
       vitalKeys: ['todocare'],
       keywords: ['care', 'todo', 'tasks', 'routine'],
+      image: 'assets/Quick Actions/Daily Activity.png',
       pageBuilder: _dailyActivity,
     ),
 
@@ -224,6 +234,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.vitals,
       vitalKeys: ['heart_rate'],
       keywords: ['bpm', 'pulse', 'heart'],
+      image: 'assets/Quick Actions/Heart Rate.png',
       pageBuilder: _heartRate,
     ),
     AgentSpec(
@@ -236,6 +247,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.vitals,
       vitalKeys: ['hrv'],
       keywords: ['variability', 'recovery', 'heart'],
+      image: 'assets/Quick Actions/HRV.png',
       pageBuilder: _hrv,
     ),
     AgentSpec(
@@ -272,6 +284,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.vitals,
       vitalKeys: ['sleep'],
       keywords: ['rest', 'night', 'hours'],
+      image: 'assets/Quick Actions/Sleep.png',
       pageBuilder: _sleep,
     ),
 
@@ -298,6 +311,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.readings,
       vitalKeys: ['hemoglobin'],
       keywords: ['hb', 'anaemia', 'anemia', 'blood'],
+      image: 'assets/Quick Actions/Hemoglobin.png',
       pageBuilder: _hemoglobin,
     ),
     AgentSpec(
@@ -336,6 +350,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.nutrition,
       vitalKeys: ['water'],
       keywords: ['hydration', 'glasses', 'intake', 'drink'],
+      image: 'assets/Quick Actions/Water.png',
       pageBuilder: _water,
     ),
     AgentSpec(
@@ -348,6 +363,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.nutrition,
       vitalKeys: ['breakfast', 'break_fast'],
       keywords: ['meal', 'calories', 'morning'],
+      image: 'assets/Quick Actions/Breakfast.png',
       pageBuilder: _breakfast,
     ),
     AgentSpec(
@@ -372,6 +388,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.nutrition,
       vitalKeys: ['dinner'],
       keywords: ['meal', 'calories', 'night'],
+      image: 'assets/Quick Actions/Dinner.png',
       pageBuilder: _dinner,
     ),
     AgentSpec(
@@ -384,6 +401,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.nutrition,
       vitalKeys: ['snacks'],
       keywords: ['snack', 'calories', 'portions'],
+      image: 'assets/Quick Actions/Snacks.png',
       pageBuilder: _snacks,
     ),
     AgentSpec(
@@ -396,6 +414,7 @@ abstract final class AgentCatalog {
       group: AgentGroup.nutrition,
       vitalKeys: ['drinks'],
       keywords: ['tea', 'coffee', 'juice', 'cups'],
+      image: 'assets/Quick Actions/Drinks.png',
       pageBuilder: _drinks,
     ),
   ];

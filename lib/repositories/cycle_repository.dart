@@ -1,109 +1,161 @@
-import 'package:drift/drift.dart' show Value;
-import 'package:uuid/uuid.dart';
-
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/vitals_controller.dart';
 import 'package:allomom/services/cycle_predictor.dart' as predictor;
-import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/services/sq_lite/services/health_db_service.dart';
+import 'package:allomom/services/menstrual_tracker.dart';
 
-/// Her menstrual cycle: the periods she has logged and the averages the
-/// predictions run off.
+/// Her menstrual cycle, tracked the way AlloConnect tracks it.
 ///
-/// Two things have to move together every time a period is logged — a row in
-/// `cycle_histories` (the log she can scroll back through) and the LMP on her
-/// health profile (what every prediction reads, including the pregnancy flow's
-/// due-date maths). Keeping that pair in one place is the point of this
-/// repository.
+/// Every period is one `lmp_date` reading in the vitals stream. It is written
+/// locally first and marked unsynced, then pushed by the vitals sync, so
+/// logging works offline and lands on the server — and in AlloConnect — once
+/// there is a connection. Ending or editing a period rewrites that same row.
 class CycleRepository {
   static final CycleRepository instance = CycleRepository._internal();
   CycleRepository._internal();
 
-  final _db = HealthDbService.instance;
+  VitalsController get _vitals => VitalsController.instance;
 
   /// Logged periods, most recent first.
-  Future<List<CycleHistory>> history() async {
-    final healthId = MainController.instance.healthDataId;
-    if (healthId.isEmpty) return const [];
-    return _db.getCycleHistories(healthId);
-  }
-
-  /// Records a period and, when it is the most recent one, makes it the LMP.
   ///
-  /// [end] stays null while she is still bleeding. Re-logging a period that
-  /// starts on a day already recorded updates that row rather than adding a
-  /// duplicate, so correcting the date twice does not litter her history.
-  Future<void> logPeriod({
-    required DateTime start,
-    DateTime? end,
-    int? cycleLength,
-    int? periodDuration,
-    String? cycleType,
-  }) async {
+  /// Before she has logged one, the LMP on her profile (or an older
+  /// period-start reading) stands in as a single entry, so the tracker is not
+  /// empty for someone who gave her LMP at sign-up. That entry has no id;
+  /// ending or editing it saves it as a real period.
+  List<PeriodLog> history() {
+    final logged = _vitals.periodLogs;
+    if (logged.isNotEmpty) return logged;
+
     final session = MainController.instance;
-    final healthId = session.healthDataId;
-    final startDay = _dateOnly(start);
-
-    if (healthId.isNotEmpty) {
-      final existing = await _db.getCycleHistories(healthId);
-      CycleHistory? sameDay;
-      for (final c in existing) {
-        if (_isSameDay(c.cycleStartDate, startDay)) {
-          sameDay = c;
-          break;
-        }
-      }
-
-      await _db.saveCycleHistory(
-        CycleHistoriesCompanion(
-          id: Value(sameDay?.id ?? const Uuid().v4()),
-          healthId: Value(healthId),
-          cycleStartDate: Value(startDay),
-          cycleEndDate: Value(end == null ? null : _dateOnly(end)),
-          cycleType: Value(cycleType),
-          createdAt: Value(sameDay?.createdAt ?? DateTime.now()),
-        ),
-      );
-    }
-
-    // The reading that predictions actually run off, and the only part of a
-    // logged period that reaches the server. `VitalsController.lastPeriodStart`
-    // takes the newest of these, so back-filling an older cycle records the
-    // history without dragging the prediction backwards — no "is this the most
-    // recent one?" check needed any more.
-    await VitalsController.instance.recordPeriodStart(
-      startDay,
-      durationDays: periodDuration,
-    );
-
-    if (cycleLength != null) {
-      await VitalsController.instance.record(
-        VitalKeys.cycleLength,
-        value: cycleLength.toDouble(),
-        unit: 'days',
-        recordedAt: startDay,
-      );
-    }
-
-    await session.loadFromLocal();
+    final anchor = session.cycleAnchorDate;
+    if (anchor == null) return const [];
+    return [
+      PeriodLog(
+        id: null,
+        start: dateOnly(anchor),
+        end: null,
+        periodDuration: session.averagePeriodDuration,
+        averageCycle: session.averageCycleLength,
+        status: PeriodStatus.notOnPeriod,
+        createdAt: anchor,
+      ),
+    ];
   }
+
+  /// The period the tracker reads today's status from.
+  PeriodLog? latest() {
+    final all = history();
+    return all.isEmpty ? null : all.first;
+  }
+
+  /// First-time setup: is the latest period still going, when did it start,
+  /// and — if it is over — how long did it last.
+  Future<void> setUpTracking({
+    required DateTime start,
+    required bool completed,
+    required int periodDuration,
+    required int averageCycle,
+  }) async {
+    // An ongoing period gets the predicted length until she marks it ended.
+    final duration = completed ? periodDuration : trackerDefaultDuration;
+    final startDay = dateOnly(start);
+    await _save(
+      unit: 'setup',
+      data: PeriodLog.newData(
+        start: startDay,
+        end: addDays(startDay, duration - 1),
+        periodDuration: duration,
+        averageCycle: averageCycle,
+        status: completed ? PeriodStatus.notOnPeriod : PeriodStatus.onPeriod,
+        onboarding: true,
+      ),
+      sameDayAs: startDay,
+    );
+  }
+
+  /// "Log period start": a new period that is still going.
+  ///
+  /// Carries her last cycle and period length forward rather than resetting
+  /// them to 28 and 5, so a corrected cycle length survives the next log.
+  Future<void> logPeriodStart(DateTime start) async {
+    final previous = latest();
+    await _save(
+      unit: 'manual',
+      data: PeriodLog.newData(
+        start: start,
+        status: PeriodStatus.onPeriod,
+        periodDuration: previous?.periodDuration ?? trackerDefaultDuration,
+        averageCycle: previous?.averageCycle ?? trackerDefaultCycle,
+      ),
+      sameDayAs: dateOnly(start),
+    );
+  }
+
+  /// "Mark period ended": records the last day and the length that follows.
+  Future<void> markPeriodEnded(PeriodLog log, DateTime end) =>
+      _write(log, log.endedData(end));
+
+  /// Corrects a logged period's start, length or cycle length.
+  Future<void> editPeriod(
+    PeriodLog log, {
+    required DateTime start,
+    required int periodDuration,
+    required int averageCycle,
+  }) => _write(
+    log,
+    log.editedData(
+      start: start,
+      periodDuration: periodDuration,
+      averageCycle: averageCycle,
+    ),
+  );
 
   /// Her cycle length measured from what she has actually logged, or null
   /// until two periods are on record.
-  ///
-  /// Offered as a correction rather than written over her own answer — she
-  /// stays the authority on her own cycle.
-  Future<int?> measuredCycleLength() async =>
-      cycleLengthFromHistory(await history());
+  int? measuredCycleLength() => cycleLengthFromHistory(_vitals.periodLogs);
 
   /// [measuredCycleLength] without the database, so it can be tested directly.
-  static int? cycleLengthFromHistory(List<CycleHistory> logged) =>
-      predictor.observedCycleLength([
-        for (final c in logged) c.cycleStartDate,
-      ]);
+  static int? cycleLengthFromHistory(List<PeriodLog> logged) =>
+      predictor.observedCycleLength([for (final l in logged) l.start]);
 
-  static DateTime _dateOnly(DateTime v) => DateTime(v.year, v.month, v.day);
+  // ── Writes ─────────────────────────────────────────────────────────────────
 
-  static bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  /// Updates [log] in place, or saves it as a new period when it was only
+  /// derived from her profile LMP.
+  Future<void> _write(PeriodLog log, Map<String, dynamic> data) async {
+    final id = log.id;
+    if (id == null) {
+      await _save(unit: 'manual', data: data);
+      return;
+    }
+    await _vitals.updateReading(id, data: data);
+    await MainController.instance.loadFromLocal();
+  }
+
+  /// Adds a period, or — when one already starts on [sameDayAs] — rewrites
+  /// that one, so logging the same day twice does not litter her history.
+  Future<void> _save({
+    required String unit,
+    required Map<String, dynamic> data,
+    DateTime? sameDayAs,
+  }) async {
+    PeriodLog? existing;
+    if (sameDayAs != null) {
+      for (final l in _vitals.periodLogs) {
+        if (l.start == sameDayAs) {
+          existing = l;
+          break;
+        }
+      }
+    }
+
+    if (existing != null) {
+      await _vitals.updateReading(
+        existing.id!,
+        data: {...existing.data, ...data},
+      );
+    } else {
+      await _vitals.record(VitalKeys.lmpDate, value: 0, unit: unit, data: data);
+    }
+    await MainController.instance.loadFromLocal();
+  }
 }

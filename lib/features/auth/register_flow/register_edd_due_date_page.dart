@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/data/narration_flow.dart';
-import 'package:allomom/features/background_audio/widgets/narration_hint_chips.dart';
 import 'package:allomom/features/auth/register_flow/register_flow_page.dart';
 
 class RegisterEddDueDatePage extends StatelessWidget {
@@ -93,93 +90,96 @@ class RegisterEddStepView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'ESTIMATED DUE DATE (EDD)',
-                  style: GoogleFonts.poppins(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF8E95A5),
-                    letterSpacing: 0.8,
+          child: Center(
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'ESTIMATED DUE DATE (EDD)',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF8E95A5),
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                // Due Date Display Box
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                  // Due Date Display Box
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 16,
                     ),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: const Color(0xFFFFD1DC),
-                      width: 1.5,
-                    ),
-                  ),
-                  child: Column(
-                    children: [
-                      Text(
-                        eddString,
-                        style: GoogleFonts.outfit(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF1E2024),
-                        ),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 3,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFFFD1DC),
+                        width: 1.5,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(
+                            0xFFFF4E6A,
+                          ).withValues(alpha: 0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
                         ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF4E6A),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          '$daysRemaining Days to go!',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          eddString,
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF1E2024),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFF4E6A),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.access_time_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                '$daysRemaining Days to go!',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-
-                const SizedBox(height: 10),
-
-                NarrationHintChips(
-                  selectedKey: narrationKey,
-                  onSelected: onHintSelected,
-                  padding: const EdgeInsets.only(bottom: 4),
-                  hints: [
-                    const NarrationHint(
-                      'What are these days?',
-                      NarrationKeys.pregEddDays,
-                    ),
-                    NarrationHint(
-                      'How long is that?',
-                      countdownNarrationKey(daysRemaining),
-                    ),
-                    const NarrationHint(
-                      'Doctor said another date',
-                      NarrationKeys.pregEddDoctorDate,
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

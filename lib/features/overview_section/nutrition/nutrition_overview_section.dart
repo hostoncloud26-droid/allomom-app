@@ -272,7 +272,6 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
         'count_unit': 'glasses',
       },
     );
-    speak(NarrationKeys.pgConfWaterAdded, force: true);
     await _load();
   }
 

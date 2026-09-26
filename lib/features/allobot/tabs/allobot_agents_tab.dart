@@ -308,19 +308,29 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: _p.tint(agent.iconColor, agent.iconBackground),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      agent.icon,
-                      color: agent.iconColor,
-                      size: 20,
-                    ),
-                  ),
+                  agent.image != null
+                      ? Image.asset(
+                          agent.image!,
+                          width: 40,
+                          height: 40,
+                          fit: BoxFit.contain,
+                        )
+                      : Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _p.tint(
+                              agent.iconColor,
+                              agent.iconBackground,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Icon(
+                            agent.icon,
+                            color: agent.iconColor,
+                            size: 20,
+                          ),
+                        ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,

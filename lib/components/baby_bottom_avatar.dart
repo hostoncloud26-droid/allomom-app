@@ -308,7 +308,7 @@ class _BabyBottomAvatarState extends State<BabyBottomAvatar> {
                 child: AnimatedOpacity(
                   opacity: _visible ? 1 : 0,
                   duration: const Duration(milliseconds: 240),
-                  child: _BabyPopup(
+                  child: BabyLinePopup(
                     key: BabyBottomAvatar.popupKey,
                     text: _text,
                     speaking: _speaking,
@@ -326,13 +326,16 @@ class _BabyBottomAvatarState extends State<BabyBottomAvatar> {
 }
 
 /// The baby on the theme's nebula, with her line in a bubble beside her.
-class _BabyPopup extends StatelessWidget {
-  const _BabyPopup({
+///
+/// The bottom popup's body, and reused inline where a screen or sheet wants
+/// the baby in its own layout rather than floating over it.
+class BabyLinePopup extends StatelessWidget {
+  const BabyLinePopup({
     super.key,
     required this.text,
     required this.speaking,
     required this.onSpeakerTap,
-    required this.onClose,
+    this.onClose,
   });
 
   final String text;
@@ -341,8 +344,9 @@ class _BabyPopup extends StatelessWidget {
   /// Stops her mid-line, or says the line again once she has finished.
   final VoidCallback onSpeakerTap;
 
-  /// Stops her and puts the popup away.
-  final VoidCallback onClose;
+  /// Stops her and puts the popup away. Null hides the ✕, for a baby that
+  /// belongs to the layout she sits in.
+  final VoidCallback? onClose;
 
   static const closeKey = Key('babyBottomAvatarClose');
 
@@ -424,16 +428,20 @@ class _BabyPopup extends StatelessWidget {
                             speaking: speaking,
                           ),
                           // Room for the close button over the corner.
-                          const SizedBox(width: 10),
+                          if (onClose != null) const SizedBox(width: 10),
                         ],
                       ),
                     ),
                   ),
-                  Positioned(
-                    top: -8,
-                    right: -6,
-                    child: BabyBubbleCloseButton(key: closeKey, onTap: onClose),
-                  ),
+                  if (onClose != null)
+                    Positioned(
+                      top: -8,
+                      right: -6,
+                      child: BabyBubbleCloseButton(
+                        key: closeKey,
+                        onTap: onClose!,
+                      ),
+                    ),
                 ],
               ),
             ),

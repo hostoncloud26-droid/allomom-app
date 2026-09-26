@@ -37,7 +37,7 @@ void main() {
     });
 
     test('declares a line for every in-app screen', () {
-      expect(screenKeys, hasLength(76));
+      expect(screenKeys, hasLength(79));
     });
 
     test('has a line for every key', () {
@@ -55,7 +55,13 @@ void main() {
       // `pg_settings_open` has a line but no recording yet. A key in this list
       // still shows its text on the card and simply stays silent; the list is
       // here so a *new* gap fails the build rather than going unnoticed.
-      const awaitingRecording = {NarrationKeys.pgSettingsOpen};
+      const awaitingRecording = {
+        NarrationKeys.pgSettingsOpen,
+        // Welcome-your-baby steps: read aloud by TTS until recorded.
+        NarrationKeys.pgBirthDate,
+        NarrationKeys.pgBirthDetails,
+        NarrationKeys.pgBirthPhoto,
+      };
 
       final missing = declaredKeys
           .where((key) => !awaitingRecording.contains(key))

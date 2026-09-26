@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/api/sync_api.dart';
+import 'package:allomom/services/auth/secure_token_store.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -122,6 +123,10 @@ class SyncService {
   /// watermark, so the first incremental sync continues from exactly this
   /// snapshot rather than re-pulling everything.
   Future<bool> seedFromServer() async {
+    if (!SecureTokenStore.instance.hasSession) {
+      debugPrint('ℹ️ [SyncService] seedFromServer skipped: no active session');
+      return false;
+    }
     final response = await ProfileApi.getAll();
     if (!response.success || response.item is! Map) {
       debugPrint('⚠️ [SyncService] seed failed: ${response.detail}');
@@ -222,6 +227,9 @@ class SyncService {
   /// Runs every module once. Overlapping calls are dropped rather than queued —
   /// the next tick will pick up whatever this pass misses.
   Future<bool> syncAll() async {
+    if (!SecureTokenStore.instance.hasSession) {
+      return false;
+    }
     if (_running) return false;
     _running = true;
     var changed = false;
@@ -238,6 +246,9 @@ class SyncService {
 
   /// Pushes local edits for one module and applies what the server sends back.
   Future<bool> syncModule(String module, {bool notify = true}) async {
+    if (!SecureTokenStore.instance.hasSession) {
+      return false;
+    }
     final mapper = kSyncMappersByModule[module];
     if (mapper == null) return false;
 

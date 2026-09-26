@@ -750,17 +750,11 @@ class BabyPromptBar extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
-            // Zoomed onto the face: the clips are the full-body frame, and
-            // at this size only the face reads.
-            child: Transform.scale(
-              scale: 2.0,
-              alignment: const Alignment(0, -0.3),
-              child: Image.asset(
-                speaking ? BabyAnimations.speaking : BabyAnimations.idle,
-                fit: BoxFit.cover,
-                gaplessPlayback: true,
-                errorBuilder: (context, error, stackTrace) => _stillBabyHead(),
-              ),
+            child: Image.asset(
+              speaking ? BabyAnimations.speaking : BabyAnimations.idle,
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
+              errorBuilder: (context, error, stackTrace) => _stillBabyHead(),
             ),
           ),
           const SizedBox(width: 12),
@@ -791,11 +785,8 @@ class BabyPromptBar extends StatelessWidget {
   }
 
   Widget _stillBabyHead() => Image.asset(
-    'assets/allobaby/AlloMombaby.png',
-    fit: BoxFit.cover,
-    // The asset is a full-body baby; crop to the head so the face
-    // still reads at this size.
-    alignment: Alignment.topCenter,
+    'assets/allobaby/AlloMombabySquare.png',
+    fit: BoxFit.contain,
     errorBuilder: (context, error, stackTrace) => const Icon(
       Icons.face_retouching_natural_rounded,
       size: 24,

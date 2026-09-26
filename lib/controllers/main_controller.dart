@@ -197,6 +197,13 @@ class MainController extends GetxController {
     _isLoading = true;
     update();
 
+    // Background passes bring rows no screen asked for — the schedule of a
+    // pregnancy registered offline, say — so reload whenever one lands.
+    // Removed first so a second bootstrap does not register it twice.
+    SyncService.instance
+      ..removeListener(_onSynced)
+      ..addListener(_onSynced);
+
     await _loadDeviceSettings();
     await loadFromLocal();
 
@@ -226,6 +233,8 @@ class MainController extends GetxController {
   bool get isBootstrapped => _bootstrapped;
 
   /// Re-reads the user and health rows, then the dependent controllers.
+  void _onSynced() => unawaited(loadFromLocal());
+
   Future<void> loadFromLocal() async {
     final db = await _db;
     final knownId = SecureTokenStore.instance.userId;

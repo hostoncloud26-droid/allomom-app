@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/services/menstrual_tracker.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -37,7 +38,13 @@ class VitalKeys {
   static const calories = 'calories';
   static const water = 'water';
 
-  /// The first day of a period. The cycle predictor reads the series of these.
+  /// One logged period, in the shape AlloConnect writes: `data` carries
+  /// `lmp_date`, `period_end_date`, `period_duration`, `average_cycle` and
+  /// `status`. Ending or editing the period rewrites the same row.
+  static const lmpDate = 'lmp_date';
+
+  /// The first day of a period, from before periods were logged as [lmpDate]
+  /// readings. Still read so older logs keep predicting until she logs anew.
   static const periodStart = 'period_start';
 
   /// An observed cycle length in days.
@@ -89,9 +96,7 @@ class VitalsController extends GetxController {
 
     final rows =
         await (db.select(db.vitalsStreamTable)
-              ..where(
-                (v) => v.healthId.equals(healthId) & v.deletedAt.isNull(),
-              )
+              ..where((v) => v.healthId.equals(healthId) & v.deletedAt.isNull())
               ..orderBy([(v) => drift.OrderingTerm.desc(v.createdAt)]))
             .get();
 
@@ -186,10 +191,45 @@ class VitalsController extends GetxController {
     }
   }
 
+  /// Rewrites an existing reading and marks it for sync again, so a period
+  /// that is ended or corrected stays one row rather than becoming two.
+  Future<bool> updateReading(
+    String id, {
+    double? value,
+    String? unit,
+    required Map<String, dynamic> data,
+  }) async {
+    final db = await _db;
+    final now = DateTime.now();
+    final written =
+        await (db.update(
+          db.vitalsStreamTable,
+        )..where((v) => v.id.equals(id))).write(
+          VitalsStreamTableCompanion(
+            value: value == null
+                ? const drift.Value.absent()
+                : drift.Value(value),
+            unit: unit == null ? const drift.Value.absent() : drift.Value(unit),
+            data: drift.Value(jsonEncode(data)),
+            updatedAt: drift.Value(now),
+            synced: const drift.Value(0),
+          ),
+        );
+    if (written == 0) return false;
+
+    await loadFromLocal();
+    if (await SyncService.instance.syncModule('vitals')) {
+      await loadFromLocal();
+    }
+    return true;
+  }
+
   Future<bool> deleteReading(String id) async {
     final db = await _db;
     final now = DateTime.now();
-    await (db.update(db.vitalsStreamTable)..where((v) => v.id.equals(id))).write(
+    await (db.update(
+      db.vitalsStreamTable,
+    )..where((v) => v.id.equals(id))).write(
       VitalsStreamTableCompanion(
         deletedAt: drift.Value(now),
         updatedAt: drift.Value(now),
@@ -203,22 +243,45 @@ class VitalsController extends GetxController {
 
   // ── Cycle ──────────────────────────────────────────────────────────────────
 
-  /// Period start dates, newest first.
-  List<DateTime> get periodStarts =>
-      readings(VitalKeys.periodStart).map((r) => r.createdAt).toList();
+  /// Logged periods ([VitalKeys.lmpDate] readings), newest first.
+  List<PeriodLog> get periodLogs => sortPeriodLogs([
+    for (final r in readings(VitalKeys.lmpDate))
+      ?PeriodLog.fromData(
+        id: r.id,
+        createdAt: r.createdAt,
+        data: SyncCodec.decodeMap(r.data),
+      ),
+  ]);
+
+  PeriodLog? get latestPeriodLog {
+    final logs = periodLogs;
+    return logs.isEmpty ? null : logs.first;
+  }
+
+  /// Period start dates, newest first: logged periods, then the older
+  /// [VitalKeys.periodStart] readings.
+  List<DateTime> get periodStarts {
+    final logs = periodLogs;
+    if (logs.isNotEmpty) return [for (final l in logs) l.start];
+    return readings(VitalKeys.periodStart).map((r) => r.createdAt).toList();
+  }
 
   /// The most recent period start, which is the LMP the cycle predictor uses.
-  DateTime? get lastPeriodStart => periodStarts.isEmpty ? null : periodStarts.first;
+  DateTime? get lastPeriodStart =>
+      periodStarts.isEmpty ? null : periodStarts.first;
 
-  /// Average observed cycle length, or null if there is nothing recorded.
+  /// Average cycle length, or null if there is nothing recorded.
   ///
-  /// Prefers explicitly logged [VitalKeys.cycleLength] readings and otherwise
-  /// derives it from the gaps between period starts, which needs at least two.
+  /// The latest logged period's `average_cycle` wins — it is what she last
+  /// set. Before any period is logged that way, explicit
+  /// [VitalKeys.cycleLength] readings, then the gaps between period starts.
   double? get averageCycleLength {
-    final logged = readings(VitalKeys.cycleLength)
-        .map((r) => r.value)
-        .whereType<double>()
-        .toList();
+    final latestLog = latestPeriodLog;
+    if (latestLog != null) return latestLog.averageCycle.toDouble();
+
+    final logged = readings(
+      VitalKeys.cycleLength,
+    ).map((r) => r.value).whereType<double>().toList();
     if (logged.isNotEmpty) {
       return logged.reduce((a, b) => a + b) / logged.length;
     }
@@ -236,10 +299,12 @@ class VitalsController extends GetxController {
   }
 
   double? get averagePeriodDuration {
-    final logged = readings(VitalKeys.periodDuration)
-        .map((r) => r.value)
-        .whereType<double>()
-        .toList();
+    final latestLog = latestPeriodLog;
+    if (latestLog != null) return latestLog.periodDuration.toDouble();
+
+    final logged = readings(
+      VitalKeys.periodDuration,
+    ).map((r) => r.value).whereType<double>().toList();
     if (logged.isEmpty) return null;
     return logged.reduce((a, b) => a + b) / logged.length;
   }

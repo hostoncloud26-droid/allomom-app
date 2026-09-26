@@ -79,6 +79,10 @@ class AppLanguage {
   static String ttsLocale(String code) =>
       _ttsLocales[normalize(code)] ?? 'en-IN';
 
+  /// Drops the remembered choice, once the stored one has been wiped — the
+  /// next [current] reads the preferences afresh and finds nothing.
+  static void forget() => _cached = null;
+
   @visibleForTesting
   static void resetCache() => _cached = null;
 }

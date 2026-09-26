@@ -108,7 +108,6 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
     if (added == true) await _load();
   }
 
-
   @override
   Widget build(BuildContext context) {
     final week = MainController.instance.currentGestationalWeek;
@@ -187,8 +186,7 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
                         onRegistered: _load,
                       )
                     else ...[
-                      for (final month in _months)
-                        ..._monthGroup(month, p),
+                      for (final month in _months) ..._monthGroup(month, p),
                       const SizedBox(height: 14),
                       CareFooterNote(
                         icon: Icons.description_outlined,
@@ -381,9 +379,9 @@ class _LabReportsSchedulePageState extends State<LabReportsSchedulePage> {
 
   /// A report that is not on the checklist — filed with her other reports.
   Future<void> _uploadAny() async {
-    final added = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const AddReport()),
-    );
+    final added = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const AddReport()));
     if (added == true) await _load();
   }
 

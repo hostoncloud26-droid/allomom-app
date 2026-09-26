@@ -31,22 +31,72 @@ abstract final class WeeklyBabyTalk {
     return (birthWeek + (days < 0 ? 0 : days) ~/ 7).clamp(birthWeek, lastWeek);
   }
 
-  /// This user's week: the pregnancy week while pregnant, the youngest baby's
-  /// age as a new mom, and null otherwise.
-  static int? currentWeek() {
-    final main = MainController.instance;
-    if (main.isPregnant) return pregnancyWeek(main.currentGestationalWeek);
-    if (!main.isNewMom) return null;
+  /// The youngest baby's week while that baby is inside the 1000 days (weeks
+  /// 41–142), or null when there is no baby or the youngest has outgrown them.
+  ///
+  /// Not tied to the one-year new-mom window: the weekly lines run to 142.
+  static int? babyWeekOf(DateTime? birth, {DateTime? now}) {
+    if (birth == null) return null;
+    final days = (now ?? DateTime.now()).difference(birth).inDays;
+    final week = birthWeek + (days < 0 ? 0 : days) ~/ 7;
+    return week > lastWeek ? null : week;
+  }
+
+  /// Her youngest baby's date of birth, or null when there is none.
+  static DateTime? youngestBirth() {
     try {
       final babies = BabyController.instance.babies;
       if (babies.isEmpty) return null;
-      final youngest = babies
+      return babies
           .map((baby) => baby.deliveryDate)
           .reduce((a, b) => a.isAfter(b) ? a : b);
-      return babyWeek(youngest);
     } catch (_) {
       return null;
     }
+  }
+
+  /// Days since her youngest baby was born, while that baby is inside the
+  /// 1000 days — whether or not she is pregnant again. Drives the baby items
+  /// in Today's Care.
+  static int? babyAgeDays({DateTime? now}) {
+    final birth = youngestBirth();
+    if (babyWeekOf(birth, now: now) == null) return null;
+    final days = (now ?? DateTime.now()).difference(birth!).inDays;
+    return days < 0 ? 0 : days;
+  }
+
+  /// The baby's week when she is not pregnant but has a baby in the 1000
+  /// days — what the home baby-week card shows.
+  static int? currentBabyWeek() {
+    if (MainController.instance.isPregnant) return null;
+    return babyWeekOf(youngestBirth());
+  }
+
+  /// This user's week: the pregnancy week while pregnant, the youngest baby's
+  /// week (41–142) otherwise, and null when there is neither.
+  static int? currentWeek() {
+    final main = MainController.instance;
+    if (main.isPregnant) return pregnancyWeek(main.currentGestationalWeek);
+    return currentBabyWeek();
+  }
+
+  /// "Birth week", "3 weeks old", "5 months old", "1 year 2 months old".
+  static String ageLabel(DateTime birth, {DateTime? now}) {
+    final today = now ?? DateTime.now();
+    final days = today.difference(birth).inDays;
+    if (days < 7)
+      return days <= 0 ? 'Born today' : '$days day${days == 1 ? '' : 's'} old';
+    if (days < 84) {
+      final w = days ~/ 7;
+      return '$w week${w == 1 ? '' : 's'} old';
+    }
+    var months = (today.year - birth.year) * 12 + today.month - birth.month;
+    if (today.day < birth.day) months--;
+    if (months < 12) return '$months months old';
+    final years = months ~/ 12;
+    final rest = months % 12;
+    final y = '$years year${years == 1 ? '' : 's'}';
+    return rest == 0 ? '$y old' : '$y $rest month${rest == 1 ? '' : 's'} old';
   }
 
   /// The AlloBot intent that holds [week]'s line, e.g.
@@ -62,10 +112,9 @@ abstract final class WeeklyBabyTalk {
   /// What the baby says in [week], as one block of text for the week card.
   /// Null until the catalogue has the intent.
   static Future<String?> message(int week) async {
-    final text = (await lines(week))
-        .map((line) => line.text)
-        .where((line) => line.isNotEmpty)
-        .join('\n\n');
+    final text = (await lines(
+      week,
+    )).map((line) => line.text).where((line) => line.isNotEmpty).join('\n\n');
     return text.isEmpty ? null : text;
   }
 

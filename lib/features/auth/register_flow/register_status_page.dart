@@ -49,51 +49,53 @@ class RegisterStatusStepView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'What describes you best?',
-                style: GoogleFonts.poppins(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1E2024),
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'What describes you best?',
+                  style: GoogleFonts.poppins(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E2024),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-              // Option 1: Pre Pregnancy
-              _buildStatusOption(
-                title: 'Planning for a Baby',
-                subtitle: 'Pre Pregnancy',
-                value: 'Pre Pregnancy',
-                iconBg: const Color(0xFFFAF5FF),
-                iconColor: const Color(0xFFC026D3),
-                icon: Icons.child_care_rounded,
-              ),
-              const SizedBox(height: 6),
+                // Option 1: Pre Pregnancy
+                _buildStatusOption(
+                  title: 'Planning for a Baby',
+                  subtitle: 'Pre Pregnancy',
+                  value: 'Pre Pregnancy',
+                  iconBg: const Color(0xFFFAF5FF),
+                  iconColor: const Color(0xFFC026D3),
+                  icon: Icons.child_care_rounded,
+                ),
+                const SizedBox(height: 8),
 
-              // Option 2: Pregnant
-              _buildStatusOption(
-                title: 'Pregnant',
-                subtitle: 'Expecting a Baby',
-                value: 'Pregnant',
-                iconBg: const Color(0xFFFFF0F3),
-                iconColor: const Color(0xFFFF4E6A),
-                icon: Icons.pregnant_woman_rounded,
-              ),
-              const SizedBox(height: 6),
+                // Option 2: Pregnant
+                _buildStatusOption(
+                  title: 'Pregnant',
+                  subtitle: 'Expecting a Baby',
+                  value: 'Pregnant',
+                  iconBg: const Color(0xFFFFF0F3),
+                  iconColor: const Color(0xFFFF4E6A),
+                  icon: Icons.pregnant_woman_rounded,
+                ),
+                const SizedBox(height: 8),
 
-              // Option 3: New Mom
-              _buildStatusOption(
-                title: 'New Mom',
-                subtitle: 'Caring for your Baby',
-                value: 'New Mom',
-                iconBg: const Color(0xFFEFF6FF),
-                iconColor: const Color(0xFF3B82F6),
-                icon: Icons.face_rounded,
-              ),
-            ],
+                // Option 3: New Mom
+                _buildStatusOption(
+                  title: 'New Mom',
+                  subtitle: 'Caring for your Baby',
+                  value: 'New Mom',
+                  iconBg: const Color(0xFFEFF6FF),
+                  iconColor: const Color(0xFF3B82F6),
+                  icon: Icons.face_rounded,
+                ),
+              ],
+            ),
           ),
         ),
 
@@ -151,7 +153,8 @@ class RegisterStatusStepView extends StatelessWidget {
     required Color iconColor,
     required IconData icon,
   }) {
-    final isSelected = selectedStatus.isNotEmpty &&
+    final isSelected =
+        selectedStatus.isNotEmpty &&
         (selectedStatus.toLowerCase() == value.toLowerCase() ||
             selectedStatus.toLowerCase() == title.toLowerCase());
 
@@ -159,12 +162,14 @@ class RegisterStatusStepView extends StatelessWidget {
       onTap: () => onStatusSelected(value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+            color: isSelected
+                ? const Color(0xFFFF4E6A)
+                : const Color(0xFFE5E7EB),
             width: isSelected ? 1.5 : 1,
           ),
           boxShadow: [
@@ -180,12 +185,12 @@ class RegisterStatusStepView extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 36,
-              height: 36,
+              width: 40,
+              height: 40,
               decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-              child: Icon(icon, color: iconColor, size: 20),
+              child: Icon(icon, color: iconColor, size: 22),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -194,15 +199,16 @@ class RegisterStatusStepView extends StatelessWidget {
                   Text(
                     title,
                     style: GoogleFonts.outfit(
-                      fontSize: 14,
+                      fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: const Color(0xFF1E2024),
                     ),
                   ),
+                  const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: GoogleFonts.poppins(
-                      fontSize: 11,
+                      fontSize: 12,
                       color: const Color(0xFF8E95A5),
                     ),
                   ),
@@ -210,20 +216,22 @@ class RegisterStatusStepView extends StatelessWidget {
               ),
             ),
             Container(
-              width: 18,
-              height: 18,
+              width: 20,
+              height: 20,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFD1D5DB),
+                  color: isSelected
+                      ? const Color(0xFFFF4E6A)
+                      : const Color(0xFFD1D5DB),
                   width: 1.5,
                 ),
               ),
               child: isSelected
                   ? Center(
                       child: Container(
-                        width: 8,
-                        height: 8,
+                        width: 9,
+                        height: 9,
                         decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: Color(0xFFFF4E6A),

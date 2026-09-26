@@ -68,7 +68,8 @@ class AlloBotFeature {
 }
 
 abstract final class AlloBotFeatureCatalog {
-  /// The illustrations that exist. Everything else falls back to its icon.
+  /// Older AlloBaby illustrations, used only where an agent has no
+  /// Quick Actions art of its own. Everything else falls back to its icon.
   static const Map<String, String> _illustrations = {
     'my_health': 'assets/allobaby/MyHealth.png',
     'kick_counter': 'assets/allobaby/KickCounter.png',
@@ -106,9 +107,17 @@ abstract final class AlloBotFeatureCatalog {
     category: FeatureCategory.of(agent.group),
     icon: agent.icon,
     color: agent.iconColor,
-    image: _illustrations[agent.id],
+    image: agent.image ?? _illustrations[agent.id],
     pageBuilder: agent.pageBuilder,
   );
+
+  /// The feature with [id], or null when there is none.
+  static AlloBotFeature? byId(String id) {
+    for (final f in all) {
+      if (f.id == id) return f;
+    }
+    return null;
+  }
 
   static Widget _myHealth(BuildContext _) => const MyHealthPage();
 

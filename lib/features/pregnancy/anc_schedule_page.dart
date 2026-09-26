@@ -335,7 +335,8 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
                     else if (!isNext)
                       CarePill(
                         status: status,
-                        label: status == CareStatus.scheduled ||
+                        label:
+                            status == CareStatus.scheduled ||
                                 status == CareStatus.dueSoon
                             ? 'Upcoming'
                             : null,

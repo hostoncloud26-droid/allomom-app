@@ -1,5 +1,6 @@
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/response.dart';
+import 'package:allomom/services/auth/secure_token_store.dart';
 
 /// `/sync` — the offline reconciliation endpoints.
 ///
@@ -15,6 +16,11 @@ class SyncApi {
     List<Map<String, dynamic>> changes = const [],
     List<String> deletedIds = const [],
   }) {
+    if (!SecureTokenStore.instance.hasSession) {
+      return Future.value(
+        APIResponse(success: false, map: {'detail': 'Not authenticated'}),
+      );
+    }
     return ApiBase.post('/sync/$module', {
       'synced_at': syncedAt?.toUtc().toIso8601String(),
       'changes': changes,
@@ -28,6 +34,11 @@ class SyncApi {
     DateTime? syncedAt,
     List<String>? modules,
   }) {
+    if (!SecureTokenStore.instance.hasSession) {
+      return Future.value(
+        APIResponse(success: false, map: {'detail': 'Not authenticated'}),
+      );
+    }
     return ApiBase.post('/sync/all', {
       'synced_at': syncedAt?.toUtc().toIso8601String(),
       if (modules != null) 'modules': modules,

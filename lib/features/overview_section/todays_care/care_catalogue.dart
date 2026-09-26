@@ -19,7 +19,7 @@ enum CareActionKind {
 }
 
 /// Screens a care item can send the user to.
-enum CareDestination { kickCounter }
+enum CareDestination { kickCounter, feedingTracker }
 
 /// One row in Today's Care, scoped to a single [CareDayPart].
 class CareItem {
@@ -40,6 +40,7 @@ class CareItem {
     this.actionValue,
     this.destination,
     this.doneVitalKey,
+    this.donePerPart = false,
   });
 
   final String id;
@@ -81,6 +82,11 @@ class CareItem {
   /// writes. Any row for it today marks this item done, so counting kicks in
   /// the kick counter ticks the item off here.
   final String? doneVitalKey;
+
+  /// For [CareActionKind.navigate] items that recur through the day, such as
+  /// feeding: only a [doneVitalKey] row inside this item's window ticks it, so
+  /// one morning feed does not tick off the night one.
+  final bool donePerPart;
 }
 
 /// Builds the care items for one time window, tailored to whether the user is
@@ -91,13 +97,21 @@ class CareItem {
 /// items are placed in the window where they actually belong — folic acid
 /// after breakfast, iron after lunch, calcium after dinner, kick counting in
 /// the evening when the baby is most active, left-side rest at bedtime.
+///
+/// With [babyAgeDays] — her youngest baby's age while inside the 1000 days —
+/// each window also carries that baby's care: a feed in every window, then
+/// the bath, vitamin D, tummy time, play and safe sleep as the age allows.
 List<CareItem> careItemsFor({
   required CareDayPart part,
   required bool isPregnant,
   required int pregnancyDay,
+  int? babyAgeDays,
 }) {
   final trimester = _trimesterFor(pregnancyDay);
   final week = _weekFor(pregnancyDay);
+  final baby = babyAgeDays == null
+      ? const <CareItem>[]
+      : _babyItemsFor(part, babyAgeDays);
 
   final water = _waterItem(
     part: part,
@@ -105,6 +119,25 @@ List<CareItem> careItemsFor({
     trimester: trimester,
   );
 
+  return [
+    ...baby,
+    ..._motherItemsFor(
+      part: part,
+      isPregnant: isPregnant,
+      trimester: trimester,
+      week: week,
+      water: water,
+    ),
+  ];
+}
+
+List<CareItem> _motherItemsFor({
+  required CareDayPart part,
+  required bool isPregnant,
+  required int trimester,
+  required int week,
+  required CareItem water,
+}) {
   return switch (part) {
     CareDayPart.morning => [
       if (isPregnant && week <= 14)
@@ -380,6 +413,113 @@ List<CareItem> careItemsFor({
   };
 }
 
+// ─── BABY CARE ─────────────────────────────────────────────────
+
+/// The baby's items for one window, by age in days.
+List<CareItem> _babyItemsFor(CareDayPart part, int ageDays) {
+  final months = ageDays ~/ 30;
+
+  CareItem feed(String title) => CareItem(
+    id: 'baby_feed',
+    title: title,
+    subtitle: months < 6
+        ? 'Breast milk only — on demand, about every 2–3 hours'
+        : months < 12
+        ? 'Breast milk plus a soft, mashed meal'
+        : 'Family food, mashed — and breast milk if you are still feeding',
+    icon: Icons.child_friendly_rounded,
+    color: const Color(0xffF59E0B),
+    kind: CareActionKind.navigate,
+    destination: CareDestination.feedingTracker,
+    doneVitalKey: 'feeding',
+    donePerPart: true,
+  );
+
+  return switch (part) {
+    CareDayPart.morning => [
+      feed('Feed baby'),
+      if (ageDays < 365)
+        const CareItem(
+          id: 'baby_vitamin_d',
+          title: 'Vitamin D drops for baby',
+          subtitle: 'The daily drops your doctor advised, after a feed',
+          icon: Icons.water_drop_rounded,
+          color: Color(0xff0EA5E9),
+          kind: CareActionKind.checkoff,
+          actionValue: 'giving baby vitamin d',
+        ),
+      CareItem(
+        id: 'baby_bath',
+        title: ageDays < 14
+            ? 'Sponge bath for baby'
+            : "Baby's bath & oil massage",
+        subtitle: ageDays < 14
+            ? 'Warm sponge bath — keep the cord stump clean and dry'
+            : 'A gentle oil massage, then a warm bath',
+        icon: Icons.bathtub_rounded,
+        color: const Color(0xff06B6D4),
+        kind: CareActionKind.checkoff,
+        actionValue: 'bathing baby',
+      ),
+    ],
+    CareDayPart.midMorning => [
+      if (ageDays >= 14 && ageDays < 365)
+        CareItem(
+          id: 'tummy_time',
+          title: 'Tummy time',
+          subtitle: months < 3
+              ? 'A few minutes on the tummy while awake and watched'
+              : '15–30 min through the day — builds neck and back strength',
+          icon: Icons.accessibility_new_rounded,
+          color: const Color(0xff10B981),
+          kind: CareActionKind.checkoff,
+          actionValue: 'tummy time',
+        ),
+    ],
+    CareDayPart.afternoon => [feed('Feed baby')],
+    CareDayPart.evening => [
+      feed('Feed baby'),
+      CareItem(
+        id: 'baby_play',
+        title: 'Play & talk with baby',
+        subtitle: months < 6
+            ? 'Faces, songs and soft talk — your voice is their favourite'
+            : 'Read a picture book, name things, sing together',
+        icon: Icons.toys_rounded,
+        color: const Color(0xffEC4899),
+        kind: CareActionKind.checkoff,
+        actionValue: 'playing with baby',
+      ),
+    ],
+    CareDayPart.night => [
+      feed('Feed baby'),
+      if (ageDays < 90)
+        const CareItem(
+          id: 'baby_nappies',
+          title: 'Count the wet nappies',
+          subtitle: '6 or more a day means baby is feeding well',
+          icon: Icons.baby_changing_station_rounded,
+          color: Color(0xff8B5CF6),
+          kind: CareActionKind.checkoff,
+          actionValue: 'counting wet nappies',
+        ),
+    ],
+    CareDayPart.lateNight => [
+      if (months < 6) feed('Night feed'),
+      if (ageDays < 365)
+        const CareItem(
+          id: 'baby_safe_sleep',
+          title: 'Safe sleep for baby',
+          subtitle: 'On their back, in their own firm, clear space',
+          icon: Icons.crib_rounded,
+          color: Color(0xff6C63FF),
+          kind: CareActionKind.checkoff,
+          actionValue: 'baby safe sleep',
+        ),
+    ],
+  };
+}
+
 /// Completed weeks of pregnancy, the way the rest of the app counts them
 /// (`PregnancyController.currentGestationalWeek`).
 ///
@@ -602,6 +742,17 @@ CareItem _waterItem({
 /// listed lands at the start of its window.
 int careHourFor(String itemId, CareDayPart part) {
   final hour = switch ((part, itemId)) {
+    (CareDayPart.morning, 'baby_feed') => 6,
+    (CareDayPart.morning, 'baby_vitamin_d') => 9,
+    (CareDayPart.morning, 'baby_bath') => 10,
+    (CareDayPart.midMorning, 'tummy_time') => 11,
+    (CareDayPart.afternoon, 'baby_feed') => 13,
+    (CareDayPart.evening, 'baby_feed') => 17,
+    (CareDayPart.evening, 'baby_play') => 18,
+    (CareDayPart.night, 'baby_feed') => 20,
+    (CareDayPart.night, 'baby_nappies') => 21,
+    (CareDayPart.lateNight, 'baby_feed') => 23,
+    (CareDayPart.lateNight, 'baby_safe_sleep') => 22,
     (CareDayPart.morning, 'nausea_care') => 6,
     (CareDayPart.morning, 'water') => 7,
     (CareDayPart.morning, 'meal_breakfast') => 8,

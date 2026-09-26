@@ -213,8 +213,10 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
     );
   }
 
-  String? _weekOf(PregnancyImmunizationRecord v) =>
-      careWeekLabel(v.scheduledDateRangeFrom ?? v.scheduledDate, v.scheduledDateRangeTo);
+  String? _weekOf(PregnancyImmunizationRecord v) => careWeekLabel(
+    v.scheduledDateRangeFrom ?? v.scheduledDate,
+    v.scheduledDateRangeTo,
+  );
 
   TextStyle _titleStyle(AppPalette p) => TextStyle(
     fontSize: 15,
@@ -302,7 +304,9 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
             children: [
               Expanded(
                 child: Text(
-                  date == null ? 'Date to be decided' : careDateFmt.format(date),
+                  date == null
+                      ? 'Date to be decided'
+                      : careDateFmt.format(date),
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
@@ -366,7 +370,8 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
       status: status,
       facts: [
         if (week != null) (Icons.pregnant_woman_rounded, week),
-        if (month != null) (Icons.calendar_view_month_rounded, monthLabel(month)),
+        if (month != null)
+          (Icons.calendar_view_month_rounded, monthLabel(month)),
         (
           Icons.event_rounded,
           v.scheduledDate == null
