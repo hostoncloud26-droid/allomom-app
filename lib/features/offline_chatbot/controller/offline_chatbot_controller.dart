@@ -793,18 +793,17 @@ class OfflineChatbotController extends GetxController {
   /// The delivery bump is what discards the reply. A server request already in
   /// flight cannot be recalled, so its answer is dropped when it lands rather
   /// than printed into a conversation the mother has moved on from.
+  ///
+  /// The bump happens even when the turn is no longer busy: re-reading a
+  /// restored greeting ([_narrate]) runs after the turn has ended, and without
+  /// it a stop would only silence one line before the next was read out.
   Future<void> stopCurrentTurn() async {
-    if (!isBusy.value) {
-      // Nothing being generated — the stop is only about the voice.
-      unawaited(_tts.stop());
-      return;
-    }
-
+    final wasBusy = isBusy.value;
     _delivery++;
     _pending.clear();
     _endTurn();
     unawaited(_tts.stop());
-    await _persistTranscript();
+    if (wasBusy) await _persistTranscript();
   }
 
   /// Silences the line being read without abandoning the turn.

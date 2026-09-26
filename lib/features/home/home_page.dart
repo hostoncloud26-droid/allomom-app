@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
-import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
 import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
@@ -21,6 +20,10 @@ import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
+import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart'
+    show GradientText;
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
@@ -86,6 +89,9 @@ class _HomePageState extends State<HomePage> {
   /// revisit picks up her last line instead of an empty bubble.
   static String _lastSpokenText = '';
 
+  /// Ask Allo's "Try asking" questions, drawn once the catalogue is ready.
+  List<String> _trySuggestions = const [];
+
   /// Keeps [_lastSpokenText] and the bubble in step with the player.
   final List<Worker> _audioWorkers = [];
 
@@ -140,23 +146,40 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() => _homeNarrationKey = null);
   }
 
-  /// Slides onto the AlloBaby card and runs the opening flow there, returning
-  /// once it has been said (or stopped).
-  Future<void> _runAlloBabyFlow() async {
-    if (!mounted || !_hasWeekCards) return;
-    // The card carries her words from here; the week's line would otherwise
-    // linger in the bubble above it.
+  Future<void> _loadTrySuggestions() async {
+    final chatbot = OfflineChatbotController.instance;
+    await chatbot.ready;
+    if (!mounted) return;
+    setState(() => _trySuggestions = alloBotOpeningSuggestions(chatbot));
+  }
+
+  /// A "Try asking" chip: whatever is talking stands down and AlloBaby
+  /// answers the question in the hero, as Ask Allo would.
+  void _askAlloBaby(String question) {
+    _greetingCancelled = true;
+    if (BackgroundAudioController.isReady) BackgroundAudioController.to.stop();
+    _voice.dismiss();
     setState(() {
       _homeNarrationKey = null;
       _lastSpokenText = '';
     });
-    if (_currentCarouselPage == _weekPageIndex) {
-      _animateCarouselTo(_alloBabyPageIndex);
-    }
+    _alloBaby.answer(question);
+  }
+
+  /// Runs AlloBaby's opening flow in the hero, returning once it has been said
+  /// (or stopped).
+  Future<void> _runAlloBabyFlow() async {
+    if (!mounted || !_hasWeekCards) return;
+    // AlloBaby's words take over the hero; the week's last line would
+    // otherwise come back once she finishes.
+    setState(() {
+      _homeNarrationKey = null;
+      _lastSpokenText = '';
+    });
     await _alloBaby.start();
   }
 
-  /// Redraws the baby card as AlloBaby starts and stops talking.
+  /// Redraws the hero as AlloBaby starts and stops talking.
   void _onAlloBabyChanged() {
     if (mounted) setState(() {});
   }
@@ -187,6 +210,7 @@ class _HomePageState extends State<HomePage> {
     _carouselController = PageController(initialPage: _currentCarouselPage);
     _scrollController.addListener(_updateDateSelectorVisibility);
     _voice.addListener(_onVoiceChanged);
+    _loadTrySuggestions();
     if (BackgroundAudioController.isReady) {
       final audio = BackgroundAudioController.to;
       _audioWorkers
@@ -302,14 +326,12 @@ class _HomePageState extends State<HomePage> {
   /// baby's once it is born.
   bool get _hasWeekCards => _guideLmp != null || _babyWeek != null;
 
-  /// The carousel opens on this week, hands over to AlloBaby, then turns to
-  /// today.
+  /// The carousel opens on this week, then turns to today.
   static const _weekPageIndex = 0;
-  static const _alloBabyPageIndex = 1;
 
-  /// Pregnancy: AlloBaby, while the Right now card is commented out (set back
-  /// to 2 when it returns). Baby: the postpartum summary after AlloBaby.
-  int get _todayPageIndex => _babyWeek != null ? 2 : _alloBabyPageIndex;
+  /// Pregnancy: the week itself, while the Right now card is commented out
+  /// (set back to 1 when it returns). Baby: the postpartum summary.
+  int get _todayPageIndex => _babyWeek != null ? 1 : _weekPageIndex;
 
   /// Set once the week has had its moment on screen. Later visits in the same
   /// session open straight on today, which is what she comes back to check.
@@ -323,10 +345,7 @@ class _HomePageState extends State<HomePage> {
     _weekShownThisSession = true;
     Future.delayed(delay, () {
       if (!mounted) return;
-      if (_currentCarouselPage != _weekPageIndex &&
-          _currentCarouselPage != _alloBabyPageIndex) {
-        return;
-      }
+      if (_currentCarouselPage != _weekPageIndex) return;
       _animateCarouselTo(_todayPageIndex);
     });
   }
@@ -385,57 +404,33 @@ class _HomePageState extends State<HomePage> {
     if (mounted) setState(() {});
   }
 
-  /// The line she closed with the ✕. The bubble stays away until the baby
-  /// says something else.
-  static String? _dismissedText;
-
-  /// Set when she closes the bubble mid-greeting, so the rest of the welcome
-  /// is not played at her.
+  /// Set when the docked mic stops her mid-greeting, so the rest of the
+  /// welcome is not played at her.
   bool _greetingCancelled = false;
 
-  /// The ✕ on the bubble: stops the baby — the recorded lines and AlloBot —
-  /// and puts the bubble away.
-  void _closeBabyBubble() {
-    final shown = _homeNarrationKey != null && BackgroundAudioController.isReady
-        ? BackgroundAudioController.to.currentText.value.trim()
-        : _babyBubbleText();
-    setState(() {
-      _dismissedText = shown;
-      _greetingCancelled = true;
-      _homeNarrationKey = null;
-    });
-    if (BackgroundAudioController.isReady) BackgroundAudioController.to.stop();
-    _alloBaby.stop();
-    if (_voice.isSpeaking) _voice.toggleSpeech();
+  /// Whether one of the recorded narrations is playing.
+  bool get _narrating {
+    if (!BackgroundAudioController.isReady) return false;
+    final audio = BackgroundAudioController.to;
+    return audio.isPlaying.value && audio.currentKey.value.isNotEmpty;
   }
 
-  /// [_babyBubbleText], or nothing once she has closed that line.
-  String _visibleBubbleText() {
-    // AlloBaby's words are in her own card; the baby here only talks.
-    if (_alloBaby.isRunning) return '';
-    final text = _babyBubbleText();
-    return text == _dismissedText ? '' : text;
-  }
+  /// Whether the baby in the orb is talking, whoever gave her the line.
+  bool get _heroSpeaking =>
+      _narrating || _alloBabySpeaking || _voice.isSpeaking;
 
-  /// What the baby card's bubble says: only ever a line that was spoken.
+  /// What the hero shows under the orb: only ever a line that was spoken.
   ///
-  /// A recorded narration while it plays, AlloBot's current line while it is
-  /// talking, and otherwise the last thing she said here. Empty — no bubble —
-  /// before she has said anything. Long lines are trimmed: the bubble is a
-  /// fixed shape over the illustration.
-  String _babyBubbleText() {
-    final audio = BackgroundAudioController.isReady
-        ? BackgroundAudioController.to
-        : null;
-    final narrating =
-        audio != null &&
-        audio.isPlaying.value &&
-        audio.currentKey.value.isNotEmpty;
-
-    final spoken = !narrating && _voice.isVisible
+  /// AlloBaby's step while her flow runs; otherwise a recorded narration (the
+  /// week's lines) while it plays, AlloBot's current line while it is
+  /// talking, and then the last thing said here — falling back to AlloBaby's
+  /// last word. Empty before anything has been said.
+  String _heroLine() {
+    if (_alloBaby.isRunning) return _alloBaby.line;
+    final spoken = !_narrating && _voice.isVisible
         ? (_voice.prompt?.question ?? _voice.message)
         : _lastSpokenText;
-    return spoken.length > 90 ? '${spoken.substring(0, 88)}…' : spoken;
+    return spoken.isNotEmpty ? spoken : _alloBaby.line;
   }
 
   @override
@@ -463,36 +458,11 @@ class _HomePageState extends State<HomePage> {
                           // — the thing she actually talks to — down the screen.
                           const SizedBox(height: 10),
 
-                          // ─── HERO BABY CARD ───
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: BabyHeroBanner(
-                              // The bubble carries whatever AlloBot is saying, so
-                              // the words come from the baby that is speaking them
-                              // rather than from a card elsewhere on the page.
-                              //
-                              // While the recorded greeting runs, `narrationKey`
-                              // takes the bubble over; the controller plays the
-                              // lines, so the card itself does not autoplay.
-                              narrationKey: _homeNarrationKey,
-                              autoPlayNarration: false,
-                              speechText: _visibleBubbleText(),
-                              greetingText: "",
-                              bubblePosition: SpeechBubblePosition.topCenter,
-                              height: 270,
-                              restingBabyScale: 1.25,
-                              speakingOverride: _alloBabySpeaking,
-                              onSpeakerTap: _homeNarrationKey != null
-                                  ? null
-                                  : (_voice.isVisible
-                                        ? _voice.toggleSpeech
-                                        : null),
-                              // The card is the baby talking, not a shortcut: the
-                              // ✕ puts the bubble away, and Kick Count lives in
-                              // Quick Actions.
-                              onClose: _closeBabyBubble,
-                            ),
-                          ),
+                          // ─── ALLOBABY HERO ───
+                          // Ask Allo's face: the orb, and under it whatever the
+                          // baby is saying — the week, then AlloBaby's flow — in
+                          // the same gradient text.
+                          _buildAlloBabyHero(context),
                           const SizedBox(height: 16),
 
                           // ─── SWIPEABLE CAROUSEL (THIS WEEK, RIGHT NOW) ───
@@ -500,7 +470,13 @@ class _HomePageState extends State<HomePage> {
                           // Each section says what it is the first time it is
                           // actually on screen, and never over the top of the one
                           // before it. Scrolling straight past says nothing.
-                          _buildSummaryCarousel(context),
+                          // Hidden for now — the hero carries the week's
+                          // lines. Restore with the carousel builder below.
+                          // _buildSummaryCarousel(context),
+                          // const SizedBox(height: 20),
+
+                          // ─── TRY ASKING (as on Ask Allo) ───
+                          _buildTryAsking(context),
                           const SizedBox(height: 20),
 
                           // ─── QUICK ACTIONS (swipeable row of small boxes) ───
@@ -551,20 +527,115 @@ class _HomePageState extends State<HomePage> {
 
   // ─── HEADER / APP BAR ─────────────────────────────────────
   // ─── SWIPEABLE SUMMARY CAROUSEL ────────────────────────────
+  // ─── ALLOBABY HERO ─────────────────────────────────────────
+  /// Ask Allo's orb and gradient line, with AlloBaby's choices under it once
+  /// her flow is waiting on one, and a way to hear her or keep talking.
+  Widget _buildAlloBabyHero(BuildContext context) {
+    final line = _heroLine().trim();
+    final speaking = _heroSpeaking;
+    final busy = speaking || _alloBaby.isRunning || _homeNarrationKey != null;
+    final options = busy ? const <String>[] : _alloBaby.options;
+
+    final Widget text = line.isEmpty
+        ? GradientText(
+            key: const ValueKey('hello'),
+            text: 'Hello! I am AlloBaby',
+            gradient: alloBotHeroGradient,
+            style: GoogleFonts.outfit(
+              fontSize: 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          )
+        : AlloBotHeroLine(key: ValueKey(line), text: line, maxHeight: 180);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 180,
+            height: 180,
+            child: FittedBox(
+              child: AlloBotGeminiOrb(
+                isSpeaking: speaking,
+                isThinking: _alloBaby.isRunning && !speaking,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: text,
+            ),
+          ),
+          if (options.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in options)
+                  AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // ─── TRY ASKING ────────────────────────────────────────────
+  /// Ask Allo's "Try asking" row; a chip is answered in the hero above.
+  Widget _buildTryAsking(BuildContext context) {
+    if (_trySuggestions.isEmpty) return const SizedBox.shrink();
+    final isDark = context.palette.isDark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Try asking:',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.85)
+                  : Colors.grey.shade800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            children: [
+              for (final text in _trySuggestions)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: AlloBotSuggestionChip(text: text, onTap: _askAlloBaby),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ignore: unused_element — the week carousel, hidden for now.
   Widget _buildSummaryCarousel(BuildContext context) {
     final session = MainController.instance;
     final lmp = _guideLmp;
     final babyWeek = lmp == null ? _babyWeek : null;
     final babyBirth = babyWeek == null ? null : WeeklyBabyTalk.youngestBirth();
-    final alloBabyCard = AlloBabyFlowCard(
-      controller: _alloBaby,
-      onOpenChat: () => Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const AlloBotPage(autoStartListening: false),
-        ),
-      ),
-    );
     final pages = <Widget>[
       if (babyWeek != null && babyBirth != null) ...[
         // Her pregnancy's week card, carried on after the birth.
@@ -577,7 +648,6 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
           ),
         ),
-        alloBabyCard,
         _buildDailySummaryCard(),
       ] else if (lmp != null) ...[
         PregnancyWeekCard(
@@ -589,9 +659,8 @@ class _HomePageState extends State<HomePage> {
             MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
           ),
         ),
-        alloBabyCard,
         // Right now card hidden for now. Restore it together with
-        // `_todayPageIndex = 2` below.
+        // `_todayPageIndex = 1` below.
         // RightNowCareCard(onOpenCare: _scrollToTodaysCare),
       ] else
         _buildDailySummaryCard(),
@@ -608,15 +677,6 @@ class _HomePageState extends State<HomePage> {
               setState(() {
                 _currentCarouselPage = index;
               });
-              // Swiped onto AlloBaby before the greeting got her there: she
-              // starts talking, unless something else is already speaking.
-              if (_hasWeekCards &&
-                  index == _alloBabyPageIndex &&
-                  !_alloBaby.hasRun &&
-                  _homeNarrationKey == null &&
-                  !SpeechActivity.instance.isActive) {
-                _alloBaby.start();
-              }
             },
             children: pages,
           ),

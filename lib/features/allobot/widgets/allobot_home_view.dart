@@ -12,12 +12,96 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/components/baby_animations.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
+import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart'
+    show GradientText;
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+
+// ── Opening suggestions ───────────────────────────────────────────────────
+
+/// The "Try asking" questions shown before she has asked anything: a random
+/// draw from the downloaded catalogue's triggers, or a few standing questions
+/// while it has too few.
+List<String> alloBotOpeningSuggestions(OfflineChatbotController controller) {
+  final triggers = controller.sampleTriggers(limit: 10, randomize: true);
+  if (triggers.length >= 3) return triggers;
+
+  final pool = <String>[
+    'How is my baby this week?',
+    'What should I eat today?',
+    'Show my health vitals',
+    'When is my next checkup?',
+    'Open my reports',
+    'My baby is kicking',
+    'My baby is crying',
+    'What can you do?',
+  ]..shuffle();
+  return pool.take(6).toList();
+}
+
+// ── Hero line ─────────────────────────────────────────────────────────────
+
+/// The blue-violet-rose wash the baby's words are painted in.
+const LinearGradient alloBotHeroGradient = LinearGradient(
+  colors: [Color(0xFF4285F4), Color(0xFF9B51E0), Color(0xFFE25584)],
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+);
+
+/// Markdown markers read as noise in the heading style, and the gradient
+/// mask flattens emoji into solid blobs, so both are dropped.
+final RegExp _emoji = RegExp(
+  r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]',
+  unicode: true,
+);
+
+String alloBotPlainText(String markdown) => markdown
+    .replaceAll(_emoji, '')
+    .replaceAll(RegExp(r'[*_`#>]+'), '')
+    .replaceAllMapped(RegExp(r'\[([^\]]*)\]\([^)]*\)'), (m) => m.group(1) ?? '')
+    .trim();
+
+/// What the baby is saying, as a gradient headline under the orb — Ask Allo's
+/// reply and Home's weekly lines alike. Short lines read as a headline; longer
+/// ones step down to fit, and scroll past [maxHeight].
+class AlloBotHeroLine extends StatelessWidget {
+  const AlloBotHeroLine({super.key, required this.text, this.maxHeight = 220});
+
+  final String text;
+  final double maxHeight;
+
+  @override
+  Widget build(BuildContext context) {
+    final plain = alloBotPlainText(text);
+    final fontSize = plain.length <= 60
+        ? 24.0
+        : plain.length <= 140
+        ? 20.0
+        : 17.0;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        child: GradientText(
+          text: plain,
+          gradient: alloBotHeroGradient,
+          style: GoogleFonts.outfit(
+            fontSize: fontSize,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+            height: 1.3,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 // ── Gemini orb ────────────────────────────────────────────────────────────
 
