@@ -268,12 +268,11 @@ class _AlloBotPageState extends State<AlloBotPage> {
                         : null,
                     onTap: () {
                       if (isSpeaking) {
-                        // Cuts the line short without throwing the turn away:
-                        // a flow waiting on this narration moves on to its
-                        // next step, which is what tapping "stop talking"
-                        // should do mid-flow. The sheet's own stop button is
-                        // still the way to abandon the reply outright.
-                        _chatbot.skipNarration();
+                        // Stops the flow, not just the line: the rest of the
+                        // reply and the actions it queued are dropped, so the
+                        // baby does not carry on to the next step the moment
+                        // she has been silenced.
+                        _chatbot.stopCurrentTurn();
                         return;
                       }
                       if (_currentIndex != 0) {
