@@ -8,6 +8,7 @@ import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 import 'package:allomom/features/people/widgets/scan_qr_page.dart';
+import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -622,11 +623,33 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'M';
     final isSelf = userId != null && userId == MainController.instance.userId;
+    final isChild = relLower.contains('child');
+    // Exact match, not the `isChild` substring check above — that one also
+    // matches a manually-added "Children" member, who has no underlying baby
+    // record and is fine to remove normally. This is specifically the baby
+    // the server auto-adds (relation is literally "child"), which is tied to
+    // a real Baby record elsewhere; removing it here would desync the two,
+    // so the only way to remove it is deleting the baby record itself.
+    final isAutoAddedBaby = relLower == 'child';
+
+    // The baby has no chat of its own — its card opens Baby Journey (care and
+    // growth tracking) instead of the inert chat button every other member
+    // gets today.
+    final trailingIcon = isChild
+        ? Icons.child_friendly_rounded
+        : Icons.chat_bubble_outline_rounded;
+    final onTrailingTap = isChild
+        ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+            )
+        : null;
 
     // Self-removal isn't offered here — the only way to leave a family is
     // "Delete Family", and that's only ever available once you're the sole
-    // remaining member. So your own row doesn't swipe at all.
-    if (isSelf) {
+    // remaining member. So your own row doesn't swipe at all. The auto-added
+    // baby doesn't swipe either, for the reason noted above.
+    if (isSelf || isAutoAddedBaby) {
       return _buildFamilyMemberCard(
         name: name,
         phone: phone,
@@ -636,6 +659,8 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
       );
     }
 
@@ -723,6 +748,8 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
       ),
     );
   }
@@ -1088,6 +1115,11 @@ class _PeoplePageState extends State<PeoplePage> {
     required String avatarLetter,
     required Color avatarBg,
     required Color avatarLetterColor,
+    // Overrides the trailing chat button — the baby has no chat, so its card
+    // opens Baby Journey instead. Every other member keeps the plain icon,
+    // which currently does nothing when tapped.
+    IconData trailingIcon = Icons.chat_bubble_outline_rounded,
+    VoidCallback? onTrailingTap,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1193,18 +1225,21 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
 
-          // Chat Action Button
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: primaryColor.withValues(alpha: 0.08),
-            ),
-            child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: primaryColor,
-              size: 18,
+          // Chat Action Button (Baby Journey, for the baby's card)
+          GestureDetector(
+            onTap: onTrailingTap,
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: primaryColor.withValues(alpha: 0.08),
+              ),
+              child: Icon(
+                trailingIcon,
+                color: primaryColor,
+                size: 18,
+              ),
             ),
           ),
         ],

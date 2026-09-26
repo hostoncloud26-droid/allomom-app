@@ -426,6 +426,39 @@ class FamilyController extends GetxController {
     return null;
   }
 
+  /// Adds someone who isn't going to install the app and register themselves
+  /// — the People screen's manual "Add member" flow. Returns null on success,
+  /// or a message to show.
+  Future<String?> addMember({
+    required String name,
+    required String phone,
+    required dynamic age,
+    required String gender,
+    required String relationship,
+    String? profilePic,
+    DateTime? lmpDate,
+  }) async {
+    final response = await FamilyApi.createFamilyMember(
+      name: name,
+      phone: phone,
+      age: age,
+      gender: gender,
+      relationship: relationship,
+      profilePic: profilePic,
+      lmpDate: lmpDate,
+    );
+
+    if (!response.success) {
+      debugPrint('⚠️ [FamilyController] addMember failed: ${response.detail}');
+      return response.networkError
+          ? 'No connection — adding a member needs you to be online.'
+          : response.detail;
+    }
+
+    await _mirror(response.item);
+    return null;
+  }
+
   // ── Joining and leaving ────────────────────────────────────────────────────
 
   /// What [code] resolves to, without joining anything.

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/colors.dart';
-import 'package:allomom/services/sq_lite/services/family_db_service.dart';
+import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -117,31 +117,28 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     });
 
     try {
-      // Local-only: the member is written to SQLite with synced = 0. A family
-      // is created on the fly when the user does not have one yet.
-      var familyId = widget.familyID;
-      if (familyId == null || familyId.isEmpty) {
-        final ownerId = MainController.instance.userId;
-        if (ownerId.isEmpty) {
-          _showMsg('Sign in before adding family members');
-          return;
-        }
-        final existing = await FamilyDbService.instance.getMyFamily(ownerId);
-        familyId = existing?.id ??
-            (await FamilyDbService.instance
-                    .createFamily(creatorUserId: ownerId))
-                .id;
+      final ownerId = MainController.instance.userId;
+      if (ownerId.isEmpty) {
+        _showMsg('Sign in before adding family members');
+        return;
       }
 
-      await FamilyDbService.instance.createFamilyMember(
-        familyId: familyId,
+      // Server-side — a family created only in local SQLite was invisible to
+      // the automatic sync that runs right after (`refreshFromServer`), which
+      // would then delete the member it had just added, reading its absence
+      // from the server as "this person left."
+      final error = await FamilyController.instance.addMember(
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
-        relation: _selectedRelationship,
-        gender: _selectedGender,
         age: int.tryParse(_ageController.text.trim()),
+        gender: _selectedGender ?? '',
+        relationship: _selectedRelationship ?? '',
         lmpDate: _selectedLmpDate,
       );
+      if (error != null) {
+        _showMsg(error);
+        return;
+      }
 
       _showMsg('Family member added successfully!', isSuccess: true);
       speak(NarrationKeys.pgConfFamilySaved, force: true);
