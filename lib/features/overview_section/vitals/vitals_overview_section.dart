@@ -15,9 +15,9 @@ import 'package:allomom/features/my_health/vitals/blood_pressure/blood_pressure_
 import 'package:allomom/features/my_health/vitals/blood_glucose/blood_glucose_summary_screen.dart';
 import 'package:allomom/features/my_health/vitals/hemoglobin/hemoglobin_summary_screen.dart';
 
-/// "My Vitals" on Home, laid out after AlloConnect's overview: two rows of
-/// paired cards whose widths shift towards whichever reading needs attention,
-/// then full-width explainer cards.
+/// "My Vitals" on Home: a full-width card per vital, except blood pressure and
+/// glucose, which share a row whose widths shift towards whichever reading
+/// needs attention.
 ///
 /// Today reads [HealthVitalsController] directly so fresh entries land at
 /// once; any other day reads what was recorded on it.
@@ -209,23 +209,10 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     final s = _snapshot();
     final stepTarget = _controller.currentStepTarget;
 
-    // Whichever reading of a pair needs attention gets the wide card.
-    final isHeartRateAlert =
-        s.heartRate > 0 && (s.heartRate > 100 || s.heartRate < 60);
-    final isStressAlert = s.stress > 50;
-    final isSleepAlert = s.sleepHours > 0 && s.sleepHours < 6.0;
+    // Blood pressure and glucose share a row; whichever needs attention gets
+    // the wider card. Every other vital has a full-width card of its own.
     final isBpAlert = s.hasBloodPressure && s.bpStatus != 'Normal';
     final isGlucoseAlert = s.glucose > 0 && s.glucoseStatus != 'Normal';
-
-    final stepsFlex = isHeartRateAlert ? 1 : 2;
-    final heartRateFlex = isHeartRateAlert ? 2 : 1;
-
-    var sleepFlex = 1;
-    var stressFlex = 2;
-    if (!isStressAlert && isSleepAlert) {
-      sleepFlex = 2;
-      stressFlex = 1;
-    }
 
     var bpFlex = 1;
     var glucoseFlex = 1;
@@ -251,39 +238,27 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
           ),
         ),
 
-        // Row 1: Steps & Heart Rate
-        _pair(
-          leftFlex: stepsFlex,
-          left: _buildStepsCard(
-            steps: s.steps,
-            target: stepTarget,
-            isWide: stepsFlex == 2,
-            isDark: isDark,
-          ),
-          rightFlex: heartRateFlex,
-          right: _buildHeartRateCard(
-            heartRate: s.heartRate,
-            isWide: heartRateFlex == 2,
-            isDark: isDark,
-          ),
+        // One full-width card each.
+        _buildStepsCard(
+          steps: s.steps,
+          target: stepTarget,
+          isWide: true,
+          isDark: isDark,
         ),
         const SizedBox(height: 12),
-
-        // Row 2: Sleep & Stress
-        _pair(
-          leftFlex: sleepFlex,
-          left: _buildSleepCard(
-            sleepHours: s.sleepHours,
-            isWide: sleepFlex == 2,
-            isDark: isDark,
-          ),
-          rightFlex: stressFlex,
-          right: _buildStressCard(
-            stress: s.stress,
-            isWide: stressFlex == 2,
-            isDark: isDark,
-          ),
+        _buildHeartRateCard(
+          heartRate: s.heartRate,
+          isWide: true,
+          isDark: isDark,
         ),
+        const SizedBox(height: 12),
+        _buildSleepCard(
+          sleepHours: s.sleepHours,
+          isWide: true,
+          isDark: isDark,
+        ),
+        const SizedBox(height: 12),
+        _buildStressCard(stress: s.stress, isWide: true, isDark: isDark),
         const SizedBox(height: 12),
 
         // Row 3: Oxygen Level (always full width)

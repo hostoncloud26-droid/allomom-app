@@ -115,6 +115,7 @@ class AlloBotGeminiOrb extends StatefulWidget {
     super.key,
     this.isSpeaking = false,
     this.isThinking = false,
+    this.babySize = 150,
   });
 
   /// A line is being read out: the baby's mouth moves.
@@ -122,6 +123,9 @@ class AlloBotGeminiOrb extends StatefulWidget {
 
   /// A reply is being worked out: the baby idles and blinks.
   final bool isThinking;
+
+  /// The baby's width and height, against the orb's 200px frame.
+  final double babySize;
 
   bool get isTalking => isSpeaking || isThinking;
 
@@ -273,8 +277,8 @@ class _AlloBotGeminiOrbState extends State<AlloBotGeminiOrb>
 
               // The baby, as on the Home banner.
               SizedBox(
-                width: 150,
-                height: 150,
+                width: widget.babySize,
+                height: widget.babySize,
                 child: BabyOnScreen(child: _buildBaby()),
               ),
             ],

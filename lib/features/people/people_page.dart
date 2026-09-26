@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
@@ -33,6 +34,11 @@ class PeoplePage extends StatefulWidget {
 }
 
 class _PeoplePageState extends State<PeoplePage> {
+  /// Surfaces and text that follow light / dark mode.
+  AppPalette get _p => context.palette;
+
+  /// A deep accent (navy, forest green) lifted so it reads on a dark tint.
+  Color _ink(Color c) => _p.isDark ? Color.lerp(c, Colors.white, 0.35)! : c;
   late int _selectedTab = widget.initialTab; // 0: Family, 1: Community
   final TextEditingController _searchController = TextEditingController();
 
@@ -47,7 +53,8 @@ class _PeoplePageState extends State<PeoplePage> {
     final pending = widget.pendingAddMemberRelationship;
     if (pending != null && pending.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showAddMemberBottomSheet(context, initialRelationship: pending);
+        if (mounted)
+          _showAddMemberBottomSheet(context, initialRelationship: pending);
       });
     }
   }
@@ -137,14 +144,13 @@ class _PeoplePageState extends State<PeoplePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBFBFC),
+      backgroundColor: _p.scaffoldSoft,
       body: SafeArea(
         bottom: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildHeader(),
-            mediumSpacingBox(),
+            const SizedBox(height: 12),
             _buildTabSwitcher(),
             mediumSpacingBox(),
             Expanded(
@@ -153,21 +159,6 @@ class _PeoplePageState extends State<PeoplePage> {
                   : _buildCommunityTab(),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  // ─── HEADER ────────────────────────────────────────────────
-  Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 12),
-      child: Text(
-        'People',
-        style: TextStyle(
-          fontSize: 26,
-          fontWeight: FontWeight.w800,
-          color: textDark,
         ),
       ),
     );
@@ -230,7 +221,9 @@ class _PeoplePageState extends State<PeoplePage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected
+              ? _p.pick(Colors.white, _p.surface)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           boxShadow: isSelected
               ? [
@@ -248,7 +241,7 @@ class _PeoplePageState extends State<PeoplePage> {
             style: TextStyle(
               fontSize: 14,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? primaryColor : Colors.grey.shade600,
+              color: isSelected ? primaryColor : _p.textSecondary,
             ),
           ),
         ),
@@ -291,10 +284,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   child: Text(
                     'No family members added yet.\nTap "Add member" above to invite!',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 13.5,
-                    ),
+                    style: TextStyle(color: _p.textMuted, fontSize: 13.5),
                   ),
                 ),
               )
@@ -313,7 +303,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
@@ -328,8 +318,8 @@ class _PeoplePageState extends State<PeoplePage> {
           Container(
             width: 80,
             height: 80,
-            decoration: const BoxDecoration(
-              color: Color(0xFFFCE7F0),
+            decoration: BoxDecoration(
+              color: _p.tint(primaryColor, Color(0xFFFCE7F0)),
               shape: BoxShape.circle,
             ),
             child: const Center(
@@ -337,12 +327,12 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
           const SizedBox(height: 18),
-          const Text(
+          Text(
             'No Family Group Yet',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w800,
-              color: textDark,
+              color: _p.textPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -351,7 +341,7 @@ class _PeoplePageState extends State<PeoplePage> {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13.5,
-              color: Colors.grey.shade600,
+              color: _p.textSecondary,
               height: 1.45,
             ),
           ),
@@ -441,7 +431,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8F5),
+        color: _p.tint(const Color(0xFF10B981), const Color(0xFFEAF8F5)),
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -463,8 +453,8 @@ class _PeoplePageState extends State<PeoplePage> {
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFFCE7F0),
-                      border: Border.all(color: Colors.white, width: 3),
+                      color: _p.tint(primaryColor, const Color(0xFFFCE7F0)),
+                      border: Border.all(color: _p.card, width: 3),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.08),
@@ -490,10 +480,10 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   familyName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: textDark,
+                    color: _p.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -506,15 +496,18 @@ class _PeoplePageState extends State<PeoplePage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
+                        color: _p.tint(
+                          const Color(0xFF22C55E),
+                          const Color(0xFFDCFCE7),
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF15803D),
+                          color: _ink(Color(0xFF15803D)),
                         ),
                       ),
                     ),
@@ -542,7 +535,7 @@ class _PeoplePageState extends State<PeoplePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _p.card,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: primaryColor.withValues(alpha: 0.3),
@@ -742,9 +735,9 @@ class _PeoplePageState extends State<PeoplePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Enter the 6-character family code provided by your partner.',
-              style: TextStyle(fontSize: 13, color: textLight),
+              style: TextStyle(fontSize: 13, color: _p.textMuted),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -815,12 +808,12 @@ class _PeoplePageState extends State<PeoplePage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               // The server always creates the family together with its second
               // parent in one call, so this asks for both rather than leaving
               // the family half-built until someone edits it in afterwards.
               'Enter your family and partner details.',
-              style: TextStyle(fontSize: 13, color: textLight),
+              style: TextStyle(fontSize: 13, color: _p.textMuted),
             ),
             const SizedBox(height: 14),
             TextField(
@@ -867,9 +860,7 @@ class _PeoplePageState extends State<PeoplePage> {
               final partnerPhone = partnerPhoneCtrl.text.trim();
               if (partnerName.isEmpty) {
                 ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(
-                    content: Text("Enter your partner's name"),
-                  ),
+                  const SnackBar(content: Text("Enter your partner's name")),
                 );
                 return;
               }
@@ -942,7 +933,11 @@ class _PeoplePageState extends State<PeoplePage> {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: () => _showShareQrModal(context),
-                icon: Icon(Icons.qr_code_2_rounded, size: 20, color: primaryColor),
+                icon: Icon(
+                  Icons.qr_code_2_rounded,
+                  size: 20,
+                  color: primaryColor,
+                ),
                 label: Text(
                   'Share QR',
                   style: TextStyle(
@@ -952,8 +947,8 @@ class _PeoplePageState extends State<PeoplePage> {
                   ),
                 ),
                 style: OutlinedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  side: BorderSide(color: Colors.grey.shade200),
+                  backgroundColor: _p.card,
+                  side: BorderSide(color: _p.border),
                   elevation: 0,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -995,8 +990,13 @@ class _PeoplePageState extends State<PeoplePage> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                backgroundColor: Colors.white,
-                side: const BorderSide(color: Color(0xFFFFD5DC)),
+                backgroundColor: _p.card,
+                side: BorderSide(
+                  color: _p.pick(
+                    const Color(0xFFFFD5DC),
+                    primaryColor.withValues(alpha: 0.4),
+                  ),
+                ),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
@@ -1067,12 +1067,12 @@ class _PeoplePageState extends State<PeoplePage> {
       children: [
         Icon(Icons.people_outline_rounded, size: 20, color: primaryColor),
         const SizedBox(width: 8),
-        const Text(
+        Text(
           'Family members',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: textDark,
+            color: _p.textPrimary,
           ),
         ),
       ],
@@ -1092,7 +1092,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
@@ -1111,7 +1111,7 @@ class _PeoplePageState extends State<PeoplePage> {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: avatarBg,
+                  color: _p.tint(avatarLetterColor, avatarBg),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Center(
@@ -1120,7 +1120,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
-                      color: avatarLetterColor,
+                      color: _ink(avatarLetterColor),
                     ),
                   ),
                 ),
@@ -1134,7 +1134,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: const Color(0xFF22C55E),
-                    border: Border.all(color: Colors.white, width: 2),
+                    border: Border.all(color: _p.card, width: 2),
                   ),
                 ),
               ),
@@ -1149,24 +1149,20 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: textDark,
+                    color: _p.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(
-                      Icons.phone_outlined,
-                      size: 13,
-                      color: textLight,
-                    ),
+                    Icon(Icons.phone_outlined, size: 13, color: _p.textMuted),
                     const SizedBox(width: 4),
                     Text(
                       phone,
-                      style: const TextStyle(fontSize: 12, color: textLight),
+                      style: TextStyle(fontSize: 12, color: _p.textMuted),
                     ),
                   ],
                 ),
@@ -1177,7 +1173,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     vertical: 3,
                   ),
                   decoration: BoxDecoration(
-                    color: badgeBg,
+                    color: _p.tint(badgeTextColor, badgeBg),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1185,7 +1181,7 @@ class _PeoplePageState extends State<PeoplePage> {
                     style: TextStyle(
                       fontSize: 10.5,
                       fontWeight: FontWeight.w700,
-                      color: badgeTextColor,
+                      color: _ink(badgeTextColor),
                     ),
                   ),
                 ),
@@ -1242,8 +1238,8 @@ class _PeoplePageState extends State<PeoplePage> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => Container(
         padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: _p.card,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: Column(
@@ -1253,32 +1249,32 @@ class _PeoplePageState extends State<PeoplePage> {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: _p.divider,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
+            Text(
               'Family Invite Code',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
-                color: textDark,
+                color: _p.textPrimary,
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
+            Text(
               'Share this 6-character code with your partner to join your family',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: textLight),
+              style: TextStyle(fontSize: 12, color: _p.textMuted),
             ),
             const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
+                color: _p.inputFill,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: _p.border),
               ),
               child: QrImageView(
                 data: code,
@@ -1287,11 +1283,11 @@ class _PeoplePageState extends State<PeoplePage> {
                 backgroundColor: Colors.white,
                 eyeStyle: const QrEyeStyle(
                   eyeShape: QrEyeShape.square,
-                  color: textDark,
+                  color: Color(0xff181A1D),
                 ),
                 dataModuleStyle: const QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: textDark,
+                  color: Color(0xff181A1D),
                 ),
               ),
             ),
@@ -1316,7 +1312,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F4),
+                  color: _p.tint(primaryColor, const Color(0xFFFFF0F4)),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: primaryColor.withValues(alpha: 0.3),
@@ -1413,7 +1409,7 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildFeaturedCommunitiesHeader() {
-    return const Row(
+    return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
@@ -1421,7 +1417,7 @@ class _PeoplePageState extends State<PeoplePage> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
-            color: textDark,
+            color: _p.textPrimary,
           ),
         ),
         Text(
@@ -1469,7 +1465,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -1486,7 +1482,7 @@ class _PeoplePageState extends State<PeoplePage> {
             height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: monogramBg,
+              color: _p.tint(monogramTextColor, monogramBg),
             ),
             child: Center(
               child: Text(
@@ -1494,7 +1490,7 @@ class _PeoplePageState extends State<PeoplePage> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: monogramTextColor,
+                  color: _ink(monogramTextColor),
                 ),
               ),
             ),
@@ -1502,10 +1498,10 @@ class _PeoplePageState extends State<PeoplePage> {
           const SizedBox(height: 12),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: textDark,
+              color: _p.textPrimary,
             ),
             textAlign: TextAlign.center,
           ),
@@ -1535,12 +1531,12 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 
   Widget _buildMyCommunitiesHeader() {
-    return const Text(
+    return Text(
       'My Communities',
       style: TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.w800,
-        color: textDark,
+        color: _p.textPrimary,
       ),
     );
   }
@@ -1549,7 +1545,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _p.card,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
@@ -1561,10 +1557,10 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
       child: TextField(
         controller: _searchController,
-        decoration: const InputDecoration(
-          icon: Icon(Icons.search_rounded, color: textLight, size: 20),
+        decoration: InputDecoration(
+          icon: Icon(Icons.search_rounded, color: _p.textMuted, size: 20),
           hintText: 'Search a community...',
-          hintStyle: TextStyle(fontSize: 13, color: textMuted),
+          hintStyle: TextStyle(fontSize: 13, color: _p.textMuted),
           border: InputBorder.none,
           contentPadding: EdgeInsets.symmetric(vertical: 14),
         ),
@@ -1585,7 +1581,7 @@ class _PeoplePageState extends State<PeoplePage> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: _p.card,
           borderRadius: BorderRadius.circular(22),
           boxShadow: [
             BoxShadow(
@@ -1602,7 +1598,7 @@ class _PeoplePageState extends State<PeoplePage> {
               height: 48,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: avatarBg,
+                color: _p.tint(avatarTextColor, avatarBg),
               ),
               child: Center(
                 child: Text(
@@ -1610,7 +1606,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: avatarTextColor,
+                    color: _ink(avatarTextColor),
                   ),
                 ),
               ),
@@ -1622,10 +1618,10 @@ class _PeoplePageState extends State<PeoplePage> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: textDark,
+                      color: _p.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1635,20 +1631,27 @@ class _PeoplePageState extends State<PeoplePage> {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDCFCE7),
+                      color: _p.tint(
+                        const Color(0xFF22C55E),
+                        const Color(0xFFDCFCE7),
+                      ),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check, size: 12, color: Color(0xFF15803D)),
+                        Icon(
+                          Icons.check,
+                          size: 12,
+                          color: _ink(Color(0xFF15803D)),
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Joined',
                           style: TextStyle(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w600,
-                            color: Color(0xFF15803D),
+                            color: _ink(const Color(0xFF15803D)),
                           ),
                         ),
                       ],

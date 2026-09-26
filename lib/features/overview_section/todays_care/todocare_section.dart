@@ -33,7 +33,11 @@ import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 /// `dinner`, `snacks`, `water`, `drinks`) plus the `todocare` tick-offs, so
 /// logging a meal in My Health also ticks it off here.
 class TodocareSection extends StatefulWidget {
-  const TodocareSection({super.key, this.allDayParts = false});
+  const TodocareSection({
+    super.key,
+    this.allDayParts = false,
+    this.compact = false,
+  });
 
   /// Every window of the day, instead of only the one the clock is in.
   ///
@@ -42,6 +46,10 @@ class TodocareSection extends StatefulWidget {
   /// lot grouped by window, and reuses this widget so the sheets, the tick-off
   /// writes and the completion rules are the same ones, not a second copy.
   final bool allDayParts;
+
+  /// Home's card: one plain row per item — its time, icon and name — with no
+  /// timeline, description or add slots. Tapping a row still logs it.
+  final bool compact;
 
   @override
   State<TodocareSection> createState() => _TodocareSectionState();
@@ -723,7 +731,10 @@ class _TodocareSectionState extends State<TodocareSection> {
 
           // Home shows the hours of the window she is in; the checklist page
           // the whole day. Both leave empty hours open to add to.
-          _buildTimeline(widget.allDayParts ? _dayHours : _windowHours),
+          if (widget.compact)
+            _buildCompactList()
+          else
+            _buildTimeline(widget.allDayParts ? _dayHours : _windowHours),
 
           if (!widget.allDayParts) ...[
             const SizedBox(height: 4),
@@ -760,6 +771,92 @@ class _TodocareSectionState extends State<TodocareSection> {
                   ),
           ),
       ],
+    );
+  }
+
+  /// Home's plain list: the items in time order, each at its hour.
+  Widget _buildCompactList() {
+    int hourOf(CareItem item) => _hours[item] ?? _partOf(item).startHour;
+    final items = [..._items]
+      ..sort(
+        (a, b) => _dayHours
+            .indexOf(hourOf(a))
+            .compareTo(_dayHours.indexOf(hourOf(b))),
+      );
+    final nowHour = DateTime.now().hour;
+    return Column(
+      children: [
+        for (final item in items)
+          _buildCompactRow(item, hourOf(item), hourOf(item) == nowHour),
+      ],
+    );
+  }
+
+  Widget _buildCompactRow(CareItem item, int hour, bool isNow) {
+    final p = context.palette;
+    final isDone = _isDone(item);
+    return GestureDetector(
+      onTap: () => _onItemTap(item),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isDone
+                ? const Color(0xFF10B981).withValues(alpha: 0.4)
+                : item.color.withValues(alpha: p.isDark ? 0.5 : 0.38),
+            width: 1.3,
+          ),
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 72,
+              child: Text(
+                _hourLabel(hour),
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  fontWeight: isNow ? FontWeight.w700 : FontWeight.w500,
+                  color: isNow ? primaryColor : p.textSecondary,
+                ),
+              ),
+            ),
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: p.tint(item.color, item.color.withValues(alpha: 0.12)),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(item.icon, color: item.color, size: 18),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: isDone ? p.textMuted : p.textPrimary,
+                  decoration: isDone ? TextDecoration.lineThrough : null,
+                  decorationColor: p.textMuted,
+                ),
+              ),
+            ),
+            if (isDone)
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 20,
+                color: Color(0xFF10B981),
+              ),
+          ],
+        ),
+      ),
     );
   }
 

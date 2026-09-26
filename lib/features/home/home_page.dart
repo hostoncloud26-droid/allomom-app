@@ -444,68 +444,57 @@ class _HomePageState extends State<HomePage> {
             bottom: false,
             child: Stack(
               children: [
-                CustomScrollView(
-                  controller: _scrollController,
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // No name-and-due-date header. Week, trimester and the
-                          // due date are all spelled out on the Daily Summary card
-                          // a scroll below, and saying them twice pushed the baby
-                          // — the thing she actually talks to — down the screen.
-                          const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, viewport) => CustomScrollView(
+                    controller: _scrollController,
+                    physics: const BouncingScrollPhysics(),
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ─── FIRST SCREEN, AS ON ASK ALLO ───
+                            // The baby and her line centred in the room above,
+                            // Try asking and Quick Actions resting just over the
+                            // docked mic; Today's Care is a scroll away.
+                            _buildFirstScreen(context, viewport.maxHeight),
 
-                          // ─── ALLOBABY HERO ───
-                          // Ask Allo's face: the orb, and under it whatever the
-                          // baby is saying — the week, then AlloBaby's flow — in
-                          // the same gradient text.
-                          _buildAlloBabyHero(context),
-                          const SizedBox(height: 16),
+                            // ─── SWIPEABLE CAROUSEL (THIS WEEK, RIGHT NOW) ───
+                            //
+                            // Each section says what it is the first time it is
+                            // actually on screen, and never over the top of the one
+                            // before it. Scrolling straight past says nothing.
+                            // Hidden for now — the hero carries the week's
+                            // lines. Restore with the carousel builder below.
+                            // _buildSummaryCarousel(context),
+                            // const SizedBox(height: 20),
 
-                          // ─── SWIPEABLE CAROUSEL (THIS WEEK, RIGHT NOW) ───
-                          //
-                          // Each section says what it is the first time it is
-                          // actually on screen, and never over the top of the one
-                          // before it. Scrolling straight past says nothing.
-                          // Hidden for now — the hero carries the week's
-                          // lines. Restore with the carousel builder below.
-                          // _buildSummaryCarousel(context),
-                          // const SizedBox(height: 20),
-
-                          // ─── TRY ASKING (as on Ask Allo) ───
-                          _buildTryAsking(context),
-                          const SizedBox(height: 20),
-
-                          // ─── QUICK ACTIONS (swipeable row of small boxes) ───
-                          _buildQuickActionsCard(context),
-                          const SizedBox(height: 24),
-
-                          // ─── TODAY'S CARE ───
-                          KeyedSubtree(
-                            key: _todaysCareKey,
-                            child: _buildTodaysCareSection(context),
-                          ),
-                          const SizedBox(height: 24),
-
-                          // ─── OVERVIEW (VITALS & NUTRITION TILES) ───
-                          // Everything in here reports on the selected day; the
-                          // date strip that drives it rides above as an overlay.
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 20),
-                            child: DayOverviewSection(
-                              key: _dateScopeAnchorKey,
-                              date: _selectedDate,
+                            // ─── TODAY'S CARE ───
+                            KeyedSubtree(
+                              key: _todaysCareKey,
+                              child: _buildTodaysCareSection(context),
                             ),
-                          ),
+                            const SizedBox(height: 24),
 
-                          const SizedBox(height: 120),
-                        ],
+                            // ─── OVERVIEW (VITALS & NUTRITION TILES) ───
+                            // Everything in here reports on the selected day; the
+                            // date strip that drives it rides above as an overlay.
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
+                              child: DayOverviewSection(
+                                key: _dateScopeAnchorKey,
+                                date: _selectedDate,
+                              ),
+                            ),
+
+                            const SizedBox(height: 120),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
 
                 // ─── Sticky date selector (overlay only) ───
@@ -527,6 +516,36 @@ class _HomePageState extends State<HomePage> {
 
   // ─── HEADER / APP BAR ─────────────────────────────────────
   // ─── SWIPEABLE SUMMARY CAROUSEL ────────────────────────────
+  // ─── FIRST SCREEN ──────────────────────────────────────────
+  /// At least a screen tall: the hero centred in the space above, Try asking
+  /// and Quick Actions at the bottom, clear of the bar and the docked mic.
+  Widget _buildFirstScreen(BuildContext context, double viewportHeight) {
+    // The body runs under the bar (the layout extends it), which the bottom
+    // padding carries; the mic stands about 50px above the bar on top of that.
+    final micClearance = MediaQuery.paddingOf(context).bottom + 56;
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: viewportHeight),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          Center(child: _buildAlloBabyHero(context)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 32),
+              _buildTryAsking(context),
+              const SizedBox(height: 32),
+              _buildQuickActionsCard(context),
+              SizedBox(height: micClearance),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   // ─── ALLOBABY HERO ─────────────────────────────────────────
   /// Ask Allo's orb and gradient line, with AlloBaby's choices under it once
   /// her flow is waiting on one, and a way to hear her or keep talking.
@@ -554,12 +573,13 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         children: [
           SizedBox(
-            width: 180,
-            height: 180,
+            width: 200,
+            height: 200,
             child: FittedBox(
               child: AlloBotGeminiOrb(
                 isSpeaking: speaking,
                 isThinking: _alloBaby.isRunning && !speaking,
+                babySize: 190,
               ),
             ),
           ),
@@ -1306,7 +1326,7 @@ class _HomePageState extends State<HomePage> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 16),
 
         // AlloConnect's Home slider: a row of small square boxes she swipes
         // through, about three on screen at a time.
@@ -1373,7 +1393,7 @@ class _HomePageState extends State<HomePage> {
 
   // ─── TODAY'S CARE ─────────────────────────────────────────
   Widget _buildTodaysCareSection(BuildContext context) {
-    return const TodocareSection();
+    return const TodocareSection(compact: true);
   }
 }
 
