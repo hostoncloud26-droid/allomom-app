@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
-import 'package:allomom/features/my_health/vitals/drinks/drinks_entry_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/meals/snacks_entry_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/nutrition_routes.dart';
 import 'package:allomom/features/overview_section/nutrition/nutrition_day_data.dart';
 import 'package:allomom/features/overview_section/nutrition/nutrition_detail_page.dart';
+import 'package:allomom/features/overview_section/todays_care/care_catalogue.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
+import 'package:allomom/features/overview_section/todays_care/widgets/care_count_sheet.dart';
+import 'package:allomom/features/overview_section/todays_care/widgets/care_meal_sheet.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 
 /// Calories one cup of tea or coffee is worth, matching Today's Care.
 const int _kcalPerCup = 45;
@@ -97,54 +101,38 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     final isMorning = hour >= 5 && hour < 12;
     final isAfternoon = hour >= 12 && hour < 17;
 
+    // One full-width card each, the meal that matters now first.
     final List<Widget> cards;
     if (_readOnly) {
       // Every meal of the day, since the day is over.
       cards = [
-        _row(
-          _mealCard(CareMeal.breakfast, isWide: true),
-          _waterCard(isCompact: true),
-        ),
-        const SizedBox(height: 12),
-        _row(
-          _mealCard(CareMeal.lunch, isWide: true),
-          _snacksCard(),
-        ),
-        const SizedBox(height: 12),
-        _row(
-          _mealCard(CareMeal.dinner, isWide: true),
-          _drinksCard(isWide: false),
-        ),
+        _mealCard(CareMeal.breakfast, isWide: true),
+        _mealCard(CareMeal.lunch, isWide: true),
+        _mealCard(CareMeal.dinner, isWide: true),
+        _waterCard(isCompact: false),
+        _snacksCard(),
+        _drinksCard(isWide: true),
       ];
     } else if (isMorning) {
       cards = [
-        _row(
-          _mealCard(CareMeal.breakfast, isWide: true),
-          _waterCard(isCompact: true),
-        ),
-        const SizedBox(height: 12),
+        _mealCard(CareMeal.breakfast, isWide: true),
+        _waterCard(isCompact: false),
         _drinksCard(isWide: true),
       ];
     } else if (isAfternoon) {
       cards = [
-        _row(
-          _mealCard(CareMeal.lunch, isWide: true),
-          _mealCard(CareMeal.breakfast, isWide: false),
-        ),
-        const SizedBox(height: 12),
-        _row(_snacksCard(), _drinksCard(isWide: true), wideFirst: false),
-        const SizedBox(height: 12),
+        _mealCard(CareMeal.lunch, isWide: true),
+        _mealCard(CareMeal.breakfast, isWide: true),
+        _snacksCard(),
+        _drinksCard(isWide: true),
         _waterCard(isCompact: false),
       ];
     } else {
       cards = [
-        _row(
-          _mealCard(CareMeal.dinner, isWide: true),
-          _mealCard(CareMeal.lunch, isWide: false),
-        ),
-        const SizedBox(height: 12),
-        _row(_snacksCard(), _drinksCard(isWide: true), wideFirst: false),
-        const SizedBox(height: 12),
+        _mealCard(CareMeal.dinner, isWide: true),
+        _mealCard(CareMeal.lunch, isWide: true),
+        _snacksCard(),
+        _drinksCard(isWide: true),
         _waterCard(isCompact: false),
       ];
     }
@@ -170,22 +158,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
             ],
           ),
         ),
-        ...cards,
-      ],
-    );
-  }
-
-  /// A 2:1 row; [wideFirst] false puts the wide card on the right.
-  Widget _row(Widget first, Widget second, {bool wideFirst = true}) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Expanded(flex: wideFirst ? 2 : 1, child: first),
-          const SizedBox(width: 12),
-          Expanded(flex: wideFirst ? 1 : 2, child: second),
+        for (var i = 0; i < cards.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          cards[i],
         ],
-      ),
+      ],
     );
   }
 
@@ -247,14 +224,62 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     if (mounted) await _load();
   }
 
+  /// The same popup Today's Care logs a meal with, saving the same record.
   Future<void> _logMeal(CareMeal meal) async {
     if (_readOnly) return;
-    final saved = await showNutritionEntrySheet(
+    final log = await CareMealSheet.show(
       context,
-      _mealMetric(meal),
-      userId: _userIdOrNull(),
+      meal: meal,
+      color: _mealColor(meal),
+      icon: _mealIcon(meal),
+      suggestion: _mealSuggestion(meal),
     );
-    if (saved == true && mounted) await _load();
+    if (log == null || !mounted) return;
+
+    HapticFeedback.mediumImpact();
+    try {
+      await HealthVitalsController.instance.addVitalEntry(
+        key: meal.vitalKey,
+        value: log.calories,
+        unit: 'kcal',
+        createdAt: DateTime.now(),
+        userId: _userIdOrNull(),
+        data: {
+          'items': log.details,
+          'details': log.details,
+          'meal': meal.label,
+          'meal_type': meal.vitalKey,
+          'type': meal.vitalKey,
+          'day_part': CareDayPart.at().name,
+        },
+      );
+      speak(NarrationKeys.pgConfMealSaved, force: true);
+    } catch (e) {
+      debugPrint('⚠️ [NutritionOverview] Error logging ${meal.vitalKey}: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not log ${meal.label.toLowerCase()}')),
+        );
+      }
+    }
+    if (mounted) await _load();
+  }
+
+  /// Today's Care's line for [meal] ("Dal, leafy greens and a protein…"),
+  /// from whichever window of the day serves it.
+  String? _mealSuggestion(CareMeal meal) {
+    final session = MainController.instance;
+    for (final part in CareDayPart.values) {
+      for (final item in careItemsFor(
+        part: part,
+        isPregnant: session.isPregnant,
+        pregnancyDay: session.currentPregnancyDay,
+        babyAgeDays: WeeklyBabyTalk.babyAgeDays(),
+      )) {
+        if (item.meal == meal) return item.subtitle;
+      }
+    }
+    return null;
   }
 
   Future<void> _logWater(int glasses) async {
@@ -281,15 +306,64 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     if (saved == true && mounted) await _load();
   }
 
-  Future<void> _logDrink(String name, IconData icon) async {
+  /// The baby's stepper sheet, with the drink picked on it; [name] is the one
+  /// selected when it opens.
+  Future<void> _logDrink([String? name]) async {
     if (_readOnly) return;
-    final saved = await showDrinksEntrySheet(
+    final result = await CareCountSheet.showWithKind(
       context,
-      userId: _userIdOrNull(),
-      initialType: name,
+      title: 'Log a drink',
+      unitLabel: 'cups',
+      unitLabelSingular: 'cup',
+      icon: Icons.coffee_rounded,
+      color: _drinksColor,
+      kinds: [
+        for (final d in _drinkOptions)
+          CareCountKind(d.name, d.icon, _drinkShade(d.name)),
+      ],
+      initialKind: name,
+      subtitle: 'About $_kcalPerCup kcal a cup',
+      promptText: 'Tea, coffee or something else? Tell me how many cups, '
+          'Mommy.',
     );
-    if (saved == true && mounted) await _load();
+    if (result == null || !mounted) return;
+
+    final count = result.count;
+    final drink = result.kind ?? 'Other';
+    final unit = count == 1 ? 'cup' : 'cups';
+    HapticFeedback.mediumImpact();
+    try {
+      // The same row the Hot & Cold Drinks sheet writes.
+      await HealthVitalsController.instance.addVitalEntry(
+        key: 'drinks',
+        value: (count * _kcalPerCup).toDouble(),
+        unit: 'kcal',
+        createdAt: DateTime.now(),
+        userId: _userIdOrNull(),
+        data: {
+          'details': '$count $unit · $drink',
+          'type': 'drinks',
+          'drink': drink,
+          'drink_type': switch (drink) {
+            'Tea' => 'tea',
+            'Coffee' => 'coffee',
+            _ => 'beverages',
+          },
+          'count': count,
+          'count_unit': 'cups',
+        },
+      );
+    } catch (e) {
+      debugPrint('⚠️ [NutritionOverview] Error logging drinks: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not log the drink')),
+        );
+      }
+    }
+    if (mounted) await _load();
   }
+
 
   // ─── MEAL CARD ──────────────────────────────────────────────
 
@@ -328,18 +402,8 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     return _shell(
       onTap: _readOnly
           ? () => _openDetail(_mealMetric(meal))
-          : () => _showOptionsSheet(
-                title: meal.label,
-                subtitle: hasData
-                    ? '${kcal.round()} kcal tracked today'
-                    : 'No logs recorded for today',
-                icon: icon,
-                color: color,
-                primaryLabel:
-                    hasData ? 'Add to ${meal.label}' : 'Record ${meal.label}',
-                onPrimary: () => _logMeal(meal),
-                onDetails: () => _openDetail(_mealMetric(meal)),
-              ),
+          // Straight to the log popup; history is a past day's tap.
+          : () => _logMeal(meal),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -967,10 +1031,7 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
                       icon: _drinkOptions[i].icon,
                       color: _drinkShade(_drinkOptions[i].name),
                       count: counts[_drinkOptions[i].name] ?? 0,
-                      onTap: () => _logDrink(
-                        _drinkOptions[i].name,
-                        _drinkOptions[i].icon,
-                      ),
+                      onTap: () => _logDrink(_drinkOptions[i].name),
                     ),
                   ),
                 ],
@@ -1174,73 +1235,8 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     );
   }
 
-  /// Which drink to log, from the card's "+".
-  void _showDrinkPicker() {
-    if (_readOnly) return;
-    final total = _day.drinkCount;
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) {
-        return _sheetFrame(
-          sheetContext,
-          children: [
-            _sheetHeader(
-              sheetContext,
-              'Drinks',
-              total > 0
-                  ? '$total ${total == 1 ? 'cup' : 'cups'} · ${_day.drinksKcal.round()} kcal logged today'
-                  : 'No drinks recorded for today',
-              Icons.coffee_rounded,
-              _drinksColor,
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                for (var i = 0; i < _drinkOptions.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  Expanded(
-                    child: _quickDrinkButton(
-                      label: _drinkOptions[i].name,
-                      icon: _drinkOptions[i].icon,
-                      color: _drinkShade(_drinkOptions[i].name),
-                      count:
-                          _summary.todayDrinkCounts[_drinkOptions[i].name] ?? 0,
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        _logDrink(
-                          _drinkOptions[i].name,
-                          _drinkOptions[i].icon,
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pop(sheetContext);
-                  _openDetail(NutritionMetric.drinks);
-                },
-                child: Text(
-                  'View History & Trends',
-                  style: GoogleFonts.manrope(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: _drinksColor,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+  /// The card's "+": the drink sheet, with Tea picked to start.
+  void _showDrinkPicker() => _logDrink();
 
   Widget _sheetFrame(BuildContext sheetContext, {required List<Widget> children}) {
     final isDark = sheetContext.palette.isDark;

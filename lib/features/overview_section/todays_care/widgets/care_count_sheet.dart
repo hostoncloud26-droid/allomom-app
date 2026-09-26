@@ -4,6 +4,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 
+/// One kind the count can be of — Tea, Coffee — picked above the stepper.
+class CareCountKind {
+  const CareCountKind(this.label, this.icon, this.color);
+
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+/// What [CareCountSheet.showWithKind] resolves to.
+typedef CareCountResult = ({int count, String? kind});
+
 /// Bottom sheet that asks "how many?" — glasses of water, cups of coffee or
 /// portions of a snack. Returns the number the user chose to log, or null if
 /// they dismissed it.
@@ -24,6 +36,9 @@ class CareCountSheet extends StatefulWidget {
     this.maxPerLog = 12,
     this.subtitle,
     this.narrationKey,
+    this.promptText,
+    this.kinds = const [],
+    this.initialKind,
   });
 
   final String title;
@@ -54,6 +69,15 @@ class CareCountSheet extends StatefulWidget {
   /// A `NarrationKeys` constant, when this count has a line of its own.
   final String? narrationKey;
 
+  /// The baby's line when there is no recording for this count.
+  final String? promptText;
+
+  /// Kinds to choose between above the stepper; none shows no choice.
+  final List<CareCountKind> kinds;
+
+  /// The [CareCountKind.label] selected when the sheet opens.
+  final String? initialKind;
+
   /// Shows the sheet and resolves to the amount to log, or null on dismiss.
   static Future<int?> show(
     BuildContext context, {
@@ -68,8 +92,8 @@ class CareCountSheet extends StatefulWidget {
     int maxPerLog = 12,
     String? subtitle,
     String? narrationKey,
-  }) {
-    return showModalBottomSheet<int>(
+  }) async {
+    final result = await showModalBottomSheet<CareCountResult>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -87,6 +111,43 @@ class CareCountSheet extends StatefulWidget {
         narrationKey: narrationKey,
       ),
     );
+    return result?.count;
+  }
+
+  /// [show] with a choice of [kinds] above the stepper; resolves to the
+  /// amount and the kind picked, or null on dismiss.
+  static Future<CareCountResult?> showWithKind(
+    BuildContext context, {
+    required String title,
+    required String unitLabel,
+    required String unitLabelSingular,
+    required IconData icon,
+    required Color color,
+    required List<CareCountKind> kinds,
+    String? initialKind,
+    List<int> presets = const [1, 2, 3],
+    int maxPerLog = 12,
+    String? subtitle,
+    String? promptText,
+  }) {
+    return showModalBottomSheet<CareCountResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => CareCountSheet(
+        title: title,
+        unitLabel: unitLabel,
+        unitLabelSingular: unitLabelSingular,
+        icon: icon,
+        color: color,
+        presets: presets,
+        maxPerLog: maxPerLog,
+        subtitle: subtitle,
+        promptText: promptText,
+        kinds: kinds,
+        initialKind: initialKind,
+      ),
+    );
   }
 
   @override
@@ -95,6 +156,18 @@ class CareCountSheet extends StatefulWidget {
 
 class _CareCountSheetState extends State<CareCountSheet> {
   late int _count = widget.presets.isNotEmpty ? widget.presets.first : 1;
+
+  late String? _kind =
+      widget.initialKind ??
+      (widget.kinds.isEmpty ? null : widget.kinds.first.label);
+
+  /// The picked kind's colour, so the stepper and button match it.
+  Color get _color {
+    for (final kind in widget.kinds) {
+      if (kind.label == _kind) return kind.color;
+    }
+    return widget.color;
+  }
 
   String _unitFor(int count) =>
       count == 1 ? widget.unitLabelSingular : widget.unitLabel;
@@ -149,9 +222,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
             // This sheet counts glasses, cups and snacks. Only water has a
             // recorded line, so the others open without one rather than being
             // given somebody else's.
-            if (widget.narrationKey != null) ...[
+            if (widget.narrationKey != null || widget.promptText != null) ...[
               BabySheetPrompt(
                 narrationKey: widget.narrationKey,
+                text: widget.promptText ?? '',
                 margin: EdgeInsets.zero,
               ),
               const SizedBox(height: 16),
@@ -204,6 +278,28 @@ class _CareCountSheetState extends State<CareCountSheet> {
             ),
             const SizedBox(height: 22),
 
+            // ─── KIND ───
+            if (widget.kinds.isNotEmpty) ...[
+              Row(
+                children: [
+                  for (final kind in widget.kinds) ...[
+                    Expanded(
+                      child: _KindChip(
+                        kind: kind,
+                        selected: _kind == kind.label,
+                        onTap: () {
+                          HapticFeedback.selectionClick();
+                          setState(() => _kind = kind.label);
+                        },
+                      ),
+                    ),
+                    if (kind != widget.kinds.last) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 22),
+            ],
+
             // ─── STEPPER ───
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -211,7 +307,7 @@ class _CareCountSheetState extends State<CareCountSheet> {
                 _StepperButton(
                   icon: Icons.remove_rounded,
                   enabled: _count > 1,
-                  color: widget.color,
+                  color: _color,
                   onTap: () => _setCount(_count - 1),
                 ),
                 Expanded(
@@ -223,7 +319,7 @@ class _CareCountSheetState extends State<CareCountSheet> {
                           fontSize: 44,
                           fontWeight: FontWeight.w800,
                           height: 1.05,
-                          color: widget.color,
+                          color: _color,
                         ),
                       ),
                       Text(
@@ -243,7 +339,7 @@ class _CareCountSheetState extends State<CareCountSheet> {
                 _StepperButton(
                   icon: Icons.add_rounded,
                   enabled: _count < widget.maxPerLog,
-                  color: widget.color,
+                  color: _color,
                   onTap: () => _setCount(_count + 1),
                 ),
               ],
@@ -259,7 +355,7 @@ class _CareCountSheetState extends State<CareCountSheet> {
                       child: _PresetChip(
                         label: '$preset ${_unitFor(preset)}',
                         selected: _count == preset,
-                        color: widget.color,
+                        color: _color,
                         onTap: () => _setCount(preset),
                       ),
                     ),
@@ -279,7 +375,7 @@ class _CareCountSheetState extends State<CareCountSheet> {
                     const Color(0xFFF1F5F9),
                     context.palette.surface,
                   ),
-                  valueColor: AlwaysStoppedAnimation<Color>(widget.color),
+                  valueColor: AlwaysStoppedAnimation<Color>(_color),
                 ),
               ),
               const SizedBox(height: 8),
@@ -304,9 +400,12 @@ class _CareCountSheetState extends State<CareCountSheet> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop(context, _count),
+                onPressed: () => Navigator.pop<CareCountResult>(
+                  context,
+                  (count: _count, kind: _kind),
+                ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.color,
+                  backgroundColor: _color,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -424,6 +523,67 @@ class _PresetChip extends StatelessWidget {
                     context.palette.textSecondary,
                   ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KindChip extends StatelessWidget {
+  const _KindChip({
+    required this.kind,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final CareCountKind kind;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = kind.color;
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? context.palette.tint(color, color.withValues(alpha: 0.12))
+              : context.palette.pick(
+                  const Color(0xFFF8FAFC),
+                  context.palette.inputFill,
+                ),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected
+                ? color
+                : context.palette.pick(
+                    const Color(0xFFE2E8F0),
+                    context.palette.border,
+                  ),
+            width: selected ? 1.4 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              kind.icon,
+              size: 22,
+              color: selected ? color : context.palette.textMuted,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              kind.label,
+              style: GoogleFonts.manrope(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: selected ? color : context.palette.textSecondary,
+              ),
+            ),
+          ],
         ),
       ),
     );
