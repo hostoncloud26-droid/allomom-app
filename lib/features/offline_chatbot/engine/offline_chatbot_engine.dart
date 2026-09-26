@@ -528,40 +528,42 @@ class OfflineChatbotEngine {
   /// server applies, so both sides pick the same clip.
   static const String fallbackAudioLang = 'en';
 
-  /// Clips the downloaded catalogue carries, keyed `<key>|<lang>`. Built once,
+  /// Languages the downloaded catalogue has each key recorded in. Built once,
   /// on the first step that names a key — most conversations never need it.
-  Map<String, String>? _audioIndex;
+  Map<String, Set<String>>? _audioLangs;
 
   /// The clip a step should play, in the language the conversation is in.
   ///
-  /// An explicit `audio_url` wins outright: it names one file, chosen against
-  /// this one step. Failing that an `audio_key` is looked up in the catalogue's
-  /// audio library, and finally resolved by convention — a key is filed under
-  /// its language, so the URL can be built without the library having been
-  /// synced. A clip missing in the conversation's language falls back to the
-  /// English one rather than going silent, and a URL that turns out not to
-  /// play is not fatal either: [TtsService] falls back to speaking the text.
-  /// [langCode] overrides the catalogue's own language, which is what a bundle
-  /// holding several needs; left out, the engine's language is used.
+  /// An `audio_key` wins outright, and always resolves to the library URL built
+  /// from the key — never a stored `audio_url`, which may point at a host the
+  /// phone cannot reach (the builder's own dev server, say). A key the
+  /// catalogue only lists in English is played in English rather than going
+  /// silent. Without a key, the step's explicit `audio_url` is used. A URL that
+  /// turns out not to play is not fatal: [TtsService] falls back to speaking
+  /// the text. [langCode] overrides the catalogue's own language, which is what
+  /// a bundle holding several needs; left out, the engine's language is used.
   String? stepAudio(BotStep step, {String? langCode}) {
-    final url = step.audioUrl?.trim() ?? '';
-    if (url.isNotEmpty) return url;
-
     final key = step.audioKey?.trim() ?? '';
-    if (key.isEmpty) return null;
-
-    final lang = _audioLang(langCode ?? this.langCode);
-    final index = _audioIndex ??= {
-      for (final audio in bundle.audios)
-        if (audio.key.isNotEmpty && audio.url.isNotEmpty)
-          '${audio.key}|${audio.langCode}': audio.url,
-    };
-
-    for (final candidate in {lang, fallbackAudioLang}) {
-      final known = index['$key|$candidate'];
-      if (known != null) return known;
+    if (key.isNotEmpty) {
+      final lang = _audioLang(langCode ?? this.langCode);
+      final langs = (_audioLangs ??= _indexAudioLangs())[key];
+      final useFallback = langs != null &&
+          !langs.contains(lang) &&
+          langs.contains(fallbackAudioLang);
+      return audioUrlForKey(key, useFallback ? fallbackAudioLang : lang);
     }
-    return audioUrlForKey(key, lang);
+
+    final url = step.audioUrl?.trim() ?? '';
+    return url.isEmpty ? null : url;
+  }
+
+  Map<String, Set<String>> _indexAudioLangs() {
+    final index = <String, Set<String>>{};
+    for (final audio in bundle.audios) {
+      if (audio.key.isEmpty) continue;
+      index.putIfAbsent(audio.key, () => {}).add(_audioLang(audio.langCode));
+    }
+    return index;
   }
 
   /// The library URL a key resolves to in [langCode].

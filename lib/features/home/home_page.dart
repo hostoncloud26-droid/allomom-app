@@ -521,10 +521,15 @@ class _HomePageState extends State<HomePage> {
   /// and Quick Actions at the bottom, clear of the bar and the docked mic.
   Widget _buildFirstScreen(BuildContext context, double viewportHeight) {
     // The body runs under the bar (the layout extends it), which the bottom
-    // padding carries; the mic stands about 50px above the bar on top of that.
-    final micClearance = MediaQuery.paddingOf(context).bottom + 56;
+    // padding carries. The block stops at the top of the bar and keeps room
+    // only for the mic standing above it, so once she scrolls Today's Care
+    // follows at a normal gap rather than a bar's height further down.
+    final barHeight = MediaQuery.paddingOf(context).bottom;
+    const micClearance = 56.0;
     return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: viewportHeight),
+      constraints: BoxConstraints(
+        minHeight: (viewportHeight - barHeight).clamp(0, double.infinity),
+      ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +543,7 @@ class _HomePageState extends State<HomePage> {
               _buildTryAsking(context),
               const SizedBox(height: 32),
               _buildQuickActionsCard(context),
-              SizedBox(height: micClearance),
+              const SizedBox(height: micClearance),
             ],
           ),
         ],

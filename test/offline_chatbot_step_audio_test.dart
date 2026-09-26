@@ -47,16 +47,25 @@ void main() {
     );
   });
 
-  test('an explicit URL wins over the key', () {
+  test('the key wins over an explicit URL', () {
     expect(
       engine(langCode: 'ta').stepAudio(
-        step(audioUrl: 'https://cdn.example.com/one-off.mp3', audioKey: 'week10'),
+        step(audioUrl: 'http://localhost:8000/one-off.mp3', audioKey: 'week10'),
+      ),
+      'https://audio.savemom.app/allomom/ta/week10.mp3',
+    );
+  });
+
+  test('a step with only a URL plays that URL', () {
+    expect(
+      engine(langCode: 'ta').stepAudio(
+        step(audioUrl: 'https://cdn.example.com/one-off.mp3'),
       ),
       'https://cdn.example.com/one-off.mp3',
     );
   });
 
-  test('a clip the catalogue carries wins over the conventional URL', () {
+  test('a clip the catalogue carries still resolves by key, not its stored URL', () {
     final bot = engine(
       langCode: 'ta',
       audios: const [
@@ -64,13 +73,13 @@ void main() {
           key: 'week10',
           langCode: 'ta',
           filename: 'week10.mp3',
-          url: 'https://firebasestorage.example.com/week10-ta.mp3',
+          url: 'http://localhost:8000/chatbot/builder/audios/file/allomom/ta/week10.mp3',
         ),
       ],
     );
     expect(
       bot.stepAudio(step(audioKey: 'week10')),
-      'https://firebasestorage.example.com/week10-ta.mp3',
+      'https://audio.savemom.app/allomom/ta/week10.mp3',
     );
   });
 
@@ -88,7 +97,7 @@ void main() {
     );
     expect(
       bot.stepAudio(step(audioKey: 'week10')),
-      'https://firebasestorage.example.com/week10-en.mp3',
+      'https://audio.savemom.app/allomom/en/week10.mp3',
     );
   });
 
