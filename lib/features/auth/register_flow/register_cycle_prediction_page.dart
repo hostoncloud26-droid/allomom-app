@@ -147,7 +147,9 @@ class _RegisterCyclePredictionStepViewState
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF4E6A).withValues(alpha: 0.09),
+                          color: const Color(
+                            0xFFFF4E6A,
+                          ).withValues(alpha: 0.09),
                           blurRadius: 16,
                           offset: const Offset(0, 5),
                         ),
@@ -171,7 +173,9 @@ class _RegisterCyclePredictionStepViewState
                                       borderRadius: BorderRadius.circular(8),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: const Color(0xFFFF4E6A).withValues(alpha: 0.12),
+                                          color: const Color(
+                                            0xFFFF4E6A,
+                                          ).withValues(alpha: 0.12),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
                                         ),
@@ -210,7 +214,9 @@ class _RegisterCyclePredictionStepViewState
                                   borderRadius: BorderRadius.circular(20),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFFF4E6A).withValues(alpha: 0.25),
+                                      color: const Color(
+                                        0xFFFF4E6A,
+                                      ).withValues(alpha: 0.25),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -292,7 +298,9 @@ class _RegisterCyclePredictionStepViewState
                                   // Minus Button
                                   InkWell(
                                     onTap: _cycleLength > 21
-                                        ? () => _updateCycleLength(_cycleLength - 1)
+                                        ? () => _updateCycleLength(
+                                            _cycleLength - 1,
+                                          )
                                         : null,
                                     borderRadius: BorderRadius.circular(10),
                                     child: Container(
@@ -322,7 +330,9 @@ class _RegisterCyclePredictionStepViewState
                                   // Plus Button
                                   InkWell(
                                     onTap: _cycleLength < 35
-                                        ? () => _updateCycleLength(_cycleLength + 1)
+                                        ? () => _updateCycleLength(
+                                            _cycleLength + 1,
+                                          )
                                         : null,
                                     borderRadius: BorderRadius.circular(10),
                                     child: Container(
@@ -406,4 +416,3 @@ class _RegisterCyclePredictionStepViewState
     );
   }
 }
-

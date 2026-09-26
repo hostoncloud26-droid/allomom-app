@@ -24,12 +24,14 @@ class SignInOutcome {
     required this.isRegistered,
     required this.isNewUser,
     this.message = '',
+    this.joinedFamily,
   });
 
   const SignInOutcome.failure(this.message)
     : success = false,
       isRegistered = false,
-      isNewUser = false;
+      isNewUser = false,
+      joinedFamily = null;
 
   final bool success;
 
@@ -37,6 +39,9 @@ class SignInOutcome {
   final bool isRegistered;
   final bool isNewUser;
   final String message;
+
+  /// Set when a partner had already set this account up — see [JoinedFamily].
+  final JoinedFamily? joinedFamily;
 }
 
 /// Phone + OTP sign-in, token lifetime, and sign-out.
@@ -66,10 +71,18 @@ class AuthController extends GetxController {
   // ── OTP ────────────────────────────────────────────────────────────────────
 
   /// Requests a code. Returns null on success, or a message to show.
-  Future<String?> sendOtp(String phone, {String countryCode = '+91'}) async {
+  Future<String?> sendOtp(
+    String phone, {
+    String countryCode = '+91',
+    String? channel,
+  }) async {
     _setBusy(true);
     try {
-      final response = await AuthApi.sendOtp(phone, countryCode: countryCode);
+      final response = await AuthApi.sendOtp(
+        phone,
+        countryCode: countryCode,
+        channel: channel,
+      );
       if (response.success) return null;
       return response.detail.isNotEmpty
           ? response.detail
@@ -79,10 +92,18 @@ class AuthController extends GetxController {
     }
   }
 
-  Future<String?> resendOtp(String phone, {String countryCode = '+91'}) async {
+  Future<String?> resendOtp(
+    String phone, {
+    String countryCode = '+91',
+    String? channel,
+  }) async {
     _setBusy(true);
     try {
-      final response = await AuthApi.resendOtp(phone, countryCode: countryCode);
+      final response = await AuthApi.resendOtp(
+        phone,
+        countryCode: countryCode,
+        channel: channel,
+      );
       if (response.success) return null;
       return response.detail.isNotEmpty
           ? response.detail
@@ -156,6 +177,7 @@ class AuthController extends GetxController {
         isRegistered: main.currentUser?.isRegistered ?? result.isRegistered,
         isNewUser: result.isNewUser,
         message: response.detail,
+        joinedFamily: result.joinedFamily,
       );
     } finally {
       _setBusy(false);

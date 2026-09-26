@@ -6,10 +6,7 @@ import 'package:allomom/features/auth/auth_flow_page.dart';
 class ContactNumberPage extends StatelessWidget {
   final String selectedLanguage;
 
-  const ContactNumberPage({
-    super.key,
-    this.selectedLanguage = 'en',
-  });
+  const ContactNumberPage({super.key, this.selectedLanguage = 'en'});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +22,6 @@ class ContactNumberStepView extends StatelessWidget {
   final String countryCode;
   final bool isLoading;
   final VoidCallback onSendOtp;
-  final VoidCallback onGoogleSignIn;
   final bool isKeyboardOpen;
 
   const ContactNumberStepView({
@@ -34,7 +30,6 @@ class ContactNumberStepView extends StatelessWidget {
     this.countryCode = '+91',
     required this.isLoading,
     required this.onSendOtp,
-    required this.onGoogleSignIn,
     this.isKeyboardOpen = false,
   });
 
@@ -87,10 +82,7 @@ class ContactNumberStepView extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Text(
-                            '🇮🇳',
-                            style: TextStyle(fontSize: 16),
-                          ),
+                          const Text('🇮🇳', style: TextStyle(fontSize: 16)),
                           const SizedBox(width: 5),
                           Text(
                             countryCode,
@@ -151,63 +143,6 @@ class ContactNumberStepView extends StatelessWidget {
                       size: 20,
                     ),
                   ],
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              // ─── OR GOOGLE SIGN IN ───
-              Center(
-                child: GestureDetector(
-                  onTap: onGoogleSignIn,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 7,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: const Color(0xFFE5E7EB),
-                      ),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 18,
-                          height: 18,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              'G',
-                              style: GoogleFonts.outfit(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w900,
-                                color: const Color(0xFF4285F4),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Flexible(
-                          child: Text(
-                            'Continue with Google',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.poppins(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF374151),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                 ),
               ),
             ],

@@ -55,6 +55,9 @@ class RegisterPartnerStepView extends StatefulWidget {
   final VoidCallback onSkip;
   final bool isKeyboardOpen;
 
+  /// True while the partner link is being saved.
+  final bool isSaving;
+
   const RegisterPartnerStepView({
     super.key,
     required this.partnerNameController,
@@ -64,10 +67,12 @@ class RegisterPartnerStepView extends StatefulWidget {
     required this.onSave,
     required this.onSkip,
     this.isKeyboardOpen = false,
+    this.isSaving = false,
   });
 
   @override
-  State<RegisterPartnerStepView> createState() => _RegisterPartnerStepViewState();
+  State<RegisterPartnerStepView> createState() =>
+      _RegisterPartnerStepViewState();
 }
 
 class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
@@ -137,7 +142,10 @@ class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
@@ -187,7 +195,10 @@ class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
                 ),
                 const SizedBox(height: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(14),
@@ -234,7 +245,7 @@ class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
                 // Skip Button inside scrollable
                 Center(
                   child: TextButton(
-                    onPressed: widget.onSkip,
+                    onPressed: widget.isSaving ? null : widget.onSkip,
                     child: Text(
                       'Skip for now',
                       style: GoogleFonts.poppins(
@@ -259,7 +270,7 @@ class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: isValid ? widget.onSave : null,
+            onPressed: isValid && !widget.isSaving ? widget.onSave : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF5277),
               disabledBackgroundColor: const Color(0xFFE5E7EB),
@@ -268,29 +279,40 @@ class _RegisterPartnerStepViewState extends State<RegisterPartnerStepView> {
               ),
               elevation: 0,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    'Save & Continue',
-                    style: GoogleFonts.poppins(
-                      fontSize: 15.5,
-                      fontWeight: FontWeight.w600,
-                      color: isValid ? Colors.white : const Color(0xFF9CA3AF),
+            child: widget.isSaving
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
                     ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          'Save & Continue',
+                          style: GoogleFonts.poppins(
+                            fontSize: 15.5,
+                            fontWeight: FontWeight.w600,
+                            color: isValid
+                                ? Colors.white
+                                : const Color(0xFF9CA3AF),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward_rounded,
+                        color: isValid ? Colors.white : const Color(0xFF9CA3AF),
+                        size: 20,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_rounded,
-                  color: isValid ? Colors.white : const Color(0xFF9CA3AF),
-                  size: 20,
-                ),
-              ],
-            ),
           ),
         ),
       ],

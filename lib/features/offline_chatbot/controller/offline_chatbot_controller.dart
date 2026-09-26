@@ -521,11 +521,23 @@ class OfflineChatbotController extends GetxController {
     // Silent here. This runs while the app is starting up, which may be with
     // the mother still on the home screen — the week's message is spoken when
     // she opens Ask Allo and can see who is talking. See [openConversation].
-    final started = await startInitialIntentFlow();
-    if (!started) {
-      _greet();
+    //
+    // Its actions are held back too: the Home AlloBaby card runs this same
+    // flow and performs them once it has said the words, so running them here
+    // as well would open every sheet twice — once behind the home screen.
+    _startingUp = true;
+    try {
+      final started = await startInitialIntentFlow();
+      if (!started) {
+        _greet();
+      }
+    } finally {
+      _startingUp = false;
     }
   }
+
+  /// True while [_startInitialFlowOrGreet] runs; see there.
+  bool _startingUp = false;
 
   /// Opens Ask Allo on the week's message, and lets the baby say it out loud.
   ///
@@ -945,74 +957,91 @@ class OfflineChatbotController extends GetxController {
         //
         // Printed and then read out one at a time, so the words appear as they
         // are spoken rather than all at once ahead of the voice.
-        final spoken = [
-          for (final utterance in segment.utterances)
-            if (!utterance.isEmpty) utterance,
-        ];
+        final lines = segment.utterances;
         // The choices belong to the step the flow is waiting on, so they ride
         // on the last message this part of the turn actually prints — not on a
         // step that only carried a recording and no words.
-        final lastPrinted = spoken.lastIndexWhere((u) => u.text.isNotEmpty);
-
-        for (var i = 0; i < spoken.length; i++) {
-          final utterance = spoken[i];
-
-          if (utterance.text.isNotEmpty) {
-            show(
-              OfflineChatMessage(
-                text: utterance.text,
-                audioUrls: utterance.hasAudio ? [utterance.audioUrl!] : const [],
-                options: i == lastPrinted ? segment.options : const [],
-              ),
-            );
-          }
-
-          if (speak) {
-            final saidAloud = await _speakReplyIfEnabled(
-              utterance.text,
-              audioUrl: utterance.audioUrl,
-              recordedOnly: recordedOnly,
-            );
-            // She may have sent something else, or reset, while it was being
-            // read; the rest of this reply belongs to a turn she has left.
-            if (_delivery != delivery) return;
-
-            // Nothing was heard — the voice is off, or this step has no
-            // recording to play. The step still gets its moment, so the turn
-            // reads as a conversation rather than arriving all at once.
-            if (!saidAloud && utterance.text.isNotEmpty) {
-              await Future.delayed(_readingPause(utterance.text));
-              if (_delivery != delivery) return;
-            }
-          }
-        }
-        for (final url in segment.imageUrls) {
-          show(OfflineChatMessage(text: '', imageUrl: url));
-        }
+        final lastPrinted = lines.lastIndexWhere((u) => u.text.isNotEmpty);
 
         // Effects run after the words about them, not before: a step that
         // says "Let me take you to the community" and then navigates used to
         // fire the navigation the instant it was scheduled — often before the
-        // line had even finished appearing.
+        // line had even finished appearing. Nor after the whole segment:
+        // steps with no delay between them share one, and "open breakfast"
+        // must not wait for the water reminder that follows it to be read.
+        // See [BotSegment.actionsAt].
         //
-        // [speak] already pays this cost in the loop above — each utterance is
-        // awaited through its own playback or [_readingPause] — so the voice
-        // has finished by the time we get here. Without a voice (Chat, where
-        // every bubble types itself out — see [OfflineChatMessageBubble]'s
-        // streaming text) nothing paced the wait, so it is measured the same
-        // way the bubble times its own reveal, plus a beat so the move reads
-        // as a response to what was just said rather than something that
-        // happened to the message mid-word.
-        if (segment.actions.isNotEmpty) {
+        // With [speak], the line has been awaited through its own playback or
+        // [_readingPause] by the time its actions run. Without a voice (Chat,
+        // where every bubble types itself out — see
+        // [OfflineChatMessageBubble]'s streaming text) nothing paced the wait,
+        // so it is measured the same way the bubble times its own reveal, plus
+        // a beat so the move reads as a response to what was just said rather
+        // than something that happened to the message mid-word.
+        Future<bool> runActionsAt(int count, String saidBefore) async {
+          final queued = segment.actionsAt(count);
+          if (queued.isEmpty) return true;
           answered = true;
-          final combinedText = spoken.map((u) => u.text).join(' ').trim();
-          final pause = speak || combinedText.isEmpty
+          final pause = speak || saidBefore.isEmpty
               ? const Duration(seconds: 1)
-              : _textRevealPause(combinedText) + const Duration(seconds: 1);
+              : _textRevealPause(saidBefore) + const Duration(seconds: 1);
           await Future.delayed(pause);
-          if (_delivery != delivery) return;
-          await _runActions(segment.actions);
-          if (_delivery != delivery) return;
+          if (_delivery != delivery) return false;
+          await _runActions(queued);
+          return _delivery == delivery;
+        }
+
+        if (!await runActionsAt(0, '')) return;
+
+        for (var i = 0; i < lines.length; i++) {
+          final utterance = lines[i];
+          final isLast = i == lines.length - 1;
+
+          if (!utterance.isEmpty) {
+            if (utterance.text.isNotEmpty) {
+              show(
+                OfflineChatMessage(
+                  text: utterance.text,
+                  audioUrls:
+                      utterance.hasAudio ? [utterance.audioUrl!] : const [],
+                  options: i == lastPrinted ? segment.options : const [],
+                ),
+              );
+            }
+
+            if (speak) {
+              final saidAloud = await _speakReplyIfEnabled(
+                utterance.text,
+                audioUrl: utterance.audioUrl,
+                recordedOnly: recordedOnly,
+              );
+              // She may have sent something else, or reset, while it was being
+              // read; the rest of this reply belongs to a turn she has left.
+              if (_delivery != delivery) return;
+
+              // Nothing was heard — the voice is off, or this step has no
+              // recording to play. The step still gets its moment, so the turn
+              // reads as a conversation rather than arriving all at once.
+              if (!saidAloud && utterance.text.isNotEmpty) {
+                await Future.delayed(_readingPause(utterance.text));
+                if (_delivery != delivery) return;
+              }
+            }
+          }
+
+          // The segment's images come after its words and before whatever
+          // the flow queued at its very end, as they always have.
+          if (isLast) {
+            for (final url in segment.imageUrls) {
+              show(OfflineChatMessage(text: '', imageUrl: url));
+            }
+          }
+          if (!await runActionsAt(i + 1, utterance.text.trim())) return;
+        }
+        if (lines.isEmpty) {
+          for (final url in segment.imageUrls) {
+            show(OfflineChatMessage(text: '', imageUrl: url));
+          }
         }
       }
 
@@ -1312,6 +1341,12 @@ class OfflineChatbotController extends GetxController {
   /// becomes a system line, because silently doing nothing would leave the
   /// flow's next message claiming something that never happened.
   Future<void> _runActions(List<Map<String, dynamic>> actions) async {
+    // The controller boots with the app, so the initial flow can run while
+    // she is still on language selection or login. Its actions open sheets
+    // and pages over those screens and log against a user who does not exist
+    // yet — nothing a flow asks for happens until there is a session.
+    if (_startingUp || !MainController.instance.isAuthenticated) return;
+
     for (final action in _collapseNavigationActions(actions)) {
       if (action['executed'] == true) {
         final dynamic res = action['result'];
@@ -1347,6 +1382,28 @@ class OfflineChatbotController extends GetxController {
       }
       if (result.message != null && result.message!.isNotEmpty) {
         messages.add(OfflineChatMessage(text: result.message!, isSystem: true));
+      }
+    }
+  }
+
+  /// Performs the side effects of a [runDetachedTurn] reply — the same
+  /// actions the chat runs, but nothing is written to the chat transcript:
+  /// whatever the action hands back goes into [session] instead.
+  Future<void> runDetachedActions(
+    List<Map<String, dynamic>> actions, {
+    required BotSession session,
+  }) async {
+    // Same rule as [_runActions]: no sheets or pages before there is a user.
+    if (!MainController.instance.isAuthenticated) return;
+
+    for (final action in _collapseNavigationActions(actions)) {
+      if (action['executed'] == true) continue;
+      final result = await OfflineChatbotActions.run(
+        action['name']?.toString(),
+        action['data'],
+      );
+      if (result.handled && result.data.isNotEmpty) {
+        session.data.addAll(result.data);
       }
     }
   }

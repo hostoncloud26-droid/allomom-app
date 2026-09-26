@@ -190,7 +190,9 @@ class FamilyDetailsStepView extends StatelessWidget {
           color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFFE5E7EB),
+            color: isSelected
+                ? const Color(0xFFFF4E6A)
+                : const Color(0xFFE5E7EB),
             width: isSelected ? 2 : 1.2,
           ),
           boxShadow: [
@@ -209,9 +211,7 @@ class FamilyDetailsStepView extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
-              child: Center(
-                child: Icon(icon, color: iconColor, size: 24),
-              ),
+              child: Center(child: Icon(icon, color: iconColor, size: 24)),
             ),
             const SizedBox(height: 8),
             Text(
@@ -219,7 +219,9 @@ class FamilyDetailsStepView extends StatelessWidget {
               style: GoogleFonts.outfit(
                 fontSize: 17,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF1E2024),
+                color: isSelected
+                    ? const Color(0xFFFF4E6A)
+                    : const Color(0xFF1E2024),
               ),
             ),
             Text(

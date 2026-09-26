@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/features/auth/register_flow/register_flow_page.dart';
 
@@ -53,9 +54,17 @@ class KidsDetailsPage extends StatelessWidget {
   }
 }
 
-class KidsDetailsStepView extends StatelessWidget {
+class KidsDetailsStepView extends StatefulWidget {
   final List<Baby> children;
-  final VoidCallback onAddChild;
+
+  /// Called with the new birth record id once a child is added inline.
+  final ValueChanged<String> onChildAdded;
+
+  /// Called with each question the baby asks while a child is being added.
+  final ValueChanged<String>? onNarrate;
+
+  /// Called when the inline add form is closed without saving.
+  final VoidCallback? onAddCancelled;
   final void Function(Baby baby)? onDeleteChild;
   final String? deletingChildId;
   final bool isLoading;
@@ -65,7 +74,9 @@ class KidsDetailsStepView extends StatelessWidget {
   const KidsDetailsStepView({
     super.key,
     required this.children,
-    required this.onAddChild,
+    required this.onChildAdded,
+    this.onNarrate,
+    this.onAddCancelled,
     this.onDeleteChild,
     this.deletingChildId,
     required this.isLoading,
@@ -73,10 +84,43 @@ class KidsDetailsStepView extends StatelessWidget {
     required this.onComplete,
   });
 
+  @override
+  State<KidsDetailsStepView> createState() => _KidsDetailsStepViewState();
+}
+
+class _KidsDetailsStepViewState extends State<KidsDetailsStepView> {
+  /// Whether the card shows the add-child stepper instead of the list.
+  bool _adding = false;
+
+  List<Baby> get children => widget.children;
+  void Function(Baby baby)? get onDeleteChild => widget.onDeleteChild;
+  String? get deletingChildId => widget.deletingChildId;
+  bool get isLoading => widget.isLoading;
+  bool get isNewMom => widget.isNewMom;
+  VoidCallback get onComplete => widget.onComplete;
+
+  void onAddChild() => setState(() => _adding = true);
+
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
   @override
   Widget build(BuildContext context) {
+    if (_adding) {
+      return BabyFormSteps(
+        title: 'Add a child',
+        expand: true,
+        onNarrate: widget.onNarrate,
+        onCancel: () {
+          setState(() => _adding = false);
+          widget.onAddCancelled?.call();
+        },
+        onSaved: (id) {
+          setState(() => _adding = false);
+          widget.onChildAdded(id);
+        },
+      );
+    }
+
     final bool isRequirementMet = !isNewMom || children.isNotEmpty;
 
     return Column(
@@ -102,7 +146,10 @@ class KidsDetailsStepView extends StatelessWidget {
                     GestureDetector(
                       onTap: onAddChild,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFFF0F3),
                           borderRadius: BorderRadius.circular(12),
@@ -184,7 +231,12 @@ class KidsDetailsStepView extends StatelessWidget {
                           children: [
                             Container(
                               width: 160,
-                              padding: const EdgeInsets.fromLTRB(12, 10, 26, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                26,
+                                10,
+                              ),
                               decoration: BoxDecoration(
                                 color: isDeleting
                                     ? const Color(0xFFF3F4F6)
@@ -230,7 +282,9 @@ class KidsDetailsStepView extends StatelessWidget {
                                 top: 4,
                                 right: 4,
                                 child: InkWell(
-                                  onTap: isDeleting ? null : () => onDeleteChild!(child),
+                                  onTap: isDeleting
+                                      ? null
+                                      : () => onDeleteChild!(child),
                                   borderRadius: BorderRadius.circular(12),
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
@@ -239,7 +293,9 @@ class KidsDetailsStepView extends StatelessWidget {
                                       shape: BoxShape.circle,
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.08),
+                                          color: Colors.black.withValues(
+                                            alpha: 0.08,
+                                          ),
                                           blurRadius: 4,
                                           offset: const Offset(0, 1),
                                         ),

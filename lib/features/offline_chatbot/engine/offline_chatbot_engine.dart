@@ -369,6 +369,21 @@ class BotSegment {
   /// Every clip this bubble carries, in order.
   List<String> get audioUrls =>
       [for (final u in utterances) if (u.hasAudio) u.audioUrl!];
+
+  /// The actions the flow queued once [count] of this segment's [utterances]
+  /// had been said. Steps without a delay between them share a segment, so
+  /// "let me open breakfast", its sheet, "now water", its sheet all land in
+  /// one — running every action after the last line would open breakfast
+  /// only once the water reminder had already been read.
+  List<Map<String, dynamic>> actionsAt(int count) => [
+        for (final action in actions)
+          if (((action[actionPositionKey] as int?) ?? utterances.length) ==
+              count)
+            action,
+      ];
+
+  /// Where in [utterances] an action was queued; see [actionsAt].
+  static const actionPositionKey = '_after';
 }
 
 /// A turn's answer, as the ordered parts the UI should deliver.
@@ -442,8 +457,18 @@ class BotReply {
   void setOptions(List<String> options) => _current().options = options;
 
   void addAction(Map<String, dynamic> action) {
-    _current().actions.add(action);
-    actions.add(action);
+    final segment = _current();
+    // Closes the step's utterance first, so words a later step says are not
+    // appended to the line this action follows.
+    _open = null;
+    // A copy: the step's payload may also sit in the session under its save
+    // key, and the position is the reply's business, not the flow's.
+    final queued = {
+      ...action,
+      BotSegment.actionPositionKey: segment.utterances.length,
+    };
+    segment.actions.add(queued);
+    actions.add(queued);
   }
 
   String get text =>

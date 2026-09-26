@@ -110,7 +110,10 @@ class RegisterEddStepView extends StatelessWidget {
                   // Due Date Display Box
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [Color(0xFFFFF0F3), Color(0xFFFFE4E8)],
@@ -124,7 +127,9 @@ class RegisterEddStepView extends StatelessWidget {
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFFFF4E6A).withValues(alpha: 0.08),
+                          color: const Color(
+                            0xFFFF4E6A,
+                          ).withValues(alpha: 0.08),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),

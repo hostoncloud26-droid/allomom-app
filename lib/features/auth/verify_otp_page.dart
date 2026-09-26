@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/features/auth/widgets/otp_channel_sheet.dart';
 import 'package:allomom/features/auth/auth_flow_page.dart';
 
 class VerifyOtpPage extends StatelessWidget {
@@ -31,6 +32,9 @@ class VerifyOtpPage extends StatelessWidget {
 class VerifyOtpStepView extends StatelessWidget {
   final String phone;
   final String countryCode;
+
+  /// Where the code was sent, shown in the prompt. Null before the first send.
+  final String? channel;
   final List<TextEditingController> otpControllers;
   final List<FocusNode> otpFocusNodes;
   final int focusedIndex;
@@ -45,6 +49,7 @@ class VerifyOtpStepView extends StatelessWidget {
     super.key,
     required this.phone,
     this.countryCode = '+91',
+    this.channel,
     required this.otpControllers,
     required this.otpFocusNodes,
     this.focusedIndex = 0,
@@ -81,106 +86,103 @@ class VerifyOtpStepView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                RichText(
-                  text: TextSpan(
-                    text: 'Enter 6-Digit OTP sent to ',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: const Color(0xFF5A5D64),
-                    ),
-                    children: [
-                      TextSpan(
-                        text: '$countryCode $phone',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF1E2024),
+                  RichText(
+                    text: TextSpan(
+                      text: 'Enter 6-Digit OTP sent to ',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF5A5D64),
+                      ),
+                      children: [
+                        TextSpan(
+                          text: '$countryCode $phone',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF1E2024),
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (isTest) ...[
-                  const SizedBox(height: 6),
-                  InkWell(
-                    onTap: () {
-                      const code = '999777';
-                      for (int i = 0; i < 6; i++) {
-                        otpControllers[i].text = code[i];
-                      }
-                      otpFocusNodes[5].requestFocus();
-                      otpControllers[5].selection =
-                          const TextSelection.collapsed(offset: 1);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFF0F3),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                          color: const Color(0xFFFF8FA3),
-                        ),
-                      ),
-                      child: Text(
-                        '⚡ Test Number: Tap to fill 999777',
-                        style: GoogleFonts.poppins(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFFFF4E6A),
-                        ),
-                      ),
+                        if (channel != null)
+                          TextSpan(text: ' via ${OtpChannel.label(channel!)}'),
+                      ],
                     ),
                   ),
-                ],
-                SizedBox(height: isKeyboardOpen ? 8 : 14),
-
-                // ─── 6 DIGIT OTP BOXES ───
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: List.generate(
-                    6,
-                    (index) => _buildOtpBox(index),
-                  ),
-                ),
-
-                SizedBox(height: isKeyboardOpen ? 8 : 14),
-
-                // ─── RESEND OTP ROW ───
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    GestureDetector(
-                      onTap: onWhereCodeTapped,
-                      child: Text(
-                        "Didn't receive the code?",
-                        style: GoogleFonts.poppins(
-                          fontSize: 12.5,
-                          color: const Color(0xFF6B7280),
+                  if (isTest) ...[
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () {
+                        const code = '999777';
+                        for (int i = 0; i < 6; i++) {
+                          otpControllers[i].text = code[i];
+                        }
+                        otpFocusNodes[5].requestFocus();
+                        otpControllers[5].selection =
+                            const TextSelection.collapsed(offset: 1);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
                         ),
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: isResending ? null : onResendOtp,
-                      child: Text(
-                        isResending ? 'Sending...' : 'Resend OTP',
-                        style: GoogleFonts.poppins(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFFFF5277),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF0F3),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFF8FA3)),
+                        ),
+                        child: Text(
+                          '⚡ Test Number: Tap to fill 999777',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFFF4E6A),
+                          ),
                         ),
                       ),
                     ),
                   ],
-                ),
-              ],
+                  SizedBox(height: isKeyboardOpen ? 8 : 14),
+
+                  // ─── 6 DIGIT OTP BOXES ───
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(6, (index) => _buildOtpBox(index)),
+                  ),
+
+                  SizedBox(height: isKeyboardOpen ? 8 : 14),
+
+                  // ─── RESEND OTP ROW ───
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      GestureDetector(
+                        onTap: onWhereCodeTapped,
+                        child: Text(
+                          "Didn't receive the code?",
+                          style: GoogleFonts.poppins(
+                            fontSize: 12.5,
+                            color: const Color(0xFF6B7280),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: isResending ? null : onResendOtp,
+                        child: Text(
+                          isResending ? 'Sending...' : 'Resend OTP',
+                          style: GoogleFonts.poppins(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFFF5277),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-      ),
 
         const SizedBox(height: 12),
 
@@ -259,7 +261,9 @@ class VerifyOtpStepView extends StatelessWidget {
       }
       final targetIndex = (index + digits.length).clamp(0, 5);
       otpFocusNodes[targetIndex].requestFocus();
-      otpControllers[targetIndex].selection = const TextSelection.collapsed(offset: 1);
+      otpControllers[targetIndex].selection = const TextSelection.collapsed(
+        offset: 1,
+      );
       return;
     }
 
@@ -293,8 +297,8 @@ class VerifyOtpStepView extends StatelessWidget {
               color: isFocused
                   ? const Color(0xFFFF5277)
                   : isFilled
-                      ? const Color(0xFFFF8FA3)
-                      : const Color(0xFFE5E7EB),
+                  ? const Color(0xFFFF8FA3)
+                  : const Color(0xFFE5E7EB),
               width: isFocused ? 2 : 1.5,
             ),
           ),

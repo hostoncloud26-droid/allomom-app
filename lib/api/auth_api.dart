@@ -13,6 +13,7 @@ class AuthResult {
     this.name,
     this.phone,
     this.userName,
+    this.joinedFamily,
   });
 
   final String accessToken;
@@ -31,6 +32,11 @@ class AuthResult {
   final String? phone;
   final String? userName;
 
+  /// Set when this sign-in claimed an account a partner had already created
+  /// for this phone. The server marks such an account registered, so there is
+  /// no registration flow to go through.
+  final JoinedFamily? joinedFamily;
+
   static AuthResult? fromItem(dynamic item) {
     if (item is! Map) return null;
     final access = item['access_token'];
@@ -46,27 +52,72 @@ class AuthResult {
       name: item['name'] as String?,
       phone: item['phone'] as String?,
       userName: item['user_name'] as String?,
+      joinedFamily: JoinedFamily.fromItem(item['joined_family']),
     );
+  }
+}
+
+/// The household a partner was added to before they ever signed in.
+class JoinedFamily {
+  const JoinedFamily({this.familyName, this.addedByName, this.addedByRelation});
+
+  final String? familyName;
+  final String? addedByName;
+
+  /// What the person who added them is to them, e.g. "wife" / "husband".
+  final String? addedByRelation;
+
+  static JoinedFamily? fromItem(dynamic item) {
+    if (item is! Map) return null;
+    return JoinedFamily(
+      familyName: item['family_name'] as String?,
+      addedByName: item['added_by_name'] as String?,
+      addedByRelation: item['added_by_relation'] as String?,
+    );
+  }
+
+  /// "Your wife Priya has already added you to Priya's Family."
+  String get welcomeMessage {
+    final relation = (addedByRelation ?? '').trim();
+    final name = (addedByName ?? '').trim();
+    final who = [
+      if (relation.isNotEmpty) 'Your $relation' else 'Your partner',
+      if (name.isNotEmpty) name,
+    ].join(' ');
+    final family = (familyName ?? '').trim();
+    return family.isEmpty
+        ? '$who has already added you to the family.'
+        : '$who has already added you to $family.';
   }
 }
 
 /// `/auth` — phone + OTP sign-in.
 class AuthApi {
   /// Sends a one-time code to [phone]. Unauthenticated by definition.
-  static Future<APIResponse> sendOtp(String phone, {String countryCode = '+91'}) {
-    return ApiBase.post(
-      '/auth/send-otp',
-      {'phone': phone, 'country_code': countryCode},
-      withAuth: false,
-    );
+  ///
+  /// [channel] is `whatsapp` or `sms`; omitted, the server sends over both.
+  static Future<APIResponse> sendOtp(
+    String phone, {
+    String countryCode = '+91',
+    String? channel,
+  }) {
+    return ApiBase.post('/auth/send-otp', {
+      'phone': phone,
+      'country_code': countryCode,
+      if (channel != null) 'channel': channel,
+    }, withAuth: false);
   }
 
-  static Future<APIResponse> resendOtp(String phone, {String countryCode = '+91'}) {
-    return ApiBase.post(
-      '/auth/resend-otp',
-      {'phone': phone, 'country_code': countryCode},
-      withAuth: false,
-    );
+  static Future<APIResponse> resendOtp(
+    String phone, {
+    String countryCode = '+91',
+    String? channel,
+  }) {
+    return ApiBase.post('/auth/resend-otp', {
+      'phone': phone,
+      'country_code': countryCode,
+      if (channel != null) 'channel': channel,
+    }, withAuth: false);
   }
 
   /// Verifies [otp] and signs in, creating the account if the phone is new.
@@ -80,24 +131,18 @@ class AuthApi {
     String? deviceType,
     String? fcmToken,
   }) {
-    return ApiBase.post(
-      '/auth/verify-otp',
-      {
-        'phone': phone,
-        'otp': otp,
-        'country_code': countryCode,
-        'device': {'device_type': deviceType, 'fcm_token': fcmToken},
-      },
-      withAuth: false,
-    );
+    return ApiBase.post('/auth/verify-otp', {
+      'phone': phone,
+      'otp': otp,
+      'country_code': countryCode,
+      'device': {'device_type': deviceType, 'fcm_token': fcmToken},
+    }, withAuth: false);
   }
 
   static Future<APIResponse> refresh(String refreshToken) {
-    return ApiBase.post(
-      '/auth/refresh',
-      {'refresh_token': refreshToken},
-      withAuth: false,
-    );
+    return ApiBase.post('/auth/refresh', {
+      'refresh_token': refreshToken,
+    }, withAuth: false);
   }
 
   static Future<APIResponse> logout({bool allDevices = false}) {

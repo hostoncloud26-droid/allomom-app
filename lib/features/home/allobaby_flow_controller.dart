@@ -86,15 +86,21 @@ class AlloBabyFlowController extends ChangeNotifier {
           );
           if (generation != _generation) return;
         }
-        for (final utterance in segment.utterances) {
-          if (utterance.isEmpty) continue;
-          final text = utterance.text.trim();
-          if (text.isNotEmpty) {
-            line = text;
-            notifyListeners();
+        // Each action runs right after the line it follows, not once the
+        // whole segment has been said — see [BotSegment.actionsAt].
+        if (!await _runActionsAt(segment, 0, generation)) return;
+        for (var i = 0; i < segment.utterances.length; i++) {
+          final utterance = segment.utterances[i];
+          if (!utterance.isEmpty) {
+            final text = utterance.text.trim();
+            if (text.isNotEmpty) {
+              line = text;
+              notifyListeners();
+            }
+            await _say(text, utterance.audioUrl);
+            if (generation != _generation) return;
           }
-          await _say(text, utterance.audioUrl);
-          if (generation != _generation) return;
+          if (!await _runActionsAt(segment, i + 1, generation)) return;
         }
       }
       options = reply.options;
@@ -104,6 +110,23 @@ class AlloBabyFlowController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  /// Runs the actions queued after [count] of [segment]'s lines. False when
+  /// the run was stopped or superseded meanwhile — a sheet waits on her, so
+  /// that can happen while one is open.
+  Future<bool> _runActionsAt(
+    BotSegment segment,
+    int count,
+    int generation,
+  ) async {
+    final actions = segment.actionsAt(count);
+    if (actions.isEmpty) return true;
+    await OfflineChatbotController.instance.runDetachedActions(
+      actions,
+      session: _session,
+    );
+    return generation == _generation;
   }
 
   /// Reads one step aloud, or gives it a reading pause when the voice is off,
