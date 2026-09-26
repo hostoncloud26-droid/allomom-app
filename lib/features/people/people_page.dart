@@ -7,8 +7,10 @@ import 'package:allomom/config/spacings.dart';
 import 'package:allomom/services/sq_lite/services/family_db_service.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 import 'package:allomom/features/people/widgets/scan_qr_page.dart';
+import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
@@ -74,9 +76,18 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
-    await FamilyController.instance.refreshFromServer();
+    final refreshed = await FamilyController.instance.refreshFromServer();
     if (!mounted) return;
     await _loadFamilyDataInner();
+    if (!refreshed && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't refresh your family list — showing the last saved version.",
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _loadFamilyDataInner() async {
@@ -102,6 +113,12 @@ class _PeoplePageState extends State<PeoplePage> {
       final members = await FamilyDbService.instance.getFamilyMembers(
         family.id,
       );
+      // Babies aren't family members server-side — they live in their own
+      // table (BabyRepository) — so they never come back from
+      // getFamilyMembers. The card below still wants to show them (with the
+      // baby icon that opens Baby Journey), so they're merged in here as
+      // members shaped the same way the real ones are.
+      final babies = await BabyRepository.instance.getBabies();
       if (!mounted) return;
       setState(() {
         _familyData = {
@@ -111,18 +128,28 @@ class _PeoplePageState extends State<PeoplePage> {
           'profileImage': family.profileImage,
           'bannerImage': family.bannerImage,
         };
-        _apiFamilyMembers = members
-            .map(
-              (m) => {
-                'userid': m.userId,
-                'id': m.userId,
-                'name': m.name,
-                'phone': m.phone ?? '',
-                'relation': m.relation,
-                'image': m.image,
-              },
-            )
-            .toList();
+        _apiFamilyMembers = [
+          ...members.map(
+            (m) => {
+              'userid': m.userId,
+              'id': m.userId,
+              'name': m.name,
+              'phone': m.phone ?? '',
+              'relation': m.relation,
+              'image': m.image,
+            },
+          ),
+          ...babies.map(
+            (b) => {
+              'userid': 'baby_${b.id}',
+              'id': 'baby_${b.id}',
+              'name': b.name,
+              'phone': '',
+              'relation': 'child',
+              'image': null,
+            },
+          ),
+        ];
         _isLoadingFamily = false;
       });
     } catch (e) {
@@ -301,7 +328,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
   Widget _buildNoFamilyCard() {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _p.card,
         borderRadius: BorderRadius.circular(28),
@@ -433,45 +460,71 @@ class _PeoplePageState extends State<PeoplePage> {
       decoration: BoxDecoration(
         color: _p.tint(const Color(0xFF10B981), const Color(0xFFEAF8F5)),
         borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Illustration graphic area
-          SizedBox(
-            height: 140,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: CustomPaint(painter: _FamilyTreeIllustrationPainter()),
+          // Illustration banner graphic area
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                width: double.infinity,
+                height: 190,
+                decoration: const BoxDecoration(
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Color(0xFFFFF0F5),
+                      Color(0xFFF3FBF9),
+                    ],
+                  ),
                 ),
+                child: Center(
+                  child: Icon(
+                    Icons.family_restroom_rounded,
+                    size: 84,
+                    color: primaryColor.withValues(alpha: 0.35),
+                  ),
+                ),
+              ),
+              if (_familyData?['profileImage'] != null &&
+                  _familyData!['profileImage'].toString().isNotEmpty)
                 Positioned(
                   left: 20,
-                  bottom: -15,
+                  bottom: -18,
                   child: Container(
-                    width: 76,
-                    height: 76,
+                    width: 60,
+                    height: 60,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: _p.tint(primaryColor, const Color(0xFFFCE7F0)),
                       border: Border.all(color: _p.card, width: 3),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withValues(alpha: 0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
                         ),
                       ],
-                    ),
-                    child: const Center(
-                      child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 38)),
+                      image: DecorationImage(
+                        image: NetworkImage(_familyData!['profileImage']),
+                        fit: BoxFit.cover,
+                      ),
                     ),
                   ),
                 ),
-              ],
-            ),
+            ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
           // Title & member count & family code
           Padding(
@@ -615,11 +668,33 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'M';
     final isSelf = userId != null && userId == MainController.instance.userId;
+    final isChild = relLower.contains('child');
+    // Exact match, not the `isChild` substring check above — that one also
+    // matches a manually-added "Children" member, who has no underlying baby
+    // record and is fine to remove normally. This is specifically the baby
+    // the server auto-adds (relation is literally "child"), which is tied to
+    // a real Baby record elsewhere; removing it here would desync the two,
+    // so the only way to remove it is deleting the baby record itself.
+    final isAutoAddedBaby = relLower == 'child';
+
+    // The baby has no chat of its own — its card opens Baby Journey (care and
+    // growth tracking) instead of the inert chat button every other member
+    // gets today.
+    final trailingIcon = isChild
+        ? Icons.child_friendly_rounded
+        : Icons.chat_bubble_outline_rounded;
+    final onTrailingTap = isChild
+        ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+            )
+        : null;
 
     // Self-removal isn't offered here — the only way to leave a family is
     // "Delete Family", and that's only ever available once you're the sole
-    // remaining member. So your own row doesn't swipe at all.
-    if (isSelf) {
+    // remaining member. So your own row doesn't swipe at all. The auto-added
+    // baby doesn't swipe either, for the reason noted above.
+    if (isSelf || isAutoAddedBaby) {
       return _buildFamilyMemberCard(
         name: name,
         phone: phone,
@@ -629,6 +704,8 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
       );
     }
 
@@ -716,6 +793,8 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
       ),
     );
   }
@@ -1088,6 +1167,10 @@ class _PeoplePageState extends State<PeoplePage> {
     required String avatarLetter,
     required Color avatarBg,
     required Color avatarLetterColor,
+    // Only the baby's card has a trailing action (opens Baby Journey) — every
+    // other member has nothing to tap here, so no button is shown for them.
+    IconData trailingIcon = Icons.chat_bubble_outline_rounded,
+    VoidCallback? onTrailingTap,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1189,20 +1272,25 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
 
-          // Chat Action Button
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: primaryColor.withValues(alpha: 0.08),
+          // Trailing action — only the baby's card has one (opens Baby
+          // Journey). Every other member gets no button here.
+          if (onTrailingTap != null)
+            GestureDetector(
+              onTap: onTrailingTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primaryColor.withValues(alpha: 0.08),
+                ),
+                child: Icon(
+                  trailingIcon,
+                  color: primaryColor,
+                  size: 18,
+                ),
+              ),
             ),
-            child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: primaryColor,
-              size: 18,
-            ),
-          ),
         ],
       ),
     );
@@ -1222,6 +1310,7 @@ class _PeoplePageState extends State<PeoplePage> {
           familyID: _familyData?['id']?.toString(),
           onMemberAdded: _loadFamilyData,
           initialRelationship: initialRelationship,
+          existingMembers: _apiFamilyMembers,
         );
       },
     );
@@ -1680,75 +1769,3 @@ class _PeoplePageState extends State<PeoplePage> {
   }
 }
 
-// Custom Painter for the Family Banner illustration background
-class _FamilyTreeIllustrationPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paintTree = Paint()
-      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
-      ..style = PaintingStyle.fill;
-
-    final paintStem = Paint()
-      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-
-    final w = size.width;
-    final h = size.height;
-
-    // Draw fence line
-    canvas.drawLine(Offset(0, h * 0.7), Offset(w, h * 0.7), paintStem);
-    for (double x = 40; x < w; x += 30) {
-      canvas.drawLine(Offset(x, h * 0.7), Offset(x, h * 0.8), paintStem);
-    }
-
-    // Draw stylized tree tops on sides
-    canvas.drawOval(Rect.fromLTWH(w * 0.05, 20, 60, 40), paintTree);
-    canvas.drawOval(Rect.fromLTWH(w * 0.12, 35, 55, 45), paintTree);
-
-    canvas.drawOval(Rect.fromLTWH(w * 0.75, 25, 60, 40), paintTree);
-    canvas.drawOval(Rect.fromLTWH(w * 0.82, 30, 50, 45), paintTree);
-
-    // Clouds
-    final paintCloud = Paint()
-      ..color = Colors.white.withValues(alpha: 0.7)
-      ..style = PaintingStyle.fill;
-    canvas.drawOval(Rect.fromLTWH(w * 0.2, 10, 50, 20), paintCloud);
-    canvas.drawOval(Rect.fromLTWH(w * 0.65, 12, 45, 18), paintCloud);
-
-    // Simple stylized family silhouettes in the middle
-    final paintRed = Paint()..color = const Color(0xFFE14B60);
-    final paintNavy = Paint()..color = const Color(0xFF334155);
-
-    // Person 1 (Mother)
-    canvas.drawCircle(Offset(w * 0.45, h * 0.4), 10, paintNavy);
-    final path1 = Path()
-      ..moveTo(w * 0.45, h * 0.48)
-      ..lineTo(w * 0.41, h * 0.7)
-      ..lineTo(w * 0.49, h * 0.7)
-      ..close();
-    canvas.drawPath(path1, paintRed);
-
-    // Person 2 (Father)
-    canvas.drawCircle(Offset(w * 0.53, h * 0.38), 11, paintNavy);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.505, h * 0.47, 15, 25),
-        const Radius.circular(4),
-      ),
-      paintNavy,
-    );
-
-    // Child
-    canvas.drawCircle(Offset(w * 0.61, h * 0.5), 7, paintNavy);
-    final pathChild = Path()
-      ..moveTo(w * 0.61, h * 0.55)
-      ..lineTo(w * 0.58, h * 0.7)
-      ..lineTo(w * 0.64, h * 0.7)
-      ..close();
-    canvas.drawPath(pathChild, paintRed);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

@@ -27,6 +27,7 @@ import 'package:allomom/features/my_health/vitals/meals/snacks_overview_screen.d
 import 'package:allomom/features/offline_chatbot/actions/baby_voice_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/log_care_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_action.dart';
+import 'package:allomom/features/offline_chatbot/actions/open_baby_milestones_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/open_page_action.dart';
 import 'package:allomom/features/offline_chatbot/actions/show_family_code_action.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
@@ -35,6 +36,7 @@ import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
+import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
@@ -44,6 +46,7 @@ import 'package:allomom/features/settings/settings_page.dart';
 
 export 'package:allomom/features/offline_chatbot/actions/baby_voice_action.dart';
 export 'package:allomom/features/offline_chatbot/actions/offline_chatbot_action.dart';
+export 'package:allomom/features/offline_chatbot/actions/open_baby_milestones_action.dart';
 export 'package:allomom/features/offline_chatbot/actions/open_page_action.dart';
 export 'package:allomom/features/offline_chatbot/actions/open_sheet_action.dart';
 
@@ -309,6 +312,15 @@ class OfflineChatbotActions {
 
   static const _logWater = LogWaterAction();
 
+  static const _openMilestones = OpenBabyMilestonesAction();
+
+  static final _openPregnancyPlanning = OpenPageAction(
+    name: 'open_pregnancy_planning',
+    description: 'Opens pregnancy registration, for planning ahead.',
+    label: 'Pregnancy Planning',
+    builder: (_) => const PregnancyConfirmationPage(),
+  );
+
   /// Every name a flow may use, with the aliases an author is likely to reach
   /// for. Matched case-insensitively after trimming.
   static final Map<String, OfflineChatbotAction> _registry = {
@@ -517,6 +529,59 @@ class OfflineChatbotActions {
     'open_health_section': _openHealth,
     'open_pregnancy_page': _openJourney,
     'open_reports_sheet': _openReports,
+
+    _openMilestones.name: _openMilestones,
+    'check_milestones': _openMilestones,
+
+    'open_add_milestone': _openMilestones,
+    'add_milestone': _openMilestones,
+
+    // No hospital-bag page of its own — it is a checkoff row on Today's Care,
+    // so the redirect goes to the checklist that already carries it.
+    'open_hospital_bag': _openTodayCare,
+    'hospital_bag': _openTodayCare,
+
+    _openPregnancyPlanning.name: _openPregnancyPlanning,
+    'pregnancy_planning': _openPregnancyPlanning,
+    'plan_baby': _openPregnancyPlanning,
+
+    // Due date / LMP live as fields on the profile editor, not a page apart.
+    'open_edit_pregnancy_status': _openEditProfile,
+    'edit_pregnancy_status': _openEditProfile,
+
+    // No standalone "tips" screen — the weekly narration lives on the
+    // pregnancy journey page, so that is where this redirect lands.
+    'show_pregnancy_tips': _openJourney,
+    'pregnancy_tips': _openJourney,
+
+    // "care_*" actions close out a flow's spoken tip (folic acid, anomaly
+    // scan, tummy time, ...); every one of them is a checkoff row on Today's
+    // Care, so they all redirect to that same checklist rather than silently
+    // ticking it off on her behalf.
+    'care_anomaly_scan': _openTodayCare,
+    'care_baby_bath': _openTodayCare,
+    'care_baby_nappies': _openTodayCare,
+    'care_baby_play': _openTodayCare,
+    'care_baby_safe_sleep': _openTodayCare,
+    'care_baby_vitamin_d': _openTodayCare,
+    'care_belly_care': _openTodayCare,
+    'care_birth_plan': _openTodayCare,
+    'care_calcium_tablet': _openTodayCare,
+    'care_first_anc': _openTodayCare,
+    'care_folic_acid': _openTodayCare,
+    'care_glucose_test': _openTodayCare,
+    'care_iron_tablet': _openTodayCare,
+    'care_labour_watch': _openTodayCare,
+    'care_left_side_sleep': _openTodayCare,
+    'care_nausea_care': _openTodayCare,
+    'care_nt_scan': _openTodayCare,
+    'care_pelvic_floor': _openTodayCare,
+    'care_perineal_massage': _openTodayCare,
+    'care_stretch': _openTodayCare,
+    'care_swelling_check': _openTodayCare,
+    'care_talk_to_baby': _openTodayCare,
+    'care_tdap': _openTodayCare,
+    'care_tummy_time': _openTodayCare,
   };
 
   /// Every action name a flow may use, for the builder's reference.

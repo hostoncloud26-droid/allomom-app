@@ -130,6 +130,15 @@ class FamilyDbService {
 
   // ---------------------- MEMBERS ----------------------
 
+  /// The placeholder name the backend gives a scrubbed account
+  /// (`account_deletion.py`'s `user.name = "Deleted user"`). The API's
+  /// `UserOut` never sends `deleted_at` for a member's user, so this literal
+  /// string is the only signal the app has that a cached member row belongs
+  /// to a deleted account — used to hide it even if the membership row
+  /// itself is stale (e.g. a failed `refreshFromServer` left it behind, or
+  /// it predates the server tombstoning removed members).
+  static const String _deletedUserPlaceholderName = 'Deleted user';
+
   /// Members of [familyId] paired with their user row when one exists locally.
   Future<List<FamilyMemberWithUser>> getFamilyMembers(String familyId) async {
     final db = await SqLiteService().database;
@@ -144,6 +153,10 @@ class FamilyDbService {
       if (uid != null && uid.isNotEmpty) {
         user = await (db.select(db.users)..where((t) => t.id.equals(uid)))
             .getSingleOrNull();
+      }
+      if (user != null &&
+          (user.deletedAt != null || user.name == _deletedUserPlaceholderName)) {
+        continue;
       }
       result.add(FamilyMemberWithUser(member: member, user: user));
     }
