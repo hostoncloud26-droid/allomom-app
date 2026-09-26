@@ -7,6 +7,7 @@ import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
+import 'package:allomom/features/settings/hospital/my_hospitals_page.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/components/language_selector.dart';
@@ -122,6 +123,19 @@ class _SettingsPageState extends State<SettingsPage> {
                       );
                       if (mounted) setState(() {});
                     },
+                  ),
+                  _buildItemDivider(),
+
+                  _buildListTile(
+                    icon: Icons.local_hospital_outlined,
+                    title: 'My Hospital',
+                    subtitle: 'Add, leave or remove your hospital',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyHospitalsPage(),
+                      ),
+                    ),
                   ),
                   _buildItemDivider(),
 

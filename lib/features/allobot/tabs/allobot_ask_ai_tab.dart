@@ -177,22 +177,8 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   /// Trigger phrases from the downloaded catalogue, falling back to a curated
   /// pool while nothing has been downloaded yet.
-  List<String> _drawOpeningSuggestions() {
-    final triggers = controller.sampleTriggers(limit: 10, randomize: true);
-    if (triggers.length >= 3) return triggers;
-
-    final pool = <String>[
-      'How is my baby this week?',
-      'What should I eat today?',
-      'Show my health vitals',
-      'When is my next checkup?',
-      'Open my reports',
-      'My baby is kicking',
-      'My baby is crying',
-      'What can you do?',
-    ]..shuffle();
-    return pool.take(6).toList();
-  }
+  List<String> _drawOpeningSuggestions() =>
+      alloBotOpeningSuggestions(controller);
 
   static const Set<String> _stopWords = {
     'the',
@@ -677,28 +663,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     });
   }
 
-  static const _heroGradient = LinearGradient(
-    colors: [Color(0xFF4285F4), Color(0xFF9B51E0), Color(0xFFE25584)],
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-  );
-
-  /// Markdown markers read as noise in the heading style, and the gradient
-  /// mask flattens emoji into solid blobs, so both are dropped.
-  static final RegExp _emoji = RegExp(
-    r'[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]',
-    unicode: true,
-  );
-
-  static String _plain(String markdown) => markdown
-      .replaceAll(_emoji, '')
-      .replaceAll(RegExp(r'[*_`#>]+'), '')
-      .replaceAllMapped(
-        RegExp(r'\[([^\]]*)\]\([^)]*\)'),
-        (m) => m.group(1) ?? '',
-      )
-      .trim();
-
   /// Before her first question: "Hello! I am AlloBaby" over the intro card.
   /// Afterwards the line being read out takes the heading's place, in the
   /// same gradient — no card.
@@ -712,7 +676,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
       content = GradientText(
         key: const ValueKey('typing'),
         text: 'Thinking…',
-        gradient: _heroGradient,
+        gradient: alloBotHeroGradient,
         style: GoogleFonts.outfit(
           fontSize: 24,
           fontWeight: FontWeight.w800,
@@ -720,37 +684,14 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         ),
       );
     } else if (reply != null && reply.trim().isNotEmpty) {
-      final text = _plain(reply);
-      // Short replies read as a headline; longer ones step down to fit.
-      final fontSize = text.length <= 60
-          ? 24.0
-          : text.length <= 140
-          ? 20.0
-          : 17.0;
-      content = ConstrainedBox(
-        key: ValueKey(text),
-        constraints: const BoxConstraints(maxHeight: 220),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: GradientText(
-            text: text,
-            gradient: _heroGradient,
-            style: GoogleFonts.outfit(
-              fontSize: fontSize,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-              height: 1.3,
-            ),
-          ),
-        ),
-      );
+      content = AlloBotHeroLine(key: ValueKey(reply), text: reply);
     } else {
       content = Column(
         key: const ValueKey('intro'),
         children: [
           GradientText(
             text: 'Hello! I am AlloBaby',
-            gradient: _heroGradient,
+            gradient: alloBotHeroGradient,
             style: GoogleFonts.outfit(
               fontSize: 26,
               fontWeight: FontWeight.w900,
@@ -758,7 +699,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             ),
           ),
           const SizedBox(height: 14),
-          _buildIntroCard(_plain(intro)),
+          _buildIntroCard(alloBotPlainText(intro)),
         ],
       );
     }
