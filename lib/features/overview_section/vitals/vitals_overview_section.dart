@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+
+import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
@@ -322,6 +324,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const StepsSummaryScreen(),
         icon: Icons.directions_walk_rounded,
+        image: QuickActionImages.steps,
         color: color,
         label: 'Steps',
         value: '$steps',
@@ -347,6 +350,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const StepsSummaryScreen(),
       icon: Icons.directions_walk_rounded,
+      image: QuickActionImages.steps,
       color: color,
       title: 'Steps',
       badge: _badge('$percent%', color, color.withValues(alpha: 0.1)),
@@ -384,6 +388,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const HeartRateSummaryScreen(),
         icon: Icons.favorite_rounded,
+        image: QuickActionImages.heartRate,
         color: color,
         label: 'Heart Rate',
         value: hasData ? '$heartRate' : '--',
@@ -403,6 +408,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const HeartRateSummaryScreen(),
       icon: Icons.favorite_rounded,
+      image: QuickActionImages.heartRate,
       color: color,
       title: 'Heart Alert',
       badge: _badge(
@@ -449,6 +455,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const SleepSummaryScreen(),
         icon: Icons.nights_stay_rounded,
+        image: QuickActionImages.sleep,
         color: color,
         label: 'Sleep',
         value: hasData ? sleepHours.toStringAsFixed(1) : '--',
@@ -489,6 +496,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const SleepSummaryScreen(),
       icon: Icons.nights_stay_rounded,
+      image: QuickActionImages.sleep,
       color: color,
       title: title,
       badge: _badge(statusText, statusFg, statusBg),
@@ -533,6 +541,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const StressSummaryScreen(),
         icon: Icons.psychology_rounded,
+        image: QuickActionImages.stress,
         color: color,
         label: 'Stress',
         value: hasData ? '$stress' : '--',
@@ -548,6 +557,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const StressSummaryScreen(),
       icon: Icons.psychology_rounded,
+      image: QuickActionImages.stress,
       color: color,
       title: 'Stress Level',
       badge: _badge(
@@ -586,6 +596,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _featureCard(
       page: const BloodOxygenSummaryScreen(),
       icon: Icons.opacity_rounded,
+      image: QuickActionImages.bloodOxygen,
       color: color,
       title: 'Oxygen Level (SpO2)',
       status: hasData ? (bloodOxygen >= 95 ? 'Healthy' : 'Low') : 'No data',
@@ -612,6 +623,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const BloodPressureSummaryScreen(),
         icon: Icons.monitor_heart_rounded,
+        image: QuickActionImages.bloodPressure,
         color: color,
         label: 'Blood Pressure',
         value: value,
@@ -626,6 +638,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const BloodPressureSummaryScreen(),
       icon: Icons.monitor_heart_rounded,
+      image: QuickActionImages.bloodPressure,
       color: color,
       title: 'Blood Pressure',
       badge: _badge(
@@ -657,6 +670,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
       return _compactCard(
         page: const BloodGlucoseSummaryScreen(),
         icon: Icons.water_drop_rounded,
+        image: QuickActionImages.bloodGlucose,
         color: color,
         label: 'Blood Glucose',
         value: value,
@@ -671,6 +685,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _wideCard(
       page: const BloodGlucoseSummaryScreen(),
       icon: Icons.water_drop_rounded,
+      image: QuickActionImages.bloodGlucose,
       color: color,
       title: 'Blood Glucose',
       badge: _badge(
@@ -708,6 +723,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     return _featureCard(
       page: const HemoglobinSummaryScreen(),
       icon: Icons.bloodtype_rounded,
+      image: QuickActionImages.hemoglobin,
       color: color,
       title: 'Hemoglobin (Hb)',
       status: hasData ? (healthy ? 'Healthy' : 'Low') : 'No data',
@@ -725,6 +741,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
   Widget _compactCard({
     required Widget page,
     required IconData icon,
+    String? image,
     required Color color,
     required String label,
     required String value,
@@ -743,7 +760,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _iconBubble(icon, color),
+              _iconBubble(icon, color, image: image),
               ?trailing,
             ],
           ),
@@ -829,6 +846,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
   Widget _wideCard({
     required Widget page,
     required IconData icon,
+    String? image,
     required Color color,
     required String title,
     required Widget badge,
@@ -853,7 +871,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
               Expanded(
                 child: Row(
                   children: [
-                    _iconBubble(icon, color),
+                    _iconBubble(icon, color, image: image),
                     const SizedBox(width: 8),
                     Flexible(
                       child: Text(
@@ -945,6 +963,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
   Widget _featureCard({
     required Widget page,
     required IconData icon,
+    String? image,
     required Color color,
     required String title,
     required String status,
@@ -965,14 +984,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
               Expanded(
                 child: Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(icon, color: color, size: 18),
-                    ),
+                    _iconBubble(icon, color, image: image, size: 18),
                     const SizedBox(width: 10),
                     Flexible(
                       child: Text(
@@ -1056,14 +1068,21 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     );
   }
 
-  Widget _iconBubble(IconData icon, Color color) {
+  /// The card's illustration, or a tinted icon for a card that has none.
+  Widget _iconBubble(
+    IconData icon,
+    Color color, {
+    String? image,
+    double size = 16,
+  }) {
+    if (image != null) return QuickActionImage(image, size: size + 16);
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         shape: BoxShape.circle,
       ),
-      child: Icon(icon, color: color, size: 16),
+      child: Icon(icon, color: color, size: size),
     );
   }
 

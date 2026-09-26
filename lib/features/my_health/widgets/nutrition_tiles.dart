@@ -12,6 +12,7 @@ import 'nutrition/drinks_tile.dart';
 import 'nutrition/health_tile_parts.dart';
 import 'nutrition/meal_tiles.dart';
 import 'nutrition/water_tile.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Daily water goal, in glasses.
 const int _waterTargetGlasses = 10;
@@ -224,6 +225,7 @@ class _NutritionTilesState extends State<NutritionTiles> {
         MealTile(
           label: 'Breakfast',
           color: breakfastColor,
+          image: QuickActionImages.breakfast,
           entries: _breakfast,
           emptyHint: 'Start your day by tracking your breakfast.',
           fallbackDetails: 'Healthy Breakfast',
@@ -235,6 +237,7 @@ class _NutritionTilesState extends State<NutritionTiles> {
         MealTile(
           label: 'Lunch',
           color: lunchColor,
+          image: QuickActionImages.lunch,
           entries: _lunch,
           emptyHint: 'Keep your energy up by tracking your lunch.',
           fallbackDetails: 'Healthy Lunch',
@@ -246,6 +249,7 @@ class _NutritionTilesState extends State<NutritionTiles> {
         MealTile(
           label: 'Dinner',
           color: dinnerColor,
+          image: QuickActionImages.dinner,
           entries: _dinner,
           emptyHint: 'Wrap up your day by tracking your dinner.',
           fallbackDetails: 'Healthy Dinner',

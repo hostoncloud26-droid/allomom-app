@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'health_tile_parts.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 String? _detailsOf(VitalsStreamResponse v) {
   final d = v.data;
@@ -30,10 +31,14 @@ class MealTile extends StatelessWidget {
   final VoidCallback onOpen;
   final VoidCallback onLog;
 
+  /// Quick Actions illustration for this meal.
+  final String? image;
+
   const MealTile({
     super.key,
     required this.label,
     required this.color,
+    this.image,
     required this.entries,
     required this.emptyHint,
     required this.fallbackDetails,
@@ -64,6 +69,7 @@ class MealTile extends StatelessWidget {
           HealthTileHeader(
             title: label,
             accent: color,
+            image: image,
             trailing: [HealthTileBadge(text: 'TRACKED', color: color)],
           ),
           const SizedBox(height: 18),
@@ -109,7 +115,12 @@ class MealTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          HealthTileHeader(title: label, accent: color, muted: true),
+          HealthTileHeader(
+            title: label,
+            accent: color,
+            muted: true,
+            image: image,
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -157,9 +168,9 @@ class SnacksTile extends StatelessWidget {
 
   /// Portions logged, honouring `data['count']` where a flow wrote one.
   int get _count => entries.fold<int>(0, (sum, v) {
-        final c = v.data?['count'];
-        return sum + (c is num && c > 0 ? c.toInt() : 1);
-      });
+    final c = v.data?['count'];
+    return sum + (c is num && c > 0 ? c.toInt() : 1);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +194,7 @@ class SnacksTile extends StatelessWidget {
           HealthTileHeader(
             title: 'Snacks',
             accent: color,
+            image: QuickActionImages.snacks,
             trailing: [HealthTileBadge(text: '$count HAD', color: color)],
           ),
           const SizedBox(height: 18),
@@ -252,7 +264,12 @@ class SnacksTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HealthTileHeader(title: 'Snacks', accent: color, muted: true),
+          const HealthTileHeader(
+            title: 'Snacks',
+            accent: color,
+            muted: true,
+            image: QuickActionImages.snacks,
+          ),
           const SizedBox(height: 16),
           Row(
             children: [

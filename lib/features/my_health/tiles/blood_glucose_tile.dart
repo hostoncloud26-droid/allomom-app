@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/blood_glucose/blood_glucose_su
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Blood glucose in AlloConnect's tile style: mg/dL, meal phase and a
 /// sparkline. Allomom stores it under `glucose` (older rows:
@@ -69,6 +70,7 @@ class BloodGlucoseTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.bloodtype_rounded,
+      image: QuickActionImages.bloodGlucose,
       title: 'Blood Glucose',
       value: value > 0 ? value.toStringAsFixed(0) : '--',
       unit: 'mg/dL',

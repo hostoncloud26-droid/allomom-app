@@ -6,6 +6,7 @@ import 'package:allomom/features/kick_counter/kick_counter_page.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Baby kicks in AlloConnect's tile style: the day's total against the
 /// count-to-10 goal, with the last 7 days as bars. Only meaningful in
@@ -72,6 +73,7 @@ class KickCountTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.pets_rounded,
+      image: QuickActionImages.kickCount,
       title: 'Kick Counter',
       value: total > 0 ? '$total' : '0',
       unit: 'kicks',

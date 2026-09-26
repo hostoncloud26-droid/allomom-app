@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/app_backdrop.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
@@ -439,7 +440,10 @@ class _HomePageState extends State<HomePage> {
       animation: MainController.instance,
       builder: (context, child) {
         return Scaffold(
-          backgroundColor: context.palette.scaffoldSoft,
+          backgroundColor: AppBackdrop.scaffoldColor(
+            context,
+            context.palette.scaffoldSoft,
+          ),
           body: SafeArea(
             bottom: false,
             child: Stack(

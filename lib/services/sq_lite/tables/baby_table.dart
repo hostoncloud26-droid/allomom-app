@@ -2,8 +2,9 @@ part of '../drift_database.dart';
 
 /// Mirrors `baby` in allomom-api-new.
 ///
-/// A baby always hangs off a pregnancy — that is the server's only route from a
-/// user to a baby, so [pregnancyId] is how ownership is established locally too.
+/// [pregnancyId] is set only for a baby born of a pregnancy tracked here; a
+/// previous child has none. Ownership runs through the mother's health record
+/// on the server, and every row in the local database is the household's.
 class Babies extends Table {
   @override
   String get tableName => 'baby';

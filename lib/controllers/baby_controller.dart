@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 
 import 'package:allomom/api/baby_api.dart';
-import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -54,19 +53,12 @@ class BabyController extends GetxController {
 
   Future<void> loadFromLocal() async {
     final db = await _db;
-    final pregnancyIds =
-        PregnancyController.instance.pregnancies.map((p) => p.id).toList();
 
-    if (pregnancyIds.isEmpty) {
-      reset();
-      return;
-    }
-
+    // Not filtered by pregnancy: a previous child has none, and the local
+    // database only ever holds the signed-in household's rows anyway.
     _babies =
         await (db.select(db.babies)
-              ..where(
-                (b) => b.pregnancyId.isIn(pregnancyIds) & b.deletedAt.isNull(),
-              )
+              ..where((b) => b.deletedAt.isNull())
               ..orderBy([(b) => drift.OrderingTerm.desc(b.deliveryDate)]))
             .get();
 
@@ -101,10 +93,9 @@ class BabyController extends GetxController {
 
   /// Adds a baby and pulls back the schedules the server seeded.
   ///
-  /// [pregnancyId] may be omitted: the server attaches the baby to the most
-  /// recent pregnancy, or creates a placeholder if there is none. That is what
-  /// lets the registration flow record previous children before the app knows
-  /// anything about pregnancy records.
+  /// [pregnancyId] is kept by the server only when it is the active
+  /// pregnancy — the delivery flow recording its birth. Otherwise the baby is
+  /// stored with no pregnancy, which is what a previous child is.
   Future<String?> addBaby({
     required String name,
     required DateTime deliveryDate,
@@ -136,20 +127,6 @@ class BabyController extends GetxController {
 
     final detail = Map<String, dynamic>.from(response.item as Map);
     await _persistDetail(detail);
-
-    // A baby may have caused the server to create a placeholder pregnancy —
-    // a child born before the app existed has none of its own — and local
-    // ownership is resolved through the pregnancy. Until that row is here, the
-    // baby and the schedules seeded alongside it are filtered straight back out
-    // of [loadFromLocal], so pull it down before reading anything back.
-    await PregnancyController.instance.loadFromLocal();
-    final resolvedPregnancyId = SyncCodec.text(detail['pregnancy_id']);
-    final known = PregnancyController.instance.pregnancies
-        .any((p) => p.id == resolvedPregnancyId);
-    if (resolvedPregnancyId != null && !known) {
-      await SyncService.instance.syncModule('pregnancy');
-      await PregnancyController.instance.loadFromLocal();
-    }
 
     await loadFromLocal();
     return response.id?.toString();

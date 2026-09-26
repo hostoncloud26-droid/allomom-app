@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
+import 'package:allomom/components/app_backdrop.dart';
 import 'package:allomom/components/bottom_navigation.dart';
 import 'package:allomom/components/custom_app_bar.dart';
 import 'package:allomom/features/home/home_page.dart';
@@ -62,9 +63,22 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    // The pastel backdrop is Home's alone; the other tabs keep their own.
+    return AppBackdrop(
+      enabled: _currentIndex == 0,
+      // Builder, so the shell reads the backdrop from beneath it.
+      child: Builder(builder: _buildShell),
+    );
+  }
+
+  Widget _buildShell(BuildContext context) {
     return Scaffold(
       extendBody: true,
-      backgroundColor: context.palette.background,
+      // On Home the backdrop behind the shell shows through the bar and page.
+      backgroundColor: AppBackdrop.scaffoldColor(
+        context,
+        context.palette.background,
+      ),
       // One app bar for the whole shell: the tabs underneath keep their own
       // scroll views, but the title and her three shortcuts stay put. The tabs
       // do not repeat the title themselves.

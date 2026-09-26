@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/heart_rate/heart_rate_summary_
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's heart-rate tile: bpm with a sparkline of recent readings.
 /// AlloConnect's camera "START" chip becomes a "LOG" chip that opens
@@ -49,6 +50,7 @@ class HeartRateTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.favorite_rounded,
+      image: QuickActionImages.heartRate,
       title: 'Heart Rate',
       value: value > 0 ? '$value' : '--',
       unit: 'bpm',

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
@@ -677,7 +678,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                 ),
                               )
                             : Image.asset(
-                                'assets/allobaby/woman.png',
+                                QuickActionImages.person(
+                                  gender: MainController.instance.gender,
+                                ),
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, __, ___) => const Icon(
                                   Icons.face_3_rounded,

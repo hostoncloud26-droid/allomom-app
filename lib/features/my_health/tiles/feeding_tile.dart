@@ -4,6 +4,7 @@ import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Feeding tracker in AlloConnect's tile style: the latest session (value,
 /// unit, type) with the day's sessions as 24-hour bars. Sessions mix units
@@ -59,6 +60,7 @@ class FeedingTile extends StatelessWidget {
     return VitalTileShell(
       accent: _accent,
       icon: Icons.local_drink_rounded,
+      image: QuickActionImages.feeding,
       title: 'Feeding Tracker',
       value: value,
       unit: unit,

@@ -21,10 +21,9 @@ class BabyRepository {
   /// Creates a baby and returns its id, or null if the server could not be
   /// reached.
   ///
-  /// [pregnancyId] links the baby back to the pregnancy that produced them. It
-  /// stays null for a previous child added during registration; the server
-  /// resolves which pregnancy to hang the baby off, since a birth predating the
-  /// app has no pregnancy row of its own.
+  /// [pregnancyId] links the baby back to the active pregnancy that produced
+  /// them. It stays null for a previous child added during registration, since
+  /// a birth predating the app has no pregnancy row of its own.
   Future<String?> addBaby({
     required DateTime dob,
     String? pregnancyId,

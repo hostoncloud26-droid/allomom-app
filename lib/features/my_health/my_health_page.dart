@@ -50,6 +50,10 @@ class MyHealthPage extends StatefulWidget {
 
 class _MyHealthPageState extends State<MyHealthPage> {
   late int _currentIndex;
+
+  /// The health tab has scrolled its profile card away, so the app bar carries
+  /// her name instead.
+  bool _healthCollapsed = false;
   late final PageController _pageController;
   bool _isSyncingAllowear = false;
 
@@ -105,6 +109,37 @@ class _MyHealthPageState extends State<MyHealthPage> {
     }
   }
 
+  /// "My Health" with her name under it, once the profile card is gone.
+  Widget _collapsedHealthTitle() {
+    return AnimatedBuilder(
+      key: const ValueKey('health-collapsed'),
+      animation: MainController.instance,
+      builder: (context, _) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            MainController.instance.userName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _titleColor,
+            ),
+          ),
+          Text(
+            'My Health',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: _p.textMuted,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -122,19 +157,25 @@ class _MyHealthPageState extends State<MyHealthPage> {
           ),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text(
-          _currentIndex == 0
-              ? 'My Health'
-              : _currentIndex == 1
-              ? 'My Reports'
-              : _currentIndex == 2
-              ? 'My Prescriptions'
-              : 'My Profile',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: _titleColor,
-          ),
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _currentIndex == 0 && _healthCollapsed
+              ? _collapsedHealthTitle()
+              : Text(
+                  _currentIndex == 0
+                      ? 'My Health'
+                      : _currentIndex == 1
+                      ? 'My Reports'
+                      : _currentIndex == 2
+                      ? 'My Prescriptions'
+                      : 'My Profile',
+                  key: ValueKey(_currentIndex),
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: _titleColor,
+                  ),
+                ),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -185,7 +226,14 @@ class _MyHealthPageState extends State<MyHealthPage> {
         children: [
           // Tab 0: Health Section — owns its own scroll view, pull-to-refresh
           // and collapsing profile header.
-          MyHealthSection(onOpenProfile: () => _goToTab(3)),
+          MyHealthSection(
+            onOpenProfile: () => _goToTab(3),
+            onCollapsedChanged: (collapsed) {
+              if (collapsed != _healthCollapsed) {
+                setState(() => _healthCollapsed = collapsed);
+              }
+            },
+          ),
 
           // Tab 1: Reports
           const ReportsPage(showAppBar: false),
@@ -251,7 +299,14 @@ class MyHealthSection extends StatefulWidget {
   /// Tapping the profile header; the page switches to its Profile tab.
   final VoidCallback? onOpenProfile;
 
-  const MyHealthSection({super.key, this.onOpenProfile});
+  /// Fires when the profile card scrolls out of view, and back.
+  final ValueChanged<bool>? onCollapsedChanged;
+
+  const MyHealthSection({
+    super.key,
+    this.onOpenProfile,
+    this.onCollapsedChanged,
+  });
 
   @override
   State<MyHealthSection> createState() => _MyHealthSectionState();
@@ -267,7 +322,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
 
   final HealthVitalsController _vitals = HealthVitalsController.instance;
   late final ScrollController _scrollController;
-  bool _showTitle = false;
+  bool _collapsed = false;
 
   /// Day the section below the summary card reports on.
   DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
@@ -360,9 +415,10 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   }
 
   void _onScroll() {
-    final showTitle = _scrollController.offset > 160;
-    if (showTitle != _showTitle) {
-      setState(() => _showTitle = showTitle);
+    final collapsed = _scrollController.offset > _profileCardHeight - 40;
+    if (collapsed != _collapsed) {
+      _collapsed = collapsed;
+      widget.onCollapsedChanged?.call(collapsed);
     }
     _updateDateSelectorVisibility();
   }
@@ -384,8 +440,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     }
   }
 
-  /// Bottom of the collapsed sliver app bar, in the section's coordinates.
-  double get _appBarBottom => MediaQuery.of(context).padding.top + kToolbarHeight;
+  static const double _profileCardHeight = 230;
+
+  /// The page's app bar sits above this section, and the profile card scrolls
+  /// away entirely, so the strip docks at the section's top edge.
+  double get _appBarBottom => 0;
 
   Future<void> _refresh() async {
     await _vitals.syncAllVitals();
@@ -395,8 +454,6 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final isDark = p.isDark;
-    final titleColor = isDark ? Colors.white : Colors.black87;
 
     return Stack(
       key: _sectionKey,
@@ -421,32 +478,18 @@ class _MyHealthSectionState extends State<MyHealthSection> {
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
               // ── App bar ──────────────────────────────────────────────────
+              // Scrolls away whole; her name moves up into the page's app bar
+              // (see [MyHealthSection.onCollapsedChanged]).
               SliverAppBar(
-                expandedHeight: 230,
+                expandedHeight: _profileCardHeight,
+                toolbarHeight: 0,
+                collapsedHeight: 0,
                 floating: false,
-                pinned: true,
+                pinned: false,
                 automaticallyImplyLeading: false,
-                backgroundColor: _showTitle
-                    ? (isDark ? Colors.black : Colors.white)
-                    : p.scaffoldSoft,
+                backgroundColor: p.scaffoldSoft,
                 surfaceTintColor: Colors.transparent,
-                elevation: _showTitle ? 2 : 0,
-                title: AnimatedOpacity(
-                  opacity: _showTitle ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 200),
-                  child: AnimatedBuilder(
-                    animation: MainController.instance,
-                    builder: (context, _) => Text(
-                      MainController.instance.userName,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: titleColor,
-                      ),
-                    ),
-                  ),
-                ),
-                centerTitle: true,
+                elevation: 0,
                 flexibleSpace: FlexibleSpaceBar(
                   collapseMode: CollapseMode.parallax,
                   background: MyHealthProfileCard(onTap: widget.onOpenProfile),
