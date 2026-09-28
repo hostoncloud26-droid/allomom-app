@@ -271,10 +271,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ),
         title: Text(
           _isPregnancySelected
-              ? 'My Pregnancy Journey'
+              ? 'My Baby'
               : (_selectedBaby?.name.trim().isNotEmpty ?? false)
               ? _selectedBaby!.name.trim()
-              : 'My Baby Journey',
+              : 'My Baby',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,

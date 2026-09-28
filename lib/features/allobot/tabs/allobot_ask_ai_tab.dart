@@ -368,7 +368,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AlloBaby',
+                  'Talk 2 Baby',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -594,31 +594,25 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   showingOptions ? 'Options' : 'Try asking:',
-                  style: showingOptions
-                      ? headerStyle.copyWith(fontSize: 18)
-                      : headerStyle,
+                  style: headerStyle,
                 ),
               ),
-              SizedBox(height: showingOptions ? 14 : 8),
+              const SizedBox(height: 8),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 // Options wrap onto more rows rather than scroll, so every
-                // answer is in view at the bigger size.
+                // answer is in view.
                 child: showingOptions
                     ? SizedBox(
                         key: ValueKey(suggestions.join('|')),
                         width: double.infinity,
                         child: Wrap(
                           alignment: WrapAlignment.center,
-                          spacing: 12,
-                          runSpacing: 12,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             for (final text in suggestions)
-                              AlloBotSuggestionChip(
-                                text: text,
-                                onTap: _send,
-                                large: true,
-                              ),
+                              AlloBotSuggestionChip(text: text, onTap: _send),
                           ],
                         ),
                       )

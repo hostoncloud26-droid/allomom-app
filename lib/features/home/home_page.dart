@@ -547,8 +547,12 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
-              _buildTryAsking(context),
-              const SizedBox(height: 32),
+              // While her flow waits on a choice, the options in her card
+              // take this row's room, so Quick Actions stays put.
+              if (_alloBaby.options.isEmpty) ...[
+                _buildTryAsking(context),
+                const SizedBox(height: 32),
+              ],
               // Rebuilt when the family loads: a dad's tiles point at his
               // wife's record once she is in his family.
               GetBuilder<FamilyController>(
@@ -593,23 +597,15 @@ class _HomePageState extends State<HomePage> {
           // inside it rather than growing the card and pushing the page.
           _HeroSpeechCard(
             speaking: speaking || _alloBaby.isRunning,
+            actions: [
+              for (final option in options)
+                AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
+            ],
             child: StreamingHeroLine(
               text: line.isEmpty ? 'Hello! I am AlloBaby' : line,
               height: 76,
             ),
           ),
-          if (options.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final option in options)
-                  AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
-              ],
-            ),
-          ],
         ],
       ),
     );
@@ -1579,10 +1575,17 @@ class _QuickActionBox extends StatelessWidget {
 /// AlloBaby's line under the orb: a thin gradient rim, her name, and a live
 /// dot while she is talking.
 class _HeroSpeechCard extends StatelessWidget {
-  const _HeroSpeechCard({required this.child, required this.speaking});
+  const _HeroSpeechCard({
+    required this.child,
+    required this.speaking,
+    this.actions = const [],
+  });
 
   final Widget child;
   final bool speaking;
+
+  /// Her choices, answered right under the line that asks for them.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -1642,6 +1645,16 @@ class _HeroSpeechCard extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               child,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: actions,
+                ),
+                const SizedBox(height: 4),
+              ],
             ],
           ),
         ),
