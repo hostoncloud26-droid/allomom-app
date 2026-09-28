@@ -724,15 +724,10 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     _goToStep(RegisterStep.joinCode);
   }
 
-  void _handleDadRegisterPregnancy() {
-    _registerPregnancyForPartner = true;
-    _status = 'pregnant';
-    _goToStep(RegisterStep.lmp);
-  }
-
-  void _handleDadContinue() {
-    _goToStep(RegisterStep.family);
-  }
+  /// A dad either joins his family by code or finishes here. There is nothing
+  /// else for him to set up: the pregnancy and the children are Mommy's, and
+  /// he sees them from People once they are in the same family.
+  Future<void> _handleDadContinue() => _completeRegistration();
 
   // ─── STEP 8: JOIN CODE ACTIONS ───
   Future<void> _handleJoinFamilyCode() async {
@@ -761,7 +756,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
 
     _familyCode = code;
     _showMessage('Successfully connected to family!');
-    _goToStep(RegisterStep.family);
+    await _completeRegistration();
   }
 
   double _getStepHeight(RegisterStep step, bool isKeyboardOpen) {
@@ -844,8 +839,8 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
       case RegisterStep.dadSetup:
         return DadFamilySetupStepView(
           onJoinByCode: _handleDadJoinByCode,
-          onRegisterPregnancy: _handleDadRegisterPregnancy,
           onContinue: _handleDadContinue,
+          isLoading: _isSavingFamily,
           partnerWord: 'Mommy',
         );
       case RegisterStep.joinCode:

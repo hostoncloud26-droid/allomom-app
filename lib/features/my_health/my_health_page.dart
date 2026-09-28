@@ -179,7 +179,10 @@ class _MyHealthPageState extends State<MyHealthPage> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      floatingActionButton: FloatingActionButton(
+      // His band syncs to his own record, so it is not offered on his wife's.
+      floatingActionButton: MainController.instance.isViewingMember
+          ? null
+          : FloatingActionButton(
         heroTag: 'my_health_allowear_fab',
         onPressed: _isSyncingAllowear ? null : _syncAllowearDevice,
         backgroundColor: const Color(0xFFFF3B5C),

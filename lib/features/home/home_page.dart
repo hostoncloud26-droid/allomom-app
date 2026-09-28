@@ -23,8 +23,6 @@ import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
-import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart'
-    show GradientText;
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/features/allobot/data/allobot_feature_catalog.dart';
@@ -34,6 +32,11 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/allobot/home_voice_controller.dart';
 import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/controllers/family_controller.dart';
+import 'package:allomom/config/colors.dart';
+import 'package:allomom/config/quick_action_images.dart';
+import 'package:allomom/features/people/member_view.dart';
+import 'package:allomom/features/home/widgets/streaming_hero_line.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -546,7 +549,12 @@ class _HomePageState extends State<HomePage> {
               const SizedBox(height: 32),
               _buildTryAsking(context),
               const SizedBox(height: 32),
-              _buildQuickActionsCard(context),
+              // Rebuilt when the family loads: a dad's tiles point at his
+              // wife's record once she is in his family.
+              GetBuilder<FamilyController>(
+                init: FamilyController.instance,
+                builder: (_) => _buildQuickActionsCard(context),
+              ),
               const SizedBox(height: micClearance),
             ],
           ),
@@ -564,26 +572,14 @@ class _HomePageState extends State<HomePage> {
     final busy = speaking || _alloBaby.isRunning || _homeNarrationKey != null;
     final options = busy ? const <String>[] : _alloBaby.options;
 
-    final Widget text = line.isEmpty
-        ? GradientText(
-            key: const ValueKey('hello'),
-            text: 'Hello! I am AlloBaby',
-            gradient: alloBotHeroGradient,
-            style: GoogleFonts.outfit(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-            ),
-          )
-        : AlloBotHeroLine(key: ValueKey(line), text: line, maxHeight: 180);
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
+          // The baby stands on the backdrop itself, no card.
           SizedBox(
-            width: 200,
-            height: 200,
+            width: 190,
+            height: 190,
             child: FittedBox(
               child: AlloBotGeminiOrb(
                 isSpeaking: speaking,
@@ -592,14 +588,14 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOutCubic,
-            alignment: Alignment.topCenter,
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              child: text,
+          const SizedBox(height: 14),
+          // Her line types out in a fixed-height card: a long line scrolls
+          // inside it rather than growing the card and pushing the page.
+          _HeroSpeechCard(
+            speaking: speaking || _alloBaby.isRunning,
+            child: StreamingHeroLine(
+              text: line.isEmpty ? 'Hello! I am AlloBaby' : line,
+              height: 76,
             ),
           ),
           if (options.isNotEmpty) ...[
@@ -1232,36 +1228,116 @@ class _HomePageState extends State<HomePage> {
     final session = MainController.instance;
     final isPregnant = session.isPregnant;
 
-    // Kick counting is a pregnancy tool: there is nothing to count once the
-    // baby is born, so its slot goes to the journey — which is the only place
-    // a mother who is not pregnant can reach it from home, the summary card
-    // beside this one having turned into her cycle.
-    final journeyOrKicks = isPregnant
-        ? _quickAction(
-            id: 'kick_counter',
-            title: 'Kick Count',
-            subtitle: 'Fetal Tracker',
-            icon: Icons.pregnant_woman_rounded,
-            color: const Color(0xFFFF4E6A),
-            image: 'assets/Quick Actions/Kick Count.png',
-            page: const KickCounterPage(),
-          )
-        : _quickAction(
-            id: 'journey',
-            title: session.hasKids ? 'Baby Journey' : 'My Journey',
-            subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
-            icon: session.hasKids
-                ? Icons.child_friendly_rounded
-                : Icons.pregnant_woman_rounded,
-            color: const Color(0xFFFF8A5B),
-            image: session.hasKids
-                ? 'assets/allobaby/BabyCare.png'
-                : 'assets/allobaby/Pregnancy Care.png',
-            page: const PregnancyJourneyPage(),
-          );
+    // The journey sits right beside health, always. Kick counting is a
+    // pregnancy tool — there is nothing to count once the baby is born — so it
+    // only joins the row while she is pregnant.
+    final journey = _quickAction(
+      id: 'journey',
+      title: session.hasKids ? 'Baby Journey' : 'My Journey',
+      subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
+      icon: session.hasKids
+          ? Icons.child_friendly_rounded
+          : Icons.pregnant_woman_rounded,
+      color: const Color(0xFFFF8A5B),
+      image: session.hasKids
+          ? 'assets/allobaby/BabyCare.png'
+          : 'assets/allobaby/Pregnancy Care.png',
+      page: const PregnancyJourneyPage(),
+    );
 
-    // Illustrations from assets/Quick Actions/. The journey slot, which only
-    // shows for a mother who is not pregnant, keeps its AlloBaby artwork.
+    // A dad's own record holds no pregnancy and no babies — those are on his
+    // wife's. Once she is in his family, his health, journey and reports tiles
+    // open her record (read-only, apart from logging vitals), and his own
+    // My Health moves after them.
+    final wife = session.isDad
+        ? FamilyController.instance.family?.otherParent
+        : null;
+    if (wife != null) {
+      // The same screens she uses, switched onto her record while open.
+      AlloBotFeature wifeAction({
+        required String id,
+        required String title,
+        required String subtitle,
+        required IconData icon,
+        required Color color,
+        required String image,
+        required WidgetBuilder builder,
+      }) => AlloBotFeature(
+        id: id,
+        title: title,
+        subtitle: subtitle,
+        category: FeatureCategory.care,
+        icon: icon,
+        color: color,
+        image: image,
+        pageBuilder: builder,
+        onOpen: (context) => openMemberView(
+          context,
+          memberUserId: wife.userId,
+          memberName: wife.name,
+          builder: builder,
+        ),
+      );
+      return _quickActionsRow([
+        wifeAction(
+          id: 'wife_health',
+          title: "Wife's Health",
+          subtitle: 'Vitals & Care',
+          icon: Icons.monitor_heart_rounded,
+          color: const Color(0xFFFF4E6A),
+          image: QuickActionImages.mom,
+          builder: (_) => const MyHealthPage(),
+        ),
+        wifeAction(
+          id: 'wife_journey',
+          title: 'Pregnancy & Baby',
+          subtitle: 'Journey & Growth',
+          icon: Icons.child_friendly_rounded,
+          color: const Color(0xFFFF8A5B),
+          image: 'assets/allobaby/Pregnancy Care.png',
+          builder: (_) => const PregnancyJourneyPage(),
+        ),
+        _quickAction(
+          id: 'allocry',
+          title: 'AlloCry',
+          subtitle: 'Cry Analyzer',
+          icon: Icons.hearing_rounded,
+          color: const Color(0xFF8B5CF6),
+          image: 'assets/Quick Actions/AlloCry.png',
+          page: const AlloCryPage(),
+        ),
+        wifeAction(
+          id: 'wife_reports',
+          title: "Wife's Reports",
+          subtitle: 'Lab & Scans',
+          icon: Icons.biotech_rounded,
+          color: const Color(0xFF3B82F6),
+          image: 'assets/Quick Actions/Reports.png',
+          builder: (_) => const ReportsPage(),
+        ),
+        _quickAction(
+          id: 'feeding_tracker',
+          title: 'Feeding',
+          subtitle: 'Baby Nutrition',
+          icon: Icons.local_drink_rounded,
+          color: const Color(0xFFF59E0B),
+          image: 'assets/Quick Actions/Feeding.png',
+          page: const FeedingTrackerPage(),
+        ),
+        _quickAction(
+          id: 'my_health',
+          title: 'My Health',
+          subtitle: 'Your own vitals',
+          icon: Icons.monitor_heart_rounded,
+          color: const Color(0xFF3B82F6),
+          image: QuickActionImages.dad,
+          page: const MyHealthPage(),
+        ),
+      ]);
+    }
+
+    // Illustrations from assets/Quick Actions/; the journey keeps its
+    // AlloBaby artwork.
     final features = [
       _quickAction(
         id: 'my_health',
@@ -1272,6 +1348,7 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/Health.png',
         page: const MyHealthPage(),
       ),
+      journey,
       _quickAction(
         id: 'allocry',
         title: 'AlloCry',
@@ -1281,7 +1358,16 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/AlloCry.png',
         page: const AlloCryPage(),
       ),
-      journeyOrKicks,
+      if (isPregnant)
+        _quickAction(
+          id: 'kick_counter',
+          title: 'Kick Count',
+          subtitle: 'Fetal Tracker',
+          icon: Icons.pregnant_woman_rounded,
+          color: const Color(0xFFFF4E6A),
+          image: 'assets/Quick Actions/Kick Count.png',
+          page: const KickCounterPage(),
+        ),
       _quickAction(
         id: 'reports',
         title: 'Reports',
@@ -1314,6 +1400,11 @@ class _HomePageState extends State<HomePage> {
       for (final id in _trackerActionIds) ?AlloBotFeatureCatalog.byId(id),
     ];
 
+    return _quickActionsRow(features);
+  }
+
+  /// The QUICK ACTIONS heading over a horizontal row of [features].
+  Widget _quickActionsRow(List<AlloBotFeature> features) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1481,6 +1572,80 @@ class _QuickActionBox extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// AlloBaby's line under the orb: a thin gradient rim, her name, and a live
+/// dot while she is talking.
+class _HeroSpeechCard extends StatelessWidget {
+  const _HeroSpeechCard({required this.child, required this.speaking});
+
+  final Widget child;
+  final bool speaking;
+
+  @override
+  Widget build(BuildContext context) {
+    final pal = context.palette;
+    final fill = pal.isDark ? pal.card : Colors.white;
+
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          decoration: BoxDecoration(
+            color: fill,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: pal.divider, width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: pal.isDark ? 0.2 : 0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.auto_awesome_rounded,
+                      size: 14,
+                      color: primaryColor,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'ALLOBABY',
+                      style: GoogleFonts.outfit(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                        color: primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 250),
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: speaking
+                            ? const Color(0xFF22C55E)
+                            : pal.textMuted.withValues(alpha: 0.4),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                child,
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' as drift;
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
@@ -8,6 +10,7 @@ import 'package:allomom/api/health_api.dart';
 import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/controllers/family_controller.dart';
+import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/controllers/vitals_controller.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
@@ -41,7 +44,122 @@ class MainController extends GetxController {
   bool _bootstrapped = false;
 
   User? get currentUser => _user;
-  HealthDataTableData? get currentHealthData => _health;
+  HealthDataTableData? get currentHealthData => _activeHealth;
+
+  // ── Viewing a family member ────────────────────────────────────────────────
+  //
+  // A father opens his wife's health with the very screens he uses for his
+  // own: while [viewMember] is in effect, every health-scoped read — the
+  // health id, the pregnancy and vitals controllers, her name and picture on
+  // the headers — follows her record instead of his. Her rows are on this
+  // device already, synced with the family's. [userId] and the account itself
+  // stay his, so what he writes is still stamped as his.
+
+  String? _viewingUserId;
+  String _viewingName = '';
+  User? _viewingUser;
+  HealthDataTableData? _viewingHealth;
+
+  /// Her record while she is being viewed — even before it has arrived, so a
+  /// screen opened on her never falls back to showing his.
+  HealthDataTableData? get _activeHealth =>
+      isViewingMember ? _viewingHealth : _health;
+
+  /// True while the screens are showing a family member's record.
+  bool get isViewingMember => _viewingUserId != null;
+
+  /// Whose record is being viewed, or null for the signed-in user's own.
+  String? get viewingUserId => _viewingUserId;
+
+  /// The partner's health record, for a father: the one his household's
+  /// pregnancy is on. Held on this device beside his own.
+  HealthDataTableData? _partnerHealth;
+
+  /// Whose pregnancy the app follows. Her own for a mother; for a father, his
+  /// wife's — he is never the one pregnant, so the pregnancy week, the
+  /// weekly info and the journey are hers. While a record is being viewed,
+  /// that record's.
+  String get pregnancyHealthDataId {
+    if (isViewingMember) return healthDataId;
+    if (isDad && _partnerHealth != null) return _partnerHealth!.id;
+    return healthDataId;
+  }
+
+  /// The signed-in user's own health id, whoever is being viewed.
+  String get ownHealthDataId => _health?.id ?? '';
+
+  /// Switches the health screens to [memberUserId]'s record, straight away:
+  /// whatever copy of it is on the device shows at once, and a fresh copy is
+  /// fetched in the background and swapped in when it lands.
+  Future<void> viewMember(String memberUserId, {String name = ''}) async {
+    _viewingUserId = memberUserId;
+    _viewingName = name;
+    _viewingUser = null;
+    _viewingHealth = null;
+    await _loadMember(memberUserId);
+    await _reloadHealthScoped();
+    unawaited(_refreshViewedMember(memberUserId));
+  }
+
+  Future<void> _refreshViewedMember(String memberUserId) async {
+    final ok = await SyncService.instance.importMemberRecord(memberUserId);
+    if (!ok || _viewingUserId != memberUserId) return;
+    await _loadMember(memberUserId);
+    await _reloadHealthScoped();
+  }
+
+  /// Back to the signed-in user's own record.
+  Future<void> stopViewingMember() async {
+    if (!isViewingMember) return;
+    _viewingUserId = null;
+    _viewingName = '';
+    _viewingUser = null;
+    _viewingHealth = null;
+    await _reloadHealthScoped();
+  }
+
+  /// Downloads everyone else in the family's record in the background, so a
+  /// father's tap on his wife opens on her data rather than an empty screen.
+  Future<void> prefetchFamilyRecords() async {
+    final me = userId;
+    for (final member
+        in FamilyController.instance.family?.members ?? const []) {
+      if (member.isMe || member.userId.isEmpty || member.userId == me) {
+        continue;
+      }
+      await SyncService.instance.importMemberRecord(member.userId);
+    }
+    // Her babies and the rest arrived after the screens first loaded.
+    await loadFromLocal();
+  }
+
+  Future<bool> _loadMember(String memberUserId) async {
+    final db = await _db;
+    // Her device-made stand-in (from adding her as a member) can sit beside
+    // the server's row, so this takes one rather than insisting on one — the
+    // synced row first, as that is the id her data hangs off.
+    final health =
+        await (db.select(db.healthDataTable)
+              ..where((h) => h.userId.equals(memberUserId))
+              ..orderBy([(h) => drift.OrderingTerm.desc(h.synced)])
+              ..limit(1))
+            .getSingleOrNull();
+    if (health == null) return false;
+    _viewingHealth = health;
+    _viewingUser = await (db.select(db.users)
+          ..where((u) => u.id.equals(memberUserId))
+          ..limit(1))
+        .getSingleOrNull();
+    return true;
+  }
+
+  Future<void> _reloadHealthScoped() async {
+    await PregnancyController.instance.loadFromLocal();
+    await BabyController.instance.loadFromLocal();
+    await VitalsController.instance.loadFromLocal();
+    update();
+    unawaited(HealthVitalsController.instance.fetchLatestVitals());
+  }
   bool get isLoading => _isLoading;
 
   /// Whether a session exists at all. Says nothing about registration.
@@ -56,27 +174,39 @@ class MainController extends GetxController {
   bool get isReady => isAuthenticated && isRegistered;
 
   String get userId => _user?.id ?? SecureTokenStore.instance.userId ?? '';
-  String get healthDataId => _health?.id ?? '';
-  String get userName => _user?.name ?? '';
+  String get healthDataId => _activeHealth?.id ?? '';
+  String get userName => isViewingMember
+      ? (_viewingUser?.name ?? _viewingName)
+      : (_user?.name ?? '');
   String get userPhone => _user?.phone ?? '';
   String get userEmail => _user?.email ?? '';
   String get countryCode => _user?.countryCode ?? '+91';
-  String get gender => _user?.gender ?? 'Female';
-  DateTime? get dob => _user?.dob;
+  String get gender =>
+      (isViewingMember ? _viewingUser?.gender : _user?.gender) ?? 'Female';
+
+  /// A father signed in for his wife: health tiles speak about her, not him.
+  bool get isDad {
+    final g = gender.trim().toLowerCase();
+    return g == 'male' || g == 'father' || g == 'dad';
+  }
+  DateTime? get dob => isViewingMember ? _viewingUser?.dob : _user?.dob;
   String get bio => _user?.bio ?? '';
   String get city => _user?.city ?? '';
   String get pincode => _user?.pincode ?? '';
   String get addressLine1 => _user?.addressLine1 ?? '';
   String get addressLine2 => _user?.addressLine2 ?? '';
-  String? get profilePicture => _user?.profilePicture;
+  String? get profilePicture => isViewingMember
+      ? _viewingUser?.profilePicture
+      : _user?.profilePicture;
   String? get coverPic => _user?.coverPic;
-  String get rchId => _health?.rchId ?? '';
-  String get allergies => _health?.allergies ?? '';
-  String get medicalCondition => _health?.medicalCondition ?? '';
+  String get rchId => _activeHealth?.rchId ?? '';
+  String get allergies => _activeHealth?.allergies ?? '';
+  String get medicalCondition => _activeHealth?.medicalCondition ?? '';
 
   /// The last menstrual period, from the health record or the live pregnancy.
   DateTime? get lmpDate =>
-      _health?.lmpDate ?? PregnancyController.instance.activePregnancy?.lmpDate;
+      _activeHealth?.lmpDate ??
+      PregnancyController.instance.activePregnancy?.lmpDate;
 
   DateTime? get eddDate => PregnancyController.instance.activePregnancy?.eddDate;
 
@@ -222,7 +352,11 @@ class MainController extends GetxController {
       // are reconciled from `/family/my`, which is authoritative and cheap.
       // Unawaited for the same reason as the sync pass: an offline start must
       // still reach the first frame.
-      unawaited(FamilyController.instance.refreshFromServer());
+      unawaited(
+        FamilyController.instance.refreshFromServer().then(
+          (_) => prefetchFamilyRecords(),
+        ),
+      );
     }
 
     _bootstrapped = true;
@@ -250,6 +384,20 @@ class MainController extends GetxController {
         : await (db.select(db.healthDataTable)
                 ..where((h) => h.userId.equals(id)))
               .getSingleOrNull();
+
+    // For a father, the other health record on the device is his wife's —
+    // the family's rows are all this device holds besides his own.
+    _partnerHealth = id == null
+        ? null
+        : await (db.select(db.healthDataTable)
+                ..where((h) => h.userId.equals(id).not())
+                ..orderBy([(h) => drift.OrderingTerm.desc(h.synced)])
+                ..limit(1))
+              .getSingleOrNull();
+
+    // A sync that lands while her record is open refreshes it in place.
+    final viewing = _viewingUserId;
+    if (viewing != null) await _loadMember(viewing);
 
     await PregnancyController.instance.loadFromLocal();
     await BabyController.instance.loadFromLocal();
@@ -502,7 +650,7 @@ class MainController extends GetxController {
       }
 
       await loadFromLocal();
-      return healthDataId;
+      return ownHealthDataId;
     }
 
     debugPrint(
@@ -520,7 +668,10 @@ class MainController extends GetxController {
           : drift.Value(value);
 
   /// Guarantees a health row exists locally so a screen can write to it offline.
+  /// While a family member is being viewed, that is her record: an LMP or an
+  /// allergy entered on her screens is hers.
   Future<HealthDataTableData?> _ensureHealthRecord() async {
+    if (isViewingMember) return _viewingHealth;
     if (_health != null) return _health;
     final user = _user;
     if (user == null) return null;
@@ -629,6 +780,10 @@ class MainController extends GetxController {
     await db.clearAccountData();
     _user = null;
     _health = null;
+    _viewingUserId = null;
+    _viewingUser = null;
+    _viewingHealth = null;
+    _partnerHealth = null;
     PregnancyController.instance.reset();
     BabyController.instance.reset();
     VitalsController.instance.reset();

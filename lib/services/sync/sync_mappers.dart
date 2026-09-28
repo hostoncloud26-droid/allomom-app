@@ -288,6 +288,9 @@ class VitalsMapper extends _UuidKeyedMapper {
         .map(
           (v) => <String, dynamic>{
             'id': v.id,
+            // Which record the reading is on. The device holds the family's
+            // records side by side, so the server cannot assume the caller's.
+            'health_id': v.healthId,
             'updated_at': SyncCodec.isoUtc(v.updatedAt),
             'key': v.key,
             'value': v.value,
@@ -380,6 +383,7 @@ class PregnancyMapper extends _UuidKeyedMapper {
         .map(
           (p) => <String, dynamic>{
             'id': p.id,
+            'health_id': p.healthId,
             'updated_at': SyncCodec.isoUtc(p.updatedAt),
             // The server's `lmp_date` and `edd_date` are date columns, not
             // timestamps, and reject a full ISO datetime.

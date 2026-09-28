@@ -47,7 +47,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
     setState(() => _isLoading = true);
     try {
       final session = MainController.instance;
-      final healthId = session.healthDataId;
+      final healthId = session.pregnancyHealthDataId;
       final pregnancy = healthId.isEmpty
           ? null
           : await HealthDbService.instance.getActivePregnancy(healthId);

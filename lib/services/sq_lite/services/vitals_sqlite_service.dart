@@ -24,18 +24,24 @@ class VitalsSqLiteService {
 
   /// The health record readings hang off.
   ///
-  /// Prefers the loaded session, and otherwise reads the single health row the
-  /// local database holds. A device stores exactly one account, so that row is
-  /// unambiguous — and the fallback means a reading written before the
-  /// controllers have finished loading still lands on the right record instead
-  /// of being orphaned with a null scope.
+  /// Prefers the loaded session — which is the viewed family member's record
+  /// while one is open — and otherwise the signed-in user's own row, so a
+  /// reading written before the controllers have finished loading still lands
+  /// on the right record instead of being orphaned with a null scope.
   Future<String> _resolveHealthId() async {
     final fromSession = MainController.instance.healthDataId;
     if (fromSession.isNotEmpty) return fromSession;
 
+    // The device also holds the family's records, so the fallback is the
+    // signed-in user's own row, never simply the first one.
+    final userId = MainController.instance.userId;
+    if (userId.isEmpty) return '';
     final db = await SqLiteService().database;
-    final row = await (db.select(db.healthDataTable)..limit(1))
-        .getSingleOrNull();
+    final row =
+        await (db.select(db.healthDataTable)
+              ..where((h) => h.userId.equals(userId))
+              ..limit(1))
+            .getSingleOrNull();
     return row?.id ?? '';
   }
 

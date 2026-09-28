@@ -74,7 +74,7 @@ class AlloBotContextLoader {
     final isPregnant = session.isPregnant;
 
     final health = await _healthData(userId);
-    final pregnancy = await _activePregnancy(session.healthDataId);
+    final pregnancy = await _activePregnancy(session.pregnancyHealthDataId);
 
     final ancVisits = await _ancVisits(pregnancy?.id);
     final vaccines = await _vaccines(userId, pregnancy?.id);
