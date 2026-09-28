@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'health_tile_parts.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Drinks tile ("Drinks & Brews") in AlloConnect's style: cups had that day,
 /// their kcal and the latest one, with Tea / Coffee / Other quick logs below.
@@ -26,9 +27,9 @@ class DrinksTile extends StatelessWidget {
   });
 
   int get _count => entries.fold<int>(0, (sum, v) {
-        final c = v.data?['count'];
-        return sum + (c is num && c > 0 ? c.toInt() : 1);
-      });
+    final c = v.data?['count'];
+    return sum + (c is num && c > 0 ? c.toInt() : 1);
+  });
 
   String _latestDetails() {
     final d = entries.first.data;
@@ -51,6 +52,7 @@ class DrinksTile extends StatelessWidget {
             HealthTileHeader(
               title: 'Drinks & Brews',
               accent: color,
+              image: QuickActionImages.drinks,
               muted: !hasData,
               trailing: hasData
                   ? [HealthTileBadge(text: '$_count HAD', color: color)]

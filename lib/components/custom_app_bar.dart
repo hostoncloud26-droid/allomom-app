@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/app_backdrop.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
-import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/services/app_language.dart';
 
 /// The app bar every main screen wears: the product name on the left, and the
@@ -43,7 +44,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     return Material(
-      color: palette.background,
+      color: AppBackdrop.scaffoldColor(context, palette.background),
       child: SafeArea(
         bottom: false,
         child: SizedBox(
@@ -136,12 +137,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(height: 16),
             LanguageSelector(
               initialAppLanguage: AppLanguage.cachedOrFallback,
-              onAppLanguageChanged: (code) async {
-                await AppLanguage.save(code);
-                if (BackgroundAudioController.isReady) {
-                  await BackgroundAudioController.to.setLanguage(code);
-                }
-              },
+              initialSpeechLanguage: AppLanguage.cachedOrFallback,
+              // Saves it and moves AlloBot's catalogue with it, so her
+              // settings page shows the same language.
+              onAppLanguageChanged:
+                  OfflineChatbotController.instance.applyAppLanguage,
             ),
             const SizedBox(height: 16),
           ],

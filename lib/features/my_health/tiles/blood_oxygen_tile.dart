@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_summ
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's blood-oxygen tile: SpO₂ % with a sparkline. The "START"
 /// chip opens Allomom's log sheet instead of a camera scan.
@@ -47,6 +48,7 @@ class BloodOxygenTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.opacity_rounded,
+      image: QuickActionImages.bloodOxygen,
       title: 'Blood Oxygen',
       value: value > 0 ? '$value' : '--',
       unit: '% SpO₂',

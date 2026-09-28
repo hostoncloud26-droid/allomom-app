@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 
 import 'health_tile_parts.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Water tile in AlloConnect's style — a wave bubble filling towards the
 /// day's goal beside quick "+ glass" presets. Allomom logs water in glasses
@@ -41,10 +42,10 @@ class _WaterTileState extends State<WaterTile> with TickerProviderStateMixin {
     vsync: this,
     duration: const Duration(milliseconds: 150),
   );
-  late final Animation<double> _scaleAnimation =
-      Tween<double>(begin: 1.0, end: 0.97).animate(
-    CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut),
-  );
+  late final Animation<double> _scaleAnimation = Tween<double>(
+    begin: 1.0,
+    end: 0.97,
+  ).animate(CurvedAnimation(parent: _scaleController, curve: Curves.easeInOut));
   late final AnimationController _waveController = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 2500),
@@ -92,6 +93,7 @@ class _WaterTileState extends State<WaterTile> with TickerProviderStateMixin {
               HealthTileHeader(
                 title: 'Water Tracking',
                 accent: waterColor,
+                image: QuickActionImages.water,
                 trailing: [
                   HealthTileBadge(
                     text: '$glasses / $target glasses',
@@ -256,8 +258,8 @@ class _WaveClipper extends CustomClipper<Path> {
     path.moveTo(0, y);
     const waveHeight = 5.0;
     for (double x = 0; x <= size.width; x++) {
-      final angle = (x / size.width) * 2 * math.pi +
-          (animationValue * 2 * math.pi);
+      final angle =
+          (x / size.width) * 2 * math.pi + (animationValue * 2 * math.pi);
       path.lineTo(x, y + waveHeight * math.sin(angle));
     }
     path.lineTo(size.width, size.height);

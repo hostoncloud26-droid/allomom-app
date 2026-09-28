@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/stress/stress_summary_screen.d
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's stress-load tile: a 0–100 score, its label and a sparkline.
 class StressTile extends StatelessWidget {
@@ -53,6 +54,7 @@ class StressTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.psychology_alt_rounded,
+      image: QuickActionImages.stress,
       title: 'Stress Load',
       value: value > 0 ? '$value' : '--',
       unit: '/100',

@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/hemoglobin/hemoglobin_summary_
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Hemoglobin in AlloConnect's tile style: g/dL with a sparkline. Hemoglobin
 /// is a standing value, so pass the latest reading on or before [date].
@@ -47,6 +48,7 @@ class HemoglobinTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.water_drop_rounded,
+      image: QuickActionImages.hemoglobin,
       title: 'Hemoglobin',
       value: value > 0 ? value.toStringAsFixed(1) : '--',
       unit: 'g/dL',

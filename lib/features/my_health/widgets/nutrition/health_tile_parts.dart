@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Shared building blocks for the My Health day tiles (nutrition, water,
 /// drinks, workouts). They reproduce AlloConnect's tile look: a 28-radius card
@@ -12,9 +13,9 @@ import 'package:allomom/models/vitals_stream_model.dart';
 
 /// Start and end of the calendar day [date] falls on.
 ({DateTime start, DateTime end}) dayBounds(DateTime date) => (
-      start: DateTime(date.year, date.month, date.day),
-      end: DateTime(date.year, date.month, date.day, 23, 59, 59, 999),
-    );
+  start: DateTime(date.year, date.month, date.day),
+  end: DateTime(date.year, date.month, date.day, 23, 59, 59, 999),
+);
 
 /// A row from `VitalsSqLiteService.getVitalsHistory` as a vital.
 VitalsStreamResponse vitalFromRow(Map<String, dynamic> map) {
@@ -92,11 +93,15 @@ class HealthTileHeader extends StatelessWidget {
   final bool muted;
   final List<Widget> trailing;
 
+  /// Quick Actions illustration shown in place of the accent bar.
+  final String? image;
+
   const HealthTileHeader({
     super.key,
     required this.title,
     required this.accent,
     this.muted = false,
+    this.image,
     this.trailing = const [],
   });
 
@@ -104,14 +109,17 @@ class HealthTileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 4,
-          height: 16,
-          decoration: BoxDecoration(
-            color: muted ? accent.withValues(alpha: 0.3) : accent,
-            borderRadius: BorderRadius.circular(2),
+        if (image != null)
+          QuickActionImage(image!, size: 30)
+        else
+          Container(
+            width: 4,
+            height: 16,
+            decoration: BoxDecoration(
+              color: muted ? accent.withValues(alpha: 0.3) : accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
         const SizedBox(width: 10),
         Flexible(
           child: Text(
@@ -301,8 +309,10 @@ class _HealthTilePressableState extends State<HealthTilePressable>
     vsync: this,
     duration: const Duration(milliseconds: 200),
   );
-  late final Animation<double> _scale = Tween<double>(begin: 1.0, end: 0.98)
-      .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  late final Animation<double> _scale = Tween<double>(
+    begin: 1.0,
+    end: 0.98,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
 
   @override
   void dispose() {

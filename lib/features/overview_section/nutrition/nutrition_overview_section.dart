@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -379,6 +380,12 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
         CareMeal.dinner => Icons.dinner_dining_rounded,
       };
 
+  String _mealImage(CareMeal meal) => switch (meal) {
+        CareMeal.breakfast => QuickActionImages.breakfast,
+        CareMeal.lunch => QuickActionImages.lunch,
+        CareMeal.dinner => QuickActionImages.dinner,
+      };
+
   NutritionMetric _mealMetric(CareMeal meal) => switch (meal) {
         CareMeal.breakfast => NutritionMetric.breakfast,
         CareMeal.lunch => NutritionMetric.lunch,
@@ -411,7 +418,7 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _iconBubble(icon, color, size: 18),
+              _iconBubble(icon, color, size: 18, image: _mealImage(meal)),
               Flexible(
                 child: Container(
                   padding:
@@ -497,7 +504,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _iconBubble(Icons.cookie_rounded, _snackColor),
+              _iconBubble(
+                Icons.cookie_rounded,
+                _snackColor,
+                image: QuickActionImages.snacks,
+              ),
               if (!_readOnly) _plusButton(_snackColor, _logSnacks),
             ],
           ),
@@ -560,7 +571,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _iconBubble(Icons.local_drink_rounded, _waterColor),
+                _iconBubble(
+                  Icons.local_drink_rounded,
+                  _waterColor,
+                  image: QuickActionImages.water,
+                ),
                 Flexible(
                   child: Container(
                     padding:
@@ -690,7 +705,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
             children: [
               Row(
                 children: [
-                  _iconBubble(Icons.local_drink_rounded, _waterColor),
+                  _iconBubble(
+                  Icons.local_drink_rounded,
+                  _waterColor,
+                  image: QuickActionImages.water,
+                ),
                   const SizedBox(width: 8),
                   _label(_readOnly ? 'Water' : 'Water Today', isDark),
                 ],
@@ -953,7 +972,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
                   onTap: openDrinks,
-                  child: _iconBubble(Icons.coffee_rounded, _drinksColor),
+                  child: _iconBubble(
+                    Icons.coffee_rounded,
+                    _drinksColor,
+                    image: QuickActionImages.drinks,
+                  ),
                 ),
                 if (!_readOnly) _plusButton(_drinksColor, _showDrinkPicker),
               ],
@@ -1009,7 +1032,11 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
                 onTap: openDrinks,
                 child: Row(
                   children: [
-                    _iconBubble(Icons.coffee_rounded, _drinksColor),
+                    _iconBubble(
+                    Icons.coffee_rounded,
+                    _drinksColor,
+                    image: QuickActionImages.drinks,
+                  ),
                     const SizedBox(width: 8),
                     _label('Drinks (Hot/Cold)', isDark),
                   ],
@@ -1358,7 +1385,14 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     );
   }
 
-  Widget _iconBubble(IconData icon, Color color, {double size = 16}) {
+  /// The card's illustration, or a tinted icon for a card that has none.
+  Widget _iconBubble(
+    IconData icon,
+    Color color, {
+    double size = 16,
+    String? image,
+  }) {
+    if (image != null) return QuickActionImage(image, size: size + 16);
     return Container(
       padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(

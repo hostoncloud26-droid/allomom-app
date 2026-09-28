@@ -8,6 +8,7 @@ import 'package:allomom/features/my_health/vitals/sleep/sleep_summary_screen.dar
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's sleep tile: duration with bedtime / wake time on the left,
 /// the deep / light / REM split on the right.
@@ -219,6 +220,7 @@ class SleepTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.nights_stay_rounded,
+      image: QuickActionImages.sleep,
       title: 'Sleep Cycle',
       value: minutes > 0 ? '${h}h ${m}m' : '0h 0m',
       isEmpty: minutes <= 0,

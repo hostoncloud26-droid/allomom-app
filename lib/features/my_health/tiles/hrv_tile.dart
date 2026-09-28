@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/hrv/hrv_summary_screen.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// Heart-rate variability in AlloConnect's tile style: ms with a sparkline.
 class HrvTile extends StatelessWidget {
@@ -45,6 +46,7 @@ class HrvTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.monitor_heart_rounded,
+      image: QuickActionImages.hrv,
       title: 'Heart Rate Variability',
       value: value > 0 ? '$value' : '--',
       unit: 'ms',

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:allomom/components/app_backdrop.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -38,16 +39,16 @@ class _DayDateSelectorState extends State<DayDateSelector> {
 
   late DateTime _dateStart;
 
-  int get _selectedDateIndex => DateUtils.dateOnly(widget.selectedDate)
-      .difference(_dateStart)
-      .inDays
-      .clamp(0, _dateItemCount - 1);
+  int get _selectedDateIndex => DateUtils.dateOnly(
+    widget.selectedDate,
+  ).difference(_dateStart).inDays.clamp(0, _dateItemCount - 1);
 
   @override
   void initState() {
     super.initState();
-    _dateStart = DateUtils.dateOnly(DateTime.now())
-        .subtract(const Duration(days: DayDateSelector.daysEitherSide));
+    _dateStart = DateUtils.dateOnly(
+      DateTime.now(),
+    ).subtract(const Duration(days: DayDateSelector.daysEitherSide));
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSelectedDate(jump: true);
@@ -74,13 +75,16 @@ class _DayDateSelectorState extends State<DayDateSelector> {
     if (!_dateScrollController.hasClients) return;
 
     final viewportWidth = _dateScrollController.position.viewportDimension;
-    final rawOffset = (_selectedDateIndex * (_dateTileWidth + _dateTileGap)) -
+    final rawOffset =
+        (_selectedDateIndex * (_dateTileWidth + _dateTileGap)) -
         ((viewportWidth - _dateTileWidth) / 2);
 
     final targetOffset = math.max<double>(
       0.0,
       math.min<double>(
-          rawOffset, _dateScrollController.position.maxScrollExtent),
+        rawOffset,
+        _dateScrollController.position.maxScrollExtent,
+      ),
     );
 
     if (jump) {
@@ -98,15 +102,24 @@ class _DayDateSelectorState extends State<DayDateSelector> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final today = DateUtils.dateOnly(DateTime.now());
+    // Over Home's pastel backdrop the strip takes the wash's colours (see
+    // [StickyDateSelectorOverlay]), so it and its tiles go translucent.
+    final onBackdrop = AppBackdrop.isActive(context);
+    final primary = Theme.of(context).colorScheme.primary;
 
     return Container(
       height: DayDateSelector.height,
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: onBackdrop
+            ? Colors.transparent
+            : Theme.of(context).scaffoldBackgroundColor,
         border: Border(
           bottom: BorderSide(
-            color:
-                isDark ? Colors.white.withOpacity(0.05) : Colors.grey.shade100,
+            color: onBackdrop
+                ? primary.withOpacity(isDark ? 0.12 : 0.10)
+                : isDark
+                ? Colors.white.withOpacity(0.05)
+                : Colors.grey.shade100,
             width: 1,
           ),
         ),
@@ -151,8 +164,10 @@ class _DayDateSelectorState extends State<DayDateSelector> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               itemBuilder: (context, index) {
                 final date = _dateStart.add(Duration(days: index));
-                final isSelected =
-                    DateUtils.isSameDay(date, widget.selectedDate);
+                final isSelected = DateUtils.isSameDay(
+                  date,
+                  widget.selectedDate,
+                );
                 final isToday = DateUtils.isSameDay(date, today);
                 final isFuture = date.isAfter(today);
                 final dayName = DateFormat('E').format(date).toUpperCase();
@@ -175,13 +190,16 @@ class _DayDateSelectorState extends State<DayDateSelector> {
 
                 return Padding(
                   padding: EdgeInsets.only(
-                      right: index == _dateItemCount - 1 ? 0 : _dateTileGap),
+                    right: index == _dateItemCount - 1 ? 0 : _dateTileGap,
+                  ),
                   child: GestureDetector(
                     onTap: isFuture
                         ? null
                         : () {
                             if (!DateUtils.isSameDay(
-                                widget.selectedDate, date)) {
+                              widget.selectedDate,
+                              date,
+                            )) {
                               widget.onDateSelected(date);
                             }
                           },
@@ -192,25 +210,36 @@ class _DayDateSelectorState extends State<DayDateSelector> {
                         color: isSelected
                             ? Theme.of(context).colorScheme.primary
                             : isDark
-                                ? Colors.white
-                                    .withOpacity(isFuture ? 0.02 : 0.05)
-                                : (isFuture
-                                    ? const Color(0xFFF8FAFF).withOpacity(0.5)
-                                    : const Color(0xFFF8FAFF)),
+                            ? Colors.white.withOpacity(isFuture ? 0.02 : 0.05)
+                            : onBackdrop
+                            ? Colors.white.withOpacity(isFuture ? 0.35 : 0.75)
+                            : (isFuture
+                                  ? const Color(0xFFF8FAFF).withOpacity(0.5)
+                                  : const Color(0xFFF8FAFF)),
+                        boxShadow: isSelected && onBackdrop
+                            ? [
+                                BoxShadow(
+                                  color: primary.withOpacity(0.30),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ]
+                            : null,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
                           color: isSelected
                               ? Theme.of(context).colorScheme.primary
                               : isToday
-                                  ? Theme.of(context)
-                                      .colorScheme
-                                      .primary
-                                      .withOpacity(0.3)
-                                  : isDark
-                                      ? Colors.white
-                                          .withOpacity(isFuture ? 0.04 : 0.12)
-                                      : const Color(0xFFE2E8F0)
-                                          .withOpacity(isFuture ? 0.5 : 1),
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.primary.withOpacity(0.3)
+                              : isDark
+                              ? Colors.white.withOpacity(isFuture ? 0.04 : 0.12)
+                              : onBackdrop
+                              ? Colors.white.withOpacity(isFuture ? 0.4 : 0.9)
+                              : const Color(
+                                  0xFFE2E8F0,
+                                ).withOpacity(isFuture ? 0.5 : 1),
                           width: 1.5,
                         ),
                       ),
@@ -303,10 +332,9 @@ class StickyDateSelectorOverlay extends StatelessWidget {
               offset: visible ? Offset.zero : const Offset(0, -1),
               duration: const Duration(milliseconds: 220),
               curve: Curves.easeOutCubic,
-              child: Material(
-                color: Theme.of(context).scaffoldBackgroundColor,
-                elevation: 0,
-                child: Column(
+              child: _surface(
+                context,
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (scrimHeight > 0)
@@ -321,6 +349,35 @@ class StickyDateSelectorOverlay extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Solid in the page colour normally; over Home's backdrop, an opaque
+  /// blush-to-lavender band matching the wash, so it belongs to the page and
+  /// nothing shows through it.
+  Widget _surface(BuildContext context, Widget child) {
+    if (!AppBackdrop.isActive(context)) {
+      return Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        elevation: 0,
+        child: child,
+      );
+    }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Material(
+      type: MaterialType.transparency,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: isDark
+                ? const [Color(0xff1E1519), Color(0xff17151F)]
+                : const [Color(0xFFFFF1F3), Color(0xFFFBF6FF)],
+          ),
+        ),
+        child: child,
       ),
     );
   }

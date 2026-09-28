@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/body_composition/body_composit
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's BMI tile: the score, weight • height and category on the
 /// left, a weight sparkline on the right. Keeps Allomom's weight-gain line
@@ -72,6 +73,7 @@ class BMITile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.scale_rounded,
+      image: QuickActionImages.weight,
       title: 'BMI',
       value: bmi > 0 ? bmi.toStringAsFixed(1) : '--',
       unit: 'score',

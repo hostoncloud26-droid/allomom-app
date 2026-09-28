@@ -10,6 +10,7 @@ import 'package:allomom/features/my_health/vitals/steps/steps_summary_screen.dar
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's step tile: today's (or [date]'s) steps, target and distance
 /// on the left, a 24-hour bar chart on the right.
@@ -115,6 +116,7 @@ class StepTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.directions_walk_rounded,
+      image: QuickActionImages.steps,
       title: 'Step Count',
       value: fmt.format(current),
       unit: 'steps',

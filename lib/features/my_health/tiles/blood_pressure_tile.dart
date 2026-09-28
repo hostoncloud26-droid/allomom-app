@@ -4,6 +4,7 @@ import 'package:allomom/features/my_health/vitals/blood_pressure/blood_pressure_
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's blood-pressure tile: sys/dia with pulse on the left and
 /// overlaid systolic / diastolic sparklines on the right.
@@ -70,6 +71,7 @@ class BloodPressureTile extends StatelessWidget {
     return VitalTileShell(
       accent: color,
       icon: Icons.favorite_outline_rounded,
+      image: QuickActionImages.bloodPressure,
       title: 'Blood Pressure',
       value: hasReading ? '$sys/$dia' : '--/--',
       unit: 'mmHg',

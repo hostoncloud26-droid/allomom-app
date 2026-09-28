@@ -250,7 +250,8 @@ class OfflineChatbotController extends GetxController {
   /// Reads the cached catalogue and transcript, then downloads a fresh
   /// catalogue if there is none.
   Future<void> _bootstrap() async {
-    langCode.value = await AppLanguage.current();
+    final appLang = await AppLanguage.current();
+    langCode.value = appLang;
     await _loadCached();
     if (!_cacheLoaded.isCompleted) _cacheLoaded.complete();
     await _restoreTranscript();
@@ -258,6 +259,19 @@ class OfflineChatbotController extends GetxController {
     if (!hasBundle) {
       await sync();
       return;
+    }
+
+    // The app language is the one she chose; a catalogue cached in another
+    // (picked before the pickers were linked, or changed while offline) is
+    // replaced rather than allowed to win. Offline, the cached one still
+    // answers until the next launch.
+    final cachedLang = (bundle?.langCode ?? '').trim();
+    if (cachedLang.isNotEmpty &&
+        cachedLang != 'all' &&
+        cachedLang != appLang &&
+        offersLanguage(appLang)) {
+      await sync(language: appLang, quiet: true);
+      if (bundle?.langCode == appLang) return;
     }
 
     // There is a catalogue, so the conversation opens on it straight away —
@@ -1434,18 +1448,41 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
-  /// Switches the catalogue to another language and downloads it.
+  /// Switches AlloBot's language from her own settings page. The same change
+  /// as picking it anywhere else, so the app language follows too.
+  Future<void> setLanguage(String code) => applyAppLanguage(code);
+
+  /// The one place a language change lands, from any picker: the app
+  /// language, the narration voice and AlloBot's catalogue move together, so
+  /// the Home sheet and AlloBot Settings never disagree.
   ///
-  /// The whole catalogue is per-language, so this is a re-download rather than
-  /// a filter — and the conversation starts again, because the intents that
-  /// answered the old one are gone.
-  Future<void> setLanguage(String code) async {
+  /// The catalogue is per-language, so switching it is a re-download and the
+  /// conversation starts again. A language AlloBot has no catalogue for (the
+  /// app offers more than the builder has content in) leaves her on the one
+  /// she has rather than an empty download.
+  Future<void> applyAppLanguage(String code) async {
     final next = code.trim();
-    if (next.isEmpty || next == langCode.value) return;
+    if (next.isEmpty) return;
+
+    await AppLanguage.save(next);
+    if (BackgroundAudioController.isReady) {
+      await BackgroundAudioController.to.setLanguage(next);
+    }
+
+    // A refresh already under way would otherwise swallow this download, and
+    // then restore the old language when it lands.
+    if (isSyncing.value) await isSyncing.stream.firstWhere((s) => !s);
+    if (next == langCode.value || !offersLanguage(next)) return;
 
     langCode.value = next;
-    await AppLanguage.save(next);
     await sync(language: next);
+  }
+
+  /// Whether AlloBot can download a catalogue in [code]. Before the list is
+  /// known every language is worth trying.
+  bool offersLanguage(String code) {
+    final languages = availableLanguages;
+    return languages.isEmpty || languages.any((l) => l.code == code);
   }
 
   /// Trigger phrases the downloaded catalogue answers to, for a quick hint.

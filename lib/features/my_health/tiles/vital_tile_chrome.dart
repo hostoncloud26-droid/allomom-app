@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/my_health/widgets/vital_log_bottom_sheet.dart';
@@ -396,6 +397,9 @@ List<double> downsampleTrendData(
 class VitalTileShell extends StatelessWidget {
   final Color accent;
   final IconData icon;
+
+  /// Quick Actions illustration shown in place of [icon].
+  final String? image;
   final String title;
   final String value;
   final String? unit;
@@ -419,6 +423,7 @@ class VitalTileShell extends StatelessWidget {
     super.key,
     required this.accent,
     required this.icon,
+    this.image,
     required this.title,
     required this.value,
     this.unit,
@@ -459,14 +464,17 @@ class VitalTileShell extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: headerColor.withValues(alpha: 0.12),
-                          shape: BoxShape.circle,
+                      if (image != null)
+                        QuickActionImage(image!, size: 30)
+                      else
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: headerColor.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(icon, color: headerColor, size: 16),
                         ),
-                        child: Icon(icon, color: headerColor, size: 16),
-                      ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(

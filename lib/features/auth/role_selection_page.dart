@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/auth_flow_page.dart';
+import 'package:allomom/config/quick_action_images.dart';
 
 class RoleSelectionPage extends StatelessWidget {
   final String selectedLanguage;
@@ -163,16 +164,15 @@ class RoleSelectionStepView extends StatelessWidget {
         ),
         child: Column(
           children: [
-            // Custom Avatar Icon Circle
+            // Mom / Dad illustration
             Container(
-              width: 56,
-              height: 56,
+              width: 76,
+              height: 76,
               decoration: BoxDecoration(color: iconBg, shape: BoxShape.circle),
               child: Center(
-                child: Icon(
-                  isFemale ? Icons.face_3_rounded : Icons.face_6_rounded,
-                  color: isSelected ? const Color(0xFFFF4E6A) : avatarColor,
-                  size: 30,
+                child: QuickActionImage(
+                  isFemale ? QuickActionImages.mom : QuickActionImages.dad,
+                  size: 64,
                 ),
               ),
             ),
