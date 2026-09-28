@@ -4,20 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
-import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
-import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
+import 'package:allomom/features/pregnancy/baby_care_track_page.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
+import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
-import 'package:allomom/features/baby/baby_detail_page.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
-import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -47,17 +46,13 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   Color get _inkMuted => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
   Color get _inkMuted2 => _p.textMuted;
   Color get _inkMuted3 => _p.pick(const Color(0xFF8A90A0), _p.textMuted);
-  Color get _inkFaint2 => _p.pick(const Color(0xFFBDC3CE), _p.textMuted);
-  Color get _inkFaint3 => _p.pick(const Color(0xFF9EA5B4), _p.textMuted);
   Color get _card => _p.card;
   Color get _hair => _p.pick(const Color(0xFFF0F1F5), _p.border);
-  Color get _track => _p.pick(const Color(0xFFF0F1F5), _p.surface);
   Color get _chipGrey => _p.pick(const Color(0xFFF3F4F6), _p.surface);
-  Color get _shadow3 =>
-      _p.pick(Colors.black.withValues(alpha: 0.03), _p.shadow);
 
   bool _isLoading = true;
   bool _isPregnant = false;
+  int? _selectedPregnancyMonth;
   Map<String, dynamic>? _pregnancyInfo;
   List<Map<String, dynamic>> _completedPregnancies = [];
   List<Baby> _babies = [];
@@ -182,6 +177,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         // the third everywhere else.
         final weeks = daysElapsed <= 0 ? 0 : daysElapsed ~/ 7;
         final trimester = weeks < 13 ? 1 : (weeks < 28 ? 2 : 3);
+        final pregnancyMonth = daysElapsed <= 0
+            ? 1
+            : ((daysElapsed / 30.44).floor() + 1).clamp(1, 9);
 
         info = {
           'id': active.id,
@@ -189,6 +187,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           'lmpDate': lmp?.toIso8601String(),
           'estimatedDueDate': edd?.toIso8601String(),
           'gestationAgeWeeks': weeks.clamp(0, 42),
+          'pregnancyMonth': pregnancyMonth,
           'trimesters': trimester,
           'daysRemaining': edd == null
               ? 0
@@ -249,6 +248,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   @override
   Widget build(BuildContext context) {
     final week = _pregnancyInfo?['gestationAgeWeeks'] as int? ?? 0;
+    final pregnancyMonth = _pregnancyInfo?['pregnancyMonth'] as int? ?? 1;
     final trimesters = _pregnancyInfo?['trimesters'] as int? ?? 1;
     final trimesterText = 'Trimester $trimesters';
     final daysLeft = _pregnancyInfo?['daysRemaining'] as int? ?? 0;
@@ -282,20 +282,21 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           ),
         ),
         actions: [
-          IconButton(
-            tooltip: 'ANC Schedule',
-            icon: const Icon(
-              Icons.calendar_month_rounded,
-              color: Color(0xFFFF3B5C),
-              size: 22,
+          if (_isPregnant)
+            IconButton(
+              tooltip: 'ANC Schedule',
+              icon: const Icon(
+                Icons.calendar_month_rounded,
+                color: Color(0xFFFF3B5C),
+                size: 22,
+              ),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AncSchedulePage()),
+                );
+              },
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AncSchedulePage()),
-              );
-            },
-          ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: _ink, size: 22),
             shape: RoundedRectangleBorder(
@@ -337,6 +338,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 case 'add_baby':
                   await _addBabyFromHeader();
                   break;
+                case 'edit_baby':
+                  final baby = _selectedBaby;
+                  if (baby != null) await _editBaby(baby);
+                  break;
                 case 'complete':
                   _showCompletePregnancyModal(context);
                   break;
@@ -346,49 +351,51 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               }
             },
             itemBuilder: (ctx) => [
-              const PopupMenuItem(
-                value: 'anc',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 18,
-                      color: Color(0xFFFF3B5C),
-                    ),
-                    SizedBox(width: 10),
-                    Text('ANC Schedule'),
-                  ],
+              if (_isPregnant) ...[
+                const PopupMenuItem(
+                  value: 'anc',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.calendar_today_rounded,
+                        size: 18,
+                        color: Color(0xFFFF3B5C),
+                      ),
+                      SizedBox(width: 10),
+                      Text('ANC Schedule'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'vaccine',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.vaccines_rounded,
-                      size: 18,
-                      color: Color(0xFF8B5CF6),
-                    ),
-                    SizedBox(width: 10),
-                    Text('Vaccination Schedule'),
-                  ],
+                const PopupMenuItem(
+                  value: 'vaccine',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.vaccines_rounded,
+                        size: 18,
+                        color: Color(0xFF8B5CF6),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Vaccination Schedule'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'labs',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.science_rounded,
-                      size: 18,
-                      color: Color(0xFF3898EC),
-                    ),
-                    SizedBox(width: 10),
-                    Text('Lab Reports & Scans'),
-                  ],
+                const PopupMenuItem(
+                  value: 'labs',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.science_rounded,
+                        size: 18,
+                        color: Color(0xFF3898EC),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Lab Reports & Scans'),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuDivider(),
+                const PopupMenuDivider(),
+              ],
               // Always offered: the avatar row is only a way to move between
               // her children, not a way to record a new one.
               const PopupMenuItem(
@@ -405,6 +412,23 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   ],
                 ),
               ),
+              // Where the baby info card's pencil used to be.
+              if (_selectedEntityId != _pregnancyEntity &&
+                  _selectedBaby != null)
+                const PopupMenuItem(
+                  value: 'edit_baby',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.edit_rounded,
+                        size: 18,
+                        color: Color(0xFFFF3B5C),
+                      ),
+                      SizedBox(width: 10),
+                      Text('Edit Baby'),
+                    ],
+                  ),
+                ),
               const PopupMenuDivider(),
               if (_isPregnant) ...[
                 const PopupMenuItem(
@@ -483,6 +507,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                             ? _buildActivePregnancyView(
                                 context: context,
                                 gestationalWeek: week,
+                                pregnancyMonth: pregnancyMonth,
                                 trimester: trimesterText,
                                 daysLeft: daysLeft,
                                 eddFormatted: eddFormatted,
@@ -506,6 +531,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   Widget _buildActivePregnancyView({
     required BuildContext context,
     required int gestationalWeek,
+    required int pregnancyMonth,
     required String trimester,
     required int daysLeft,
     required String eddFormatted,
@@ -515,56 +541,37 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ─── BABY HERO CARD ───
-        BabyHeroBanner(
-          // The tour of this screen, once; the card's own line counts the
-          // weeks, which the recording cannot.
-          narrationKey: NarrationKeys.pgJourneyOpen,
-          bindNarrationText: false,
-          speechText:
-              "Am $gestationalWeek weeks, Amma! 💕\nWe're growing so strong together.",
-          bubblePosition: SpeechBubblePosition.topCenter,
-          height: 270,
-          greetingText: "",
-        ),
-        const SizedBox(height: 18),
-
-        // ─── PREGNANCY INFO SECTION CARD ───
-        _buildPregnancyInfoCard(
-          context: context,
-          gestationalWeek: gestationalWeek,
-          trimester: trimester,
-          daysLeft: daysLeft,
-          eddFormatted: eddFormatted,
-          progressFraction: progressFraction,
-          progressPercent: progressPercent,
-        ),
-        const SizedBox(height: 16),
-
-        // ─── UPCOMING CARE & SCHEDULE SECTION CARD ───
-        //
-        // Each section explains itself as it scrolls into view rather than all
-        // at once on open — three lines back to back is a lecture.
+        // ─── PREGNANCY TRAIN ───
+        // The nine months as wagons; under the train the pregnancy info, then
+        // the picked month's ANC, vaccinations and lab reports, then a box
+        // for each full schedule. Replaces the banner and the old list.
         NarrationOnVisible(
-          narrationKey: NarrationKeys.pgJourneyUpcoming,
-          child: _buildUpcomingScheduleCard(context),
+          narrationKey: NarrationKeys.pgJourneyOpen,
+          child: PregnancyMonthTrack(
+            onChanged: _loadAllPregnancyData,
+            onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
+            belowTrain: _buildPregnancyInfoCard(
+              context: context,
+              gestationalWeek: gestationalWeek,
+              trimester: trimester,
+              daysLeft: daysLeft,
+              eddFormatted: eddFormatted,
+              progressFraction: progressFraction,
+              progressPercent: progressPercent,
+            ),
+          ),
         ),
         const SizedBox(height: 20),
-
-        // Her children are the avatar row at the top of this screen now, and
-        // her finished journeys are their own history — neither belongs in the
-        // middle of the pregnancy she is carrying.
 
         // ─── COMPLETE PREGNANCY SECTION ───
-        NarrationOnVisible(
-          narrationKey: NarrationKeys.pgJourneyComplete,
-          child: _buildCompletePregnancySection(context),
-        ),
-        const SizedBox(height: 20),
-
-        // ─── DELETE PREGNANCY CARD SECTION ───
-        _buildDeletePregnancyCardSection(context),
-        const SizedBox(height: 24),
+        // Only visible when viewing month 7 onwards (or if current gestational month >= 7).
+        if ((_selectedPregnancyMonth ?? pregnancyMonth) >= 7) ...[
+          NarrationOnVisible(
+            narrationKey: NarrationKeys.pgJourneyComplete,
+            child: _buildCompletePregnancySection(context),
+          ),
+          const SizedBox(height: 24),
+        ],
       ],
     );
   }
@@ -810,6 +817,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   // ═══════════════════════════════════════════════════════════════════════════
   // PREGNANCY INFO CARD (WITH EDIT & DELETE ACTIONS)
   // ═══════════════════════════════════════════════════════════════════════════
+  /// Where the pregnancy stands, compact and plain: the week with a small
+  /// progress ring, then the due date, the days left and the weeks to go.
   Widget _buildPregnancyInfoCard({
     required BuildContext context,
     required int gestationalWeek,
@@ -819,105 +828,69 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     required double progressFraction,
     required int progressPercent,
   }) {
+    const pink = Color(0xFFFF3B5C);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
       decoration: BoxDecoration(
         color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _hair, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _shadow3,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: _hair, width: 1.1),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.favorite_rounded,
-                    color: Color(0xFFFF3B5C),
-                    size: 15,
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    'PREGNANCY INFO',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF3B5C),
-                      letterSpacing: 0.6,
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progressFraction,
+                      strokeWidth: 4.5,
+                      strokeCap: StrokeCap.round,
+                      backgroundColor: _chipGrey,
+                      valueColor: const AlwaysStoppedAnimation(pink),
                     ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _roseSoft,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      trimester,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFFF3B5C),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () => _showDeletePregnancyDialog(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: _p.tint(
-                          const Color(0xFFEF4444),
-                          const Color(0xFFFEE2E2),
+                    Center(
+                      child: Text(
+                        '$progressPercent%',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w800,
+                          color: _ink,
                         ),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Icon(
-                        Icons.delete_outline_rounded,
-                        size: 14,
-                        color: Color(0xFFEF4444),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Week Title & Edit Timeline Action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Week $gestationalWeek of 40',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: _ink,
+                  ],
                 ),
               ),
-              GestureDetector(
-                onTap: () async {
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Week $gestationalWeek of 40',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: _ink,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      trimester,
+                      style: TextStyle(fontSize: 12, color: _inkMuted),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Change LMP',
+                visualDensity: VisualDensity.compact,
+                onPressed: () async {
                   final created = await Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -926,117 +899,60 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   );
                   if (created == true) _loadAllPregnancyData();
                 },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _chipGrey,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.edit_calendar_rounded,
-                        size: 12,
-                        color: _inkSec2,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Change LMP',
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w600,
-                          color: _inkSec2,
-                        ),
-                      ),
-                    ],
-                  ),
+                icon: Icon(
+                  Icons.edit_calendar_rounded,
+                  size: 19,
+                  color: _inkSec2,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Delete pregnancy',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _showDeletePregnancyDialog(context),
+                icon: Icon(
+                  Icons.delete_outline_rounded,
+                  size: 19,
+                  color: _inkSec2,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-
-          // Progress Bar
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Progress',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w500,
-                      color: _inkMuted,
-                    ),
-                  ),
-                  Text(
-                    '$progressPercent%',
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF3B5C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: progressFraction,
-                  minHeight: 6,
-                  backgroundColor: _p.pick(
-                    const Color(0xFFFFE6ED),
-                    _p.accentSoft,
-                  ),
-                  valueColor: const AlwaysStoppedAnimation<Color>(
-                    Color(0xFFFF3B5C),
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildInfoMetricChip(
+                    value: eddFormatted,
+                    label: 'Due Date',
+                    icon: Icons.event_available_rounded,
+                    iconColor: _inkSec2,
+                    bg: _chipGrey,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // 3 Metric Stat Chips
-          Row(
-            children: [
-              Expanded(
-                child: _buildInfoMetricChip(
-                  bg: _roseSoft,
-                  icon: Icons.event_available_rounded,
-                  iconColor: const Color(0xFFFF4E6A),
-                  value: eddFormatted,
-                  label: 'Due Date',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoMetricChip(
+                    value: '$daysLeft',
+                    label: 'Days Left',
+                    icon: Icons.hourglass_bottom_rounded,
+                    iconColor: _inkSec2,
+                    bg: _chipGrey,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildInfoMetricChip(
-                  bg: const Color(0xFFEDF6FF),
-                  icon: Icons.hourglass_bottom_rounded,
-                  iconColor: const Color(0xFF3898EC),
-                  value: '$daysLeft',
-                  label: 'Days Left',
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildInfoMetricChip(
+                    value: '${(40 - gestationalWeek).clamp(0, 40)}',
+                    label: 'Weeks to go',
+                    icon: Icons.child_friendly_rounded,
+                    iconColor: _inkSec2,
+                    bg: _chipGrey,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildInfoMetricChip(
-                  bg: const Color(0xFFF3E8FF),
-                  icon: Icons.child_care_rounded,
-                  iconColor: const Color(0xFF8B5CF6),
-                  value: 'W $gestationalWeek',
-                  label: 'Week',
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ),
@@ -1083,175 +999,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
             textAlign: TextAlign.center,
           ),
         ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // UPCOMING SCHEDULE SECTION CARD
-  // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildUpcomingScheduleCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _hair, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _shadow3,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.calendar_today_rounded,
-                    color: Color(0xFFFF3B5C),
-                    size: 15,
-                  ),
-                  SizedBox(width: 6),
-                  Text(
-                    'UPCOMING SCHEDULE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF3B5C),
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                'Next 30 Days',
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: _inkMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          _buildScheduleRow(
-            icon: Icons.medical_services_rounded,
-            iconBg: _roseSoft,
-            iconColor: const Color(0xFFFF3B5C),
-            title: 'Doctor Appointment',
-            date: '12 Sep 2026 · 10:30 AM',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AncSchedulePage()),
-              );
-            },
-          ),
-          Divider(
-            color: _p.pick(const Color(0xFFF3F4F6), _p.divider),
-            height: 20,
-            thickness: 1,
-          ),
-          _buildScheduleRow(
-            icon: Icons.vaccines_rounded,
-            iconBg: const Color(0xFFF3E8FF),
-            iconColor: const Color(0xFF8B5CF6),
-            title: 'Tetanus Toxoid (TT-2)',
-            date: '18 Sep 2026',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const VaccinationSchedulePage(),
-                ),
-              );
-            },
-          ),
-          Divider(
-            color: _p.pick(const Color(0xFFF3F4F6), _p.divider),
-            height: 20,
-            thickness: 1,
-          ),
-          _buildScheduleRow(
-            icon: Icons.science_rounded,
-            iconBg: const Color(0xFFEDF6FF),
-            iconColor: const Color(0xFF3898EC),
-            title: 'Glucose (75g OGTT) & Hemoglobin',
-            date: '25 Sep 2026 · 8:00 AM',
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const LabReportsSchedulePage(),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScheduleRow({
-    required IconData icon,
-    required Color iconBg,
-    required Color iconColor,
-    required String title,
-    required String date,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 2),
-        child: Row(
-          children: [
-            Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: _p.tint(iconColor, iconBg),
-                shape: BoxShape.circle,
-              ),
-              child: Center(child: Icon(icon, color: iconColor, size: 18)),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w700,
-                      color: _ink,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    date,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: _inkSec,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right_rounded, size: 22, color: _inkFaint2),
-          ],
-        ),
       ),
     );
   }
@@ -1371,75 +1118,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                   color: Colors.white,
                 ),
               ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // DELETE PREGNANCY CARD SECTION
-  // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildDeletePregnancyCardSection(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _p.pick(
-            const Color(0xFFFEE2E2),
-            const Color(0xFFEF4444).withValues(alpha: 0.35),
-          ),
-          width: 1.2,
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: _p.tint(const Color(0xFFEF4444), const Color(0xFFFEF2F2)),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.delete_outline_rounded,
-              color: Color(0xFFEF4444),
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Delete Pregnancy Card',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: _ink,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Remove this record and reset timeline',
-                  style: TextStyle(fontSize: 11.5, color: _inkMuted2),
-                ),
-              ],
-            ),
-          ),
-          TextButton(
-            onPressed: () => _showDeletePregnancyDialog(context),
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFEF4444),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            ),
-            child: const Text(
-              'Delete',
-              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
             ),
           ),
         ],
@@ -1868,51 +1546,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     await _selectEntity(id);
   }
 
-  /// How many of what is still coming the card shows before it stops.
-  static const int _upcomingLimit = 3;
-
-  /// The doses still to be given, soonest first.
-  List<BabyImmunizationRecord> get _upcomingDoses {
-    final pending = _selectedBabyDoses
-        .where((dose) => dose.vaccinationDate == null)
-        .toList();
-    pending.sort(_byDueDate((dose) => dose.expectedDate));
-    return pending;
-  }
-
-  /// The milestones not yet reached, soonest first.
-  List<BabyMilestone> get _upcomingMilestones {
-    final pending = _selectedBabyMilestones
-        .where((milestone) => !milestone.achieved)
-        .toList();
-    pending.sort(_byDueDate((milestone) => milestone.expectedDate));
-    return pending;
-  }
-
-  /// Sorts by due date with the undated ones last, so a row with no date never
-  /// jumps the queue ahead of one that is actually due.
-  static int Function(T, T) _byDueDate<T>(DateTime? Function(T) dateOf) {
-    return (a, b) {
-      final dateA = dateOf(a);
-      final dateB = dateOf(b);
-      if (dateA == null && dateB == null) return 0;
-      if (dateA == null) return 1;
-      if (dateB == null) return -1;
-      return dateA.compareTo(dateB);
-    };
-  }
-
-  Future<void> _openBabyDetail({int tab = 0}) async {
-    final babyId = _selectedBabyId;
-    if (babyId == null) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => BabyDetailPage(babyId: babyId, initialTab: tab),
-      ),
-    );
-    if (mounted) await _loadAllPregnancyData();
-  }
-
   Widget _buildBabyJourneyView(BuildContext context) {
     final baby = _selectedBaby;
     if (baby == null) return _buildUnregisteredPregnancyView(context);
@@ -1922,56 +1555,52 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       children: [
         const SizedBox(height: 8),
 
-        // ─── BABY HERO CARD ───
-        // The same banner the home screen and the pregnant view lead with, so
-        // the journey looks like one story either side of the birth. The baby
-        // does the talking here, as she does on home.
-        BabyHeroBanner(
-          speechText: _babyBannerText(baby),
-          bubblePosition: SpeechBubblePosition.topCenter,
-          height: 270,
-          greetingText: "",
-          onTap: () => _openBabyDetail(),
-        ),
-        const SizedBox(height: 18),
-
-        // ─── BABY INFO SECTION CARD ───
-        _buildBabyInfoCard(baby),
-        const SizedBox(height: 16),
-
-        // ─── VACCINATION ───
-        _buildBabyRecordSection(
-          label: 'VACCINATION',
-          icon: Icons.vaccines_rounded,
-          accent: const Color(0xFF8B5CF6),
-          done: _selectedBabyDoses
-              .where((d) => d.vaccinationDate != null)
-              .length,
-          total: _selectedBabyDoses.length,
-          upcoming: _upcomingDoses,
-          allDoneMessage: 'Every dose given 🎉',
-          emptyMessage:
-              'No doses scheduled yet. Editing the date of birth rebuilds the '
-              'standard immunisation schedule.',
-          onOpen: () => _openBabyDetail(tab: 0),
-          rowBuilder: (dose) => _buildDoseRow(dose),
-        ),
-        const SizedBox(height: 16),
-
-        // ─── MILESTONES ───
-        _buildBabyRecordSection(
-          label: 'MILESTONES',
-          icon: Icons.emoji_events_rounded,
-          accent: const Color(0xFFF59E0B),
-          done: _selectedBabyMilestones.where((m) => m.achieved).length,
-          total: _selectedBabyMilestones.length,
-          upcoming: _upcomingMilestones,
-          allDoneMessage: 'Every milestone reached 🎉',
-          emptyMessage:
-              'No milestones yet. Editing the date of birth rebuilds the '
-              'standard developmental checklist.',
-          onOpen: () => _openBabyDetail(tab: 1),
-          rowBuilder: (milestone) => _buildMilestoneRow(milestone),
+        // ─── MILESTONE TRAIN ───
+        // In place of the talking banner: the baby rides a train of month
+        // wagons, and the month picked shows its vaccinations and milestones
+        // the way the ANC schedule lists visits.
+        BabyGrowthTrack(
+          baby: baby,
+          doses: _selectedBabyDoses,
+          milestones: _selectedBabyMilestones,
+          // Vaccination and Milestones, each opening its own page with the
+          // same train — in place of the baby info card.
+          footer: BabyCareBoxes(
+            dosesGiven: _selectedBabyDoses
+                .where((d) => d.vaccinationDate != null)
+                .length,
+            dosesTotal: _selectedBabyDoses.length,
+            milestonesReached: _selectedBabyMilestones
+                .where((m) => m.achieved)
+                .length,
+            milestonesTotal: _selectedBabyMilestones.length,
+            onOpen: (mode) async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      BabyCareTrackPage(babyId: baby.id, mode: mode),
+                ),
+              );
+              await _loadSelectedBabySchedule();
+              if (mounted) setState(() {});
+            },
+          ),
+          onDoseGiven: (dose, given) async {
+            await BabyDbService.instance.markImmunizationGiven(
+              dose.id,
+              given ? DateTime.now() : null,
+            );
+            await _loadSelectedBabySchedule();
+            if (mounted) setState(() {});
+          },
+          onMilestoneReached: (milestone, reached) async {
+            await BabyDbService.instance.setMilestoneAchieved(
+              milestone.id,
+              reached ? DateTime.now() : null,
+            );
+            await _loadSelectedBabySchedule();
+            if (mounted) setState(() {});
+          },
         ),
         const SizedBox(height: 20),
 
@@ -1986,203 +1615,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     );
   }
 
-  /// What the baby says from the banner.
-  ///
-  /// First person, like the pregnant view's "Am 24 weeks, Amma!" — same voice,
-  /// the other side of the birth.
-  String _babyBannerText(Baby baby) {
-    final name = baby.name.trim();
-    final age = babyAgeLabel(baby.deliveryDate);
-    final opener = age == 'Newborn'
-        ? "Am here, Amma! 💕"
-        : "Am $age old, Amma! 💕";
-    return name.isEmpty
-        ? "$opener\nGrowing a little more every day."
-        : "$opener\nThank you for looking after me.";
-  }
-
-  /// Name, age and how far through the schedule they are.
-  ///
-  /// Styled as the pregnancy info card is, and sits under the banner in the
-  /// same place: the banner is the picture, this is the record.
-  Widget _buildBabyInfoCard(Baby baby) {
-    final photo = baby.photo;
-    final hasPhoto =
-        photo != null && photo.isNotEmpty && File(photo).existsSync();
-    final gender = baby.gender;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _hair, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _shadow3,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Row(
-                children: [
-                  Icon(
-                    Icons.child_care_rounded,
-                    color: Color(0xFFFF3B5C),
-                    size: 15,
-                  ),
-                  SizedBox(width: 5),
-                  Text(
-                    'BABY INFO',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFFFF3B5C),
-                      letterSpacing: 0.6,
-                    ),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  if (gender != null && gender.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: _roseSoft,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        labelForGender(gender),
-                        style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFFFF3B5C),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(width: 6),
-                  GestureDetector(
-                    onTap: () => _editBaby(baby),
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(
-                        color: _chipGrey,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Icon(
-                        Icons.edit_rounded,
-                        size: 14,
-                        color: _inkSec2,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Photo, name and age. The photo is the one thing the banner cannot
-          // carry, so it stays here rather than being dropped.
-          Row(
-            children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _card,
-                  border: Border.all(color: _roseBorder, width: 2),
-                  image: hasPhoto
-                      ? DecorationImage(
-                          image: FileImage(File(photo)),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
-                ),
-                child: hasPhoto
-                    ? null
-                    : const Icon(
-                        Icons.child_care_rounded,
-                        size: 26,
-                        color: Color(0xFFFF9DB1),
-                      ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      baby.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${babyAgeLabel(baby.deliveryDate)} old  ·  '
-                      'Born ${_dateFmt.format(baby.deliveryDate)}',
-                      style: TextStyle(fontSize: 12, color: _inkSoft),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          // ─── PROGRESS ───
-          Row(
-            children: [
-              Expanded(
-                child: _buildBabyProgressTile(
-                  icon: Icons.vaccines_rounded,
-                  label: 'Vaccines given',
-                  done: _selectedBabyDoses
-                      .where((d) => d.vaccinationDate != null)
-                      .length,
-                  total: _selectedBabyDoses.length,
-                  color: const Color(0xFF8B5CF6),
-                  background: const Color(0xFFF3E8FF),
-                  onTap: () => _openBabyDetail(tab: 0),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildBabyProgressTile(
-                  icon: Icons.emoji_events_rounded,
-                  label: 'Milestones hit',
-                  done: _selectedBabyMilestones.where((m) => m.achieved).length,
-                  total: _selectedBabyMilestones.length,
-                  color: const Color(0xFFF59E0B),
-                  background: const Color(0xFFFEF3C7),
-                  onTap: () => _openBabyDetail(tab: 1),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _editBaby(Baby baby) async {
     final id = await showBabyFormSheet(
       context,
@@ -2190,310 +1622,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       title: 'Edit baby',
     );
     if (id != null) await _loadAllPregnancyData();
-  }
-
-  Widget _buildBabyProgressTile({
-    required IconData icon,
-    required String label,
-    required int done,
-    required int total,
-    required Color color,
-    required Color background,
-    required VoidCallback onTap,
-  }) {
-    final fraction = total == 0 ? 0.0 : done / total;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-        decoration: BoxDecoration(
-          color: _card,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _hair),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 28,
-                  height: 28,
-                  decoration: BoxDecoration(
-                    color: _p.tint(color, background),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 15, color: color),
-                ),
-                const Spacer(),
-                Text(
-                  '$done/$total',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 9),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: fraction,
-                minHeight: 5,
-                backgroundColor: _track,
-                valueColor: AlwaysStoppedAnimation(color),
-              ),
-            ),
-            const SizedBox(height: 7),
-            Text(label, style: TextStyle(fontSize: 11, color: _inkMuted)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// What is still coming for this baby — the next few doses, or the next few
-  /// milestones.
-  ///
-  /// Deliberately not the whole schedule: a newborn has twenty-four doses
-  /// ahead of her and listing them all buries the two that matter this month.
-  /// The counter and bar still say how far through she is, and the full list
-  /// is one tap away on [BabyDetailPage].
-  Widget _buildBabyRecordSection<T>({
-    required String label,
-    required IconData icon,
-    required Color accent,
-    required int done,
-    required int total,
-    required List<T> upcoming,
-    required String allDoneMessage,
-    required String emptyMessage,
-    required VoidCallback onOpen,
-    required Widget Function(T) rowBuilder,
-  }) {
-    final fraction = total == 0 ? 0.0 : done / total;
-    final shown = upcoming.take(_upcomingLimit).toList();
-    final hidden = upcoming.length - shown.length;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _hair, width: 1.2),
-        boxShadow: [
-          BoxShadow(
-            color: _shadow3,
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: accent, size: 15),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: accent,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ),
-              if (total > 0)
-                Text(
-                  '$done/$total',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: _ink,
-                  ),
-                ),
-            ],
-          ),
-          if (total > 0) ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: fraction,
-                minHeight: 5,
-                backgroundColor: _track,
-                valueColor: AlwaysStoppedAnimation(accent),
-              ),
-            ),
-          ],
-          const SizedBox(height: 4),
-          if (shown.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              child: Text(
-                total == 0 ? emptyMessage : allDoneMessage,
-                style: TextStyle(fontSize: 12, height: 1.4, color: _inkMuted),
-              ),
-            )
-          else
-            ...shown.map(rowBuilder),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onOpen,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                foregroundColor: accent,
-              ),
-              icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-              label: Text(
-                hidden > 0 ? 'View all ($total)' : 'Open full record',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDoseRow(BabyImmunizationRecord dose) {
-    final given = dose.vaccinationDate != null;
-    final status = CareStatus.resolve(
-      status: given ? 'done' : 'pending',
-      date: dose.expectedDate,
-    );
-
-    return _buildBabyRecordRow(
-      checked: given,
-      activeColor: const Color(0xFF8B5CF6),
-      title: dose.vaccineName,
-      subtitle: given
-          ? 'Given ${_dateFmt.format(dose.vaccinationDate!)}'
-          : dose.expectedDate == null
-          ? 'No due date set'
-          : 'Due ${_dateFmt.format(dose.expectedDate!)}',
-      status: status,
-      // A dose is a date, so an overdue one is worth saying out loud.
-      showStatus: true,
-      onChanged: (value) async {
-        await BabyDbService.instance.markImmunizationGiven(
-          dose.id,
-          value ? DateTime.now() : null,
-        );
-        await _loadSelectedBabySchedule();
-        if (mounted) setState(() {});
-      },
-      onTap: () => _openBabyDetail(tab: 0),
-    );
-  }
-
-  Widget _buildMilestoneRow(BabyMilestone milestone) {
-    final status = CareStatus.resolve(
-      status: milestone.achieved ? 'done' : 'pending',
-      date: milestone.expectedDate,
-    );
-
-    return _buildBabyRecordRow(
-      checked: milestone.achieved,
-      activeColor: const Color(0xFFF59E0B),
-      title: milestone.milestone,
-      subtitle: milestone.completedAt != null
-          ? 'Achieved ${_dateFmt.format(milestone.completedAt!)}'
-          : milestone.expectedDate == null
-          ? milestone.description
-          : 'Usually around ${_dateFmt.format(milestone.expectedDate!)}',
-      status: status,
-      // Milestones are guides, not deadlines — a late one is not "overdue" and
-      // should not be shouted at her.
-      showStatus: milestone.achieved,
-      onChanged: (value) async {
-        await BabyDbService.instance.setMilestoneAchieved(
-          milestone.id,
-          value ? DateTime.now() : null,
-        );
-        await _loadSelectedBabySchedule();
-        if (mounted) setState(() {});
-      },
-      onTap: () => _openBabyDetail(tab: 1),
-    );
-  }
-
-  Widget _buildBabyRecordRow({
-    required bool checked,
-    required Color activeColor,
-    required String title,
-    required String subtitle,
-    required CareStatus status,
-    required bool showStatus,
-    required ValueChanged<bool> onChanged,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 2),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 34,
-              height: 34,
-              child: Checkbox(
-                value: checked,
-                activeColor: activeColor,
-                visualDensity: VisualDensity.compact,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                onChanged: (value) => onChanged(value ?? false),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: _ink,
-                      decoration: checked ? TextDecoration.lineThrough : null,
-                      decorationColor: _inkFaint3,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: _inkMuted),
-                  ),
-                ],
-              ),
-            ),
-            if (showStatus) ...[
-              const SizedBox(width: 8),
-              CareStatusChip(status: status),
-            ],
-          ],
-        ),
-      ),
-    );
   }
 
   /// She is postpartum, not out of the app — this keeps registering the next

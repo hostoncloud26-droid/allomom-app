@@ -232,7 +232,7 @@ class _PregnancyWeekCardState extends State<PregnancyWeekCard> {
           const SizedBox(height: 10),
           _CardButton(
             icon: Icons.favorite_rounded,
-            label: 'My Pregnancy Journey',
+            label: 'My baby',
             onTap: widget.onOpenJourney,
           ),
         ],
