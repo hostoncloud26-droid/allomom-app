@@ -389,14 +389,14 @@ class FamilyController extends GetxController {
     required String name,
     String? phone,
     String countryCode = '+91',
-    String role = 'Mom',
+    String? role,
     String? familyName,
   }) async {
     final response = await FamilyApi.linkPartner(
       name: name,
       phone: phone,
       countryCode: countryCode,
-      role: role,
+      role: role ?? _myRole,
       familyName: familyName,
     );
 
@@ -423,6 +423,29 @@ class FamilyController extends GetxController {
 
     if (!response.success) {
       debugPrint('⚠️ [FamilyController] updatePartner failed: ${response.detail}');
+      return response.networkError
+          ? 'No connection — this change will be saved when you are back online.'
+          : response.detail;
+    }
+
+    await _mirror(response.item);
+    return null;
+  }
+
+  /// Sets what the caller calls [userId] — any family member, not only the
+  /// partner [updatePartner] is limited to. Blank clears the nickname.
+  /// Returns null on success, or a message to show.
+  Future<String?> setNickname({
+    required String userId,
+    required String nickname,
+  }) async {
+    final response = await FamilyApi.setMemberNickname(
+      userId: userId,
+      nickName: nickname,
+    );
+
+    if (!response.success) {
+      debugPrint('⚠️ [FamilyController] setNickname failed: ${response.detail}');
       return response.networkError
           ? 'No connection — this change will be saved when you are back online.'
           : response.detail;

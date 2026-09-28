@@ -14,6 +14,7 @@ import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/people/widgets/family_illustration_helper.dart';
 
 class PeoplePage extends StatefulWidget {
   const PeoplePage({
@@ -55,8 +56,9 @@ class _PeoplePageState extends State<PeoplePage> {
     final pending = widget.pendingAddMemberRelationship;
     if (pending != null && pending.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted)
+        if (mounted) {
           _showAddMemberBottomSheet(context, initialRelationship: pending);
+        }
       });
     }
   }
@@ -71,7 +73,11 @@ class _PeoplePageState extends State<PeoplePage> {
   /// this page — and pull-to-refresh, which also calls this — never gets
   /// stuck showing "No Family" when the server actually has one.
   Future<void> _loadFamilyData() async {
-    await _loadFamilyDataInner();
+    // The first pass is local-only and may legitimately find nothing yet on
+    // a fresh device — `keepLoadingIfEmpty` keeps the spinner up instead of
+    // flashing "No Family" for the moment before the server refresh below
+    // has a chance to fill it in.
+    await _loadFamilyDataInner(keepLoadingIfEmpty: true);
     if (mounted) _speakForTab();
 
     final userId = MainController.instance.userId;
@@ -90,7 +96,7 @@ class _PeoplePageState extends State<PeoplePage> {
     }
   }
 
-  Future<void> _loadFamilyDataInner() async {
+  Future<void> _loadFamilyDataInner({bool keepLoadingIfEmpty = false}) async {
     setState(() {
       _isLoadingFamily = true;
     });
@@ -102,6 +108,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
       if (family == null) {
         if (!mounted) return;
+        if (keepLoadingIfEmpty) return;
         setState(() {
           _familyData = null;
           _apiFamilyMembers = [];
@@ -113,6 +120,16 @@ class _PeoplePageState extends State<PeoplePage> {
       final members = await FamilyDbService.instance.getFamilyMembers(
         family.id,
       );
+      // The nickname is the viewer's own record of this person, so it only
+      // exists for other people — nobody has a nickname for themselves.
+      final nicknames = <String, String?>{
+        for (final m in members)
+          if (m.userId != userId)
+            m.userId: await FamilyDbService.instance.nicknameFor(
+              viewerId: userId,
+              relatedUserId: m.userId,
+            ),
+      };
       // Babies aren't family members server-side — they live in their own
       // table (BabyRepository) — so they never come back from
       // getFamilyMembers. The card below still wants to show them (with the
@@ -133,7 +150,9 @@ class _PeoplePageState extends State<PeoplePage> {
             (m) => {
               'userid': m.userId,
               'id': m.userId,
-              'name': m.name,
+              'name': nicknames[m.userId] ?? m.name,
+              'realName': m.name,
+              'nickname': nicknames[m.userId],
               'phone': m.phone ?? '',
               'relation': m.relation,
               'image': m.image,
@@ -146,6 +165,8 @@ class _PeoplePageState extends State<PeoplePage> {
               'name': b.name,
               'phone': '',
               'relation': 'child',
+              'gender': b.gender,
+              'dob': b.deliveryDate,
               'image': null,
             },
           ),
@@ -343,17 +364,15 @@ class _PeoplePageState extends State<PeoplePage> {
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _p.tint(primaryColor, Color(0xFFFCE7F0)),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 42)),
+            height: 150,
+            width: double.infinity,
+            alignment: Alignment.center,
+            child: Image.asset(
+              FamilyIllustrationHelper.houseAsset,
+              fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Text(
             'No Family Group Yet',
             style: TextStyle(
@@ -454,173 +473,217 @@ class _PeoplePageState extends State<PeoplePage> {
     final familyName = _familyData?['name'] ?? "My Family";
     final familyCode = _familyData?['code']?.toString() ?? "";
     final membersCount = _apiFamilyMembers.length;
+    final illustrationAsset = FamilyIllustrationHelper.resolveIllustration(
+      members: _apiFamilyMembers,
+    );
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _p.tint(const Color(0xFF10B981), const Color(0xFFEAF8F5)),
+        color: _p.card,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 16,
+            blurRadius: 18,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Illustration banner graphic area
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                width: double.infinity,
-                height: 190,
-                decoration: const BoxDecoration(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFFFF0F5),
-                      Color(0xFFF3FBF9),
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.family_restroom_rounded,
-                    size: 84,
-                    color: primaryColor.withValues(alpha: 0.35),
-                  ),
-                ),
+          const SizedBox(height: 14),
+
+          // Top Header Line: "Family first, always"
+          Center(
+            child: Text(
+              'Family first, always',
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: _p.textSecondary,
+                letterSpacing: 0.2,
               ),
-              if (_familyData?['profileImage'] != null &&
-                  _familyData!['profileImage'].toString().isNotEmpty)
-                Positioned(
-                  left: 20,
-                  bottom: -18,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _p.tint(primaryColor, const Color(0xFFFCE7F0)),
-                      border: Border.all(color: _p.card, width: 3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
+            ),
+          ),
+
+          const SizedBox(height: 6),
+
+          // ─── 3D Family Illustration with Pink Circle & Overlapping Pill ───
+          SizedBox(
+            width: double.infinity,
+            height: 295,
+            child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.topCenter,
+                children: [
+                  // 1. Solid Soft Pink Circle (exact match to reference design)
+                  Positioned(
+                    top: 12,
+                    child: Container(
+                      width: 250,
+                      height: 250,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _p.pick(
+                          const Color(0xFFFCE1EB),
+                          const Color(0xFF422834),
                         ),
-                      ],
-                      image: DecorationImage(
-                        image: NetworkImage(_familyData!['profileImage']),
-                        fit: BoxFit.cover,
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 20),
 
-          // Title & member count & family code
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: Column(
-              children: [
-                Text(
-                  familyName,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: _p.textPrimary,
+                  // 2. 3D Family Illustration PNG
+                  Positioned(
+                    top: 14,
+                    child: Image.asset(
+                      illustrationAsset,
+                      height: 236,
+                      fit: BoxFit.contain,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
+
+                  // Optional custom profile photo avatar badge if present
+                  if (_familyData?['profileImage'] != null &&
+                      _familyData!['profileImage'].toString().isNotEmpty)
+                    Positioned(
+                      left: 24,
+                      bottom: 38,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: _p.card,
+                          border: Border.all(color: _p.card, width: 2.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                          image: DecorationImage(
+                            image: NetworkImage(_familyData!['profileImage']),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  // 4. Overlapping Floating Pill Card at the bottom (covers the bottom cut of characters)
+                  Positioned(
+                    bottom: 6,
+                    left: 18,
+                    right: 18,
+                    child: Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 4,
+                        horizontal: 24,
+                        vertical: 13,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.tint(
-                          const Color(0xFF22C55E),
-                          const Color(0xFFDCFCE7),
+                        color: _p.pick(Colors.white, _p.surface),
+                        borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: _p.border.withValues(alpha: 0.5),
+                          width: 1,
                         ),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: _ink(Color(0xFF15803D)),
-                        ),
-                      ),
-                    ),
-                    if (familyCode.isNotEmpty) ...[
-                      const SizedBox(width: 8),
-                      GestureDetector(
-                        onTap: () {
-                          Clipboard.setData(ClipboardData(text: familyCode));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                'Family Code $familyCode copied to clipboard!',
-                              ),
-                              backgroundColor: const Color(0xFF10B981),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          );
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 4,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 18,
+                            offset: const Offset(0, 5),
                           ),
-                          decoration: BoxDecoration(
-                            color: _p.card,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: primaryColor.withValues(alpha: 0.3),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            familyName,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 18.5,
+                              fontWeight: FontWeight.w800,
+                              color: _p.textPrimary,
+                              letterSpacing: -0.2,
                             ),
                           ),
-                          child: Row(
+                          const SizedBox(height: 3),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                'Code: $familyCode',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                  color: primaryColor,
+                                '$membersCount ${membersCount == 1 ? "member" : "members"}',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: _p.textSecondary,
                                 ),
                               ),
-                              const SizedBox(width: 4),
-                              const Icon(
-                                Icons.copy_rounded,
-                                size: 13,
-                                color: primaryColor,
-                              ),
+                              if (familyCode.isNotEmpty) ...[
+                                const SizedBox(width: 6),
+                                Text(
+                                  '•',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: _p.textMuted,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                GestureDetector(
+                                  onTap: () {
+                                    Clipboard.setData(
+                                      ClipboardData(text: familyCode),
+                                    );
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Family Code $familyCode copied to clipboard!',
+                                        ),
+                                        backgroundColor: const Color(0xFF10B981),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        familyCode,
+                                        style: TextStyle(
+                                          fontSize: 12.5,
+                                          fontWeight: FontWeight.w700,
+                                          color: _p.textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.copy_rounded,
+                                        size: 13,
+                                        color: primaryColor,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
-                        ),
+                        ],
                       ),
-                    ],
-                  ],
-                ),
-              ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -632,6 +695,8 @@ class _PeoplePageState extends State<PeoplePage> {
     final phone = (member['phone'] ?? '').toString();
     final relation = (member['relation'] ?? 'Member').toString();
     final userId = (member['userid'] ?? member['id'])?.toString();
+    final realName = (member['realName'] ?? name).toString();
+    final nickname = member['nickname']?.toString();
 
     Color badgeBg = const Color(0xFFEFF6FF);
     Color badgeText = const Color(0xFF3B82F6);
@@ -676,6 +741,18 @@ class _PeoplePageState extends State<PeoplePage> {
     // a real Baby record elsewhere; removing it here would desync the two,
     // so the only way to remove it is deleting the baby record itself.
     final isAutoAddedBaby = relLower == 'child';
+
+    // The baby has no user row of its own, so a nickname for it has nowhere
+    // to be saved — only a real member (registered or a placeholder) can be
+    // renamed here.
+    final canEditNickname = !isSelf && !isAutoAddedBaby && userId != null;
+    final onEditName = canEditNickname
+        ? () => _showEditNicknameDialog(
+              userId: userId,
+              realName: realName,
+              currentNickname: nickname,
+            )
+        : null;
 
     // The baby has no chat of its own — its card opens Baby Journey (care and
     // growth tracking) instead of the inert chat button every other member
@@ -795,8 +872,73 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetterColor: avatarLetterColor,
         trailingIcon: trailingIcon,
         onTrailingTap: onTrailingTap,
+        onEditName: onEditName,
       ),
     );
+  }
+
+  Future<void> _showEditNicknameDialog({
+    required String userId,
+    required String realName,
+    String? currentNickname,
+  }) async {
+    final ctrl = TextEditingController(text: currentNickname ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Set Nickname',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'What do you want to call $realName? Leave blank to use their name.',
+              style: TextStyle(fontSize: 13, color: _p.textMuted),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: realName,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+
+    final error = await FamilyController.instance.setNickname(
+      userId: userId,
+      nickname: ctrl.text.trim(),
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    _loadFamilyData();
   }
 
   void _showJoinFamilyDialog() {
@@ -1171,6 +1313,9 @@ class _PeoplePageState extends State<PeoplePage> {
     // other member has nothing to tap here, so no button is shown for them.
     IconData trailingIcon = Icons.chat_bubble_outline_rounded,
     VoidCallback? onTrailingTap,
+    // Set only for a real member other than the viewer — taps a pencil next
+    // to their name to open the nickname editor.
+    VoidCallback? onEditName,
   }) {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -1230,13 +1375,31 @@ class _PeoplePageState extends State<PeoplePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _p.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _p.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (onEditName != null) ...[
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: onEditName,
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 15,
+                          color: _p.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Row(

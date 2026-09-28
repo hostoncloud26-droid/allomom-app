@@ -622,6 +622,16 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
           ? NarrationKeys.onbRoleDad
           : NarrationKeys.onbRoleMom;
     });
+    // Saved immediately rather than waiting for the end of registration —
+    // screens reached before then (e.g. People's own "Create Family" dialog)
+    // read gender off the profile to work out the caller's role, and an
+    // unset gender there silently falls back to "mother".
+    unawaited(
+      MainController.instance.saveRegistration(
+        gender: role.trim().toLowerCase() == 'dad' ? 'male' : 'female',
+        markRegistered: false,
+      ),
+    );
   }
 
   void _handleRoleProceed() {
