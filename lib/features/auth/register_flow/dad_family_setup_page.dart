@@ -33,16 +33,18 @@ class DadFamilySetupPage extends StatelessWidget {
 
 class DadFamilySetupStepView extends StatelessWidget {
   final VoidCallback onJoinByCode;
-  final VoidCallback onRegisterPregnancy;
+
+  /// No family code: finishes registration as he is.
   final VoidCallback onContinue;
+  final bool isLoading;
   final String partnerWord;
 
   const DadFamilySetupStepView({
     super.key,
     required this.onJoinByCode,
-    required this.onRegisterPregnancy,
     required this.onContinue,
     required this.partnerWord,
+    this.isLoading = false,
   });
 
   @override
@@ -73,16 +75,14 @@ class DadFamilySetupStepView extends StatelessWidget {
                 iconColor: const Color(0xFF2563EB),
                 onTap: onJoinByCode,
               ),
-              const SizedBox(height: 8),
-
-              // Option 2: Register Mommy's Pregnancy
-              _buildOptionTile(
-                title: "Register $partnerWord's Pregnancy",
-                subtitle: "Set up LMP & Due Date for $partnerWord",
-                icon: Icons.favorite_rounded,
-                iconBg: const Color(0xFFFFF0F3),
-                iconColor: const Color(0xFFFF4E6A),
-                onTap: onRegisterPregnancy,
+              const SizedBox(height: 12),
+              Text(
+                "No code yet? Continue now and join $partnerWord's family "
+                'later from People.',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: const Color(0xFF8E95A5),
+                ),
               ),
             ],
           ),
@@ -95,7 +95,7 @@ class DadFamilySetupStepView extends StatelessWidget {
           width: double.infinity,
           height: 52,
           child: ElevatedButton(
-            onPressed: onContinue,
+            onPressed: isLoading ? null : onContinue,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF5277),
               shape: RoundedRectangleBorder(
@@ -103,29 +103,38 @@ class DadFamilySetupStepView extends StatelessWidget {
               ),
               elevation: 0,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Flexible(
-                  child: Text(
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    'Continue as Dad',
-                    style: GoogleFonts.poppins(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+            child: isLoading
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
                       color: Colors.white,
                     ),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          "I don't have a family code",
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  color: Colors.white,
-                  size: 20,
-                ),
-              ],
-            ),
           ),
         ),
       ],

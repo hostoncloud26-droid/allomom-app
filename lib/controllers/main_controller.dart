@@ -62,6 +62,12 @@ class MainController extends GetxController {
   String get userEmail => _user?.email ?? '';
   String get countryCode => _user?.countryCode ?? '+91';
   String get gender => _user?.gender ?? 'Female';
+
+  /// A father signed in for his wife: health tiles speak about her, not him.
+  bool get isDad {
+    final g = gender.trim().toLowerCase();
+    return g == 'male' || g == 'father' || g == 'dad';
+  }
   DateTime? get dob => _user?.dob;
   String get bio => _user?.bio ?? '';
   String get city => _user?.city ?? '';

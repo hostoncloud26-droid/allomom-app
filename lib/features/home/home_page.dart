@@ -1232,46 +1232,36 @@ class _HomePageState extends State<HomePage> {
     final session = MainController.instance;
     final isPregnant = session.isPregnant;
 
-    // Kick counting is a pregnancy tool: there is nothing to count once the
-    // baby is born, so its slot goes to the journey — which is the only place
-    // a mother who is not pregnant can reach it from home, the summary card
-    // beside this one having turned into her cycle.
-    final journeyOrKicks = isPregnant
-        ? _quickAction(
-            id: 'kick_counter',
-            title: 'Kick Count',
-            subtitle: 'Fetal Tracker',
-            icon: Icons.pregnant_woman_rounded,
-            color: const Color(0xFFFF4E6A),
-            image: 'assets/Quick Actions/Kick Count.png',
-            page: const KickCounterPage(),
-          )
-        : _quickAction(
-            id: 'journey',
-            title: session.hasKids ? 'Baby Journey' : 'My Journey',
-            subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
-            icon: session.hasKids
-                ? Icons.child_friendly_rounded
-                : Icons.pregnant_woman_rounded,
-            color: const Color(0xFFFF8A5B),
-            image: session.hasKids
-                ? 'assets/allobaby/BabyCare.png'
-                : 'assets/allobaby/Pregnancy Care.png',
-            page: const PregnancyJourneyPage(),
-          );
+    // The journey sits right beside health, always. Kick counting is a
+    // pregnancy tool — there is nothing to count once the baby is born — so it
+    // only joins the row while she is pregnant.
+    final journey = _quickAction(
+      id: 'journey',
+      title: session.hasKids ? 'Baby Journey' : 'My Journey',
+      subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
+      icon: session.hasKids
+          ? Icons.child_friendly_rounded
+          : Icons.pregnant_woman_rounded,
+      color: const Color(0xFFFF8A5B),
+      image: session.hasKids
+          ? 'assets/allobaby/BabyCare.png'
+          : 'assets/allobaby/Pregnancy Care.png',
+      page: const PregnancyJourneyPage(),
+    );
 
-    // Illustrations from assets/Quick Actions/. The journey slot, which only
-    // shows for a mother who is not pregnant, keeps its AlloBaby artwork.
+    // Illustrations from assets/Quick Actions/; the journey keeps its
+    // AlloBaby artwork.
     final features = [
       _quickAction(
         id: 'my_health',
-        title: 'My Health',
+        title: session.isDad ? "Wife's Health" : 'My Health',
         subtitle: 'Vitals & Care',
         icon: Icons.monitor_heart_rounded,
         color: const Color(0xFFFF4E6A),
         image: 'assets/Quick Actions/Health.png',
         page: const MyHealthPage(),
       ),
+      journey,
       _quickAction(
         id: 'allocry',
         title: 'AlloCry',
@@ -1281,7 +1271,16 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/AlloCry.png',
         page: const AlloCryPage(),
       ),
-      journeyOrKicks,
+      if (isPregnant)
+        _quickAction(
+          id: 'kick_counter',
+          title: 'Kick Count',
+          subtitle: 'Fetal Tracker',
+          icon: Icons.pregnant_woman_rounded,
+          color: const Color(0xFFFF4E6A),
+          image: 'assets/Quick Actions/Kick Count.png',
+          page: const KickCounterPage(),
+        ),
       _quickAction(
         id: 'reports',
         title: 'Reports',

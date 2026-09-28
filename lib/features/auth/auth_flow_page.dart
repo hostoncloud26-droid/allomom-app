@@ -44,6 +44,7 @@ import 'package:allomom/features/auth/register_flow/join_family_code_page.dart';
 enum AuthFlowStep {
   language,
   contact,
+  otpChannel,
   verifyOtp,
   role,
   name,
@@ -91,7 +92,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   // Contact number state
   final TextEditingController _phoneController = TextEditingController();
   final String _countryCode = '+91';
-  bool _isLoading = false;
 
   // OTP state
   final List<TextEditingController> _otpControllers = List.generate(
@@ -101,10 +101,15 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   final List<FocusNode> _otpFocusNodes = List.generate(6, (_) => FocusNode());
   int _focusedOtpIndex = 0;
   bool _isVerifying = false;
-  bool _isResending = false;
 
   /// Where the last code went — [OtpChannel.whatsapp] or [OtpChannel.sms].
   String? _otpChannel;
+
+  /// The channel a send is in flight on, for the verification-method step.
+  String? _sendingChannel;
+
+  /// A code has gone to this number, so picking a channel again is a resend.
+  bool _otpSent = false;
 
   // Role state
   String _selectedRole = 'Mom';
@@ -256,6 +261,9 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       case AuthFlowStep.contact:
         _narrationKey = NarrationKeys.onbMobile;
         break;
+      case AuthFlowStep.otpChannel:
+        _narrationKey = NarrationKeys.onbMobile;
+        break;
       case AuthFlowStep.verifyOtp:
         _narrationKey = NarrationKeys.onbOtp;
         break;
@@ -373,6 +381,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         return 'Please Select Your Language';
       case AuthFlowStep.contact:
         return 'Set Your Contact Number';
+      case AuthFlowStep.otpChannel:
+        return 'Verification Method';
       case AuthFlowStep.verifyOtp:
         return 'Verify Your Number';
       case AuthFlowStep.role:
@@ -406,6 +416,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         return 'Hello there! Which language should\nwe speak together? 💬';
       case AuthFlowStep.contact:
         return "What's your mobile number\nso I can stay close? 📱";
+      case AuthFlowStep.otpChannel:
+        return 'Where should I send your\nsecret code? 🔑';
       case AuthFlowStep.verifyOtp:
         return 'I just sent a secret 6-digit code to\nyour phone! 🔑';
       case AuthFlowStep.role:
@@ -476,25 +488,36 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       return;
     }
 
-    final channel = await showOtpChannelSheet(
-      context,
-      phoneLabel: '$_countryCode $phone',
-    );
-    if (channel == null || !mounted) return;
+    // A number typed afresh gets a first send, not a resend.
+    _otpSent = false;
+    _goToStep(AuthFlowStep.otpChannel);
+  }
 
-    setState(() {
-      _isLoading = true;
-      _otpChannel = channel;
-    });
+  // ─── STEP 1b: VERIFICATION METHOD ACTIONS ───
+  String get _phoneDigits =>
+      _phoneController.text.trim().replaceAll(' ', '').replaceAll('-', '');
 
-    final error = await AuthController.instance.sendOtp(
-      phone,
-      countryCode: _countryCode,
-      channel: channel,
-    );
+  /// Sends the code over [channel]. The first time from this number it is a
+  /// send; coming back here from "Resend" it is a resend.
+  Future<void> _handleChannelSelected(String channel) async {
+    final phone = _phoneDigits;
+    final isResend = _otpSent;
+    setState(() => _sendingChannel = channel);
+
+    final error = isResend
+        ? await AuthController.instance.resendOtp(
+            phone,
+            countryCode: _countryCode,
+            channel: channel,
+          )
+        : await AuthController.instance.sendOtp(
+            phone,
+            countryCode: _countryCode,
+            channel: channel,
+          );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
+    setState(() => _sendingChannel = null);
 
     if (error != null) {
       _say(
@@ -505,6 +528,15 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       _showMessage(error, isError: true);
       return;
     }
+
+    setState(() {
+      _otpChannel = channel;
+      _otpSent = true;
+    });
+    for (final controller in _otpControllers) {
+      controller.clear();
+    }
+    if (isResend) _say(NarrationKeys.onbOtpResend);
 
     final isTest = _testNumbers.contains(phone);
     _showMessage(
@@ -572,47 +604,9 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     _goToStep(AuthFlowStep.role);
   }
 
-  /// Asks for the channel again, so a code that never arrived on WhatsApp
-  /// can be tried over SMS.
-  Future<void> _handleResendOtp() async {
-    final phone = _phoneController.text
-        .trim()
-        .replaceAll(' ', '')
-        .replaceAll('-', '');
-
-    final channel = await showOtpChannelSheet(
-      context,
-      phoneLabel: '$_countryCode $phone',
-    );
-    if (channel == null || !mounted) return;
-
-    setState(() {
-      _isResending = true;
-      _otpChannel = channel;
-    });
-
-    final error = await AuthController.instance.resendOtp(
-      phone,
-      countryCode: _countryCode,
-      channel: channel,
-    );
-
-    if (!mounted) return;
-    setState(() => _isResending = false);
-
-    if (error != null) {
-      _showMessage(error, isError: true);
-      return;
-    }
-
-    _say(NarrationKeys.onbOtpResend);
-
-    for (final controller in _otpControllers) {
-      controller.clear();
-    }
-    _otpFocusNodes.first.requestFocus();
-    _showMessage('A new code is on its way via ${OtpChannel.label(channel)}.');
-  }
+  /// Back to the verification-method step, so a code that never arrived on
+  /// WhatsApp can be tried over SMS. Picking a channel there resends.
+  void _handleResendOtp() => _handleBackNavigation();
 
   // ─── STEP 3: ROLE ACTIONS ───
   void _handleRoleSelected(String role) {
@@ -994,15 +988,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     _goToStep(AuthFlowStep.joinCode);
   }
 
-  void _handleDadRegisterPregnancy() {
-    _registerPregnancyForPartner = true;
-    _status = 'pregnant';
-    _goToStep(AuthFlowStep.lmp);
-  }
-
-  void _handleDadContinue() {
-    _goToStep(AuthFlowStep.family);
-  }
+  /// A dad either joins his family by code or finishes here. There is nothing
+  /// else for him to set up: the pregnancy and the children are Mommy's, and
+  /// he sees them from People once they are in the same family.
+  Future<void> _handleDadContinue() => _completeRegistration();
 
   // ─── STEP 11: JOIN CODE ACTIONS ───
   Future<void> _handleJoinFamilyCode() async {
@@ -1030,7 +1019,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     }
 
     _showMessage('Successfully connected to family!');
-    _goToStep(AuthFlowStep.family);
+    await _completeRegistration();
   }
 
   double _getStepHeight(AuthFlowStep step, bool isKeyboardOpen) {
@@ -1067,9 +1056,15 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         return ContactNumberStepView(
           phoneController: _phoneController,
           countryCode: _countryCode,
-          isLoading: _isLoading,
+          isLoading: false,
           onSendOtp: _handleSendOtp,
           isKeyboardOpen: isKeyboardOpen,
+        );
+      case AuthFlowStep.otpChannel:
+        return OtpChannelStepView(
+          phoneLabel: '$_countryCode $_phoneDigits',
+          sendingChannel: _sendingChannel,
+          onChannelSelected: _handleChannelSelected,
         );
       case AuthFlowStep.verifyOtp:
         return VerifyOtpStepView(
@@ -1080,7 +1075,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
           otpFocusNodes: _otpFocusNodes,
           focusedIndex: _focusedOtpIndex,
           isVerifying: _isVerifying,
-          isResending: _isResending,
+          isResending: false,
           onVerifyOtp: _handleVerifyOtp,
           onResendOtp: _handleResendOtp,
           onWhereCodeTapped: () => _say(NarrationKeys.onbOtpWhere),
@@ -1163,8 +1158,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       case AuthFlowStep.dadSetup:
         return DadFamilySetupStepView(
           onJoinByCode: _handleDadJoinByCode,
-          onRegisterPregnancy: _handleDadRegisterPregnancy,
           onContinue: _handleDadContinue,
+          isLoading: _isSavingRegistration,
           partnerWord: 'Mommy',
         );
       case AuthFlowStep.joinCode:

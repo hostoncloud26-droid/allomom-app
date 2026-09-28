@@ -11,113 +11,89 @@ abstract final class OtpChannel {
       channel == whatsapp ? 'WhatsApp' : 'SMS';
 }
 
-/// Asks whether to send the code over WhatsApp or SMS, the same choice
-/// AlloKonnect offers. Resolves to an [OtpChannel] value, or null if the
-/// sheet was dismissed.
-Future<String?> showOtpChannelSheet(
-  BuildContext context, {
-  required String phoneLabel,
-}) {
-  return showModalBottomSheet<String>(
-    context: context,
-    backgroundColor: Colors.transparent,
-    builder: (_) => _OtpChannelSheet(phoneLabel: phoneLabel),
-  );
-}
-
-class _OtpChannelSheet extends StatelessWidget {
-  const _OtpChannelSheet({required this.phoneLabel});
+/// The sign-in step that asks whether to send the code over WhatsApp or SMS,
+/// the same choice AlloKonnect offers. Tapping an option sends the code; the
+/// tapped one shows a spinner while [sendingChannel] is set.
+class OtpChannelStepView extends StatelessWidget {
+  const OtpChannelStepView({
+    super.key,
+    required this.phoneLabel,
+    required this.onChannelSelected,
+    this.sendingChannel,
+  });
 
   final String phoneLabel;
+  final ValueChanged<String> onChannelSelected;
+
+  /// The channel a send is in flight on, or null when idle.
+  final String? sendingChannel;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      padding: EdgeInsets.fromLTRB(
-        20,
-        12,
-        20,
-        MediaQuery.viewPaddingOf(context).bottom + 20,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
+    final busy = sendingChannel != null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E7EB),
-                borderRadius: BorderRadius.circular(2),
+                color: const Color(0xFFFFF0F3),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Icon(
+                Icons.verified_user_rounded,
+                color: Color(0xFFFF5277),
+                size: 24,
               ),
             ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F3),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(
-                  Icons.verified_user_rounded,
-                  color: Color(0xFFFF5277),
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Verification Method',
-                      style: GoogleFonts.outfit(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1E2024),
-                      ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'How should we send your code?',
+                    style: GoogleFonts.outfit(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF1E2024),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Send OTP to $phoneLabel',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12.5,
-                        color: const Color(0xFF6B7280),
-                      ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Send OTP to $phoneLabel',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      color: const Color(0xFF6B7280),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 22),
-          _ChannelOption(
-            title: 'WhatsApp',
-            subtitle: 'Instant code via WhatsApp message',
-            badge: 'Recommended',
-            icon: Icons.chat_rounded,
-            gradient: const [Color(0xFF25D366), Color(0xFF128C7E)],
-            onTap: () => Navigator.pop(context, OtpChannel.whatsapp),
-          ),
-          const SizedBox(height: 12),
-          _ChannelOption(
-            title: 'SMS',
-            subtitle: 'Receive OTP via standard SMS',
-            icon: Icons.sms_rounded,
-            gradient: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
-            onTap: () => Navigator.pop(context, OtpChannel.sms),
-          ),
-          const SizedBox(height: 6),
-        ],
-      ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _ChannelOption(
+          title: 'WhatsApp',
+          subtitle: 'Instant code via WhatsApp message',
+          badge: 'Recommended',
+          icon: Icons.chat_rounded,
+          gradient: const [Color(0xFF25D366), Color(0xFF128C7E)],
+          loading: sendingChannel == OtpChannel.whatsapp,
+          onTap: busy ? null : () => onChannelSelected(OtpChannel.whatsapp),
+        ),
+        const SizedBox(height: 12),
+        _ChannelOption(
+          title: 'SMS',
+          subtitle: 'Receive OTP via standard SMS',
+          icon: Icons.sms_rounded,
+          gradient: const [Color(0xFF3B82F6), Color(0xFF1D4ED8)],
+          loading: sendingChannel == OtpChannel.sms,
+          onTap: busy ? null : () => onChannelSelected(OtpChannel.sms),
+        ),
+      ],
     );
   }
 }
@@ -130,14 +106,16 @@ class _ChannelOption extends StatelessWidget {
     required this.gradient,
     required this.onTap,
     this.badge,
+    this.loading = false,
   });
 
   final String title;
   final String subtitle;
   final IconData icon;
   final List<Color> gradient;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final String? badge;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +202,21 @@ class _ChannelOption extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: Color(0xFF9CA3AF),
-              ),
+              if (loading)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: gradient.last,
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 14,
+                  color: Color(0xFF9CA3AF),
+                ),
             ],
           ),
         ),
