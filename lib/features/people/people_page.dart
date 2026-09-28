@@ -12,6 +12,12 @@ import 'package:allomom/features/people/widgets/scan_qr_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/my_health/my_health_page.dart';
+import 'package:allomom/features/people/member_view.dart';
+import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
+import 'package:allomom/controllers/baby_controller.dart';
+import 'package:get/get.dart';
 
 class PeoplePage extends StatefulWidget {
   const PeoplePage({
@@ -293,6 +299,7 @@ class _PeoplePageState extends State<PeoplePage> {
                 _buildDismissibleMemberItem(_apiFamilyMembers[i], i),
                 if (i < _apiFamilyMembers.length - 1) mediumSpacingBox(),
               ],
+            _buildChildrenSection(),
           ],
         ],
       ),
@@ -716,6 +723,17 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        // Opens My Health on the member's record — a father tapping Mommy
+        // gets her vitals, pregnancy, babies and reports in the same screens
+        // he uses for his own.
+        onTap: userId == null || userId.isEmpty
+            ? null
+            : () => openMemberView(
+                context,
+                memberUserId: userId,
+                memberName: name,
+                builder: (_) => const MyHealthPage(),
+              ),
       ),
     );
   }
@@ -1062,6 +1080,161 @@ class _PeoplePageState extends State<PeoplePage> {
     }
   }
 
+  // ─── CHILDREN ───
+  //
+  // Babies are not family members — they hang off a parent's health record —
+  // so they are listed from that data rather than from the family roster. A
+  // father's device holds his wife's record too, so her babies are here.
+  Widget _buildChildrenSection() {
+    return GetBuilder<BabyController>(
+      init: BabyController.instance,
+      builder: (babies) {
+        if (babies.babies.isEmpty) return const SizedBox.shrink();
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            largeSpacingBox(),
+            Row(
+              children: [
+                Icon(Icons.child_care_rounded, size: 20, color: primaryColor),
+                const SizedBox(width: 8),
+                Text(
+                  'Children',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: _p.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+            mediumSpacingBox(),
+            for (final baby in babies.babies) ...[
+              _buildChildCard(baby),
+              mediumSpacingBox(),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildChildCard(Baby baby) {
+    final gender = (baby.gender ?? '').toLowerCase();
+    final image = gender == 'male'
+        ? 'assets/allobaby/boybaby.png'
+        : gender == 'female'
+        ? 'assets/allobaby/girlbaby.png'
+        : 'assets/allobaby/Baby3D.png';
+    final days = DateTime.now().difference(baby.deliveryDate).inDays;
+    final age = days < 0
+        ? 'Due'
+        : days < 31
+        ? '$days days old'
+        : days < 730
+        ? '${days ~/ 30} months old'
+        : '${days ~/ 365} years old';
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _openChildren,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _p.card,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: _p.tint(const Color(0xFF15803D), const Color(0xFFD1FAE5)),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(image, fit: BoxFit.contain),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    baby.name.isEmpty ? 'Baby' : baby.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _p.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    age,
+                    style: TextStyle(fontSize: 12, color: _p.textMuted),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _p.tint(
+                        const Color(0xFF15803D),
+                        const Color(0xFFDCFCE7),
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      'Child',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: _ink(const Color(0xFF15803D)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: _p.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// A child's page is the pregnancy journey, on Mommy's record: a father
+  /// opens it on his wife's, a mother on her own.
+  void _openChildren() {
+    final session = MainController.instance;
+    final wife = session.isDad
+        ? FamilyController.instance.family?.otherParent
+        : null;
+    if (wife != null) {
+      openMemberView(
+        context,
+        memberUserId: wife.userId,
+        memberName: wife.name,
+        builder: (_) => const PregnancyJourneyPage(),
+      );
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+    );
+  }
+
   Widget _buildFamilyMembersHeader() {
     return Row(
       children: [
@@ -1088,8 +1261,9 @@ class _PeoplePageState extends State<PeoplePage> {
     required String avatarLetter,
     required Color avatarBg,
     required Color avatarLetterColor,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _p.card,
@@ -1205,6 +1379,12 @@ class _PeoplePageState extends State<PeoplePage> {
           ),
         ],
       ),
+    );
+    if (onTap == null) return card;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: card,
     );
   }
 

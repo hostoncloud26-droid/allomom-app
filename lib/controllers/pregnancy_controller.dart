@@ -91,7 +91,8 @@ class PregnancyController extends GetxController {
 
   Future<void> loadFromLocal() async {
     final db = await _db;
-    final healthId = MainController.instance.healthDataId;
+    // The household's pregnancy: a father follows his wife's.
+    final healthId = MainController.instance.pregnancyHealthDataId;
 
     if (healthId.isEmpty) {
       reset();
@@ -220,7 +221,7 @@ class PregnancyController extends GetxController {
     Map<String, dynamic>? data,
   }) async {
     final session = MainController.instance;
-    final healthId = session.healthDataId;
+    final healthId = session.pregnancyHealthDataId;
     // Every read is scoped to the health record, so a row without one would
     // be saved and then never shown.
     if (healthId.isEmpty) {

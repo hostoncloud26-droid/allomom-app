@@ -122,10 +122,31 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     }
   }
 
+  /// Whose record the page last loaded. Opened on a family member's, the
+  /// record can arrive from the server a moment after the page does, so the
+  /// page reloads when it does.
+  String _loadedHealthId = '';
+  String _loadedViewing = '';
+
+  void _onSessionChanged() {
+    final session = MainController.instance;
+    if (session.pregnancyHealthDataId != _loadedHealthId ||
+        (session.viewingUserId ?? '') != _loadedViewing) {
+      _loadAllPregnancyData();
+    }
+  }
+
   @override
   void initState() {
     super.initState();
+    MainController.instance.addListener(_onSessionChanged);
     _loadAllPregnancyData();
+  }
+
+  @override
+  void dispose() {
+    MainController.instance.removeListener(_onSessionChanged);
+    super.dispose();
   }
 
   /// Loads the active pregnancy and past records from the local Drift
@@ -140,7 +161,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
       _babies = await BabyRepository.instance.getBabies();
       await _loadSelectedBabySchedule();
 
-      final healthId = session.healthDataId;
+      final healthId = session.pregnancyHealthDataId;
+      _loadedHealthId = healthId;
+      _loadedViewing = session.viewingUserId ?? '';
       final active = healthId.isEmpty
           ? null
           : await HealthDbService.instance.getActivePregnancy(healthId);

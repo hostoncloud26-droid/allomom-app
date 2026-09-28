@@ -48,6 +48,7 @@ class AlloBotFeature {
     required this.color,
     required this.pageBuilder,
     this.image,
+    this.onOpen,
   });
 
   final String id;
@@ -65,6 +66,10 @@ class AlloBotFeature {
   final String? image;
 
   final WidgetBuilder pageBuilder;
+
+  /// Opens the feature in place of a plain push of [pageBuilder] — a father's
+  /// tiles use it to open the page on his wife's record.
+  final Future<void> Function(BuildContext context)? onOpen;
 }
 
 abstract final class AlloBotFeatureCatalog {
@@ -123,6 +128,8 @@ abstract final class AlloBotFeatureCatalog {
 
   /// Opens a card's page.
   static Future<void> open(BuildContext context, AlloBotFeature feature) {
+    final onOpen = feature.onOpen;
+    if (onOpen != null) return onOpen(context);
     return Navigator.of(
       context,
     ).push(MaterialPageRoute(builder: feature.pageBuilder));

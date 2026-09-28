@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 
+import 'package:allomom/api/family_member_api.dart';
 import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/api/sync_api.dart';
 import 'package:allomom/services/auth/secure_token_store.dart';
@@ -49,6 +50,112 @@ class SyncService {
   }
 
   Future<AppDriftDatabase> get _db => SqLiteService().database;
+
+  /// Writes a profile bundle's health records and everything hanging off
+  /// them — vitals, pregnancies with their schedules, babies with theirs —
+  /// over whatever the device holds for the same ids.
+  Future<void> _applyRecords(
+    AppDriftDatabase db,
+    Map<String, dynamic> bundle,
+  ) async {
+    final health = bundle['health_data'];
+    if (health is Map) {
+      await const HealthMapper()
+          .applyServerRow(db, Map<String, dynamic>.from(health));
+    }
+    // The family's records — a father's wife's — land beside his own; the
+    // lists below carry their rows too, keyed by `health_id`.
+    for (final raw in (bundle['family_health_data'] as List? ?? const [])) {
+      if (raw is Map) {
+        await const HealthMapper()
+            .applyServerRow(db, Map<String, dynamic>.from(raw));
+      }
+    }
+
+    for (final vital in (bundle['vitals'] as List? ?? const [])) {
+      if (vital is Map) {
+        await const VitalsMapper()
+            .applyServerRow(db, Map<String, dynamic>.from(vital));
+      }
+    }
+
+    for (final raw in (bundle['pregnancies'] as List? ?? const [])) {
+      if (raw is! Map) continue;
+      final pregnancy = Map<String, dynamic>.from(raw);
+      await const PregnancyMapper().applyServerRow(db, pregnancy);
+
+      for (final anc in (pregnancy['anc_checkups'] as List? ?? const [])) {
+        if (anc is Map) {
+          await const AncMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(anc));
+        }
+      }
+      for (final v in (pregnancy['vaccinations'] as List? ?? const [])) {
+        if (v is Map) {
+          await const PregnancyVaccinationMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(v));
+        }
+      }
+      for (final r
+          in (pregnancy['report_checklists'] as List? ?? const [])) {
+        if (r is Map) {
+          await const ReportChecklistMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(r));
+        }
+      }
+    }
+
+    for (final raw in (bundle['babies'] as List? ?? const [])) {
+      if (raw is! Map) continue;
+      final baby = Map<String, dynamic>.from(raw);
+      await const BabyMapper().applyServerRow(db, baby);
+
+      for (final v in (baby['vaccinations'] as List? ?? const [])) {
+        if (v is Map) {
+          await const BabyVaccinationMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(v));
+        }
+      }
+      for (final m in (baby['milestones'] as List? ?? const [])) {
+        if (m is Map) {
+          await const BabyMilestoneMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(m));
+        }
+      }
+    }
+  }
+
+  /// Fetches a family member's whole record — a father's wife's — and stores
+  /// it beside the user's own, without touching anything else on the device.
+  ///
+  /// Incremental sync only returns rows changed after this device's last
+  /// watermark, so a record that existed before the two joined a family would
+  /// otherwise never arrive. Called whenever her record is opened, so it is
+  /// also as fresh as the server's.
+  Future<bool> importMemberRecord(String memberUserId) async {
+    if (!SecureTokenStore.instance.hasSession) return false;
+    final response = await FamilyMemberApi.getProfile(memberUserId);
+    if (!response.success || response.item is! Map) {
+      debugPrint('⚠️ [SyncService] member import failed: ${response.detail}');
+      return false;
+    }
+    final bundle = Map<String, dynamic>.from(response.item as Map);
+    final db = await _db;
+    try {
+      await db.transaction(() async {
+        final user = bundle['user'];
+        if (user is Map) {
+          await const UserMapper()
+              .applyServerRow(db, Map<String, dynamic>.from(user));
+        }
+        await _applyRecords(db, bundle);
+      });
+    } catch (e) {
+      debugPrint('❌ [SyncService] member import failed: $e');
+      return false;
+    }
+    return true;
+  }
 
   /// Starts the periodic loop. Safe to call more than once.
   void start() {
@@ -150,63 +257,7 @@ class SyncService {
               .applyServerRow(db, Map<String, dynamic>.from(user));
         }
 
-        final health = bundle['health_data'];
-        if (health is Map) {
-          await const HealthMapper()
-              .applyServerRow(db, Map<String, dynamic>.from(health));
-        }
-
-        for (final vital in (bundle['vitals'] as List? ?? const [])) {
-          if (vital is Map) {
-            await const VitalsMapper()
-                .applyServerRow(db, Map<String, dynamic>.from(vital));
-          }
-        }
-
-        for (final raw in (bundle['pregnancies'] as List? ?? const [])) {
-          if (raw is! Map) continue;
-          final pregnancy = Map<String, dynamic>.from(raw);
-          await const PregnancyMapper().applyServerRow(db, pregnancy);
-
-          for (final anc in (pregnancy['anc_checkups'] as List? ?? const [])) {
-            if (anc is Map) {
-              await const AncMapper()
-                  .applyServerRow(db, Map<String, dynamic>.from(anc));
-            }
-          }
-          for (final v in (pregnancy['vaccinations'] as List? ?? const [])) {
-            if (v is Map) {
-              await const PregnancyVaccinationMapper()
-                  .applyServerRow(db, Map<String, dynamic>.from(v));
-            }
-          }
-          for (final r
-              in (pregnancy['report_checklists'] as List? ?? const [])) {
-            if (r is Map) {
-              await const ReportChecklistMapper()
-                  .applyServerRow(db, Map<String, dynamic>.from(r));
-            }
-          }
-        }
-
-        for (final raw in (bundle['babies'] as List? ?? const [])) {
-          if (raw is! Map) continue;
-          final baby = Map<String, dynamic>.from(raw);
-          await const BabyMapper().applyServerRow(db, baby);
-
-          for (final v in (baby['vaccinations'] as List? ?? const [])) {
-            if (v is Map) {
-              await const BabyVaccinationMapper()
-                  .applyServerRow(db, Map<String, dynamic>.from(v));
-            }
-          }
-          for (final m in (baby['milestones'] as List? ?? const [])) {
-            if (m is Map) {
-              await const BabyMilestoneMapper()
-                  .applyServerRow(db, Map<String, dynamic>.from(m));
-            }
-          }
-        }
+        await _applyRecords(db, bundle);
       });
     } catch (e) {
       debugPrint('❌ [SyncService] seed transaction failed: $e');

@@ -12,6 +12,10 @@ import 'package:allomom/features/reports/controller/reports_drive_controller.dar
 import 'package:allomom/features/reports/view_report.dart';
 import 'package:allomom/features/reports/widgets/drive_connect_tile.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
+import 'package:open_filex/open_filex.dart';
+import 'package:allomom/api/family_member_api.dart';
 
 class ReportsPage extends StatefulWidget {
   final bool showAppBar;
@@ -157,6 +161,95 @@ class _ReportsPageState extends State<ReportsPage> {
     }
   }
 
+  /// A family member's reports — a father viewing his wife's. They live in
+  /// her Google Drive and are not synced to this device, so they are read
+  /// from the server, and the screen is view-only for them.
+  String? get _memberId => MainController.instance.viewingUserId;
+
+  Future<List<Map<String, dynamic>>> _memberReportsPage() async {
+    final res = await FamilyMemberApi.getReports(
+      _memberId!,
+      skip: _skip,
+      limit: _limit,
+    );
+    if (!res.success || res.items is! List) return const [];
+    return (res.items as List).whereType<Map>().map((raw) {
+      final r = Map<String, dynamic>.from(raw);
+      return <String, dynamic>{
+        'id': r['id'],
+        'report_type': r['report_type'],
+        'description': r['description'],
+        'imageUrl': null,
+        'detail': r['detail'],
+        'createdAt': r['created_at']?.toString() ?? '',
+        'attachments': r['attachments'] ?? const [],
+      };
+    }).toList();
+  }
+
+  /// Opens one of a member's report files, downloaded from her Drive.
+  Future<void> _openMemberReport(Map<String, dynamic> report) async {
+    final files = (report['attachments'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final messenger = ScaffoldMessenger.of(context);
+    if (files.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('This report has no files')),
+      );
+      return;
+    }
+    var file = files.first;
+    if (files.length > 1) {
+      final picked = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        backgroundColor: _p.card,
+        builder: (sheet) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final f in files)
+                ListTile(
+                  leading: const Icon(
+                    Icons.attach_file_rounded,
+                    color: Color(0xFFFF3B5C),
+                  ),
+                  title: Text(
+                    f['file_name']?.toString() ?? 'File',
+                    style: TextStyle(color: _ink),
+                  ),
+                  onTap: () => Navigator.pop(sheet, f),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (picked == null) return;
+      file = picked;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Opening file…'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+    final id = file['id'].toString();
+    final bytes = await FamilyMemberApi.downloadAttachment(_memberId!, id);
+    if (bytes == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not download this file')),
+      );
+      return;
+    }
+    final dir = await getTemporaryDirectory();
+    final name = p.basename(file['file_name']?.toString() ?? 'report');
+    final local = File(p.join(dir.path, '${id}_$name'));
+    await local.writeAsBytes(bytes);
+    await OpenFilex.open(local.path);
+  }
+
   /// Loads a page of reports from the local Drift database.
   Future<void> _fetchReports({bool refresh = false}) async {
     if (refresh) {
@@ -168,9 +261,13 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() => _isLoading = refresh ? true : _isLoading);
 
     try {
-      final rows = await ReportDbService.instance
-          .getReports(_healthId, limit: _limit, offset: _skip);
-      final items = rows.map(_rowToMap).toList();
+      final items = _memberId != null
+          ? await _memberReportsPage()
+          : (await ReportDbService.instance.getReports(
+              _healthId,
+              limit: _limit,
+              offset: _skip,
+            )).map(_rowToMap).toList();
 
       if (mounted) {
         setState(() {
@@ -198,9 +295,13 @@ class _ReportsPageState extends State<ReportsPage> {
     setState(() => _isLoadingMore = true);
 
     try {
-      final rows = await ReportDbService.instance
-          .getReports(_healthId, limit: _limit, offset: _skip);
-      final items = rows.map(_rowToMap).toList();
+      final items = _memberId != null
+          ? await _memberReportsPage()
+          : (await ReportDbService.instance.getReports(
+              _healthId,
+              limit: _limit,
+              offset: _skip,
+            )).map(_rowToMap).toList();
 
       if (mounted) {
         setState(() {
@@ -394,7 +495,9 @@ class _ReportsPageState extends State<ReportsPage> {
               ),
             )
           : null,
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: _memberId != null
+          ? null
+          : FloatingActionButton.extended(
         heroTag: 'report_list_add_report_fab',
         backgroundColor: const Color(0xFFFF3B5C),
         elevation: 4,
@@ -496,7 +599,7 @@ class _ReportsPageState extends State<ReportsPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        DriveConnectTile(onChanged: _refresh),
+        if (_memberId == null) DriveConnectTile(onChanged: _refresh),
         _buildSummaryCard(),
       ],
     );
@@ -597,6 +700,10 @@ class _ReportsPageState extends State<ReportsPage> {
         child: InkWell(
           borderRadius: BorderRadius.circular(22),
           onTap: () async {
+            if (_memberId != null) {
+              await _openMemberReport(report);
+              return;
+            }
             final changed = await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (ctx) => ViewReport(reportDetails: report),
