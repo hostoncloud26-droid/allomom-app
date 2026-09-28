@@ -415,7 +415,7 @@ class CarePill extends StatelessWidget {
   }
 }
 
-/// "2 of 4 Completed", with a green bar and a tick that fills once all are done.
+/// "2 of 4 Completed", with a clean progress track and dynamic status badge.
 class CareProgressCard extends StatelessWidget {
   const CareProgressCard({super.key, required this.done, required this.total});
 
@@ -425,52 +425,141 @@ class CareProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final progress = total == 0 ? 0.0 : done / total;
+    final progress = total == 0 ? 0.0 : (done / total).clamp(0.0, 1.0);
+    final percent = (progress * 100).toInt();
     final complete = total > 0 && done >= total;
 
     return CareCard(
-      padding: const EdgeInsets.fromLTRB(18, 16, 16, 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
+          // Left side: Counter, percentage chip, and progress bar
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  '$done of $total Completed',
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w800,
-                    color: p.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '$done of $total Completed',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.2,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: complete
+                            ? _careGreen.withValues(alpha: 0.16)
+                            : (done > 0
+                                ? const Color(0xFFFF3B5C).withValues(alpha: 0.12)
+                                : p.pick(
+                                    const Color(0xFFF1F3F5),
+                                    Colors.white.withValues(alpha: 0.08),
+                                  )),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        complete ? '100%' : '$percent%',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: complete
+                              ? _careGreen
+                              : (done > 0
+                                  ? const Color(0xFFFF3B5C)
+                                  : p.textSecondary),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 8,
-                    backgroundColor: p.pick(const Color(0xFFF0F2F5), p.surface),
-                    valueColor: const AlwaysStoppedAnimation<Color>(_careGreen),
+                  borderRadius: BorderRadius.circular(100),
+                  child: Container(
+                    height: 5.5,
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: p.pick(
+                        const Color(0xFFE5E7EB),
+                        const Color(0xFF333846),
+                      ),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: progress > 0
+                        ? FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: progress,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(100),
+                                gradient: LinearGradient(
+                                  colors: complete
+                                      ? const [Color(0xFF34D399), Color(0xFF10B981)]
+                                      : const [Color(0xFFFF6584), Color(0xFFFF3B5C)],
+                                ),
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 14),
+          // Right side: Status indicator
           Container(
-            width: 40,
-            height: 40,
+            width: 38,
+            height: 38,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: complete
                   ? _careGreen
-                  : p.tint(_careGreen, const Color(0xFFE7F8F0)),
+                  : p.pick(
+                      const Color(0xFFF4F5F7),
+                      Colors.white.withValues(alpha: 0.07),
+                    ),
+              border: Border.all(
+                color: complete
+                    ? _careGreen
+                    : p.pick(
+                        const Color(0xFFE2E5EA),
+                        Colors.white.withValues(alpha: 0.12),
+                      ),
+                width: 1.2,
+              ),
+              boxShadow: complete
+                  ? [
+                      BoxShadow(
+                        color: _careGreen.withValues(alpha: 0.35),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
             ),
             child: Icon(
-              Icons.check_rounded,
-              size: 24,
-              color: complete ? Colors.white : _careGreen,
+              complete
+                  ? Icons.check_rounded
+                  : (done > 0
+                      ? Icons.timelapse_rounded
+                      : Icons.checklist_rounded),
+              size: complete ? 20 : 18,
+              color: complete
+                  ? Colors.white
+                  : (done > 0
+                      ? const Color(0xFFFF3B5C)
+                      : p.textSecondary),
             ),
           ),
         ],

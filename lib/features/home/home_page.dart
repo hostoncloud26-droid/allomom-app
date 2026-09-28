@@ -1148,7 +1148,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     SizedBox(width: 8),
                     Text(
-                      'My Pregnancy Journey',
+                      'My Baby',
                       style: TextStyle(
                         fontSize: 14.5,
                         fontWeight: FontWeight.w700,
@@ -1290,7 +1290,7 @@ class _HomePageState extends State<HomePage> {
         ),
         wifeAction(
           id: 'wife_journey',
-          title: 'Pregnancy & Baby',
+          title: 'My Baby',
           subtitle: 'Journey & Growth',
           icon: Icons.child_friendly_rounded,
           color: const Color(0xFFFF8A5B),
@@ -1607,44 +1607,44 @@ class _HeroSpeechCard extends StatelessWidget {
             ],
           ),
           child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.auto_awesome_rounded,
-                      size: 14,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 14,
+                    color: primaryColor,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'ALLOBABY',
+                    style: GoogleFonts.outfit(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.4,
                       color: primaryColor,
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'ALLOBABY',
-                      style: GoogleFonts.outfit(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
-                        color: primaryColor,
-                      ),
+                  ),
+                  const SizedBox(width: 8),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: speaking
+                          ? const Color(0xFF22C55E)
+                          : pal.textMuted.withValues(alpha: 0.4),
                     ),
-                    const SizedBox(width: 8),
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      width: 7,
-                      height: 7,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: speaking
-                            ? const Color(0xFF22C55E)
-                            : pal.textMuted.withValues(alpha: 0.4),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                child,
-              ],
-            ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              child,
+            ],
           ),
+        ),
       ],
     );
   }
