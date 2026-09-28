@@ -74,6 +74,8 @@ dependencies:
   mobile_scanner: ^7.0.1
   fl_chart: ^1.0.0
   syncfusion_flutter_charts: ^33.2.13
+  firebase_core: 4.6.0
+  firebase_ai: 3.10.0
 
 dev_dependencies:
   flutter_test:

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -8,6 +9,7 @@ import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/api_routes.dart';
+import 'package:allomom/firebase_options.dart';
 
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
@@ -42,6 +44,16 @@ void main() async {
   }
   // Loaded before the first frame so a dark-mode user never sees a white flash.
   await ThemeController.instance.load();
+
+  // Firebase carries Gemini (Firebase AI Logic) for Today's Planner. The app
+  // runs without it; only the planner's assistant needs it.
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase init failed: $e');
+  }
 
   Get.put(Apiroutes());
   // Secure storage first: the token it loads decides whether the bootstrap

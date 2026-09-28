@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,20 +8,12 @@ import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
-import 'package:allomom/features/feeding_tracker/feeding_tracker_page.dart';
-import 'package:allomom/features/kick_counter/kick_counter_page.dart';
-import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/overview_section/todays_care/care_catalogue.dart';
 import 'package:allomom/features/overview_section/todays_care/care_custom_activity.dart';
+import 'package:allomom/features/overview_section/todays_care/care_day.dart';
 import 'package:allomom/features/overview_section/todays_care/care_day_part.dart';
-import 'package:allomom/features/overview_section/todays_care/todays_care_checklist_page.dart';
-import 'package:allomom/features/overview_section/todays_care/widgets/care_count_sheet.dart';
-import 'package:allomom/features/overview_section/todays_care/widgets/care_meal_sheet.dart';
+import 'package:allomom/features/overview_section/todays_care/planner/todays_plan_page.dart';
 import 'package:allomom/controllers/main_controller.dart';
-import 'package:allomom/services/health_vital_sync_service.dart';
-import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Today's care, scoped to the current part of the day.
 ///
@@ -42,9 +33,10 @@ class TodocareSection extends StatefulWidget {
   /// Every window of the day, instead of only the one the clock is in.
   ///
   /// Home shows the current window — the three or four things she can act on
-  /// right now. [TodaysCareChecklistPage], which "View more" opens, shows the
-  /// lot grouped by window, and reuses this widget so the sheets, the tick-off
+  /// right now. The checklist page (which the chatbot opens) shows the lot
+  /// grouped by window, and reuses this widget so the sheets, the tick-off
   /// writes and the completion rules are the same ones, not a second copy.
+  /// Home's header and "View more" open [TodaysPlanPage] instead.
   final bool allDayParts;
 
   /// Home's card: one plain row per item — its time, icon and name — with no
@@ -61,35 +53,12 @@ class _TodocareSectionState extends State<TodocareSection> {
 
   CareDayPart _part = CareDayPart.at();
 
-  /// Each window and what it asks for. One entry on home, all of them on the
-  /// checklist page.
-  List<_CareGroup> _groups = const [];
+  /// Today's items and how far she has got with each.
+  CareDay _day = CareDay.empty;
 
-  /// Every item across [_groups], which is what progress and the loaders read.
-  List<CareItem> _items = const [];
-
-  /// The clock hour each item sits at on the timeline.
-  Map<CareItem, int> _hours = const {};
-
-  /// Her own activities, by the id their [CareItem] carries.
-  Map<String, CareCustomActivity> _customById = const {};
+  List<CareItem> get _items => _day.items;
+  Map<String, CareCustomActivity> get _customById => _day.customById;
   bool _isLoading = true;
-
-  /// `todocare` action values already ticked off today.
-  Set<String> _completedActions = <String>{};
-
-  /// Today's `todocare` rows behind each ticked action, so un-ticking can
-  /// delete exactly them.
-  Map<String, List<String>> _todocareRowIds = const {};
-
-  /// Count-item vital key -> amount logged today (glasses, cups, portions).
-  Map<String, int> _countsToday = <String, int>{};
-
-  /// Meal vital keys logged today.
-  Set<String> _mealsLogged = <String>{};
-
-  /// `doneVitalKey`s that already have a row today.
-  Set<String> _navigateDone = <String>{};
 
   Timer? _slotTimer;
 
@@ -147,487 +116,40 @@ class _TodocareSectionState extends State<TodocareSection> {
   }
 
   Future<void> _loadOnce() async {
-    final session = MainController.instance;
     final part = CareDayPart.at();
-    final parts = widget.allDayParts ? CareDayPart.values : <CareDayPart>[part];
-
-    final customs = await CareCustomActivityStore.load();
-    final hours = <CareItem, int>{};
-    final customById = <String, CareCustomActivity>{};
-
-    final babyAgeDays = WeeklyBabyTalk.babyAgeDays();
-    final groups = <_CareGroup>[];
-    for (final window in parts) {
-      final items = <CareItem>[];
-      for (final item in careItemsFor(
-        part: window,
-        isPregnant: session.isPregnant,
-        pregnancyDay: session.currentPregnancyDay,
-        babyAgeDays: babyAgeDays,
-      )) {
-        items.add(item);
-        hours[item] = careHourFor(item.id, window);
-      }
-      // Her own activities join the window their hour falls in, so progress,
-      // tick-offs and `day_part` treat them like any other item.
-      for (final custom in customs) {
-        if (_partAtHour(custom.hour) != window) continue;
-        final item = custom.toCareItem();
-        items.add(item);
-        hours[item] = custom.hour;
-        customById[item.id] = custom;
-      }
-      groups.add(_CareGroup(part: window, items: items));
-    }
-    final items = [for (final group in groups) ...group.items];
-
-    final ticks = await _loadTodocareTicks();
-    final counts = await _loadCountsToday(items);
-    final meals = await _loadMealsLoggedToday(items);
-    final navigated = await _loadNavigateDone(items);
-
+    final day = await CareDay.load(
+      widget.allDayParts ? CareDayPart.values : <CareDayPart>[part],
+    );
     if (!mounted) return;
     setState(() {
       _part = part;
-      _groups = groups;
-      _items = items;
-      _hours = hours;
-      _customById = customById;
-      _completedActions = ticks.actions;
-      _todocareRowIds = ticks.rowIds;
-      _countsToday = counts;
-      _mealsLogged = meals;
-      _navigateDone = navigated;
+      _day = day;
       _isLoading = false;
     });
   }
 
-  /// Today's tick-offs, read from the `todocare` rows in the vitals stream.
-  ///
-  /// The vitals table is the only record: a tick is a row, an un-tick deletes
-  /// it, and both reach the server through the `vitals` sync. Each row is
-  /// indexed under every value it carries, since older builds wrote the action
-  /// to different fields.
-  Future<({Set<String> actions, Map<String, List<String>> rowIds})>
-  _loadTodocareTicks() async {
-    final actions = <String>{};
-    final rowIds = <String, List<String>>{};
-
-    final userId = MainController.instance.userId;
-    if (userId.isEmpty) return (actions: actions, rowIds: rowIds);
-
-    try {
-      final rows = await VitalsSqLiteService().getVitalsHistory(
-        userId,
-        'todocare',
-        fromDate: _startOfToday(),
-      );
-
-      for (final row in rows) {
-        final id = row['id']?.toString();
-        final values = <String>{
-          ?row['unit']?.toString().toLowerCase().trim(),
-          for (final value in _decodeData(row).values)
-            ?value?.toString().toLowerCase().trim(),
-        }..removeWhere((v) => v.isEmpty);
-
-        for (final value in values) {
-          actions.add(value);
-          if (id != null) rowIds.putIfAbsent(value, () => []).add(id);
-        }
-      }
-    } catch (e) {
-      debugPrint('⚠️ [TodocareSection] Could not read todocare vitals: $e');
-    }
-
-    return (actions: actions, rowIds: rowIds);
-  }
-
-  /// Sums today's rows for each count item. Rows hold increments, so a sum is
-  /// the running total for the day.
-  ///
-  /// Calorie-backed keys (`snacks`, `drinks`) store kcal in the value, so the
-  /// count is read from `data['count']`. Rows written elsewhere in the app
-  /// (My Health's snack dialog) carry no count, so they count as one unit.
-  Future<Map<String, int>> _loadCountsToday(List<CareItem> items) async {
-    final counts = <String, int>{};
-    final userId = MainController.instance.userId;
-    if (userId.isEmpty) return counts;
-
-    final countItems = items
-        .where((i) => i.kind == CareActionKind.count && i.countVitalKey != null)
-        .toList();
-
-    for (final item in countItems) {
-      final key = item.countVitalKey!;
-      if (counts.containsKey(key)) continue;
-
-      try {
-        final rows = await VitalsSqLiteService().getVitalsHistory(
-          userId,
-          key,
-          fromDate: _startOfToday(),
-        );
-
-        // Summed before rounding: water can arrive in part-glasses (a 100 ml
-        // entry is 0.4), and rounding each row would drop them.
-        var total = 0.0;
-        for (final row in rows) {
-          if (item.caloriesPerUnit == null) {
-            total += (row['value'] as num?)?.toDouble() ?? 0;
-          } else {
-            final recorded = _decodeData(row)['count'];
-            final parsed = recorded is num
-                ? recorded.round()
-                : int.tryParse(recorded?.toString() ?? '');
-            total += parsed ?? 1;
-          }
-        }
-        final rounded = total.round();
-        counts[key] = rounded < 0 ? 0 : rounded;
-      } catch (e) {
-        debugPrint('⚠️ [TodocareSection] Could not read "$key" vitals: $e');
-      }
-    }
-
-    return counts;
-  }
-
-  Future<Set<String>> _loadMealsLoggedToday(List<CareItem> items) async {
-    final logged = <String>{};
-    final userId = MainController.instance.userId;
-    if (userId.isEmpty) return logged;
-
-    final meals = items.map((i) => i.meal).whereType<CareMeal>().toSet();
-    for (final meal in meals) {
-      final keys = <String>[meal.vitalKey, ?meal.legacyVitalKey];
-      for (final key in keys) {
-        try {
-          final rows = await VitalsSqLiteService().getVitalsHistory(
-            userId,
-            key,
-            fromDate: _startOfToday(),
-          );
-          if (rows.isNotEmpty) {
-            logged.add(meal.vitalKey);
-            break;
-          }
-        } catch (e) {
-          debugPrint('⚠️ [TodocareSection] Could not read "$key" vitals: $e');
-        }
-      }
-    }
-
-    return logged;
-  }
-
-  /// Marks a navigate item done when the screen it opens has already written
-  /// its vital today (e.g. kicks counted in the kick counter).
-  Future<Set<String>> _loadNavigateDone(List<CareItem> items) async {
-    final done = <String>{};
-    final userId = MainController.instance.userId;
-    if (userId.isEmpty) return done;
-
-    final keys = items.map((i) => i.doneVitalKey).whereType<String>().toSet();
-    for (final key in keys) {
-      try {
-        final rows = await VitalsSqLiteService().getVitalsHistory(
-          userId,
-          key,
-          fromDate: _startOfToday(),
-        );
-        if (rows.isNotEmpty) done.add(key);
-        // Also by window, for items that recur through the day (feeds).
-        for (final row in rows) {
-          final raw = row['createdAt'];
-          final at = raw is DateTime
-              ? raw
-              : DateTime.tryParse(raw?.toString() ?? '');
-          if (at != null) done.add('$key@${CareDayPart.at(at.toLocal()).name}');
-        }
-      } catch (e) {
-        debugPrint('⚠️ [TodocareSection] Could not read "$key" vitals: $e');
-      }
-    }
-
-    return done;
-  }
-
-  static DateTime _startOfToday() {
-    final now = DateTime.now();
-    return DateTime(now.year, now.month, now.day);
-  }
-
-  static CareDayPart _partAtHour(int hour) {
-    final now = DateTime.now();
-    return CareDayPart.at(DateTime(now.year, now.month, now.day, hour));
-  }
-
-  static Map<String, dynamic> _decodeData(Map<String, dynamic> row) {
-    final raw = row['data'];
-    if (raw is Map) return Map<String, dynamic>.from(raw);
-    if (raw is String && raw.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is Map) return Map<String, dynamic>.from(decoded);
-      } catch (_) {
-        // Not JSON — nothing to pull out of it.
-      }
-    }
-    return const {};
-  }
+  static CareDayPart _partAtHour(int hour) => CareDay.partAtHour(hour);
 
   // ─── STATE OF AN ITEM ───────────────────────────────────────
 
-  bool _isDone(CareItem item) => switch (item.kind) {
-    CareActionKind.meal => _mealsLogged.contains(item.meal!.vitalKey),
-    CareActionKind.count =>
-      _countFor(item) > 0 &&
-          (item.dailyTarget == null || _countFor(item) >= item.dailyTarget!),
-    CareActionKind.checkoff => _completedActions.contains(
-      item.actionValue?.toLowerCase().trim(),
-    ),
-    CareActionKind.navigate => _navigateDone.contains(
-      item.donePerPart
-          ? '${item.doneVitalKey}@${_partOf(item).name}'
-          : item.doneVitalKey,
-    ),
-  };
+  bool _isDone(CareItem item) => _day.isDone(item);
 
-  int _countFor(CareItem item) => _countsToday[item.countVitalKey] ?? 0;
+  int _countFor(CareItem item) => _day.countFor(item);
 
-  /// The window [item] belongs to, which is what its `day_part` records — on
-  /// the checklist page that is not always the window the clock is in.
-  CareDayPart _partOf(CareItem item) {
-    for (final group in _groups) {
-      if (group.items.contains(item)) return group.part;
-    }
-    return _part;
-  }
-
-  /// Trailing status line for count items, e.g. "4 of 10 glasses today".
-  String? _progressLabel(CareItem item) {
-    if (item.kind != CareActionKind.count) return null;
-    final logged = _countFor(item);
-    if (logged == 0) return null;
-    final unit = logged == 1 ? item.unitSingular : item.unitPlural;
-    final target = item.dailyTarget;
-    return target == null
-        ? '$logged $unit today'
-        : '$logged of $target $unit today';
-  }
+  String? _progressLabel(CareItem item) => _day.progressLabel(item);
 
   // ─── ACTIONS ────────────────────────────────────────────────
 
   Future<void> _onItemTap(CareItem item) async {
-    switch (item.kind) {
-      case CareActionKind.meal:
-        await _logMeal(item);
-      case CareActionKind.count:
-        await _logCount(item);
-      case CareActionKind.checkoff:
-        await _toggleCheckoff(item);
-      case CareActionKind.navigate:
-        await _navigate(item);
-    }
-  }
-
-  Future<void> _logMeal(CareItem item) async {
-    final meal = item.meal!;
-    final log = await CareMealSheet.show(
+    await CareItemActions.run(
       context,
-      meal: meal,
-      color: item.color,
-      icon: item.icon,
-      suggestion: item.subtitle,
+      item,
+      _day,
+      onTicked: () {
+        if (mounted) setState(() {});
+      },
     );
-    if (log == null) return;
-
-    HapticFeedback.mediumImpact();
-    try {
-      await HealthVitalsController.instance.addVitalEntry(
-        key: meal.vitalKey,
-        value: log.calories,
-        unit: 'kcal',
-        createdAt: DateTime.now(),
-        userId: _userIdOrNull(),
-        data: {
-          'items': log.details,
-          'details': log.details,
-          'meal': meal.label,
-          'meal_type': meal.vitalKey,
-          'type': meal.vitalKey,
-          'day_part': _partOf(item).name,
-        },
-      );
-      speak(NarrationKeys.pgConfMealSaved, force: true);
-      _showLogged('${meal.label} logged · ${log.calories.round()} kcal');
-    } catch (e) {
-      debugPrint('⚠️ [TodocareSection] Error logging ${meal.vitalKey}: $e');
-      _showError('Could not log ${meal.label.toLowerCase()}');
-    }
-
-    await _refresh();
-  }
-
-  Future<void> _logCount(CareItem item) async {
-    final amount = await CareCountSheet.show(
-      context,
-      title: item.title,
-      unitLabel: item.unitPlural,
-      unitLabelSingular: item.unitSingular,
-      icon: item.icon,
-      color: item.color,
-      loggedToday: _countFor(item),
-      target: item.dailyTarget,
-      presets: item.presets,
-      subtitle: item.subtitle,
-      // Water is the only count with a recorded line; the rest open silent.
-      narrationKey: item.countVitalKey == 'water'
-          ? NarrationKeys.pgNutritionWater
-          : null,
-    );
-    if (amount == null) return;
-
-    HapticFeedback.mediumImpact();
-    final unit = amount == 1 ? item.unitSingular : item.unitPlural;
-    final caloriesPerUnit = item.caloriesPerUnit;
-    try {
-      await HealthVitalsController.instance.addVitalEntry(
-        key: item.countVitalKey!,
-        value: caloriesPerUnit == null
-            ? amount.toDouble()
-            : (amount * caloriesPerUnit).toDouble(),
-        unit: caloriesPerUnit == null ? item.unitPlural : 'kcal',
-        createdAt: DateTime.now(),
-        userId: _userIdOrNull(),
-        data: {
-          'details': '$amount $unit',
-          'type': item.countVitalKey,
-          'count': amount,
-          'count_unit': item.unitPlural,
-          'day_part': _partOf(item).name,
-        },
-      );
-      if (item.countVitalKey == 'water') {
-        speak(NarrationKeys.pgConfWaterAdded, force: true);
-      }
-      _showLogged('Logged $amount $unit');
-    } catch (e) {
-      debugPrint(
-        '⚠️ [TodocareSection] Error logging ${item.countVitalKey}: $e',
-      );
-      _showError('Could not log ${item.title.toLowerCase()}');
-    }
-
-    await _refresh();
-  }
-
-  /// Ticks an item off, or undoes it.
-  ///
-  /// A tick writes a `todocare` row to the vitals stream; undoing it deletes
-  /// today's rows for that action. Either way the vitals sync carries it to the
-  /// server, so a tick and an undo look the same on every device.
-  Future<void> _toggleCheckoff(CareItem item) async {
-    final action = item.actionValue;
-    if (action == null) return;
-
-    final normalized = action.toLowerCase().trim();
-    final wasDone = _completedActions.contains(normalized);
-
-    HapticFeedback.selectionClick();
-    setState(() {
-      if (wasDone) {
-        _completedActions.remove(normalized);
-      } else {
-        _completedActions.add(normalized);
-      }
-    });
-
-    if (wasDone) {
-      try {
-        for (final id in _todocareRowIds[normalized] ?? const <String>[]) {
-          await VitalsSqLiteService().deleteVital(id);
-        }
-        await HealthVitalSyncService.instance.syncUnsyncedVitals();
-      } catch (e) {
-        debugPrint('⚠️ [TodocareSection] Error undoing todocare: $e');
-        _showError('Could not undo ${item.title.toLowerCase()}');
-      }
-      await _refresh();
-      return;
-    }
-
-    // addVitalEntry saves the row with synced = 0 and starts the vitals sync.
-    final session = MainController.instance;
-    try {
-      await HealthVitalsController.instance.addVitalEntry(
-        key: 'todocare',
-        value: 1.0,
-        unit: action,
-        createdAt: DateTime.now(),
-        userId: _userIdOrNull(),
-        data: {
-          'value': action,
-          'action': action,
-          'todocare': action,
-          'details': action,
-          'title': item.title,
-          'day_part': _partOf(item).name,
-          'pregnancy_day': session.isPregnant ? session.currentPregnancyDay : 0,
-          'is_pregnant': session.isPregnant,
-          'completed_at': DateTime.now().toUtc().toIso8601String(),
-        },
-      );
-    } catch (e) {
-      debugPrint('⚠️ [TodocareSection] Error logging todocare: $e');
-      _showError('Could not save ${item.title.toLowerCase()}');
-    }
-    await _refresh();
-  }
-
-  Future<void> _navigate(CareItem item) async {
-    switch (item.destination) {
-      case CareDestination.kickCounter:
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const KickCounterPage()));
-      case CareDestination.feedingTracker:
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const FeedingTrackerPage()));
-      case null:
-        return;
-    }
     if (mounted) await _refresh();
-  }
-
-  String? _userIdOrNull() {
-    final id = MainController.instance.userId.trim();
-    return id.isEmpty ? null : id;
-  }
-
-  void _showLogged(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: const Color(0xFF10B981),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: dangerRed,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   // ─── BUILD ──────────────────────────────────────────────────
@@ -666,31 +188,35 @@ class _TodocareSectionState extends State<TodocareSection> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.allDayParts
-                          ? '${_part.greeting}, $name'
-                          : "Today's care",
-                      style: GoogleFonts.outfit(
-                        fontSize: widget.allDayParts ? 18 : 20,
-                        fontWeight: FontWeight.bold,
-                        color: p.textPrimary,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.allDayParts ? null : _openPlanner,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.allDayParts
+                            ? '${_part.greeting}, $name'
+                            : "Today's care",
+                        style: GoogleFonts.outfit(
+                          fontSize: widget.allDayParts ? 18 : 20,
+                          fontWeight: FontWeight.bold,
+                          color: p.textPrimary,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      widget.allDayParts
-                          ? 'Your day, hour by hour'
-                          : '${_part.greeting}, $name · ${_part.headline}',
-                      style: GoogleFonts.poppins(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: p.textMuted,
+                      const SizedBox(height: 2),
+                      Text(
+                        widget.allDayParts
+                            ? 'Your day, hour by hour'
+                            : '${_part.greeting}, $name · ${_part.headline}',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: p.textMuted,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 10),
@@ -748,7 +274,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   Widget _buildTimeline(List<int> hours) {
     final byHour = <int, List<CareItem>>{};
     for (final item in _items) {
-      final hour = _hours[item] ?? _partOf(item).startHour;
+      final hour = _day.hourOf(item);
       byHour.putIfAbsent(hour, () => []).add(item);
     }
     final nowHour = DateTime.now().hour;
@@ -776,7 +302,7 @@ class _TodocareSectionState extends State<TodocareSection> {
 
   /// Home's plain list: the items in time order, each at its hour.
   Widget _buildCompactList() {
-    int hourOf(CareItem item) => _hours[item] ?? _partOf(item).startHour;
+    int hourOf(CareItem item) => _day.hourOf(item);
     final items = [..._items]
       ..sort(
         (a, b) => _dayHours
@@ -862,15 +388,18 @@ class _TodocareSectionState extends State<TodocareSection> {
 
   /// Opens the rest of today. Home only ever shows the window she is in, and
   /// the other windows were unreachable until this.
+  /// Opens Today's Planner, the whole day on a timeline.
+  Future<void> _openPlanner() async {
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const TodaysPlanPage()));
+    // She may have logged something while she was in there.
+    if (mounted) await _refresh();
+  }
+
   Widget _buildViewMore() {
     return GestureDetector(
-      onTap: () async {
-        await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const TodaysCareChecklistPage()),
-        );
-        // She may have logged something while she was in there.
-        if (mounted) await _refresh();
-      },
+      onTap: _openPlanner,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -885,7 +414,7 @@ class _TodocareSectionState extends State<TodocareSection> {
             const Icon(Icons.schedule_rounded, size: 18, color: primaryColor),
             const SizedBox(width: 8),
             Text(
-              'View full day',
+              "Open Today's Planner",
               style: GoogleFonts.poppins(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1028,27 +557,7 @@ class _TodocareSectionState extends State<TodocareSection> {
   // ─── HER OWN ACTIVITIES ─────────────────────────────────────
 
   Future<void> _addActivity({int? hour}) async {
-    final result = await _AddActivitySheet.show(
-      context,
-      hours: _dayHours,
-      initialHour: hour ?? DateTime.now().hour,
-      hourLabel: _hourLabel,
-    );
-    if (result == null) return;
-
-    try {
-      await CareCustomActivityStore.add(
-        type: result.type,
-        title: result.title,
-        hour: result.hour,
-        note: result.note,
-      );
-      HapticFeedback.mediumImpact();
-      _showLogged('${result.title} added at ${_hourLabel(result.hour)}');
-    } catch (e) {
-      debugPrint('⚠️ [TodocareSection] Could not save activity: $e');
-      _showError('Could not add the activity');
-    }
+    await showAddCareActivity(context, hour: hour);
     await _refresh();
   }
 
@@ -1485,13 +994,6 @@ class _AddActivitySheetState extends State<_AddActivitySheet> {
 }
 
 /// One window of the day and what it asks for.
-class _CareGroup {
-  const _CareGroup({required this.part, required this.items});
-
-  final CareDayPart part;
-  final List<CareItem> items;
-}
-
 class _DayPartBadge extends StatelessWidget {
   const _DayPartBadge({required this.part});
 
@@ -1569,5 +1071,41 @@ class _ItemTrailing extends StatelessWidget {
           ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
           : null,
     );
+  }
+}
+
+/// Asks for one of her own activities (what, when, a note) and adds it to
+/// every day's care at that hour. Returns whether one was added. Shared with
+/// Today's Planner's Add Plan.
+Future<bool> showAddCareActivity(BuildContext context, {int? hour}) async {
+  final result = await _AddActivitySheet.show(
+    context,
+    hours: _TodocareSectionState._dayHours,
+    initialHour: hour ?? DateTime.now().hour,
+    hourLabel: _TodocareSectionState._hourLabel,
+  );
+  if (result == null || !context.mounted) return false;
+
+  try {
+    await CareCustomActivityStore.add(
+      type: result.type,
+      title: result.title,
+      hour: result.hour,
+      note: result.note,
+    );
+    HapticFeedback.mediumImpact();
+    if (context.mounted) {
+      CareItemActions.showLogged(
+        context,
+        '${result.title} added at ${_TodocareSectionState._hourLabel(result.hour)}',
+      );
+    }
+    return true;
+  } catch (e) {
+    debugPrint('⚠️ [TodocareSection] Could not save activity: $e');
+    if (context.mounted) {
+      CareItemActions.showError(context, 'Could not add the activity');
+    }
+    return false;
   }
 }
