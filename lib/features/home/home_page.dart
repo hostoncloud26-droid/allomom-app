@@ -1453,18 +1453,7 @@ class _HomePageState extends State<HomePage> {
   static const _quickActionSize = 112.0;
 
   /// Trackers added after the headline features, in the order shown.
-  static const _trackerActionIds = [
-    'daily_activity',
-    'heart_rate',
-    'hrv',
-    'sleep',
-    'hemoglobin',
-    'water',
-    'breakfast',
-    'dinner',
-    'snacks',
-    'drinks',
-  ];
+  static const _trackerActionIds = ['daily_activity'];
 
   /// One Quick Actions entry. AlloBot's feature type, so it opens the same way
   /// and carries the same illustration.
