@@ -5,7 +5,6 @@ import 'package:allomom/components/app_backdrop.dart';
 import 'package:allomom/components/bottom_navigation.dart';
 import 'package:allomom/components/custom_app_bar.dart';
 import 'package:allomom/features/home/home_page.dart';
-import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/feeds/feeds_page.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/settings/settings_page.dart';
@@ -128,12 +127,14 @@ class _MainLayoutState extends State<MainLayout> {
           SpeechActivity.instance.stopAll();
           return;
         }
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AlloBotPage(autoStartListening: false),
-          ),
-        );
+        // Asked from Home, answered in the AlloBaby card there — Ask Allo
+        // itself is a Quick Action.
+        if (_currentIndex == 0) {
+          HomePage.listen();
+          return;
+        }
+        setState(() => _currentIndex = 0);
+        WidgetsBinding.instance.addPostFrameCallback((_) => HomePage.listen());
       },
     );
   }

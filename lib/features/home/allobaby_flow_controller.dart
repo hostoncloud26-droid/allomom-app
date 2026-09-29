@@ -29,6 +29,11 @@ class AlloBabyFlowController extends ChangeNotifier {
 
   bool isRunning = false;
 
+  /// True from a question being asked until the first step of the answer is
+  /// on screen, so the card can say it is thinking instead of repeating the
+  /// line before.
+  bool isThinking = false;
+
   /// Whether the flow has been started at all this session.
   bool hasRun = false;
 
@@ -61,6 +66,7 @@ class AlloBabyFlowController extends ChangeNotifier {
     final generation = ++_generation;
     options = const [];
     isRunning = true;
+    isThinking = true;
     notifyListeners();
 
     final reply = await OfflineChatbotController.instance.runDetachedTurn(
@@ -76,6 +82,7 @@ class AlloBabyFlowController extends ChangeNotifier {
     _generation++;
     final wasRunning = isRunning;
     isRunning = false;
+    isThinking = false;
     if (wasRunning) notifyListeners();
     await _tts.stop();
   }
@@ -99,6 +106,7 @@ class AlloBabyFlowController extends ChangeNotifier {
             final text = utterance.text.trim();
             if (text.isNotEmpty) {
               line = text;
+              isThinking = false;
               notifyListeners();
             }
             await _say(text, utterance.audioUrl);
@@ -111,6 +119,7 @@ class AlloBabyFlowController extends ChangeNotifier {
     } finally {
       if (generation == _generation) {
         isRunning = false;
+        isThinking = false;
         notifyListeners();
       }
     }

@@ -36,9 +36,14 @@ class AlloBotVoicePopup extends StatefulWidget {
     this.onTopicsRequested,
     this.autoStartListening = true,
     this.speakReply = true,
+    this.onSend,
   });
 
   final OfflineChatbotController controller;
+
+  /// Where what she said goes, in place of [controller]'s own chat. Home sets
+  /// it so the question is answered in the AlloBaby card rather than Ask Allo.
+  final ValueChanged<String>? onSend;
 
   /// Called after the sheet closes because the keyboard control was tapped, so
   /// the screen behind it can focus its composer.
@@ -63,6 +68,7 @@ class AlloBotVoicePopup extends StatefulWidget {
     VoidCallback? onTopicsRequested,
     bool autoStartListening = true,
     bool speakReply = true,
+    ValueChanged<String>? onSend,
   }) {
     return showModalBottomSheet<void>(
       context: context,
@@ -75,6 +81,7 @@ class AlloBotVoicePopup extends StatefulWidget {
         onTopicsRequested: onTopicsRequested,
         autoStartListening: autoStartListening,
         speakReply: speakReply,
+        onSend: onSend,
       ),
     );
   }
@@ -300,7 +307,12 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
       return;
     }
 
-    widget.controller.send(spoken, speak: widget.speakReply);
+    final onSend = widget.onSend;
+    if (onSend != null) {
+      onSend(spoken);
+    } else {
+      widget.controller.send(spoken, speak: widget.speakReply);
+    }
     if (mounted && Navigator.of(context).canPop()) {
       Navigator.of(context).pop();
     }

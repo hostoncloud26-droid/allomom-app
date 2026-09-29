@@ -37,15 +37,25 @@ import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/features/people/member_view.dart';
 import 'package:allomom/features/home/widgets/streaming_hero_line.dart';
+import 'package:allomom/features/home/widgets/home_ask_composer.dart';
+import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
+  /// The docked mic on Home: opens the listen popup, and whatever she says —
+  /// or types, from its keyboard control — is answered in the AlloBaby card,
+  /// step by step, without leaving Home. AlloKonnect's home mic.
+  static void listen() => _HomePageState._current?._listen();
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
+  /// The Home on screen, for [HomePage.listen].
+  static _HomePageState? _current;
+
   late final PageController _carouselController;
   int _currentCarouselPage = 0;
 
@@ -136,6 +146,26 @@ class _HomePageState extends State<HomePage> {
     _alloBaby.answer(question);
   }
 
+  /// Opens the listen popup over Home; what it hears is asked in the hero.
+  Future<void> _listen() async {
+    // Nothing the baby is saying should end up in the recording.
+    _greetingCancelled = true;
+    await SpeechActivity.instance.stopAll();
+    await _alloBaby.stop();
+    if (!mounted) return;
+    final chatbot = OfflineChatbotController.instance;
+    await AlloBotVoicePopup.show(
+      context,
+      controller: chatbot,
+      onSend: _askAlloBaby,
+      onEnableKeyboardMode: () {
+        // The popup puts Ask Allo into keyboard mode; this keyboard is Home's.
+        chatbot.isKeyboardMode.value = false;
+        if (mounted) HomeAskComposer.show(context, onSend: _askAlloBaby);
+      },
+    );
+  }
+
   /// Runs AlloBaby's opening flow in the hero, returning once it has been said
   /// (or stopped).
   Future<void> _runAlloBabyFlow() async {
@@ -171,6 +201,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _current = this;
     SpeechActivity.instance.stopRequests.addListener(_onStopRequested);
     _alloBaby.addListener(_onAlloBabyChanged);
     TtsService().isSpeakingNotifier.addListener(_onAlloBabyChanged);
@@ -213,6 +244,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    if (_current == this) _current = null;
     SpeechActivity.instance.stopRequests.removeListener(_onStopRequested);
     _alloBaby.removeListener(_onAlloBabyChanged);
     TtsService().isSpeakingNotifier.removeListener(_onAlloBabyChanged);
@@ -396,6 +428,7 @@ class _HomePageState extends State<HomePage> {
   /// talking, and then the last thing said here — falling back to AlloBaby's
   /// last word. Empty before anything has been said.
   String _heroLine() {
+    if (_alloBaby.isThinking) return 'Thinking…';
     if (_alloBaby.isRunning) return _alloBaby.line;
     final spoken = !_narrating && _voice.isVisible
         ? (_voice.prompt?.question ?? _voice.message)
@@ -1230,6 +1263,18 @@ class _HomePageState extends State<HomePage> {
     // The journey sits right beside health, always. Kick counting is a
     // pregnancy tool — there is nothing to count once the baby is born — so it
     // only joins the row while she is pregnant.
+    // AlloBaby herself: the whole Ask Allo page, for a longer conversation
+    // than the card on Home holds.
+    final alloBaby = _quickAction(
+      id: 'allobaby',
+      title: 'AlloBaby',
+      subtitle: 'Talk 2 Baby',
+      icon: Icons.child_care_rounded,
+      color: const Color(0xFFFF626F),
+      image: 'assets/allobaby/AlloMombabySquare.png',
+      page: const AlloBotPage(),
+    );
+
     final journey = _quickAction(
       id: 'journey',
       title: session.hasKids ? 'Baby Journey' : 'My Journey',
@@ -1278,6 +1323,7 @@ class _HomePageState extends State<HomePage> {
         ),
       );
       return _quickActionsRow([
+        alloBaby,
         wifeAction(
           id: 'wife_health',
           title: "Wife's Health",
@@ -1338,6 +1384,7 @@ class _HomePageState extends State<HomePage> {
     // Illustrations from assets/Quick Actions/; the journey keeps its
     // AlloBaby artwork.
     final features = [
+      alloBaby,
       _quickAction(
         id: 'my_health',
         title: 'My Health',
