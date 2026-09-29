@@ -208,10 +208,14 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   /// Whether the week's lines are sounding right now — the baby's mouth
   /// follows it. Read inside an [Obx].
   bool get _weeklySpeaking {
-    final base = _weeklyBase;
-    if (base == null || !BackgroundAudioController.isReady) return false;
+    if (!BackgroundAudioController.isReady) return false;
     final audio = BackgroundAudioController.to;
-    return audio.isPlaying.value && audio.currentKey.value.startsWith(base);
+    // Both observables are read on every build, before the week's key is
+    // known too — an Obx that reads none of them throws.
+    final playing = audio.isPlaying.value;
+    final key = audio.currentKey.value;
+    final base = _weeklyBase;
+    return playing && base != null && key.startsWith(base);
   }
 
   /// Loads the active pregnancy and past records from the local Drift
@@ -838,13 +842,19 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                 Expanded(
                   // Home's baby on its glow, talking while it says the week.
                   child: FittedBox(
-                    child: Obx(
-                      () => AlloBotGeminiOrb(
-                        isSpeaking: _weeklySpeaking,
-                        isThinking: false,
-                        babySize: 190,
-                      ),
-                    ),
+                    child: BackgroundAudioController.isReady
+                        ? Obx(
+                            () => AlloBotGeminiOrb(
+                              isSpeaking: _weeklySpeaking,
+                              isThinking: false,
+                              babySize: 190,
+                            ),
+                          )
+                        : const AlloBotGeminiOrb(
+                            isSpeaking: false,
+                            isThinking: false,
+                            babySize: 190,
+                          ),
                   ),
                 ),
                 const SizedBox(width: gap),
