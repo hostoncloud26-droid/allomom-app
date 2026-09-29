@@ -219,10 +219,7 @@ class AuthController extends GetxController {
             : 'Could not delete your account. Please try again.';
       }
       // Her conversation with AlloBot lives on the phone, not the server.
-      OfflineChatbotController.instance.resetConversation(
-        announce: false,
-        restart: false,
-      );
+      await OfflineChatbotController.instance.clearHistory();
       await _forgetSession();
       await _wipeDevice();
       return null;

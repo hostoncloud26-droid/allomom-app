@@ -22,6 +22,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
+import 'package:allomom/features/allobot/pages/chat_history_page.dart';
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
 import 'package:allomom/features/allobot/widgets/allobot_welcome_view.dart'
     show GradientText;
@@ -393,6 +394,12 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               ],
             ),
           ),
+          _circleButton(
+            icon: Icons.history_rounded,
+            tooltip: 'History',
+            onTap: () => ChatHistoryPage.open(context),
+          ),
+          const SizedBox(width: 8),
           _circleButton(
             icon: Icons.forum_outlined,
             tooltip: 'Open the conversation',

@@ -22,6 +22,7 @@ import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
@@ -136,8 +137,12 @@ class AllomomApp extends StatelessWidget {
       builder: (_) {
         return GetMaterialApp(
           navigatorKey: rootNavigatorKey,
-          // Lets the baby popup tell a sheet over a screen from a new screen.
-          navigatorObservers: [BabyOnScreen.observer],
+          // Lets the baby popup tell a sheet over a screen from a new screen,
+          // and the home AlloBaby card go quiet when a page opens over it.
+          navigatorObservers: [
+            BabyOnScreen.observer,
+            AlloBabyFlowController.observer,
+          ],
           title: 'Allomom',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.light,

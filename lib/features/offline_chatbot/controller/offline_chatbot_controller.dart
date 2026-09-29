@@ -15,6 +15,7 @@ import 'package:allomom/features/offline_chatbot/data/offline_chatbot_profile.da
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
 import 'package:allomom/services/app_language.dart';
+import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
 
 /// One line in the transcript.
@@ -87,6 +88,52 @@ class OfflineChatMessage {
   }
 }
 
+/// One past conversation, as History lists it.
+///
+/// The lines are kept as the JSON they are saved in, and only turned back into
+/// messages when the conversation is opened again.
+class ChatHistoryEntry {
+  final String id;
+  final String title;
+  final String preview;
+  final DateTime updatedAt;
+  final List<Map<String, dynamic>> lines;
+
+  const ChatHistoryEntry({
+    required this.id,
+    required this.title,
+    required this.preview,
+    required this.updatedAt,
+    required this.lines,
+  });
+
+  int get messageCount => lines.where((l) => l['is_system'] != true).length;
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'preview': preview,
+    'updated_at': updatedAt.toIso8601String(),
+    'lines': lines,
+  };
+
+  factory ChatHistoryEntry.fromJson(Map<String, dynamic> json) =>
+      ChatHistoryEntry(
+        id: (json['id'] ?? '').toString(),
+        title: (json['title'] ?? '').toString(),
+        preview: (json['preview'] ?? '').toString(),
+        updatedAt:
+            DateTime.tryParse(json['updated_at']?.toString() ?? '') ??
+            DateTime.now(),
+        lines: json['lines'] is List
+            ? (json['lines'] as List)
+                  .whereType<Map>()
+                  .map((e) => Map<String, dynamic>.from(e))
+                  .toList()
+            : const [],
+      );
+}
+
 /// Drives the offline bot behind Ask Allo: downloads the intent catalogue,
 /// caches it, and runs every turn on device.
 ///
@@ -97,6 +144,11 @@ class OfflineChatMessage {
 class OfflineChatbotController extends GetxController {
   static const String _cacheKey = 'allomom_offline_chatbot_bundle';
   static const String _transcriptKey = 'allomom_offline_chatbot_transcript';
+  static const String _historyKey = 'allomom_offline_chatbot_history';
+  static const String _chatIdKey = 'allomom_offline_chatbot_chat_id';
+
+  /// How many past conversations History keeps, newest first.
+  static const int _historyLimit = 30;
 
   /// The controller the whole app shares, so the Ask Allo tab and the voice
   /// popup are always talking to the same conversation.
@@ -106,7 +158,15 @@ class OfflineChatbotController extends GetxController {
       : Get.put(OfflineChatbotController(), permanent: true);
 
   final RxList<OfflineChatMessage> messages = <OfflineChatMessage>[].obs;
+
+  /// Every conversation she has had, newest first — the one on screen
+  /// included, once she has said something in it.
+  final RxList<ChatHistoryEntry> history = <ChatHistoryEntry>[].obs;
+
+  /// Which [history] entry the transcript on screen is saved under.
+  final RxString currentChatId = ''.obs;
   final RxBool isSyncing = false.obs;
+
   /// Whether the bot has yet to say anything this turn — the waiting
   /// indicator, and nothing more.
   ///
@@ -254,6 +314,7 @@ class OfflineChatbotController extends GetxController {
     langCode.value = appLang;
     await _loadCached();
     if (!_cacheLoaded.isCompleted) _cacheLoaded.complete();
+    await _restoreHistory();
     await _restoreTranscript();
 
     if (!hasBundle) {
@@ -356,7 +417,9 @@ class OfflineChatbotController extends GetxController {
       // than anything she asked for — so leaving it alone meant a flow edited
       // in the builder took two launches to show up: the first downloaded it,
       // the second ran it. It is restarted on the catalogue that just arrived.
-      if (!quiet || !_session.isActive || _isInitialIntent(_session.intentKey)) {
+      if (!quiet ||
+          !_session.isActive ||
+          _isInitialIntent(_session.intentKey)) {
         _delivery++;
         _pending.clear();
         _endTurn();
@@ -470,8 +533,127 @@ class OfflineChatbotController extends GetxController {
         _transcriptKey,
         jsonEncode(recent.map((m) => m.toJson()).toList()),
       );
+      await prefs.setString(_chatIdKey, currentChatId.value);
+      _recordInHistory(recent, currentChatId.value);
+      await _persistHistory();
     } catch (_) {
       // Left in memory; the next turn writes it again.
+    }
+  }
+
+  /// Files [lines] in [history] under [id], moving it to the top.
+  ///
+  /// A conversation she has not said anything in — the greeting alone — is not
+  /// one worth coming back to, so it is left out. Synchronous on purpose: two
+  /// saves racing each other both see the list the other one left.
+  void _recordInHistory(List<OfflineChatMessage> lines, String id) {
+    if (id.isEmpty) return;
+    final said = lines.where((m) => !m.isSystem && m.text.trim().isNotEmpty);
+    final firstAsk = said.where((m) => m.fromUser).firstOrNull;
+    if (firstAsk == null) return;
+
+    final title = firstAsk.text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    final entry = ChatHistoryEntry(
+      id: id,
+      title: title.length > 60 ? '${title.substring(0, 60)}…' : title,
+      preview: said.last.text.trim().replaceAll(RegExp(r'\s+'), ' '),
+      updatedAt: said.last.timestamp,
+      lines: lines.map((m) => m.toJson()).toList(),
+    );
+
+    final next = [entry, ...history.where((e) => e.id != id)];
+    history.assignAll(next.take(_historyLimit));
+  }
+
+  Future<void> _persistHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _historyKey,
+        jsonEncode(history.map((e) => e.toJson()).toList()),
+      );
+    } catch (_) {
+      // Still in memory; the next save writes it again.
+    }
+  }
+
+  Future<void> _restoreHistory() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      currentChatId.value = prefs.getString(_chatIdKey) ?? '';
+      final raw = prefs.getString(_historyKey);
+      if (raw == null || raw.isEmpty) return;
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return;
+      history.assignAll(
+        decoded
+            .whereType<Map>()
+            .map((e) => ChatHistoryEntry.fromJson(Map<String, dynamic>.from(e)))
+            .where((e) => e.id.isNotEmpty && e.lines.isNotEmpty),
+      );
+    } catch (_) {
+      // Past conversations that will not load are not worth blocking this one.
+    } finally {
+      if (currentChatId.value.isEmpty) {
+        currentChatId.value = const Uuid().v4();
+      }
+    }
+  }
+
+  /// Makes the conversation filed under [id] the one on screen — in Chat and
+  /// Ask Allo both, since they read the same transcript.
+  ///
+  /// The one she leaves is already in [history] from its last turn, and is
+  /// filed again here in case a turn was cut short. Like a transcript restored
+  /// on launch, it reopens idle: a half-walked flow cannot be picked back up.
+  Future<void> openChat(String id) async {
+    if (id == currentChatId.value) return;
+    final entry = history.firstWhereOrNull((e) => e.id == id);
+    if (entry == null) return;
+
+    _recordInHistory(messages.toList(), currentChatId.value);
+
+    _delivery++;
+    unawaited(_tts.stop());
+    _pending.clear();
+    _endTurn();
+    _session.clear();
+    activeOptions.clear();
+    // Cleared rather than set: Ask Allo falls back to the transcript's last
+    // reply, which is the line this conversation ended on.
+    currentLine.value = null;
+
+    final lines = entry.lines.map(OfflineChatMessage.fromJson).toList();
+    currentChatId.value = id;
+    messages.assignAll(lines);
+    _restoreOptions(lines);
+    await _persistTranscript();
+  }
+
+  /// Forgets one past conversation. Deleting the one on screen leaves a blank
+  /// page, as New Chat does.
+  Future<void> deleteChat(String id) async {
+    history.removeWhere((e) => e.id == id);
+    if (id == currentChatId.value) {
+      resetConversation(announce: false, restart: false, archive: false);
+    }
+    await _persistHistory();
+  }
+
+  /// Forgets every past conversation, the one on screen included.
+  Future<void> clearHistory() async {
+    history.clear();
+    resetConversation(announce: false, restart: false, archive: false);
+    await _persistHistory();
+  }
+
+  /// The last reply's chips are still the live choice when a conversation is
+  /// reopened, so they come back with it.
+  void _restoreOptions(List<OfflineChatMessage> lines) {
+    for (final line in lines.reversed) {
+      if (line.fromUser || line.isSystem) continue;
+      if (line.options.isNotEmpty) activeOptions.assignAll(line.options);
+      break;
     }
   }
 
@@ -490,13 +672,13 @@ class OfflineChatbotController extends GetxController {
       if (restored.isEmpty) return;
 
       messages.assignAll(restored);
+      _restoreOptions(restored);
 
-      // The last reply's chips are still the live choice when the conversation
-      // is reopened, so they come back with it.
-      for (final line in restored.reversed) {
-        if (line.fromUser || line.isSystem) continue;
-        if (line.options.isNotEmpty) activeOptions.assignAll(line.options);
-        break;
+      // A transcript saved before History existed is filed now, rather than
+      // only once she next says something in it.
+      if (history.every((e) => e.id != currentChatId.value)) {
+        _recordInHistory(restored, currentChatId.value);
+        await _persistHistory();
       }
     } catch (_) {
       // A transcript that will not load is not worth interrupting the chat for.
@@ -630,6 +812,7 @@ class OfflineChatbotController extends GetxController {
 
     if (targetIntent == null) return false;
 
+    if (speak) _claimVoice();
     final delivery = ++_delivery;
     activeOptions.clear();
     isTyping.value = true;
@@ -771,7 +954,16 @@ class OfflineChatbotController extends GetxController {
   /// flow is run into the empty transcript — which is right when the app is
   /// starting the conversation itself, and wrong when the mother asked for a
   /// blank page.
-  void resetConversation({bool announce = true, bool restart = true}) {
+  ///
+  /// The conversation being cleared stays in [history] unless [archive] is
+  /// false, and what follows is filed as a new one.
+  void resetConversation({
+    bool announce = true,
+    bool restart = true,
+    bool archive = true,
+  }) {
+    if (archive) _recordInHistory(messages.toList(), currentChatId.value);
+    currentChatId.value = const Uuid().v4();
     _delivery++;
     _tts.stop();
     _pending.clear();
@@ -820,6 +1012,14 @@ class OfflineChatbotController extends GetxController {
     if (wasBusy) await _persistTranscript();
   }
 
+  /// Takes the baby's voice for this conversation, which ends the home
+  /// AlloBaby card's flow if it was talking. When the card takes it back, the
+  /// turn still being said here is dropped — the card only talks on Home,
+  /// where she has moved on from this one.
+  void _claimVoice() => SpeechActivity.instance.claim(this, () {
+    if (isBusy.value || isSpeaking.value) unawaited(stopCurrentTurn());
+  });
+
   /// Silences the line being read without abandoning the turn.
   ///
   /// The counterpart to [stopCurrentTurn]: that one throws the whole reply
@@ -856,6 +1056,9 @@ class OfflineChatbotController extends GetxController {
   Future<void> send(String text, {bool speak = true}) async {
     final message = text.trim();
     if (message.isEmpty) return;
+    // Claimed as she asks rather than when the answer is read: an `ai` step
+    // can take a while, and the home card should not talk through the wait.
+    if (speak) _claimVoice();
 
     // Her own words supersede whatever the voice input was complaining about,
     // including when there is no catalogue yet and this turn ends in a note.
@@ -1015,8 +1218,9 @@ class OfflineChatbotController extends GetxController {
               show(
                 OfflineChatMessage(
                   text: utterance.text,
-                  audioUrls:
-                      utterance.hasAudio ? [utterance.audioUrl!] : const [],
+                  audioUrls: utterance.hasAudio
+                      ? [utterance.audioUrl!]
+                      : const [],
                   options: i == lastPrinted ? segment.options : const [],
                 ),
               );
@@ -1108,6 +1312,7 @@ class OfflineChatbotController extends GetxController {
     if (_isSystemOrErrorText(text)) return false;
     final clip = _absoluteAudioUrl(audioUrl);
     if (recordedOnly && clip == null) return false;
+    _claimVoice();
     lastSpokenText = text;
     debugPrint(
       'Chatbot: Speaking reply: "$text"${clip == null ? '' : ' (clip $clip)'}',

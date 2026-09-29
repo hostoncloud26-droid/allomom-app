@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/features/allobot/pages/chat_history_page.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/widgets/allobot_voice_popup.dart';
 import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.dart';
@@ -200,11 +201,35 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
               ],
             ),
           ),
+          GestureDetector(
+            onTap: () => ChatHistoryPage.open(context),
+            child: Container(
+              width: 35,
+              height: 35,
+              decoration: BoxDecoration(
+                color: p.card,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: p.pick(Colors.black12, p.shadow),
+                    blurRadius: 8,
+                    offset: Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: const Icon(
+                Icons.history_rounded,
+                color: Color(0xFFFF4E6A),
+                size: 20,
+              ),
+            ),
+          ),
           Obx(() {
             if (controller.messages.isEmpty) return const SizedBox.shrink();
             return GestureDetector(
               onTap: controller.createNewChat,
               child: Container(
+                margin: const EdgeInsets.only(left: 8),
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,
                   vertical: 6,

@@ -1,8 +1,9 @@
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
+import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
 
 /// Runs Ask Allo's opening flow on Home, inside the AlloBaby card.
@@ -14,6 +15,19 @@ import 'package:allomom/services/tts_service.dart';
 /// next waits for it, with the step's recording preferred and the device voice
 /// taking over when the clip will not play (see [TtsService.speakAndWait]).
 class AlloBabyFlowController extends ChangeNotifier {
+  AlloBabyFlowController() {
+    _live.add(this);
+  }
+
+  static final Set<AlloBabyFlowController> _live = {};
+
+  /// Stops every card's flow when a page opens over it — including a page the
+  /// flow opened itself, since that push does not wait for the page and the
+  /// flow would otherwise carry on talking over whatever the page says.
+  /// Sheets and dialogs are left alone: a flow's own sheet is her answering
+  /// it. Registered in `GetMaterialApp`.
+  static final NavigatorObserver observer = _StopOnNewPage();
+
   final TtsService _tts = TtsService();
   BotSession _session = BotSession();
 
@@ -45,6 +59,7 @@ class AlloBabyFlowController extends ChangeNotifier {
   /// fallback.
   Future<void> start({String? intentKey}) async {
     final generation = ++_generation;
+    _claimVoice();
     _session = BotSession();
     hasRun = true;
     options = const [];
@@ -64,6 +79,7 @@ class AlloBabyFlowController extends ChangeNotifier {
   /// Answers the step the flow is waiting on with one of its [options].
   Future<void> answer(String option) async {
     final generation = ++_generation;
+    _claimVoice();
     options = const [];
     isRunning = true;
     isThinking = true;
@@ -79,12 +95,32 @@ class AlloBabyFlowController extends ChangeNotifier {
 
   /// Silences the card and abandons the rest of the turn.
   Future<void> stop() async {
+    _abandon();
+    await _tts.stop();
+  }
+
+  /// Drops the rest of the turn, leaving the voice alone. True if a turn was
+  /// running.
+  bool _abandon() {
     _generation++;
+    SpeechActivity.instance.release(this);
     final wasRunning = isRunning;
     isRunning = false;
     isThinking = false;
     if (wasRunning) notifyListeners();
-    await _tts.stop();
+    return wasRunning;
+  }
+
+  /// Takes the voice for this turn. Whoever takes it next — AlloBot in Ask
+  /// Allo or Chat — ends this turn; the voice itself is theirs to stop, and
+  /// stopping it here could cut off their first line.
+  void _claimVoice() => SpeechActivity.instance.claim(this, _abandon);
+
+  @override
+  void dispose() {
+    _live.remove(this);
+    _abandon();
+    super.dispose();
   }
 
   Future<void> _deliver(BotReply? reply, int generation) async {
@@ -118,6 +154,7 @@ class AlloBabyFlowController extends ChangeNotifier {
       options = reply.options;
     } finally {
       if (generation == _generation) {
+        SpeechActivity.instance.release(this);
         isRunning = false;
         isThinking = false;
         notifyListeners();
@@ -162,5 +199,15 @@ class AlloBabyFlowController extends ChangeNotifier {
       audioUrl: OfflineChatbotController.resolveAudioUrl(audioUrl),
       language: lang.isEmpty || lang == 'all' ? null : lang,
     );
+  }
+}
+
+class _StopOnNewPage extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is! PageRoute) return;
+    for (final flow in AlloBabyFlowController._live) {
+      if (flow.isRunning) flow.stop();
+    }
   }
 }
