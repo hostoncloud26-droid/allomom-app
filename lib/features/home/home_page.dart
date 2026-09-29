@@ -547,12 +547,10 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
-              // While her flow waits on a choice, the options in her card
-              // take this row's room, so Quick Actions stays put.
-              if (_alloBaby.options.isEmpty) ...[
-                _buildTryAsking(context),
-                const SizedBox(height: 32),
-              ],
+              // While her flow waits on a choice, its options take the
+              // "Try asking" row's place, so Quick Actions stays put.
+              _buildTryAskingOrOptions(context),
+              const SizedBox(height: 32),
               // Rebuilt when the family loads: a dad's tiles point at his
               // wife's record once she is in his family.
               GetBuilder<FamilyController>(
@@ -573,8 +571,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildAlloBabyHero(BuildContext context) {
     final line = _heroLine().trim();
     final speaking = _heroSpeaking;
-    final busy = speaking || _alloBaby.isRunning || _homeNarrationKey != null;
-    final options = busy ? const <String>[] : _alloBaby.options;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -597,10 +593,6 @@ class _HomePageState extends State<HomePage> {
           // inside it rather than growing the card and pushing the page.
           _HeroSpeechCard(
             speaking: speaking || _alloBaby.isRunning,
-            actions: [
-              for (final option in options)
-                AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
-            ],
             child: StreamingHeroLine(
               text: line.isEmpty ? 'Hello! I am AlloBaby' : line,
               height: 76,
@@ -611,7 +603,52 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─── TRY ASKING ────────────────────────────────────────────
+  // ─── TRY ASKING / OPTIONS ──────────────────────────────────
+  /// AlloBaby's choices once she has finished speaking and her flow waits on
+  /// one; otherwise the "Try asking" row.
+  Widget _buildTryAskingOrOptions(BuildContext context) {
+    final busy =
+        _heroSpeaking || _alloBaby.isRunning || _homeNarrationKey != null;
+    final options = busy ? const <String>[] : _alloBaby.options;
+    if (options.isEmpty) return _buildTryAsking(context);
+
+    final isDark = context.palette.isDark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Options',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.85)
+                  : Colors.grey.shade800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final option in options)
+                  AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   /// Ask Allo's "Try asking" row; a chip is answered in the hero above.
   Widget _buildTryAsking(BuildContext context) {
     if (_trySuggestions.isEmpty) return const SizedBox.shrink();

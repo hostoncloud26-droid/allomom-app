@@ -999,6 +999,9 @@ class OfflineChatbotEngine {
           if (opts.isNotEmpty) {
             final reply = BotReply()
               ..say(optionMismatchMessage)
+              // Its own line, so the screen shows and voices the apology and
+              // then the question, one at a time, not both as one paragraph.
+              ..endStep()
               ..say(renderTemplate(current.question, session.data))
               ..addAudio(_sessionAudio(current, session))
               ..setOptions(opts);
