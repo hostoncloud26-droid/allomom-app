@@ -379,11 +379,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          _isPregnancySelected
-              ? 'My Pregnancy'
-              : (_selectedBaby?.name.trim().isNotEmpty ?? false)
-              ? _selectedBaby!.name.trim()
-              : 'My Baby',
+          // The baby's name is on the card right below.
+          _isPregnancySelected ? 'My Pregnancy' : 'My Baby',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
