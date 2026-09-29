@@ -1600,39 +1600,6 @@ class _HeroSpeechCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 14,
-                    color: primaryColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'ALLOBABY',
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: speaking
-                          ? const Color(0xFF22C55E)
-                          : pal.textMuted.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
               child,
               if (actions.isNotEmpty) ...[
                 const SizedBox(height: 10),
