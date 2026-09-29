@@ -9,6 +9,7 @@ import 'package:allomom/config/colors.dart' show darkCard;
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart'
     show AlloBotGeminiOrb;
 import 'package:allomom/features/pregnancy/baby_care_track_page.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_care_carousel.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_profile_card.dart';
 import 'package:allomom/features/pregnancy/widgets/current_focus_card.dart';
@@ -1613,6 +1614,41 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ],
         const SizedBox(height: 6),
 
+        // ─── VACCINATIONS ───
+        // Every dose, swipeable: past to the left, still to come to the right,
+        // opening on the latest one due.
+        VaccinationCarousel(
+          key: ValueKey('doses-${baby.id}'),
+          doses: _selectedBabyDoses,
+          onShowAll: () =>
+              _openBabyCareTrack(baby, BabyTrackMode.vaccinations),
+          onDoseGiven: (dose, given) async {
+            await BabyDbService.instance.markImmunizationGiven(
+              dose.id,
+              given ? DateTime.now() : null,
+            );
+            await _loadSelectedBabySchedule();
+            if (mounted) setState(() {});
+          },
+        ),
+        const SizedBox(height: 12),
+
+        // ─── MILESTONES ───
+        MilestoneCarousel(
+          key: ValueKey('milestones-${baby.id}'),
+          milestones: _selectedBabyMilestones,
+          onShowAll: () => _openBabyCareTrack(baby, BabyTrackMode.milestones),
+          onMilestoneReached: (milestone, reached) async {
+            await BabyDbService.instance.setMilestoneAchieved(
+              milestone.id,
+              reached ? DateTime.now() : null,
+            );
+            await _loadSelectedBabySchedule();
+            if (mounted) setState(() {});
+          },
+        ),
+        const SizedBox(height: 20),
+
         // ─── VACCINATION · MILESTONES ───
         // Each opens its own page with the same train.
         BabyCareBoxes(
@@ -1624,15 +1660,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               .where((m) => m.achieved)
               .length,
           milestonesTotal: _selectedBabyMilestones.length,
-          onOpen: (mode) async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => BabyCareTrackPage(babyId: baby.id, mode: mode),
-              ),
-            );
-            await _loadSelectedBabySchedule();
-            if (mounted) setState(() {});
-          },
+          onOpen: (mode) => _openBabyCareTrack(baby, mode),
         ),
         const SizedBox(height: 20),
 
@@ -1673,6 +1701,17 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ],
       ],
     );
+  }
+
+  /// The full Vaccination or Milestones page; its changes show here on return.
+  Future<void> _openBabyCareTrack(Baby baby, BabyTrackMode mode) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => BabyCareTrackPage(babyId: baby.id, mode: mode),
+      ),
+    );
+    await _loadSelectedBabySchedule();
+    if (mounted) setState(() {});
   }
 
   Future<void> _editBaby(Baby baby) async {
