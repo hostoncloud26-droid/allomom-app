@@ -34,7 +34,11 @@ class AlloBabyFlowController extends ChangeNotifier {
 
   /// Starts the opening flow from the top. Completes once it has been said —
   /// or stopped — so a caller can sequence what comes after it.
-  Future<void> start() async {
+  ///
+  /// [intentKey] runs that intent instead of the opening one; a key the
+  /// catalogue lacks says nothing, leaving [line] empty for the caller's own
+  /// fallback.
+  Future<void> start({String? intentKey}) async {
     final generation = ++_generation;
     _session = BotSession();
     hasRun = true;
@@ -46,7 +50,7 @@ class AlloBabyFlowController extends ChangeNotifier {
     await chatbot.ready;
     final reply = await chatbot.runDetachedTurn(
       session: _session,
-      intentKey: chatbot.initialIntentKey,
+      intentKey: intentKey ?? chatbot.initialIntentKey,
     );
     if (generation != _generation) return;
     await _deliver(reply, generation);

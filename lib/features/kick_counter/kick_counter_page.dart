@@ -1,8 +1,12 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 
 class KickCounterPage extends StatefulWidget {
   const KickCounterPage({super.key});
@@ -25,9 +29,17 @@ class _KickCounterPageState extends State<KickCounterPage>
   /// a mark on the screen instead of only bumping a number.
   late AnimationController _rippleController;
 
+  /// The baby's words come from the chatbot's `test` intent; the fallback line
+  /// shows until it says something, or when the catalogue has no such intent.
+  static const _introIntentKey = 'test';
+  static const _fallbackLine = "Let's count\ntogether! ❤️";
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _introIntentKey);
     final vitals = HealthVitalsController.instance;
     if (vitals.hasKickCount && vitals.kickCountValue > _bestCount) {
       _bestCount = vitals.kickCountValue;
@@ -45,8 +57,15 @@ class _KickCounterPageState extends State<KickCounterPage>
     );
   }
 
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _baby.stop();
+    _baby.dispose();
     _animController.dispose();
     _rippleController.dispose();
     super.dispose();
@@ -133,21 +152,99 @@ class _KickCounterPageState extends State<KickCounterPage>
             // The baby takes whatever the counter below does not need, so the
             // whole screen fits without scrolling on a short phone and still
             // fills a tall one.
-            const Expanded(
+            Expanded(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: BabyHeroBanner(
-                  speechText: "Let's count\ntogether! ❤️",
+                  speechText: _baby.line.trim().isEmpty
+                      ? _fallbackLine
+                      : _baby.line.trim(),
                   bubblePosition: SpeechBubblePosition.topCenter,
                   expand: true,
+                  speakingOverride: _baby.isRunning,
                 ),
               ),
             ),
+
+            // Only while the baby is talking; stops the flow and the voice
+            // together.
+            if (_baby.isRunning) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _buildStopSpeakingButton(context),
+              ),
+            ],
+
+            if (!_baby.isRunning && _baby.options.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final option in _baby.options)
+                      AlloBotSuggestionChip(text: option, onTap: _baby.answer),
+                  ],
+                ),
+              ),
+            ],
 
             const SizedBox(height: 10),
 
             _buildCounterSection(),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// A frosted-glass bar: the page shows through a blurred, tinted fill, with
+  /// the accent red on the label. The tint and edge follow the theme.
+  Widget _buildStopSpeakingButton(BuildContext context) {
+    final isDark = context.palette.isDark;
+    const accent = Color(0xFFFF4E6A);
+    final radius = BorderRadius.circular(12);
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.white.withValues(
+            alpha: isDark ? 0.08 : 0.55,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.16)
+                  : accent.withValues(alpha: 0.25),
+            ),
+          ),
+          child: InkWell(
+            onTap: _baby.stop,
+            child: const SizedBox(
+              width: double.infinity,
+              height: 36,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.stop_rounded, size: 18, color: accent),
+                  SizedBox(width: 6),
+                  Text(
+                    'Stop Speaking',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

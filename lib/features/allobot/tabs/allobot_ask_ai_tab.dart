@@ -456,10 +456,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             builder: (context, constraints) => Obx(() {
               // Clears the docked mic, unless the composer below already lifts
               // the content above it.
-              final bottomGap =
-                  controller.isKeyboardMode.value && !_showingOptions
-                  ? 8.0
-                  : 40.0;
+              final bottomGap = controller.isKeyboardMode.value ? 8.0 : 40.0;
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
@@ -481,15 +478,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         ),
         Obx(() {
           if (!controller.isKeyboardMode.value) {
-            return const SizedBox(height: 12);
-          }
-          if (_showingOptions) {
-            // The composer is going away; take the keyboard with it.
-            if (_inputFocus.hasFocus) {
-              WidgetsBinding.instance.addPostFrameCallback(
-                (_) => _inputFocus.unfocus(),
-              );
-            }
             return const SizedBox(height: 12);
           }
           return OfflineChatbotComposer(

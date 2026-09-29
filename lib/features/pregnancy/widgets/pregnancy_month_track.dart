@@ -44,15 +44,15 @@ class PregnancyMonthTrack extends StatefulWidget {
   const PregnancyMonthTrack({
     super.key,
     required this.onChanged,
-    this.belowTrain,
+    this.aboveTrain,
     this.onMonthSelected,
   });
 
   /// Called after a schedule page closes, so the page can reload.
   final VoidCallback onChanged;
 
-  /// Shown between the train and the month's schedule.
-  final Widget? belowTrain;
+  /// Shown above the train.
+  final Widget? aboveTrain;
 
   /// Called when the user selects a month wagon on the train.
   final ValueChanged<int>? onMonthSelected;
@@ -149,6 +149,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.aboveTrain != null) ...[
+          widget.aboveTrain!,
+          const SizedBox(height: 16),
+        ],
         JourneyTrain(
           title: 'Pregnancy train',
           chip: '${_ordinal(_currentMonth)} month',
@@ -163,11 +167,9 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
               TrainWagon(value: m, number: '$m', label: 'Month'),
           ],
         ),
-        if (widget.belowTrain != null) ...[
-          const SizedBox(height: 14),
-          widget.belowTrain!,
-        ],
-        const SizedBox(height: 4),
+        const SizedBox(height: 14),
+        _boxes(items),
+        const SizedBox(height: 14),
         CareSectionLabel(
           'Upcoming schedule · ${_ordinal(_selected)} month',
           color: context.palette.textSecondary,
@@ -199,8 +201,6 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           const SizedBox(height: 8),
           CareProgressCard(done: done, total: inMonth.length),
         ],
-        const SizedBox(height: 14),
-        _boxes(items),
       ],
     );
   }

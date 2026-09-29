@@ -994,18 +994,26 @@ class OfflineChatbotEngine {
                 match.intent, match.variables, turnContext, session);
           }
 
-          // Neither an option nor an intent — the step is waiting on a choice,
-          // so ask again instead of storing the stray utterance.
+          // Not one of the options, and no confident intent either. The
+          // choices are a convenience, not a gate: she is treated as if she
+          // had asked it with nothing pending — any intent that fits, else
+          // the catalogue's fallback — rather than being told she was not
+          // understood and having the question asked again.
           if (opts.isNotEmpty) {
-            final reply = BotReply()
-              ..say(optionMismatchMessage)
-              // Its own line, so the screen shows and voices the apology and
-              // then the question, one at a time, not both as one paragraph.
-              ..endStep()
-              ..say(renderTemplate(current.question, session.data))
-              ..addAudio(_sessionAudio(current, session))
-              ..setOptions(opts);
-            return reply;
+            final loose = findBestIntent(catalogue, trimmed) ??
+                findBestIntent(bundle.intents, trimmed);
+            if (loose != null) {
+              return await _runIntent(
+                  loose.intent, loose.variables, turnContext, session);
+            }
+            final fallback = bundle.fallbackFor(langCode);
+            if (fallback != null) {
+              return await _runIntent(fallback, const {}, turnContext, session);
+            }
+            session.clear();
+            return BotReply()
+              ..say(
+                  "I'm sorry, I didn't catch that. Could you please rephrase, or try saying 'hi'?");
           }
         }
 
