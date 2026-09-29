@@ -179,95 +179,119 @@ class _TodocareSectionState extends State<TodocareSection> {
     final progress = _items.isEmpty ? 0.0 : _doneCount / _items.length;
     final name = MainController.instance.userName.split(' ').first;
 
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.allDayParts ? null : _openPlanner,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.allDayParts
+                          ? '${_part.greeting}, $name'
+                          : "Today's care",
+                      style: GoogleFonts.outfit(
+                        fontSize: widget.allDayParts ? 18 : 20,
+                        fontWeight: FontWeight.bold,
+                        color: p.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      widget.allDayParts
+                          ? 'Your day, hour by hour'
+                          : '${_part.greeting}, $name · ${_part.headline}',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: p.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            if (widget.allDayParts)
+              _AddActivityButton(onTap: () => _addActivity())
+            else
+              _DayPartBadge(part: _part),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 5,
+                  backgroundColor: p.pick(const Color(0xFFF0F2F5), p.surface),
+                  valueColor: const AlwaysStoppedAnimation<Color>(primaryColor),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              '$_doneCount/${_items.length}',
+              style: GoogleFonts.poppins(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: primaryColor,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Home shows the hours of the window she is in; the checklist page
+        // the whole day. Both leave empty hours open to add to.
+        if (widget.compact)
+          _buildCompactList()
+        else
+          _buildTimeline(widget.allDayParts ? _dayHours : _windowHours),
+
+        if (!widget.allDayParts) ...[
+          const SizedBox(height: 4),
+          _buildViewMore(),
+        ],
+      ],
+    );
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.allDayParts ? null : _openPlanner,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.allDayParts
-                            ? '${_part.greeting}, $name'
-                            : "Today's care",
-                        style: GoogleFonts.outfit(
-                          fontSize: widget.allDayParts ? 18 : 20,
-                          fontWeight: FontWeight.bold,
-                          color: p.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.allDayParts
-                            ? 'Your day, hour by hour'
-                            : '${_part.greeting}, $name · ${_part.headline}',
-                        style: GoogleFonts.poppins(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: p.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
+      // Home keeps the heading, the progress and the items together on one
+      // card; the checklist page lays them straight on the page.
+      child: !widget.compact
+          ? content
+          : Container(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+              decoration: BoxDecoration(
+                color: p.card,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: p.pick(const Color(0xFFF0F1F5), p.border),
                 ),
-              ),
-              const SizedBox(width: 10),
-              if (widget.allDayParts)
-                _AddActivityButton(onTap: () => _addActivity())
-              else
-                _DayPartBadge(part: _part),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 5,
-                    backgroundColor: p.pick(const Color(0xFFF0F2F5), p.surface),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      primaryColor,
+                boxShadow: [
+                  BoxShadow(
+                    color: p.pick(
+                      Colors.black.withValues(alpha: 0.05),
+                      Colors.transparent,
                     ),
+                    blurRadius: 18,
+                    offset: const Offset(0, 6),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Text(
-                '$_doneCount/${_items.length}',
-                style: GoogleFonts.poppins(
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
-                  color: primaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-
-          // Home shows the hours of the window she is in; the checklist page
-          // the whole day. Both leave empty hours open to add to.
-          if (widget.compact)
-            _buildCompactList()
-          else
-            _buildTimeline(widget.allDayParts ? _dayHours : _windowHours),
-
-          if (!widget.allDayParts) ...[
-            const SizedBox(height: 4),
-            _buildViewMore(),
-          ],
-        ],
-      ),
+              child: content,
+            ),
     );
   }
 
@@ -325,17 +349,15 @@ class _TodocareSectionState extends State<TodocareSection> {
       onTap: () => _onItemTap(item),
       behavior: HitTestBehavior.opaque,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
+        margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        // Flat on the section's card: a soft fill instead of each row's own
+        // coloured outline.
         decoration: BoxDecoration(
-          color: p.card,
+          color: isDone
+              ? const Color(0xFF10B981).withValues(alpha: 0.08)
+              : p.pick(const Color(0xFFF7F8FA), p.surface),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isDone
-                ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                : item.color.withValues(alpha: p.isDark ? 0.5 : 0.38),
-            width: 1.3,
-          ),
         ),
         child: Row(
           children: [
