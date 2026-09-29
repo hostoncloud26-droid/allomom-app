@@ -354,7 +354,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                       ),
                       SizedBox(width: 10),
                       Text(
-                        'Delete Pregnancy Card',
+                        'Delete Current Pregnancy',
                         style: TextStyle(color: Color(0xFFEF4444)),
                       ),
                     ],
