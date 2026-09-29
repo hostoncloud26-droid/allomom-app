@@ -400,10 +400,10 @@ class _CareCountSheetState extends State<CareCountSheet> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () => Navigator.pop<CareCountResult>(
-                  context,
-                  (count: _count, kind: _kind),
-                ),
+                onPressed: () => Navigator.pop<CareCountResult>(context, (
+                  count: _count,
+                  kind: _kind,
+                )),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: _color,
                   shape: RoundedRectangleBorder(

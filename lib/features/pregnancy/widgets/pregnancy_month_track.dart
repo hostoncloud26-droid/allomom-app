@@ -44,15 +44,15 @@ class PregnancyMonthTrack extends StatefulWidget {
   const PregnancyMonthTrack({
     super.key,
     required this.onChanged,
-    this.belowTrain,
+    this.aboveTrain,
     this.onMonthSelected,
   });
 
   /// Called after a schedule page closes, so the page can reload.
   final VoidCallback onChanged;
 
-  /// Shown between the train and the month's schedule.
-  final Widget? belowTrain;
+  /// Shown above the train.
+  final Widget? aboveTrain;
 
   /// Called when the user selects a month wagon on the train.
   final ValueChanged<int>? onMonthSelected;
@@ -118,9 +118,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
   };
 
   Future<void> _open(Widget page) async {
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => page));
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
     widget.onChanged();
     if (mounted) setState(() {});
   }
@@ -136,7 +134,6 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     final items = _items;
     final inMonth = items.where((i) => i.month == _selected).toList()
       ..sort(_byDate);
-    final done = inMonth.where((i) => i.done).length;
 
     // The next thing to do of each kind, across the whole pregnancy.
     final next = <_Kind, String>{};
@@ -149,9 +146,12 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (widget.aboveTrain != null) ...[
+          widget.aboveTrain!,
+          const SizedBox(height: 16),
+        ],
         JourneyTrain(
-          title: 'Pregnancy train',
-          chip: '${_ordinal(_currentMonth)} month',
+          title: 'Pregnancy Checklist',
           selected: _selected,
           current: _currentMonth,
           onSelected: (m) {
@@ -163,15 +163,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
               TrainWagon(value: m, number: '$m', label: 'Month'),
           ],
         ),
-        if (widget.belowTrain != null) ...[
-          const SizedBox(height: 14),
-          widget.belowTrain!,
-        ],
-        const SizedBox(height: 4),
-        CareSectionLabel(
-          'Upcoming schedule · ${_ordinal(_selected)} month',
-          color: context.palette.textSecondary,
-        ),
+        const SizedBox(height: 18),
+        _boxes(items),
+        const SizedBox(height: 8),
+
         if (inMonth.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 16),
@@ -195,12 +190,6 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
             inMonth.where((i) => i.kind == kind).toList(),
             next[kind],
           ),
-        if (inMonth.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          CareProgressCard(done: done, total: inMonth.length),
-        ],
-        const SizedBox(height: 14),
-        _boxes(items),
       ],
     );
   }
@@ -303,7 +292,12 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
       children: [
         for (final (kind, icon, color, title) in const [
           (_Kind.anc, Icons.local_hospital_rounded, _ancAccent, 'ANC'),
-          (_Kind.vaccine, Icons.vaccines_rounded, _vaccineAccent, 'Vaccination'),
+          (
+            _Kind.vaccine,
+            Icons.vaccines_rounded,
+            _vaccineAccent,
+            'Vaccination',
+          ),
           (_Kind.lab, Icons.science_rounded, _labAccent, 'Lab Reports'),
         ]) ...[
           if (kind != _Kind.anc) const SizedBox(width: 10),
@@ -376,10 +370,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  count,
-                  style: TextStyle(fontSize: 11, color: p.textMuted),
-                ),
+                Text(count, style: TextStyle(fontSize: 11, color: p.textMuted)),
               ],
             ),
           ),

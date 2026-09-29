@@ -69,15 +69,9 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
     super.initState();
     _openingSuggestions = _drawOpeningSuggestions();
 
-    // The page opens on the week's message and the baby says it aloud. Held to
-    // the first frame so the transcript is on screen before she starts, and
-    // not while the voice sheet is about to take over the turn.
-    if (!widget.initialListening) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        unawaited(controller.openConversation());
-      });
-    }
+    // Opening the page does not start the initial flow: Home has already run
+    // it, and the transcript, current line and options it left are what this
+    // page shows.
 
     if (widget.initialListening) {
       WidgetsBinding.instance.addPostFrameCallback((_) => startListening());
@@ -368,7 +362,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'AlloBaby',
+                  'Talk 2 Baby',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -462,10 +456,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             builder: (context, constraints) => Obx(() {
               // Clears the docked mic, unless the composer below already lifts
               // the content above it.
-              final bottomGap =
-                  controller.isKeyboardMode.value && !_showingOptions
-                  ? 8.0
-                  : 40.0;
+              final bottomGap = controller.isKeyboardMode.value ? 8.0 : 40.0;
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 padding: EdgeInsets.only(
@@ -487,15 +478,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         ),
         Obx(() {
           if (!controller.isKeyboardMode.value) {
-            return const SizedBox(height: 12);
-          }
-          if (_showingOptions) {
-            // The composer is going away; take the keyboard with it.
-            if (_inputFocus.hasFocus) {
-              WidgetsBinding.instance.addPostFrameCallback(
-                (_) => _inputFocus.unfocus(),
-              );
-            }
             return const SizedBox(height: 12);
           }
           return OfflineChatbotComposer(
@@ -594,31 +576,25 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   showingOptions ? 'Options' : 'Try asking:',
-                  style: showingOptions
-                      ? headerStyle.copyWith(fontSize: 18)
-                      : headerStyle,
+                  style: headerStyle,
                 ),
               ),
-              SizedBox(height: showingOptions ? 14 : 8),
+              const SizedBox(height: 8),
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 250),
                 // Options wrap onto more rows rather than scroll, so every
-                // answer is in view at the bigger size.
+                // answer is in view.
                 child: showingOptions
                     ? SizedBox(
                         key: ValueKey(suggestions.join('|')),
                         width: double.infinity,
                         child: Wrap(
                           alignment: WrapAlignment.center,
-                          spacing: 12,
-                          runSpacing: 12,
+                          spacing: 8,
+                          runSpacing: 8,
                           children: [
                             for (final text in suggestions)
-                              AlloBotSuggestionChip(
-                                text: text,
-                                onTap: _send,
-                                large: true,
-                              ),
+                              AlloBotSuggestionChip(text: text, onTap: _send),
                           ],
                         ),
                       )

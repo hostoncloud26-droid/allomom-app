@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
 import 'package:allomom/config/app_theme.dart';
 
@@ -53,6 +54,13 @@ class JourneyTrain extends StatefulWidget {
 
 class _JourneyTrainState extends State<JourneyTrain> {
   final _selectedKey = GlobalKey();
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -66,17 +74,24 @@ class _JourneyTrainState extends State<JourneyTrain> {
     if (old.selected != widget.selected) _scrollToSelected();
   }
 
+  /// Centres the selected wagon in the train's own horizontal scroll only.
+  /// `Scrollable.ensureVisible` would also scroll the page it sits on,
+  /// pulling the screen down so the top of it opened cut off.
   void _scrollToSelected() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = _selectedKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.5,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.easeOutCubic,
-        );
-      }
+      final wagon = _selectedKey.currentContext?.findRenderObject();
+      if (wagon == null || !_scroll.hasClients) return;
+      final viewport = RenderAbstractViewport.maybeOf(wagon);
+      if (viewport == null) return;
+      final target = viewport
+          .getOffsetToReveal(wagon, 0.5)
+          .offset
+          .clamp(0.0, _scroll.position.maxScrollExtent);
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
     });
   }
 
@@ -133,6 +148,7 @@ class _JourneyTrainState extends State<JourneyTrain> {
           ),
           const SizedBox(height: 12),
           SingleChildScrollView(
+            controller: _scroll,
             scrollDirection: Axis.horizontal,
             physics: const BouncingScrollPhysics(),
             child: Stack(
@@ -220,15 +236,7 @@ class _JourneyTrainState extends State<JourneyTrain> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  w.number,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                    color: selected ? Colors.white : p.textPrimary,
-                  ),
-                ),
+                // The label sits over the number.
                 Text(
                   w.label,
                   style: TextStyle(
@@ -237,6 +245,15 @@ class _JourneyTrainState extends State<JourneyTrain> {
                     color: selected
                         ? Colors.white.withValues(alpha: 0.9)
                         : p.textMuted,
+                  ),
+                ),
+                Text(
+                  w.number,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                    color: selected ? Colors.white : p.textPrimary,
                   ),
                 ),
               ],

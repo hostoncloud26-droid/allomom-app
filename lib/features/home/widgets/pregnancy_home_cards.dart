@@ -360,7 +360,7 @@ class _BabyWeekCardState extends State<BabyWeekCard> {
           const SizedBox(height: 10),
           _CardButton(
             icon: Icons.child_friendly_rounded,
-            label: 'Baby Journey',
+            label: 'My baby',
             onTap: widget.onOpenJourney,
           ),
         ],

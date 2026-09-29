@@ -18,7 +18,7 @@ class Apiroutes extends GetxController {
 
   // String baseUrl = "http://192.168.0.18:8000";
 
-   String baseUrl = "https://api.allomom.savemom.app";
+  String baseUrl = "https://api.allomom.savemom.app";
 
   @override
   void onInit() {

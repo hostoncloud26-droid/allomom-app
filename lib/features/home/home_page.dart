@@ -547,7 +547,9 @@ class _HomePageState extends State<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 32),
-              _buildTryAsking(context),
+              // While her flow waits on a choice, its options take the
+              // "Try asking" row's place, so Quick Actions stays put.
+              _buildTryAskingOrOptions(context),
               const SizedBox(height: 32),
               // Rebuilt when the family loads: a dad's tiles point at his
               // wife's record once she is in his family.
@@ -569,8 +571,6 @@ class _HomePageState extends State<HomePage> {
   Widget _buildAlloBabyHero(BuildContext context) {
     final line = _heroLine().trim();
     final speaking = _heroSpeaking;
-    final busy = speaking || _alloBaby.isRunning || _homeNarrationKey != null;
-    final options = busy ? const <String>[] : _alloBaby.options;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -598,9 +598,43 @@ class _HomePageState extends State<HomePage> {
               height: 76,
             ),
           ),
-          if (options.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Wrap(
+        ],
+      ),
+    );
+  }
+
+  // ─── TRY ASKING / OPTIONS ──────────────────────────────────
+  /// AlloBaby's choices once she has finished speaking and her flow waits on
+  /// one; otherwise the "Try asking" row.
+  Widget _buildTryAskingOrOptions(BuildContext context) {
+    final busy =
+        _heroSpeaking || _alloBaby.isRunning || _homeNarrationKey != null;
+    final options = busy ? const <String>[] : _alloBaby.options;
+    if (options.isEmpty) return _buildTryAsking(context);
+
+    final isDark = context.palette.isDark;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'Options',
+            style: GoogleFonts.outfit(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.85)
+                  : Colors.grey.shade800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: Wrap(
               alignment: WrapAlignment.center,
               spacing: 8,
               runSpacing: 8,
@@ -609,13 +643,12 @@ class _HomePageState extends State<HomePage> {
                   AlloBotSuggestionChip(text: option, onTap: _alloBaby.answer),
               ],
             ),
-          ],
-        ],
-      ),
+          ),
+        ),
+      ],
     );
   }
 
-  // ─── TRY ASKING ────────────────────────────────────────────
   /// Ask Allo's "Try asking" row; a chip is answered in the hero above.
   Widget _buildTryAsking(BuildContext context) {
     if (_trySuggestions.isEmpty) return const SizedBox.shrink();
@@ -1457,18 +1490,7 @@ class _HomePageState extends State<HomePage> {
   static const _quickActionSize = 112.0;
 
   /// Trackers added after the headline features, in the order shown.
-  static const _trackerActionIds = [
-    'daily_activity',
-    'heart_rate',
-    'hrv',
-    'sleep',
-    'hemoglobin',
-    'water',
-    'breakfast',
-    'dinner',
-    'snacks',
-    'drinks',
-  ];
+  static const _trackerActionIds = ['daily_activity'];
 
   /// One Quick Actions entry. AlloBot's feature type, so it opens the same way
   /// and carries the same illustration.
@@ -1579,10 +1601,17 @@ class _QuickActionBox extends StatelessWidget {
 /// AlloBaby's line under the orb: a thin gradient rim, her name, and a live
 /// dot while she is talking.
 class _HeroSpeechCard extends StatelessWidget {
-  const _HeroSpeechCard({required this.child, required this.speaking});
+  const _HeroSpeechCard({
+    required this.child,
+    required this.speaking,
+    this.actions = const [],
+  });
 
   final Widget child;
   final bool speaking;
+
+  /// Her choices, answered right under the line that asks for them.
+  final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
@@ -1608,40 +1637,17 @@ class _HeroSpeechCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.auto_awesome_rounded,
-                    size: 14,
-                    color: primaryColor,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'ALLOBABY',
-                    style: GoogleFonts.outfit(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.4,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 250),
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: speaking
-                          ? const Color(0xFF22C55E)
-                          : pal.textMuted.withValues(alpha: 0.4),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
               child,
+              if (actions.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: actions,
+                ),
+                const SizedBox(height: 4),
+              ],
             ],
           ),
         ),

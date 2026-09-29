@@ -4,9 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
-import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
-import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
-import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/baby_care_track_page.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
@@ -271,10 +268,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ),
         title: Text(
           _isPregnancySelected
-              ? 'My Pregnancy Journey'
+              ? 'My Pregnancy'
               : (_selectedBaby?.name.trim().isNotEmpty ?? false)
               ? _selectedBaby!.name.trim()
-              : 'My Baby Journey',
+              : 'My Baby',
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -282,21 +279,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           ),
         ),
         actions: [
-          if (_isPregnant)
-            IconButton(
-              tooltip: 'ANC Schedule',
-              icon: const Icon(
-                Icons.calendar_month_rounded,
-                color: Color(0xFFFF3B5C),
-                size: 22,
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AncSchedulePage()),
-                );
-              },
-            ),
           PopupMenuButton<String>(
             icon: Icon(Icons.more_vert_rounded, color: _ink, size: 22),
             shape: RoundedRectangleBorder(
@@ -304,28 +286,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
             ),
             onSelected: (val) async {
               switch (val) {
-                case 'anc':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AncSchedulePage()),
-                  );
-                  break;
-                case 'vaccine':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const VaccinationSchedulePage(),
-                    ),
-                  );
-                  break;
-                case 'labs':
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const LabReportsSchedulePage(),
-                    ),
-                  );
-                  break;
                 case 'register':
                   final created = await Navigator.push(
                     context,
@@ -334,9 +294,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     ),
                   );
                   if (created == true) _loadAllPregnancyData();
-                  break;
-                case 'add_baby':
-                  await _addBabyFromHeader();
                   break;
                 case 'edit_baby':
                   final baby = _selectedBaby;
@@ -351,67 +308,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               }
             },
             itemBuilder: (ctx) => [
-              if (_isPregnant) ...[
-                const PopupMenuItem(
-                  value: 'anc',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.calendar_today_rounded,
-                        size: 18,
-                        color: Color(0xFFFF3B5C),
-                      ),
-                      SizedBox(width: 10),
-                      Text('ANC Schedule'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'vaccine',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.vaccines_rounded,
-                        size: 18,
-                        color: Color(0xFF8B5CF6),
-                      ),
-                      SizedBox(width: 10),
-                      Text('Vaccination Schedule'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'labs',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.science_rounded,
-                        size: 18,
-                        color: Color(0xFF3898EC),
-                      ),
-                      SizedBox(width: 10),
-                      Text('Lab Reports & Scans'),
-                    ],
-                  ),
-                ),
-                const PopupMenuDivider(),
-              ],
-              // Always offered: the avatar row is only a way to move between
-              // her children, not a way to record a new one.
-              const PopupMenuItem(
-                value: 'add_baby',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.child_care_rounded,
-                      size: 18,
-                      color: Color(0xFFFF3B5C),
-                    ),
-                    SizedBox(width: 10),
-                    Text('Add Baby'),
-                  ],
-                ),
-              ),
               // Where the baby info card's pencil used to be.
               if (_selectedEntityId != _pregnancyEntity &&
                   _selectedBaby != null)
@@ -429,7 +325,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                     ],
                   ),
                 ),
-              const PopupMenuDivider(),
+              if (_selectedEntityId != _pregnancyEntity &&
+                  _selectedBaby != null)
+                const PopupMenuDivider(),
               if (_isPregnant) ...[
                 const PopupMenuItem(
                   value: 'complete',
@@ -456,7 +354,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
                       ),
                       SizedBox(width: 10),
                       Text(
-                        'Delete Pregnancy Card',
+                        'Delete Current Pregnancy',
                         style: TextStyle(color: Color(0xFFEF4444)),
                       ),
                     ],
@@ -550,7 +448,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           child: PregnancyMonthTrack(
             onChanged: _loadAllPregnancyData,
             onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
-            belowTrain: _buildPregnancyInfoCard(
+            aboveTrain: _buildPregnancyInfoCard(
               context: context,
               gestationalWeek: gestationalWeek,
               trimester: trimester,
@@ -829,127 +727,89 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     required int progressPercent,
   }) {
     const pink = Color(0xFFFF3B5C);
+    final weeksToGo = (40 - gestationalWeek).clamp(0, 40);
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 12, 8, 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _hair, width: 1.1),
       ),
-      child: Column(
+      // Two equal halves: the week ring on the left, the stat cards on the
+      // right, both centred on the same line.
+      child: Row(
         children: [
-          Row(
-            children: [
-              SizedBox(
-                width: 46,
-                height: 46,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    CircularProgressIndicator(
-                      value: progressFraction,
-                      strokeWidth: 4.5,
-                      strokeCap: StrokeCap.round,
-                      backgroundColor: _chipGrey,
-                      valueColor: const AlwaysStoppedAnimation(pink),
-                    ),
-                    Center(
-                      child: Text(
-                        '$progressPercent%',
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
+          Expanded(
+            child: Center(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = (constraints.maxWidth - 8).clamp(96.0, 140.0);
+                  return SizedBox(
+                    width: size,
+                    height: size,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progressFraction,
+                          strokeWidth: 11,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: pink.withValues(alpha: 0.1),
+                          valueColor: const AlwaysStoppedAnimation(pink),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Week $gestationalWeek of 40',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      trimester,
-                      style: TextStyle(fontSize: 12, color: _inkMuted),
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                tooltip: 'Change LMP',
-                visualDensity: VisualDensity.compact,
-                onPressed: () async {
-                  final created = await Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const PregnancyConfirmationPage(),
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // The label sits over the number, as the
+                              // train's wagons do.
+                              Text(
+                                'Week',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: _inkMuted3,
+                                ),
+                              ),
+                              Text(
+                                '$gestationalWeek',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: _ink,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   );
-                  if (created == true) _loadAllPregnancyData();
                 },
-                icon: Icon(
-                  Icons.edit_calendar_rounded,
-                  size: 19,
-                  color: _inkSec2,
-                ),
               ),
-              IconButton(
-                tooltip: 'Delete pregnancy',
-                visualDensity: VisualDensity.compact,
-                onPressed: () => _showDeletePregnancyDialog(context),
-                icon: Icon(
-                  Icons.delete_outline_rounded,
-                  size: 19,
-                  color: _inkSec2,
-                ),
-              ),
-            ],
+            ),
           ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Row(
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               children: [
-                Expanded(
-                  child: _buildInfoMetricChip(
-                    value: eddFormatted,
-                    label: 'Due Date',
-                    icon: Icons.event_available_rounded,
-                    iconColor: _inkSec2,
-                    bg: _chipGrey,
-                  ),
+                _buildInfoStat(
+                  icon: Icons.event_available_rounded,
+                  label: 'Due Date',
+                  value: eddFormatted,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildInfoMetricChip(
-                    value: '$daysLeft',
-                    label: 'Days Left',
-                    icon: Icons.hourglass_bottom_rounded,
-                    iconColor: _inkSec2,
-                    bg: _chipGrey,
-                  ),
+                const SizedBox(height: 8),
+                _buildInfoStat(
+                  icon: Icons.child_friendly_rounded,
+                  label: 'Weeks to go',
+                  value: '$weeksToGo',
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildInfoMetricChip(
-                    value: '${(40 - gestationalWeek).clamp(0, 40)}',
-                    label: 'Weeks to go',
-                    icon: Icons.child_friendly_rounded,
-                    iconColor: _inkSec2,
-                    bg: _chipGrey,
-                  ),
+                const SizedBox(height: 8),
+                _buildInfoStat(
+                  icon: Icons.timelapse_rounded,
+                  label: 'Trimester',
+                  value: trimester.replaceFirst('Trimester ', ''),
                 ),
               ],
             ),
@@ -959,44 +819,54 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     );
   }
 
-  Widget _buildInfoMetricChip({
-    required Color bg,
+  /// One small card in the overview's right half: an icon, then the label
+  /// over its value.
+  Widget _buildInfoStat({
     required IconData icon,
-    required Color iconColor,
-    required String value,
     required String label,
+    required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: _p.tint(iconColor, bg),
-        borderRadius: BorderRadius.circular(14),
+        color: _chipGrey,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(color: _card, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 13),
+            child: Icon(icon, size: 14, color: _inkSec2),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: _ink,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: _inkMuted3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: _inkMuted3,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -1393,8 +1263,8 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
 
   /// Round avatars across the top: the pregnancy first, then each baby.
   ///
-  /// Hidden when there is only one of them, because a row of one is not a
-  /// choice.
+  /// Always shown, even for a lone pregnancy or baby, and always ends in a "+"
+  /// that opens the add-baby sheet.
   Widget _buildEntitySwitcher() {
     final entries = <({String id, String label, Baby? baby})>[
       if (_showsPregnancyEntity)
@@ -1407,8 +1277,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         ),
     ];
 
-    if (entries.length < 2) return const SizedBox.shrink();
-
     return SizedBox(
       height: 88,
       // Centred while they fit, scrolling from the left once they do not — a
@@ -1419,9 +1287,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           shrinkWrap: true,
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 4),
-          itemCount: entries.length,
+          itemCount: entries.length + 1,
           separatorBuilder: (_, __) => const SizedBox(width: 10),
           itemBuilder: (context, index) {
+            if (index == entries.length) return _buildAddBabyTile();
             final entry = entries[index];
             final isSelected = _selectedEntityId == entry.id;
 
@@ -1482,6 +1351,42 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
               ),
             );
           },
+        ),
+      ),
+    );
+  }
+
+  /// The "+" that ends the avatar row; opens the add-baby sheet.
+  Widget _buildAddBabyTile() {
+    return GestureDetector(
+      onTap: _addBabyFromHeader,
+      child: SizedBox(
+        width: 66,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _rose.withValues(alpha: 0.08),
+                border: Border.all(color: _rose.withValues(alpha: 0.45)),
+              ),
+              child: Icon(Icons.add_rounded, color: _rose, size: 28),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Add baby',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w500,
+                color: _inkSoft,
+              ),
+            ),
+          ],
         ),
       ),
     );
