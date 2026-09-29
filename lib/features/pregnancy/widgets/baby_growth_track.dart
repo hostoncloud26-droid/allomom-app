@@ -26,14 +26,14 @@ class BabyGrowthTrack extends StatefulWidget {
     required this.onDoseGiven,
     required this.onMilestoneReached,
     this.mode = BabyTrackMode.all,
-    this.footer,
+    this.showProgress = true,
   });
 
   /// Both lists, or just one of them — the Vaccination and Milestones pages.
   final BabyTrackMode mode;
 
-  /// Shown at the very end, under the month's items and its progress.
-  final Widget? footer;
+  /// Whether the month's "x of y Completed" card closes the list.
+  final bool showProgress;
 
   final Baby baby;
   final List<BabyImmunizationRecord> doses;
@@ -171,14 +171,10 @@ class _BabyGrowthTrackState extends State<BabyGrowthTrack> {
             marker: (m) => _milestoneMarker(m, nextMilestone),
             card: (m) => _milestoneCard(m, m.id == nextMilestone?.id),
           ),
-        // The month's progress, then whatever the page adds, under the list.
-        if (total > 0) ...[
+        // The month's progress, under the list.
+        if (widget.showProgress && total > 0) ...[
           const SizedBox(height: 8),
           CareProgressCard(done: done, total: total),
-        ],
-        if (widget.footer != null) ...[
-          const SizedBox(height: 14),
-          widget.footer!,
         ],
       ],
     );

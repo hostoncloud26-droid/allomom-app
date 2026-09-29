@@ -10,6 +10,8 @@ import 'package:allomom/features/allobot/widgets/allobot_home_view.dart'
     show AlloBotGeminiOrb;
 import 'package:allomom/features/pregnancy/baby_care_track_page.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_profile_card.dart';
+import 'package:allomom/features/pregnancy/widgets/current_focus_card.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_size_card.dart';
 import 'package:allomom/features/pregnancy/widgets/weekly_summary_card.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
@@ -1577,11 +1579,62 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   Widget _buildBabyJourneyView(BuildContext context) {
     final baby = _selectedBaby;
     if (baby == null) return _buildUnregisteredPregnancyView(context);
+    final focus = currentFocusMilestone(_selectedBabyMilestones);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
+
+        // ─── BABY PROFILE ───
+        BabyProfileCard(
+          baby: baby,
+          avatar: _entityAvatar(baby),
+          onEdit: () => _editBaby(baby),
+        ),
+        const SizedBox(height: 14),
+
+        // ─── CURRENT FOCUS ───
+        // The milestone the baby is in range for; ticking it moves the focus
+        // on to the next one.
+        if (focus != null) ...[
+          CurrentFocusCard(
+            milestone: focus,
+            onReached: () async {
+              await BabyDbService.instance.setMilestoneAchieved(
+                focus.id,
+                DateTime.now(),
+              );
+              await _loadSelectedBabySchedule();
+              if (mounted) setState(() {});
+            },
+          ),
+          const SizedBox(height: 14),
+        ],
+        const SizedBox(height: 6),
+
+        // ─── VACCINATION · MILESTONES ───
+        // Each opens its own page with the same train.
+        BabyCareBoxes(
+          dosesGiven: _selectedBabyDoses
+              .where((d) => d.vaccinationDate != null)
+              .length,
+          dosesTotal: _selectedBabyDoses.length,
+          milestonesReached: _selectedBabyMilestones
+              .where((m) => m.achieved)
+              .length,
+          milestonesTotal: _selectedBabyMilestones.length,
+          onOpen: (mode) async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => BabyCareTrackPage(babyId: baby.id, mode: mode),
+              ),
+            );
+            await _loadSelectedBabySchedule();
+            if (mounted) setState(() {});
+          },
+        ),
+        const SizedBox(height: 20),
 
         // ─── MILESTONE TRAIN ───
         // In place of the talking banner: the baby rides a train of month
@@ -1591,28 +1644,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           baby: baby,
           doses: _selectedBabyDoses,
           milestones: _selectedBabyMilestones,
-          // Vaccination and Milestones, each opening its own page with the
-          // same train — in place of the baby info card.
-          footer: BabyCareBoxes(
-            dosesGiven: _selectedBabyDoses
-                .where((d) => d.vaccinationDate != null)
-                .length,
-            dosesTotal: _selectedBabyDoses.length,
-            milestonesReached: _selectedBabyMilestones
-                .where((m) => m.achieved)
-                .length,
-            milestonesTotal: _selectedBabyMilestones.length,
-            onOpen: (mode) async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      BabyCareTrackPage(babyId: baby.id, mode: mode),
-                ),
-              );
-              await _loadSelectedBabySchedule();
-              if (mounted) setState(() {});
-            },
-          ),
+          showProgress: false,
           onDoseGiven: (dose, given) async {
             await BabyDbService.instance.markImmunizationGiven(
               dose.id,
