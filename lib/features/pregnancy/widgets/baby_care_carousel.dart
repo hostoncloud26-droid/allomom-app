@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
@@ -19,7 +20,13 @@ class VaccinationCarousel extends StatelessWidget {
     required this.doses,
     required this.onDoseGiven,
     this.onShowAll,
+    this.focus,
   });
+
+  /// A month picked on the train, with the birth it counts from: the pager
+  /// swipes to that month's first dose. [BabyCarouselFocus.seq] tells a
+  /// second tap on the same wagon from no tap.
+  final BabyCarouselFocus? focus;
 
   final List<BabyImmunizationRecord> doses;
 
@@ -38,6 +45,7 @@ class VaccinationCarousel extends StatelessWidget {
       title: 'Vaccinations',
       accent: _vaccineAccent,
       onShowAll: onShowAll,
+      focus: focus,
       height: 150,
       items: sorted,
       dateOf: (d) => d.expectedDate,
@@ -117,7 +125,11 @@ class MilestoneCarousel extends StatelessWidget {
     required this.milestones,
     required this.onMilestoneReached,
     this.onShowAll,
+    this.focus,
   });
+
+  /// A month picked on the train: the pager swipes to its first milestone.
+  final BabyCarouselFocus? focus;
 
   final List<BabyMilestone> milestones;
 
@@ -137,6 +149,7 @@ class MilestoneCarousel extends StatelessWidget {
       accent: _milestoneAccent,
       height: 150,
       onShowAll: onShowAll,
+      focus: focus,
       items: sorted,
       dateOf: (m) => m.expectedDate,
       card: (m, isCurrent) {
@@ -201,6 +214,10 @@ class MilestoneCarousel extends StatelessWidget {
 
 // ── Shared ──────────────────────────────────────────────────────────────────
 
+/// A month picked on the train for the pagers to swipe to. [seq] goes up on
+/// every tap, so picking the same wagon again still brings the pager back.
+typedef BabyCarouselFocus = ({DateTime birth, int month, int seq});
+
 int Function(T, T) _byDate<T>(DateTime? Function(T) dateOf) => (a, b) {
   final da = dateOf(a), db = dateOf(b);
   if (da == null && db == null) return 0;
@@ -221,6 +238,7 @@ class _CareCarousel<T> extends StatefulWidget {
     required this.dateOf,
     required this.card,
     this.onShowAll,
+    this.focus,
   });
 
   final String title;
@@ -232,6 +250,7 @@ class _CareCarousel<T> extends StatefulWidget {
   final DateTime? Function(T) dateOf;
   final Widget Function(T item, bool isCurrent) card;
   final VoidCallback? onShowAll;
+  final BabyCarouselFocus? focus;
 
   @override
   State<_CareCarousel<T>> createState() => _CareCarouselState<T>();
@@ -267,6 +286,34 @@ class _CareCarouselState<T> extends State<_CareCarousel<T>> {
       viewportFraction: 0.9,
       initialPage: widget.items.isEmpty ? 0 : _currentIndex,
     );
+  }
+
+  @override
+  void didUpdateWidget(covariant _CareCarousel<T> old) {
+    super.didUpdateWidget(old);
+    final focus = widget.focus;
+    if (focus == null || focus.seq == old.focus?.seq) return;
+    final index = _indexForMonth(focus);
+    if (index == null || !_controller.hasClients) return;
+    _controller.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 380),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  /// The first item in [focus]'s month; failing that, the first one after
+  /// it, or the last one before it.
+  int? _indexForMonth(BabyCarouselFocus focus) {
+    if (widget.items.isEmpty) return null;
+    int monthAt(int i) =>
+        babyMonthOf(focus.birth, widget.dateOf(widget.items[i]));
+    for (var i = 0; i < widget.items.length; i++) {
+      if (widget.dateOf(widget.items[i]) != null && monthAt(i) >= focus.month) {
+        return i;
+      }
+    }
+    return widget.items.length - 1;
   }
 
   @override

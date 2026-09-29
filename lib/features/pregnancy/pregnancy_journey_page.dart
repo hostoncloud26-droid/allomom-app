@@ -15,6 +15,7 @@ import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_profile_card.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_size_card.dart';
 import 'package:allomom/features/pregnancy/widgets/weekly_summary_card.dart';
+import 'package:allomom/features/pregnancy/widgets/pregnancy_feature_row.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -118,6 +119,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     setState(() {
       _selectedEntityId = id;
       if (id != _pregnancyEntity) _selectedBabyId = id;
+      _babyTrainFocus = null;
       // The new selection says its own week, even one said before.
       _silenceWeeklySummary();
       _weeklyWeek = null;
@@ -576,7 +578,11 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                   const SizedBox(height: 10),
                   _buildStopSpeakingButton(),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
+                // Kick Counter, ANC, Vaccination and Lab Reports, swiped
+                // sideways as the baby's features are.
+                PregnancyFeatureRow(onChanged: _loadAllPregnancyData),
+                const SizedBox(height: 14),
                 // What the baby says first on home, then this week's size,
                 // between the overview and the tallies.
                 WeeklySummaryCard(
@@ -1759,21 +1765,35 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         ],
         const SizedBox(height: 4),
 
+        // ─── MILESTONE TRAIN ───
+        // Just the wagons: picking a month swipes the two lists under it to
+        // that month's first dose and milestone.
+        BabyGrowthTrack(
+          baby: baby,
+          doses: _selectedBabyDoses,
+          milestones: _selectedBabyMilestones,
+          trainOnly: true,
+          onMonthSelected: (month) => setState(
+            () => _babyTrainFocus = (
+              birth: baby.deliveryDate,
+              month: month,
+              seq: (_babyTrainFocus?.seq ?? 0) + 1,
+            ),
+          ),
+          onDoseGiven: _setDoseGiven,
+          onMilestoneReached: _setMilestoneReached,
+        ),
+        const SizedBox(height: 8),
+
         // ─── VACCINATIONS ───
         // Every dose, swipeable: past to the left, still to come to the right,
         // opening on the latest one due.
         VaccinationCarousel(
           key: ValueKey('doses-${baby.id}'),
           doses: _selectedBabyDoses,
+          focus: _babyTrainFocus,
           onShowAll: () => _openBabyCareTrack(baby, BabyTrackMode.vaccinations),
-          onDoseGiven: (dose, given) async {
-            await BabyDbService.instance.markImmunizationGiven(
-              dose.id,
-              given ? DateTime.now() : null,
-            );
-            await _loadSelectedBabySchedule();
-            if (mounted) setState(() {});
-          },
+          onDoseGiven: _setDoseGiven,
         ),
         const SizedBox(height: 12),
 
@@ -1781,43 +1801,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         MilestoneCarousel(
           key: ValueKey('milestones-${baby.id}'),
           milestones: _selectedBabyMilestones,
+          focus: _babyTrainFocus,
           onShowAll: () => _openBabyCareTrack(baby, BabyTrackMode.milestones),
-          onMilestoneReached: (milestone, reached) async {
-            await BabyDbService.instance.setMilestoneAchieved(
-              milestone.id,
-              reached ? DateTime.now() : null,
-            );
-            await _loadSelectedBabySchedule();
-            if (mounted) setState(() {});
-          },
-        ),
-        const SizedBox(height: 20),
-
-        // ─── MILESTONE TRAIN ───
-        // In place of the talking banner: the baby rides a train of month
-        // wagons, and the month picked shows its vaccinations and milestones
-        // the way the ANC schedule lists visits.
-        BabyGrowthTrack(
-          baby: baby,
-          doses: _selectedBabyDoses,
-          milestones: _selectedBabyMilestones,
-          showProgress: false,
-          onDoseGiven: (dose, given) async {
-            await BabyDbService.instance.markImmunizationGiven(
-              dose.id,
-              given ? DateTime.now() : null,
-            );
-            await _loadSelectedBabySchedule();
-            if (mounted) setState(() {});
-          },
-          onMilestoneReached: (milestone, reached) async {
-            await BabyDbService.instance.setMilestoneAchieved(
-              milestone.id,
-              reached ? DateTime.now() : null,
-            );
-            await _loadSelectedBabySchedule();
-            if (mounted) setState(() {});
-          },
+          onMilestoneReached: _setMilestoneReached,
         ),
         const SizedBox(height: 20),
 
@@ -1830,6 +1816,30 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         ],
       ],
     );
+  }
+
+  /// The month last picked on the baby's train, for the lists to follow.
+  BabyCarouselFocus? _babyTrainFocus;
+
+  Future<void> _setDoseGiven(BabyImmunizationRecord dose, bool given) async {
+    await BabyDbService.instance.markImmunizationGiven(
+      dose.id,
+      given ? DateTime.now() : null,
+    );
+    await _loadSelectedBabySchedule();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _setMilestoneReached(
+    BabyMilestone milestone,
+    bool reached,
+  ) async {
+    await BabyDbService.instance.setMilestoneAchieved(
+      milestone.id,
+      reached ? DateTime.now() : null,
+    );
+    await _loadSelectedBabySchedule();
+    if (mounted) setState(() {});
   }
 
   /// The full Vaccination or Milestones page; its changes show here on return.

@@ -39,7 +39,7 @@ class _Item {
 
 /// The pregnancy's nine months as a train, with that month's ANC check-ups,
 /// vaccinations and lab reports under it — laid out as the baby's milestone
-/// track is — then boxes that open each full schedule.
+/// track is.
 class PregnancyMonthTrack extends StatefulWidget {
   const PregnancyMonthTrack({
     super.key,
@@ -150,10 +150,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           widget.aboveTrain!,
           const SizedBox(height: 16),
         ],
-        // The whole pregnancy's ANC, vaccination and lab tallies, before the
-        // month-by-month checklist.
-        _boxes(items),
-        const SizedBox(height: 18),
+        const SizedBox(height: 2),
         JourneyTrain(
           title: 'Pregnancy Checklist',
           selected: _selected,
@@ -279,104 +276,6 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           ),
           const CareChevron(),
         ],
-      ),
-    );
-  }
-
-  /// ANC, Vaccination and Lab Reports, each opening its full schedule.
-  Widget _boxes(List<_Item> items) {
-    String count(_Kind k) {
-      final all = items.where((i) => i.kind == k);
-      return '${all.where((i) => i.done).length}/${all.length} done';
-    }
-
-    return Row(
-      children: [
-        for (final (kind, icon, color, title) in const [
-          (_Kind.anc, Icons.local_hospital_rounded, _ancAccent, 'ANC'),
-          (
-            _Kind.vaccine,
-            Icons.vaccines_rounded,
-            _vaccineAccent,
-            'Vaccination',
-          ),
-          (_Kind.lab, Icons.science_rounded, _labAccent, 'Lab Reports'),
-        ]) ...[
-          if (kind != _Kind.anc) const SizedBox(width: 10),
-          Expanded(
-            child: _box(
-              icon: icon,
-              color: color,
-              title: title,
-              count: count(kind),
-              onTap: () => _open(_pageFor(kind)),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
-  Widget _box({
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String count,
-    required VoidCallback onTap,
-  }) {
-    final p = context.palette;
-    return Container(
-      height: 118,
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border)),
-        boxShadow: [
-          BoxShadow(
-            color: p.pick(Colors.black.withValues(alpha: 0.03), p.shadow),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(22),
-          child: Padding(
-            padding: const EdgeInsets.all(8),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: p.tint(color, color.withValues(alpha: 0.10)),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 24, color: color),
-                ),
-                const SizedBox(height: 8),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: p.textPrimary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(count, style: TextStyle(fontSize: 11, color: p.textMuted)),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

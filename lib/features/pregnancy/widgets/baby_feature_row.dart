@@ -20,23 +20,23 @@ class BabyFeatureRow extends StatelessWidget {
         Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
 
     final boxes = [
-      _FeatureBox(
+      FeatureBox(
         title: 'AlloCry',
         image: 'assets/Quick Actions/AlloCry.png',
         onTap: () => push(const AlloCryPage()),
       ),
-      _FeatureBox(
+      FeatureBox(
         title: 'Feeding',
         image: QuickActionImages.feeding,
         onTap: () => push(const FeedingTrackerPage()),
       ),
-      _FeatureBox(
+      FeatureBox(
         title: 'Vaccination',
         icon: Icons.vaccines_rounded,
         color: const Color(0xFF8B5CF6),
         onTap: () => onOpenTrack(BabyTrackMode.vaccinations),
       ),
-      _FeatureBox(
+      FeatureBox(
         title: 'Milestones',
         icon: Icons.emoji_events_rounded,
         color: const Color(0xFFF59E0B),
@@ -44,8 +44,20 @@ class BabyFeatureRow extends StatelessWidget {
       ),
     ];
 
-    // Home's Quick Actions slider: square boxes of the same size, about
-    // three on screen at a time, swiped sideways.
+    return FeatureSlider(boxes: boxes);
+  }
+}
+
+/// Home's Quick Actions slider: square boxes of the same size, about three on
+/// screen at a time, swiped sideways. Shared by the baby's and the
+/// pregnancy's feature rows.
+class FeatureSlider extends StatelessWidget {
+  const FeatureSlider({super.key, required this.boxes});
+
+  final List<Widget> boxes;
+
+  @override
+  Widget build(BuildContext context) {
     return SizedBox(
       height: _boxSize,
       child: ListView.separated(
@@ -65,8 +77,9 @@ class BabyFeatureRow extends StatelessWidget {
 
 /// One box: the illustration, or a tinted icon where there is none, over a
 /// one-line name.
-class _FeatureBox extends StatelessWidget {
-  const _FeatureBox({
+class FeatureBox extends StatelessWidget {
+  const FeatureBox({
+    super.key,
     required this.title,
     required this.onTap,
     this.image,

@@ -13,6 +13,17 @@ const _milestoneAccent = Color(0xFFF59E0B);
 /// What the track lists under the train.
 enum BabyTrackMode { all, vaccinations, milestones }
 
+/// Whole months from [birth] to [date], never below zero — the wagon a dated
+/// item rides in.
+int babyMonthOf(DateTime birth, DateTime? date) {
+  if (date == null) return 0;
+  final b = DateUtils.dateOnly(birth);
+  final d = DateUtils.dateOnly(date);
+  var months = (d.year - b.year) * 12 + d.month - b.month;
+  if (d.day < b.day) months--;
+  return months < 0 ? 0 : months;
+}
+
 /// A baby's first months as a train — `babytrain.png` pulling one wagon per
 /// month — with that month's vaccinations and milestones under it, laid out
 /// as the ANC schedule is: a rail of markers, a card per item, the next thing
@@ -26,14 +37,19 @@ class BabyGrowthTrack extends StatefulWidget {
     required this.onDoseGiven,
     required this.onMilestoneReached,
     this.mode = BabyTrackMode.all,
-    this.showProgress = true,
+    this.trainOnly = false,
+    this.onMonthSelected,
   });
+
+  /// Just the train, without the lists — for a page that shows the items its
+  /// own way and follows the wagon picked through [onMonthSelected].
+  final bool trainOnly;
+
+  /// Called with the month of the wagon picked.
+  final ValueChanged<int>? onMonthSelected;
 
   /// Both lists, or just one of them — the Vaccination and Milestones pages.
   final BabyTrackMode mode;
-
-  /// Whether the month's "x of y Completed" card closes the list.
-  final bool showProgress;
 
   final Baby baby;
   final List<BabyImmunizationRecord> doses;
@@ -58,13 +74,7 @@ class _BabyGrowthTrackState extends State<BabyGrowthTrack> {
   DateTime get _birth => DateUtils.dateOnly(widget.baby.deliveryDate);
 
   /// Whole months from birth to [date], never below zero.
-  int _monthOf(DateTime? date) {
-    if (date == null) return 0;
-    final d = DateUtils.dateOnly(date);
-    var months = (d.year - _birth.year) * 12 + d.month - _birth.month;
-    if (d.day < _birth.day) months--;
-    return months < 0 ? 0 : months;
-  }
+  int _monthOf(DateTime? date) => babyMonthOf(_birth, date);
 
   int get _ageMonth => _monthOf(DateTime.now());
 
@@ -106,6 +116,7 @@ class _BabyGrowthTrackState extends State<BabyGrowthTrack> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.trainOnly) return _train(context);
     final showDoses = widget.mode != BabyTrackMode.milestones;
     final showMilestones = widget.mode != BabyTrackMode.vaccinations;
     final doses = !showDoses
@@ -172,7 +183,7 @@ class _BabyGrowthTrackState extends State<BabyGrowthTrack> {
             card: (m) => _milestoneCard(m, m.id == nextMilestone?.id),
           ),
         // The month's progress, under the list.
-        if (widget.showProgress && total > 0) ...[
+        if (total > 0) ...[
           const SizedBox(height: 8),
           CareProgressCard(done: done, total: total),
         ],
@@ -225,7 +236,10 @@ class _BabyGrowthTrackState extends State<BabyGrowthTrack> {
       chip: days < 0 ? 'Due' : 'Day ${days + 1}',
       selected: _selected,
       current: _ageMonth,
-      onSelected: (m) => setState(() => _month = m),
+      onSelected: (m) {
+        setState(() => _month = m);
+        widget.onMonthSelected?.call(m);
+      },
       wagons: [
         if (_hasAll)
           const TrainWagon(value: _all, number: 'All', label: 'Months'),
