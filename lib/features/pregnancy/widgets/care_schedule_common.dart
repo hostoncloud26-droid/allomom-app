@@ -276,7 +276,7 @@ class CareSectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 18, 2, 10),
+      padding: const EdgeInsets.fromLTRB(2, 8, 2, 10),
       child: Text(
         text.toUpperCase(),
         style: TextStyle(
@@ -460,11 +460,13 @@ class CareProgressCard extends StatelessWidget {
                         color: complete
                             ? _careGreen.withValues(alpha: 0.16)
                             : (done > 0
-                                ? const Color(0xFFFF3B5C).withValues(alpha: 0.12)
-                                : p.pick(
-                                    const Color(0xFFF1F3F5),
-                                    Colors.white.withValues(alpha: 0.08),
-                                  )),
+                                  ? const Color(
+                                      0xFFFF3B5C,
+                                    ).withValues(alpha: 0.12)
+                                  : p.pick(
+                                      const Color(0xFFF1F3F5),
+                                      Colors.white.withValues(alpha: 0.08),
+                                    )),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
@@ -475,8 +477,8 @@ class CareProgressCard extends StatelessWidget {
                           color: complete
                               ? _careGreen
                               : (done > 0
-                                  ? const Color(0xFFFF3B5C)
-                                  : p.textSecondary),
+                                    ? const Color(0xFFFF3B5C)
+                                    : p.textSecondary),
                         ),
                       ),
                     ),
@@ -504,8 +506,14 @@ class CareProgressCard extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(100),
                                 gradient: LinearGradient(
                                   colors: complete
-                                      ? const [Color(0xFF34D399), Color(0xFF10B981)]
-                                      : const [Color(0xFFFF6584), Color(0xFFFF3B5C)],
+                                      ? const [
+                                          Color(0xFF34D399),
+                                          Color(0xFF10B981),
+                                        ]
+                                      : const [
+                                          Color(0xFFFF6584),
+                                          Color(0xFFFF3B5C),
+                                        ],
                                 ),
                               ),
                             ),
@@ -552,14 +560,12 @@ class CareProgressCard extends StatelessWidget {
               complete
                   ? Icons.check_rounded
                   : (done > 0
-                      ? Icons.timelapse_rounded
-                      : Icons.checklist_rounded),
+                        ? Icons.timelapse_rounded
+                        : Icons.checklist_rounded),
               size: complete ? 20 : 18,
               color: complete
                   ? Colors.white
-                  : (done > 0
-                      ? const Color(0xFFFF3B5C)
-                      : p.textSecondary),
+                  : (done > 0 ? const Color(0xFFFF3B5C) : p.textSecondary),
             ),
           ),
         ],

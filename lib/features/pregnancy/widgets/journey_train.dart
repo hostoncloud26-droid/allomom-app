@@ -220,15 +220,7 @@ class _JourneyTrainState extends State<JourneyTrain> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  w.number,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                    height: 1.1,
-                    color: selected ? Colors.white : p.textPrimary,
-                  ),
-                ),
+                // The label sits over the number.
                 Text(
                   w.label,
                   style: TextStyle(
@@ -237,6 +229,15 @@ class _JourneyTrainState extends State<JourneyTrain> {
                     color: selected
                         ? Colors.white.withValues(alpha: 0.9)
                         : p.textMuted,
+                  ),
+                ),
+                Text(
+                  w.number,
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                    height: 1.1,
+                    color: selected ? Colors.white : p.textPrimary,
                   ),
                 ),
               ],

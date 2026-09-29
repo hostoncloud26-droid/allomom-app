@@ -729,66 +729,88 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     const pink = Color(0xFFFF3B5C);
     final weeksToGo = (40 - gestationalWeek).clamp(0, 40);
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _hair, width: 1.1),
       ),
+      // Two equal halves: the week ring on the left, the stat cards on the
+      // right, both centred on the same line.
       child: Row(
         children: [
-          // The week, as a big ring filling towards week 40.
-          SizedBox(
-            width: 116,
-            height: 116,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                CircularProgressIndicator(
-                  value: progressFraction,
-                  strokeWidth: 12,
-                  strokeCap: StrokeCap.round,
-                  backgroundColor: pink.withValues(alpha: 0.1),
-                  valueColor: const AlwaysStoppedAnimation(pink),
-                ),
-                Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        '$gestationalWeek',
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          color: _ink,
-                          height: 1.1,
+          Expanded(
+            child: Center(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final size = (constraints.maxWidth - 8).clamp(96.0, 140.0);
+                  return SizedBox(
+                    width: size,
+                    height: size,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progressFraction,
+                          strokeWidth: 11,
+                          strokeCap: StrokeCap.round,
+                          backgroundColor: pink.withValues(alpha: 0.1),
+                          valueColor: const AlwaysStoppedAnimation(pink),
                         ),
-                      ),
-                      Text(
-                        'Week',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
-                          color: _ink,
+                        Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // The label sits over the number, as the
+                              // train's wagons do.
+                              Text(
+                                'Week',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: _inkMuted3,
+                                ),
+                              ),
+                              Text(
+                                '$gestationalWeek',
+                                style: TextStyle(
+                                  fontSize: 32,
+                                  fontWeight: FontWeight.w800,
+                                  color: _ink,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
-          const SizedBox(width: 24),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInfoStat(label: 'Due Date', value: eddFormatted),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Divider(height: 1, color: _hair),
+                _buildInfoStat(
+                  icon: Icons.event_available_rounded,
+                  label: 'Due Date',
+                  value: eddFormatted,
                 ),
-                _buildInfoStat(label: 'Weeks to go', value: '$weeksToGo'),
+                const SizedBox(height: 8),
+                _buildInfoStat(
+                  icon: Icons.child_friendly_rounded,
+                  label: 'Weeks to go',
+                  value: '$weeksToGo',
+                ),
+                const SizedBox(height: 8),
+                _buildInfoStat(
+                  icon: Icons.timelapse_rounded,
+                  label: 'Trimester',
+                  value: trimester.replaceFirst('Trimester ', ''),
+                ),
               ],
             ),
           ),
@@ -797,69 +819,54 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     );
   }
 
-  Widget _buildInfoStat({required String label, required String value}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: _inkMuted3,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-            color: _ink,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildInfoMetricChip({
-    required Color bg,
+  /// One small card in the overview's right half: an icon, then the label
+  /// over its value.
+  Widget _buildInfoStat({
     required IconData icon,
-    required Color iconColor,
-    required String value,
     required String label,
+    required String value,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: _p.tint(iconColor, bg),
-        borderRadius: BorderRadius.circular(14),
+        color: _chipGrey,
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: Column(
+      child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(5),
             decoration: BoxDecoration(color: _card, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 13),
+            child: Icon(icon, size: 14, color: _inkSec2),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w800,
-              color: _ink,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    color: _inkMuted3,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: _ink,
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 1),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 10,
-              color: _inkMuted3,
-              fontWeight: FontWeight.w500,
-            ),
-            textAlign: TextAlign.center,
           ),
         ],
       ),
