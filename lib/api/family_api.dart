@@ -48,6 +48,17 @@ class FamilyApi {
     });
   }
 
+  /// Sets what the caller calls [userId] — any family member, not only the
+  /// partner [updatePartner] is limited to. Blank clears the nickname.
+  static Future<APIResponse> setMemberNickname({
+    required String userId,
+    required String nickName,
+  }) async {
+    return await ApiBase.patch("/family/members/$userId/nickname", {
+      "nick_name": nickName.trim(),
+    });
+  }
+
   /// Adds the caller to the family that owns [code].
   ///
   /// [role] is the caller's own role — "Mom" or "Dad" — and decides the

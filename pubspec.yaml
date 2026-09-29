@@ -108,6 +108,7 @@ flutter:
     - assets/audio/en/onboard/
     - assets/audio/en/screens/
     - assets/babyicons/
+    - assets/family/
     - assets/cry_samples/
     # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"
     # and ml1 for which of the five cry types it is. Both run fully offline.

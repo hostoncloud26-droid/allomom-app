@@ -130,6 +130,15 @@ class FamilyDbService {
 
   // ---------------------- MEMBERS ----------------------
 
+  /// The placeholder name the backend gives a scrubbed account
+  /// (`account_deletion.py`'s `user.name = "Deleted user"`). The API's
+  /// `UserOut` never sends `deleted_at` for a member's user, so this literal
+  /// string is the only signal the app has that a cached member row belongs
+  /// to a deleted account — used to hide it even if the membership row
+  /// itself is stale (e.g. a failed `refreshFromServer` left it behind, or
+  /// it predates the server tombstoning removed members).
+  static const String _deletedUserPlaceholderName = 'Deleted user';
+
   /// Members of [familyId] paired with their user row when one exists locally.
   Future<List<FamilyMemberWithUser>> getFamilyMembers(String familyId) async {
     final db = await SqLiteService().database;
@@ -144,6 +153,10 @@ class FamilyDbService {
       if (uid != null && uid.isNotEmpty) {
         user = await (db.select(db.users)..where((t) => t.id.equals(uid)))
             .getSingleOrNull();
+      }
+      if (user != null &&
+          (user.deletedAt != null || user.name == _deletedUserPlaceholderName)) {
+        continue;
       }
       result.add(FamilyMemberWithUser(member: member, user: user));
     }
@@ -456,6 +469,20 @@ class FamilyDbService {
               (t) =>
                   t.familyid.equals(familyId) &
                   t.id.isNotIn(keptMemberIds),
+            ))
+          .go();
+
+      // A user belongs to at most one family at a time (the server itself
+      // refuses to add a second membership), but nothing else ever cleared
+      // a *different* family's leftover row for this viewer — e.g. one from
+      // a family they created, then replaced with another. `getMyFamily`
+      // has no way to tell which of two such rows is current, so it could
+      // return the stale one. This is the only place that reliably knows
+      // "this is the viewer's actual, current family" is happening right
+      // now, so it also retires anything else the viewer appears to belong to.
+      await (db.delete(db.familyMembersTable)
+            ..where(
+              (t) => t.userid.equals(viewerId) & t.familyid.equals(familyId).not(),
             ))
           .go();
     });

@@ -9,13 +9,14 @@ import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/people/widgets/add_family_member_sheet.dart';
 import 'package:allomom/features/people/widgets/scan_qr_page.dart';
+import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/people/widgets/family_illustration_helper.dart';
 import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/people/member_view.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
-import 'package:allomom/features/pregnancy/pregnancy_journey_page.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:get/get.dart';
 
@@ -59,8 +60,9 @@ class _PeoplePageState extends State<PeoplePage> {
     final pending = widget.pendingAddMemberRelationship;
     if (pending != null && pending.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted)
+        if (mounted) {
           _showAddMemberBottomSheet(context, initialRelationship: pending);
+        }
       });
     }
   }
@@ -75,17 +77,30 @@ class _PeoplePageState extends State<PeoplePage> {
   /// this page — and pull-to-refresh, which also calls this — never gets
   /// stuck showing "No Family" when the server actually has one.
   Future<void> _loadFamilyData() async {
-    await _loadFamilyDataInner();
+    // The first pass is local-only and may legitimately find nothing yet on
+    // a fresh device — `keepLoadingIfEmpty` keeps the spinner up instead of
+    // flashing "No Family" for the moment before the server refresh below
+    // has a chance to fill it in.
+    await _loadFamilyDataInner(keepLoadingIfEmpty: true);
     if (mounted) _speakForTab();
 
     final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
-    await FamilyController.instance.refreshFromServer();
+    final refreshed = await FamilyController.instance.refreshFromServer();
     if (!mounted) return;
     await _loadFamilyDataInner();
+    if (!refreshed && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Couldn't refresh your family list — showing the last saved version.",
+          ),
+        ),
+      );
+    }
   }
 
-  Future<void> _loadFamilyDataInner() async {
+  Future<void> _loadFamilyDataInner({bool keepLoadingIfEmpty = false}) async {
     setState(() {
       _isLoadingFamily = true;
     });
@@ -97,6 +112,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
       if (family == null) {
         if (!mounted) return;
+        if (keepLoadingIfEmpty) return;
         setState(() {
           _familyData = null;
           _apiFamilyMembers = [];
@@ -108,6 +124,16 @@ class _PeoplePageState extends State<PeoplePage> {
       final members = await FamilyDbService.instance.getFamilyMembers(
         family.id,
       );
+      // The nickname is the viewer's own record of this person, so it only
+      // exists for other people — nobody has a nickname for themselves.
+      final nicknames = <String, String?>{
+        for (final m in members)
+          if (m.userId != userId)
+            m.userId: await FamilyDbService.instance.nicknameFor(
+              viewerId: userId,
+              relatedUserId: m.userId,
+            ),
+      };
       if (!mounted) return;
       setState(() {
         _familyData = {
@@ -117,12 +143,16 @@ class _PeoplePageState extends State<PeoplePage> {
           'profileImage': family.profileImage,
           'bannerImage': family.bannerImage,
         };
+        // Babies aren't shown here — they already have their own "Children"
+        // section below, built straight from BabyController.
         _apiFamilyMembers = members
             .map(
               (m) => {
                 'userid': m.userId,
                 'id': m.userId,
-                'name': m.name,
+                'name': nicknames[m.userId] ?? m.name,
+                'realName': m.name,
+                'nickname': nicknames[m.userId],
                 'phone': m.phone ?? '',
                 'relation': m.relation,
                 'image': m.image,
@@ -308,7 +338,7 @@ class _PeoplePageState extends State<PeoplePage> {
 
   Widget _buildNoFamilyCard() {
     return Container(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _p.card,
         borderRadius: BorderRadius.circular(28),
@@ -323,17 +353,15 @@ class _PeoplePageState extends State<PeoplePage> {
       child: Column(
         children: [
           Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              color: _p.tint(primaryColor, Color(0xFFFCE7F0)),
-              shape: BoxShape.circle,
-            ),
-            child: const Center(
-              child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 42)),
+            height: 150,
+            width: double.infinity,
+            alignment: Alignment.center,
+            child: Image.asset(
+              FamilyIllustrationHelper.houseAsset,
+              fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Text(
             'No Family Group Yet',
             style: TextStyle(
@@ -434,11 +462,13 @@ class _PeoplePageState extends State<PeoplePage> {
     final familyName = _familyData?['name'] ?? "My Family";
     final familyCode = _familyData?['code']?.toString() ?? "";
     final membersCount = _apiFamilyMembers.length;
+    final profileImage = _familyData?['profileImage']?.toString();
+    final hasProfileImage = profileImage != null && profileImage.isNotEmpty;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _p.tint(const Color(0xFF10B981), const Color(0xFFEAF8F5)),
+        color: const Color(0xFFEAF8F5),
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -460,8 +490,8 @@ class _PeoplePageState extends State<PeoplePage> {
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _p.tint(primaryColor, const Color(0xFFFCE7F0)),
-                      border: Border.all(color: _p.card, width: 3),
+                      color: const Color(0xFFFCE7F0),
+                      border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.08),
@@ -469,10 +499,21 @@ class _PeoplePageState extends State<PeoplePage> {
                           offset: const Offset(0, 4),
                         ),
                       ],
+                      image: hasProfileImage
+                          ? DecorationImage(
+                              image: NetworkImage(profileImage),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: const Center(
-                      child: Text('👨‍👩‍👦', style: TextStyle(fontSize: 38)),
-                    ),
+                    child: hasProfileImage
+                        ? null
+                        : const Center(
+                            child: Text(
+                              '👨‍👩‍👦',
+                              style: TextStyle(fontSize: 38),
+                            ),
+                          ),
                   ),
                 ),
               ],
@@ -487,10 +528,10 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   familyName,
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: _p.textPrimary,
+                    color: textDark,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -503,18 +544,15 @@ class _PeoplePageState extends State<PeoplePage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.tint(
-                          const Color(0xFF22C55E),
-                          const Color(0xFFDCFCE7),
-                        ),
+                        color: const Color(0xFFDCFCE7),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: _ink(Color(0xFF15803D)),
+                          color: Color(0xFF15803D),
                         ),
                       ),
                     ),
@@ -542,7 +580,7 @@ class _PeoplePageState extends State<PeoplePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: _p.card,
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: primaryColor.withValues(alpha: 0.3),
@@ -586,6 +624,8 @@ class _PeoplePageState extends State<PeoplePage> {
     final phone = (member['phone'] ?? '').toString();
     final relation = (member['relation'] ?? 'Member').toString();
     final userId = (member['userid'] ?? member['id'])?.toString();
+    final realName = (member['realName'] ?? name).toString();
+    final nickname = member['nickname']?.toString();
 
     Color badgeBg = const Color(0xFFEFF6FF);
     Color badgeText = const Color(0xFF3B82F6);
@@ -622,11 +662,45 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : 'M';
     final isSelf = userId != null && userId == MainController.instance.userId;
+    final isChild = relLower.contains('child');
+    // Exact match, not the `isChild` substring check above — that one also
+    // matches a manually-added "Children" member, who has no underlying baby
+    // record and is fine to remove normally. This is specifically the baby
+    // the server auto-adds (relation is literally "child"), which is tied to
+    // a real Baby record elsewhere; removing it here would desync the two,
+    // so the only way to remove it is deleting the baby record itself.
+    final isAutoAddedBaby = relLower == 'child';
+
+    // The baby has no user row of its own, so a nickname for it has nowhere
+    // to be saved — only a real member (registered or a placeholder) can be
+    // renamed here.
+    final canEditNickname = !isSelf && !isAutoAddedBaby && userId != null;
+    final onEditName = canEditNickname
+        ? () => _showEditNicknameDialog(
+              userId: userId,
+              realName: realName,
+              currentNickname: nickname,
+            )
+        : null;
+
+    // The baby has no chat of its own — its card opens Baby Journey (care and
+    // growth tracking) instead of the inert chat button every other member
+    // gets today.
+    final trailingIcon = isChild
+        ? Icons.child_friendly_rounded
+        : Icons.chat_bubble_outline_rounded;
+    final onTrailingTap = isChild
+        ? () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+            )
+        : null;
 
     // Self-removal isn't offered here — the only way to leave a family is
     // "Delete Family", and that's only ever available once you're the sole
-    // remaining member. So your own row doesn't swipe at all.
-    if (isSelf) {
+    // remaining member. So your own row doesn't swipe at all. The auto-added
+    // baby doesn't swipe either, for the reason noted above.
+    if (isSelf || isAutoAddedBaby) {
       return _buildFamilyMemberCard(
         name: name,
         phone: phone,
@@ -636,6 +710,8 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
       );
     }
 
@@ -723,6 +799,9 @@ class _PeoplePageState extends State<PeoplePage> {
         avatarLetter: avatarLetter,
         avatarBg: avatarBg,
         avatarLetterColor: avatarLetterColor,
+        trailingIcon: trailingIcon,
+        onTrailingTap: onTrailingTap,
+        onEditName: onEditName,
         // Opens My Health on the member's record — a father tapping Mommy
         // gets her vitals, pregnancy, babies and reports in the same screens
         // he uses for his own.
@@ -736,6 +815,70 @@ class _PeoplePageState extends State<PeoplePage> {
               ),
       ),
     );
+  }
+
+  Future<void> _showEditNicknameDialog({
+    required String userId,
+    required String realName,
+    String? currentNickname,
+  }) async {
+    final ctrl = TextEditingController(text: currentNickname ?? '');
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Set Nickname',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'What do you want to call $realName? Leave blank to use their name.',
+              style: TextStyle(fontSize: 13, color: _p.textMuted),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                hintText: realName,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (saved != true) return;
+
+    final error = await FamilyController.instance.setNickname(
+      userId: userId,
+      nickname: ctrl.text.trim(),
+    );
+    if (!mounted) return;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    _loadFamilyData();
   }
 
   void _showJoinFamilyDialog() {
@@ -814,109 +957,158 @@ class _PeoplePageState extends State<PeoplePage> {
     final familyNameCtrl = TextEditingController();
     final partnerNameCtrl = TextEditingController();
     final partnerPhoneCtrl = TextEditingController();
+    // Stays open (with a spinner on Create) until the family is actually
+    // created and reloaded — popping immediately left the page behind it
+    // showing stale "No Family" content for the whole network round-trip,
+    // with nothing on screen to say it was still working.
+    bool isCreating = false;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Create Family',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              // The server always creates the family together with its second
-              // parent in one call, so this asks for both rather than leaving
-              // the family half-built until someone edits it in afterwards.
-              'Enter your family and partner details.',
-              style: TextStyle(fontSize: 13, color: _p.textMuted),
+      barrierDismissible: !isCreating,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => PopScope(
+          canPop: !isCreating,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: familyNameCtrl,
-              decoration: InputDecoration(
-                hintText: "Family name, e.g. Anand's Family",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+            title: const Text(
+              'Create Family',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  // The server always creates the family together with its second
+                  // parent in one call, so this asks for both rather than leaving
+                  // the family half-built until someone edits it in afterwards.
+                  'Enter your family and partner details.',
+                  style: TextStyle(fontSize: 13, color: _p.textMuted),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: partnerNameCtrl,
-              decoration: InputDecoration(
-                hintText: "Partner's name",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: partnerPhoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: "Partner's phone (optional)",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final familyName = familyNameCtrl.text.trim();
-              final partnerName = partnerNameCtrl.text.trim();
-              final partnerPhone = partnerPhoneCtrl.text.trim();
-              if (partnerName.isEmpty) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text("Enter your partner's name")),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              final userId = MainController.instance.userId;
-              if (userId.isEmpty) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sign in before creating a family'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: familyNameCtrl,
+                  enabled: !isCreating,
+                  decoration: InputDecoration(
+                    hintText: "Family name, e.g. Anand's Family",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  );
-                }
-                return;
-              }
-              // Reuses the same /family/partner call the registration flow's
-              // partner step is built on — the only endpoint that creates a
-              // family server-side, so the code it mints is one another
-              // device can actually join by.
-              final error = await FamilyController.instance.linkPartner(
-                name: partnerName,
-                phone: partnerPhone.isNotEmpty ? partnerPhone : null,
-                familyName: familyName.isNotEmpty ? familyName : null,
-              );
-              if (!mounted) return;
-              if (error != null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(error)));
-                return;
-              }
-              speak(NarrationKeys.pgFamilyCreated, force: true);
-              _loadFamilyData();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: partnerNameCtrl,
+                  enabled: !isCreating,
+                  decoration: InputDecoration(
+                    hintText: "Partner's name",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: partnerPhoneCtrl,
+                  enabled: !isCreating,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: "Partner's phone (optional)",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isCreating ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isCreating
+                    ? null
+                    : () async {
+                        final familyName = familyNameCtrl.text.trim();
+                        final partnerName = partnerNameCtrl.text.trim();
+                        final partnerPhone = partnerPhoneCtrl.text.trim();
+                        if (partnerName.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text("Enter your partner's name"),
+                            ),
+                          );
+                          return;
+                        }
+                        final userId = MainController.instance.userId;
+                        if (userId.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Sign in before creating a family',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        setDialogState(() => isCreating = true);
+
+                        // Reuses the same /family/partner call the
+                        // registration flow's partner step is built on — the
+                        // only endpoint that creates a family server-side, so
+                        // the code it mints is one another device can
+                        // actually join by.
+                        final error = await FamilyController.instance
+                            .linkPartner(
+                              name: partnerName,
+                              phone: partnerPhone.isNotEmpty
+                                  ? partnerPhone
+                                  : null,
+                              familyName: familyName.isNotEmpty
+                                  ? familyName
+                                  : null,
+                            );
+                        if (error != null) {
+                          setDialogState(() => isCreating = false);
+                          if (!ctx.mounted) return;
+                          ScaffoldMessenger.of(
+                            ctx,
+                          ).showSnackBar(SnackBar(content: Text(error)));
+                          return;
+                        }
+
+                        // The reload happens while the dialog is still open
+                        // and showing its spinner, so Create doesn't return
+                        // control to a screen that hasn't caught up yet.
+                        if (mounted) await _loadFamilyData();
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (mounted) {
+                          speak(NarrationKeys.pgFamilyCreated, force: true);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                child: isCreating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Create',
+                        style: TextStyle(color: Colors.white),
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -1261,6 +1453,13 @@ class _PeoplePageState extends State<PeoplePage> {
     required String avatarLetter,
     required Color avatarBg,
     required Color avatarLetterColor,
+    // Only the baby's card has a trailing action (opens Baby Journey) — every
+    // other member has nothing to tap here, so no button is shown for them.
+    IconData trailingIcon = Icons.chat_bubble_outline_rounded,
+    VoidCallback? onTrailingTap,
+    // Set only for a real member other than the viewer — taps a pencil next
+    // to their name to open the nickname editor.
+    VoidCallback? onEditName,
     VoidCallback? onTap,
   }) {
     final card = Container(
@@ -1321,13 +1520,31 @@ class _PeoplePageState extends State<PeoplePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: _p.textPrimary,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _p.textPrimary,
+                        ),
+                      ),
+                    ),
+                    if (onEditName != null) ...[
+                      const SizedBox(width: 6),
+                      GestureDetector(
+                        onTap: onEditName,
+                        child: Icon(
+                          Icons.edit_outlined,
+                          size: 15,
+                          color: _p.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -1363,20 +1580,25 @@ class _PeoplePageState extends State<PeoplePage> {
             ),
           ),
 
-          // Chat Action Button
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: primaryColor.withValues(alpha: 0.08),
+          // Trailing action — only the baby's card has one (opens Baby
+          // Journey). Every other member gets no button here.
+          if (onTrailingTap != null)
+            GestureDetector(
+              onTap: onTrailingTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: primaryColor.withValues(alpha: 0.08),
+                ),
+                child: Icon(
+                  trailingIcon,
+                  color: primaryColor,
+                  size: 18,
+                ),
+              ),
             ),
-            child: Icon(
-              Icons.chat_bubble_outline_rounded,
-              color: primaryColor,
-              size: 18,
-            ),
-          ),
         ],
       ),
     );
@@ -1402,6 +1624,7 @@ class _PeoplePageState extends State<PeoplePage> {
           familyID: _familyData?['id']?.toString(),
           onMemberAdded: _loadFamilyData,
           initialRelationship: initialRelationship,
+          existingMembers: _apiFamilyMembers,
         );
       },
     );
@@ -1932,3 +2155,4 @@ class _FamilyTreeIllustrationPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
+
