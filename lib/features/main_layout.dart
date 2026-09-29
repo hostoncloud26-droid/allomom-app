@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/components/app_backdrop.dart';
@@ -63,11 +65,41 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   Widget build(BuildContext context) {
     // The pastel backdrop is Home's alone; the other tabs keep their own.
-    return AppBackdrop(
-      enabled: _currentIndex == 0,
-      // Builder, so the shell reads the backdrop from beneath it.
-      child: Builder(builder: _buildShell),
+    // Back never leaves the app by accident: from another tab it goes Home,
+    // and from Home it asks first.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+          return;
+        }
+        _confirmExit();
+      },
+      child: AppBackdrop(
+        enabled: _currentIndex == 0,
+        // Builder, so the shell reads the backdrop from beneath it.
+        child: Builder(builder: _buildShell),
+      ),
     );
+  }
+
+  bool _exitSheetOpen = false;
+
+  Future<void> _confirmExit() async {
+    if (_exitSheetOpen) return;
+    _exitSheetOpen = true;
+    final exit = await showModalBottomSheet<bool>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => const _ExitSheet(),
+    );
+    _exitSheetOpen = false;
+    if (exit != true) return;
+    // Whatever the baby was saying should not carry on after the app closes.
+    await SpeechActivity.instance.stopAll();
+    await SystemNavigator.pop();
   }
 
   Widget _buildShell(BuildContext context) {
@@ -136,6 +168,109 @@ class _MainLayoutState extends State<MainLayout> {
         setState(() => _currentIndex = 0);
         WidgetsBinding.instance.addPostFrameCallback((_) => HomePage.listen());
       },
+    );
+  }
+}
+
+/// "Are you sure?" before Back closes the app from Home.
+class _ExitSheet extends StatelessWidget {
+  const _ExitSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+        decoration: BoxDecoration(
+          color: p.card,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: p.divider,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: p.pick(const Color(0xFFFFF0F3), p.accentSoft),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.logout_rounded,
+                color: primaryColor,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Exit Allomom?',
+              style: GoogleFonts.outfit(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: p.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Are you sure you want to exit the app?',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.poppins(fontSize: 13, color: p.textMuted),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: p.textPrimary,
+                      side: BorderSide(color: p.border),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Stay',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    child: Text(
+                      'Exit',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
