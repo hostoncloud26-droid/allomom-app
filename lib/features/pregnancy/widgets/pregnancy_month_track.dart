@@ -150,6 +150,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           widget.aboveTrain!,
           const SizedBox(height: 16),
         ],
+        // The whole pregnancy's ANC, vaccination and lab tallies, before the
+        // month-by-month checklist.
+        _boxes(items),
+        const SizedBox(height: 18),
         JourneyTrain(
           title: 'Pregnancy Checklist',
           selected: _selected,
@@ -163,9 +167,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
               TrainWagon(value: m, number: '$m', label: 'Month'),
           ],
         ),
-        const SizedBox(height: 18),
-        _boxes(items),
-        const SizedBox(height: 8),
+        const SizedBox(height: 14),
 
         if (inMonth.isEmpty)
           Padding(
