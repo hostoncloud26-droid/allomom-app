@@ -19,6 +19,8 @@ class BabyProfileCard extends StatelessWidget {
     super.key,
     required this.baby,
     required this.avatar,
+    this.avatarKey,
+    this.avatarVisible = true,
     this.onEdit,
   });
 
@@ -26,6 +28,12 @@ class BabyProfileCard extends StatelessWidget {
 
   /// The baby's photo, or the illustration standing in for it.
   final Widget avatar;
+
+  /// On the photo, for the switcher's avatar to fly to.
+  final Key? avatarKey;
+
+  /// False while that avatar is in flight, so the photo is not there twice.
+  final bool avatarVisible;
 
   /// Opens the edit sheet.
   final VoidCallback? onEdit;
@@ -80,6 +88,7 @@ class BabyProfileCard extends StatelessWidget {
             clipBehavior: Clip.none,
             children: [
               Container(
+                key: avatarKey,
                 width: 72,
                 height: 72,
                 padding: const EdgeInsets.all(3),
@@ -94,7 +103,12 @@ class BabyProfileCard extends StatelessWidget {
                 child: ClipOval(
                   child: Container(
                     color: p.tint(_rose, const Color(0xFFFFF5F7)),
-                    child: SizedBox.expand(child: avatar),
+                    child: SizedBox.expand(
+                      child: Opacity(
+                        opacity: avatarVisible ? 1 : 0,
+                        child: avatar,
+                      ),
+                    ),
                   ),
                 ),
               ),

@@ -5,10 +5,13 @@ import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 /// This week's summary: the same words the baby speaks first on home, from
 /// the week's AlloBot flow. Takes no room until the catalogue has the week.
 class WeeklySummaryCard extends StatefulWidget {
-  const WeeklySummaryCard({super.key, required this.gestationalWeek});
+  const WeeklySummaryCard({super.key, required this.week, this.label});
 
-  /// Completed weeks, as `MainController.currentGestationalWeek` counts them.
-  final int gestationalWeek;
+  /// The sheet week: 1–40 for a pregnancy, 41–142 for a baby.
+  final int week;
+
+  /// The corner label; "Week [week]" when not given.
+  final String? label;
 
   @override
   State<WeeklySummaryCard> createState() => _WeeklySummaryCardState();
@@ -26,13 +29,11 @@ class _WeeklySummaryCardState extends State<WeeklySummaryCard> {
   @override
   void didUpdateWidget(covariant WeeklySummaryCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.gestationalWeek != widget.gestationalWeek) _load();
+    if (oldWidget.week != widget.week) _load();
   }
 
   Future<void> _load() async {
-    final message = await WeeklyBabyTalk.message(
-      WeeklyBabyTalk.pregnancyWeek(widget.gestationalWeek),
-    );
+    final message = await WeeklyBabyTalk.message(widget.week);
     if (!mounted) return;
     setState(() => _message = message);
   }
@@ -43,7 +44,6 @@ class _WeeklySummaryCardState extends State<WeeklySummaryCard> {
     if (message == null) return const SizedBox.shrink();
 
     final p = context.palette;
-    final week = WeeklyBabyTalk.pregnancyWeek(widget.gestationalWeek);
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
@@ -78,7 +78,7 @@ class _WeeklySummaryCardState extends State<WeeklySummaryCard> {
                   ),
                 ),
                 Text(
-                  'Week $week',
+                  widget.label ?? 'Week ${widget.week}',
                   style: TextStyle(
                     fontSize: 11.5,
                     fontWeight: FontWeight.w600,

@@ -1268,7 +1268,7 @@ class _HomePageState extends State<HomePage> {
     final alloBaby = _quickAction(
       id: 'allobaby',
       title: 'AlloBaby',
-      subtitle: 'Talk 2 Baby',
+      subtitle: 'Talk2Baby',
       icon: Icons.child_care_rounded,
       color: const Color(0xFFFF626F),
       image: 'assets/allobaby/AlloMombabySquare.png',

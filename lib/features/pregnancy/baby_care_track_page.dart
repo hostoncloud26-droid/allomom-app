@@ -6,8 +6,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
 
 /// One baby's vaccinations or milestones on their own page — the milestone
-/// train on top, that list alone under it. Opened from the two boxes in the
-/// pregnancy journey's baby view.
+/// train on top, that list alone under it. Opened from the pregnancy
+/// journey's baby view: its feature boxes and each list's "Show all".
 class BabyCareTrackPage extends StatefulWidget {
   const BabyCareTrackPage({
     super.key,
@@ -128,118 +128,6 @@ class _BabyCareTrackPageState extends State<BabyCareTrackPage> {
                 ],
               ),
             ),
-    );
-  }
-}
-
-/// The Vaccination and Milestones boxes, styled as Home's quick actions: an
-/// icon, a name, and how far through the baby is.
-class BabyCareBoxes extends StatelessWidget {
-  const BabyCareBoxes({
-    super.key,
-    required this.dosesGiven,
-    required this.dosesTotal,
-    required this.milestonesReached,
-    required this.milestonesTotal,
-    required this.onOpen,
-  });
-
-  final int dosesGiven;
-  final int dosesTotal;
-  final int milestonesReached;
-  final int milestonesTotal;
-  final ValueChanged<BabyTrackMode> onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _box(
-            context,
-            icon: Icons.vaccines_rounded,
-            color: const Color(0xFF8B5CF6),
-            title: 'Vaccination',
-            count: '$dosesGiven/$dosesTotal given',
-            onTap: () => onOpen(BabyTrackMode.vaccinations),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _box(
-            context,
-            icon: Icons.emoji_events_rounded,
-            color: const Color(0xFFF59E0B),
-            title: 'Milestones',
-            count: '$milestonesReached/$milestonesTotal reached',
-            onTap: () => onOpen(BabyTrackMode.milestones),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _box(
-    BuildContext context, {
-    required IconData icon,
-    required Color color,
-    required String title,
-    required String count,
-    required VoidCallback onTap,
-  }) {
-    final p = context.palette;
-    return Container(
-      height: 124,
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: p.pick(const Color(0xFFF0F1F5), p.border)),
-        boxShadow: [
-          BoxShadow(
-            color: p.pick(Colors.black.withValues(alpha: 0.03), p.shadow),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: p.tint(color, color.withValues(alpha: 0.10)),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, size: 28, color: color),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: p.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  count,
-                  style: TextStyle(fontSize: 11.5, color: p.textMuted),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

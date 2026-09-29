@@ -58,7 +58,7 @@ class VaccinationCarousel extends StatelessWidget {
             ),
             CareStatus.overdue => const CarePill(
               status: CareStatus.overdue,
-              label: 'Overdue · Not given',
+              label: 'Overdue',
             ),
             CareStatus.scheduled => const CarePill(
               status: CareStatus.scheduled,
@@ -329,7 +329,7 @@ class _CareCarouselState<T> extends State<_CareCarousel<T>> {
 
 /// One item: its status, when it is due and what it is. With [onAction], a
 /// round tick in the bottom-right corner marks it done — or, once done,
-/// undoes it; without, a chevron says the card opens.
+/// undoes it. The status sits in the top-right corner.
 class _CarouselCard extends StatelessWidget {
   const _CarouselCard({
     required this.isCurrent,
@@ -385,11 +385,9 @@ class _CarouselCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
               ],
+              // The status sits in the top-right corner.
+              const Spacer(),
               pill,
-              if (onAction == null && onTap != null) ...[
-                const Spacer(),
-                Icon(Icons.chevron_right_rounded, size: 22, color: p.textMuted),
-              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -469,7 +467,7 @@ class _CarouselCard extends StatelessWidget {
                     tooltip: actionEnabled ? 'Mark as completed' : actionLabel,
                     icon: Icons.check_rounded,
                     background: actionEnabled
-                        ? _pink
+                        ? _green
                         : p.pick(const Color(0xFFF3F4F6), p.surface),
                     foreground: actionEnabled ? Colors.white : p.textMuted,
                     onTap: actionEnabled ? () => onAction(true) : null,

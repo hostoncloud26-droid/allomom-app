@@ -363,7 +363,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Talk 2 Baby',
+                  'Talk2Baby',
                   style: GoogleFonts.outfit(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
