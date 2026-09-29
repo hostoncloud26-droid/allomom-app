@@ -462,202 +462,157 @@ class _PeoplePageState extends State<PeoplePage> {
     final familyName = _familyData?['name'] ?? "My Family";
     final familyCode = _familyData?['code']?.toString() ?? "";
     final membersCount = _apiFamilyMembers.length;
-    final illustrationAsset = FamilyIllustrationHelper.resolveIllustration(
-      members: _apiFamilyMembers,
-    );
+    final profileImage = _familyData?['profileImage']?.toString();
+    final hasProfileImage = profileImage != null && profileImage.isNotEmpty;
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: _p.card,
+        color: const Color(0xFFEAF8F5),
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 4),
-          ),
-        ],
       ),
       child: Column(
         children: [
-          const SizedBox(height: 14),
-
-          // ─── 3D Family Illustration with Pink Circle & Overlapping Pill ───
+          // Illustration graphic area
           SizedBox(
-            width: double.infinity,
-            height: 295,
+            height: 140,
             child: Stack(
-                clipBehavior: Clip.none,
-                alignment: Alignment.topCenter,
-                children: [
-                  // 1. Solid Soft Pink Circle (exact match to reference design)
-                  Positioned(
-                    top: 12,
-                    child: Container(
-                      width: 250,
-                      height: 250,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _p.pick(
-                          const Color(0xFFFCE1EB),
-                          const Color(0xFF422834),
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(painter: _FamilyTreeIllustrationPainter()),
+                ),
+                Positioned(
+                  left: 20,
+                  bottom: -15,
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFFCE7F0),
+                      border: Border.all(color: Colors.white, width: 3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                      ),
+                      ],
+                      image: hasProfileImage
+                          ? DecorationImage(
+                              image: NetworkImage(profileImage),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                  ),
-
-                  // 2. 3D Family Illustration PNG
-                  Positioned(
-                    top: 14,
-                    child: Image.asset(
-                      illustrationAsset,
-                      height: 236,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-
-                  // Optional custom profile photo avatar badge if present
-                  if (_familyData?['profileImage'] != null &&
-                      _familyData!['profileImage'].toString().isNotEmpty)
-                    Positioned(
-                      left: 24,
-                      bottom: 38,
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: _p.card,
-                          border: Border.all(color: _p.card, width: 2.5),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.12),
-                              blurRadius: 8,
-                              offset: const Offset(0, 3),
+                    child: hasProfileImage
+                        ? null
+                        : const Center(
+                            child: Text(
+                              '👨‍👩‍👦',
+                              style: TextStyle(fontSize: 38),
                             ),
-                          ],
-                          image: DecorationImage(
-                            image: NetworkImage(_familyData!['profileImage']),
-                            fit: BoxFit.cover,
                           ),
-                        ),
-                      ),
-                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
 
-                  // 4. Overlapping Floating Pill Card at the bottom (covers the bottom cut of characters)
-                  Positioned(
-                    bottom: 6,
-                    left: 18,
-                    right: 18,
-                    child: Container(
+          // Title & member count & family code
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            child: Column(
+              children: [
+                Text(
+                  familyName,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: textDark,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 13,
+                        horizontal: 12,
+                        vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.pick(Colors.white, _p.surface),
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
-                          color: _p.border.withValues(alpha: 0.5),
-                          width: 1,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.08),
-                            blurRadius: 18,
-                            offset: const Offset(0, 5),
-                          ),
-                        ],
+                        color: const Color(0xFFDCFCE7),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            familyName,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 18.5,
-                              fontWeight: FontWeight.w800,
-                              color: _p.textPrimary,
-                              letterSpacing: -0.2,
+                      child: Text(
+                        '$membersCount ${membersCount == 1 ? "member" : "members"}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF15803D),
+                        ),
+                      ),
+                    ),
+                    if (familyCode.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () {
+                          Clipboard.setData(ClipboardData(text: familyCode));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Family Code $familyCode copied to clipboard!',
+                              ),
+                              backgroundColor: const Color(0xFF10B981),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: primaryColor.withValues(alpha: 0.3),
                             ),
                           ),
-                          const SizedBox(height: 3),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w500,
-                                  color: _p.textSecondary,
+                                'Code: $familyCode',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: primaryColor,
                                 ),
                               ),
-                              if (familyCode.isNotEmpty) ...[
-                                const SizedBox(width: 6),
-                                Text(
-                                  '•',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: _p.textMuted,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                GestureDetector(
-                                  onTap: () {
-                                    Clipboard.setData(
-                                      ClipboardData(text: familyCode),
-                                    );
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Family Code $familyCode copied to clipboard!',
-                                        ),
-                                        backgroundColor: const Color(0xFF10B981),
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        familyCode,
-                                        style: TextStyle(
-                                          fontSize: 12.5,
-                                          fontWeight: FontWeight.w700,
-                                          color: _p.textSecondary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      const Icon(
-                                        Icons.copy_rounded,
-                                        size: 13,
-                                        color: primaryColor,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.copy_rounded,
+                                size: 13,
+                                color: primaryColor,
+                              ),
                             ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
+                    ],
+                  ],
+                ),
+              ],
             ),
-
-          const SizedBox(height: 10),
+          ),
         ],
       ),
     );
@@ -1002,109 +957,158 @@ class _PeoplePageState extends State<PeoplePage> {
     final familyNameCtrl = TextEditingController();
     final partnerNameCtrl = TextEditingController();
     final partnerPhoneCtrl = TextEditingController();
+    // Stays open (with a spinner on Create) until the family is actually
+    // created and reloaded — popping immediately left the page behind it
+    // showing stale "No Family" content for the whole network round-trip,
+    // with nothing on screen to say it was still working.
+    bool isCreating = false;
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Text(
-          'Create Family',
-          style: TextStyle(fontWeight: FontWeight.w800),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              // The server always creates the family together with its second
-              // parent in one call, so this asks for both rather than leaving
-              // the family half-built until someone edits it in afterwards.
-              'Enter your family and partner details.',
-              style: TextStyle(fontSize: 13, color: _p.textMuted),
+      barrierDismissible: !isCreating,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => PopScope(
+          canPop: !isCreating,
+          child: AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
             ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: familyNameCtrl,
-              decoration: InputDecoration(
-                hintText: "Family name, e.g. Anand's Family",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+            title: const Text(
+              'Create Family',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  // The server always creates the family together with its second
+                  // parent in one call, so this asks for both rather than leaving
+                  // the family half-built until someone edits it in afterwards.
+                  'Enter your family and partner details.',
+                  style: TextStyle(fontSize: 13, color: _p.textMuted),
                 ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: partnerNameCtrl,
-              decoration: InputDecoration(
-                hintText: "Partner's name",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: partnerPhoneCtrl,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                hintText: "Partner's phone (optional)",
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final familyName = familyNameCtrl.text.trim();
-              final partnerName = partnerNameCtrl.text.trim();
-              final partnerPhone = partnerPhoneCtrl.text.trim();
-              if (partnerName.isEmpty) {
-                ScaffoldMessenger.of(ctx).showSnackBar(
-                  const SnackBar(content: Text("Enter your partner's name")),
-                );
-                return;
-              }
-              Navigator.pop(ctx);
-              final userId = MainController.instance.userId;
-              if (userId.isEmpty) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Sign in before creating a family'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: familyNameCtrl,
+                  enabled: !isCreating,
+                  decoration: InputDecoration(
+                    hintText: "Family name, e.g. Anand's Family",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                  );
-                }
-                return;
-              }
-              // Reuses the same /family/partner call the registration flow's
-              // partner step is built on — the only endpoint that creates a
-              // family server-side, so the code it mints is one another
-              // device can actually join by.
-              final error = await FamilyController.instance.linkPartner(
-                name: partnerName,
-                phone: partnerPhone.isNotEmpty ? partnerPhone : null,
-                familyName: familyName.isNotEmpty ? familyName : null,
-              );
-              if (!mounted) return;
-              if (error != null) {
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(SnackBar(content: Text(error)));
-                return;
-              }
-              speak(NarrationKeys.pgFamilyCreated, force: true);
-              _loadFamilyData();
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-            child: const Text('Create', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: partnerNameCtrl,
+                  enabled: !isCreating,
+                  decoration: InputDecoration(
+                    hintText: "Partner's name",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: partnerPhoneCtrl,
+                  enabled: !isCreating,
+                  keyboardType: TextInputType.phone,
+                  decoration: InputDecoration(
+                    hintText: "Partner's phone (optional)",
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: isCreating ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: isCreating
+                    ? null
+                    : () async {
+                        final familyName = familyNameCtrl.text.trim();
+                        final partnerName = partnerNameCtrl.text.trim();
+                        final partnerPhone = partnerPhoneCtrl.text.trim();
+                        if (partnerName.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text("Enter your partner's name"),
+                            ),
+                          );
+                          return;
+                        }
+                        final userId = MainController.instance.userId;
+                        if (userId.isEmpty) {
+                          ScaffoldMessenger.of(ctx).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Sign in before creating a family',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+
+                        setDialogState(() => isCreating = true);
+
+                        // Reuses the same /family/partner call the
+                        // registration flow's partner step is built on — the
+                        // only endpoint that creates a family server-side, so
+                        // the code it mints is one another device can
+                        // actually join by.
+                        final error = await FamilyController.instance
+                            .linkPartner(
+                              name: partnerName,
+                              phone: partnerPhone.isNotEmpty
+                                  ? partnerPhone
+                                  : null,
+                              familyName: familyName.isNotEmpty
+                                  ? familyName
+                                  : null,
+                            );
+                        if (error != null) {
+                          setDialogState(() => isCreating = false);
+                          if (!ctx.mounted) return;
+                          ScaffoldMessenger.of(
+                            ctx,
+                          ).showSnackBar(SnackBar(content: Text(error)));
+                          return;
+                        }
+
+                        // The reload happens while the dialog is still open
+                        // and showing its spinner, so Create doesn't return
+                        // control to a screen that hasn't caught up yet.
+                        if (mounted) await _loadFamilyData();
+                        if (!ctx.mounted) return;
+                        Navigator.pop(ctx);
+                        if (mounted) {
+                          speak(NarrationKeys.pgFamilyCreated, force: true);
+                        }
+                      },
+                style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
+                child: isCreating
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Create',
+                        style: TextStyle(color: Colors.white),
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -2077,5 +2081,78 @@ class _PeoplePageState extends State<PeoplePage> {
       ),
     );
   }
+}
+
+// Custom Painter for the Family Banner illustration background
+class _FamilyTreeIllustrationPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paintTree = Paint()
+      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
+      ..style = PaintingStyle.fill;
+
+    final paintStem = Paint()
+      ..color = const Color(0xFF70B29F).withValues(alpha: 0.4)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+
+    final w = size.width;
+    final h = size.height;
+
+    // Draw fence line
+    canvas.drawLine(Offset(0, h * 0.7), Offset(w, h * 0.7), paintStem);
+    for (double x = 40; x < w; x += 30) {
+      canvas.drawLine(Offset(x, h * 0.7), Offset(x, h * 0.8), paintStem);
+    }
+
+    // Draw stylized tree tops on sides
+    canvas.drawOval(Rect.fromLTWH(w * 0.05, 20, 60, 40), paintTree);
+    canvas.drawOval(Rect.fromLTWH(w * 0.12, 35, 55, 45), paintTree);
+
+    canvas.drawOval(Rect.fromLTWH(w * 0.75, 25, 60, 40), paintTree);
+    canvas.drawOval(Rect.fromLTWH(w * 0.82, 30, 50, 45), paintTree);
+
+    // Clouds
+    final paintCloud = Paint()
+      ..color = Colors.white.withValues(alpha: 0.7)
+      ..style = PaintingStyle.fill;
+    canvas.drawOval(Rect.fromLTWH(w * 0.2, 10, 50, 20), paintCloud);
+    canvas.drawOval(Rect.fromLTWH(w * 0.65, 12, 45, 18), paintCloud);
+
+    // Simple stylized family silhouettes in the middle
+    final paintRed = Paint()..color = const Color(0xFFE14B60);
+    final paintNavy = Paint()..color = const Color(0xFF334155);
+
+    // Person 1 (Mother)
+    canvas.drawCircle(Offset(w * 0.45, h * 0.4), 10, paintNavy);
+    final path1 = Path()
+      ..moveTo(w * 0.45, h * 0.48)
+      ..lineTo(w * 0.41, h * 0.7)
+      ..lineTo(w * 0.49, h * 0.7)
+      ..close();
+    canvas.drawPath(path1, paintRed);
+
+    // Person 2 (Father)
+    canvas.drawCircle(Offset(w * 0.53, h * 0.38), 11, paintNavy);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.505, h * 0.47, 15, 25),
+        const Radius.circular(4),
+      ),
+      paintNavy,
+    );
+
+    // Child
+    canvas.drawCircle(Offset(w * 0.61, h * 0.5), 7, paintNavy);
+    final pathChild = Path()
+      ..moveTo(w * 0.61, h * 0.55)
+      ..lineTo(w * 0.58, h * 0.7)
+      ..lineTo(w * 0.64, h * 0.7)
+      ..close();
+    canvas.drawPath(pathChild, paintRed);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 

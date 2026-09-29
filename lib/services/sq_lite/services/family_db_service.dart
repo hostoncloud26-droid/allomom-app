@@ -471,6 +471,20 @@ class FamilyDbService {
                   t.id.isNotIn(keptMemberIds),
             ))
           .go();
+
+      // A user belongs to at most one family at a time (the server itself
+      // refuses to add a second membership), but nothing else ever cleared
+      // a *different* family's leftover row for this viewer — e.g. one from
+      // a family they created, then replaced with another. `getMyFamily`
+      // has no way to tell which of two such rows is current, so it could
+      // return the stale one. This is the only place that reliably knows
+      // "this is the viewer's actual, current family" is happening right
+      // now, so it also retires anything else the viewer appears to belong to.
+      await (db.delete(db.familyMembersTable)
+            ..where(
+              (t) => t.userid.equals(viewerId) & t.familyid.equals(familyId).not(),
+            ))
+          .go();
     });
   }
 
