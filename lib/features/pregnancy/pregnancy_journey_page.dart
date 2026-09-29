@@ -1,11 +1,17 @@
 import 'dart:io';
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
+import 'package:get/get.dart' show Obx;
 import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
+import 'package:allomom/features/allobot/widgets/allobot_home_view.dart'
+    show AlloBotGeminiOrb;
 import 'package:allomom/features/pregnancy/baby_care_track_page.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_size_card.dart';
+import 'package:allomom/features/pregnancy/widgets/weekly_summary_card.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
 import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_confirmation_page.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
@@ -17,7 +23,9 @@ import 'package:allomom/features/baby/baby_form_sheet.dart';
 import 'package:allomom/features/baby/my_babies_page.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/pregnancy/widgets/welcome_baby_sheet.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
@@ -138,7 +146,76 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
   @override
   void dispose() {
     MainController.instance.removeListener(_onSessionChanged);
+    _weeklyCancelled = true;
+    // Only the week's own lines: a page this one pushed may already be
+    // talking.
+    final base = _weeklyBase;
+    if (base != null && BackgroundAudioController.isReady) {
+      final audio = BackgroundAudioController.to;
+      if (audio.currentKey.value.startsWith(base)) audio.stop();
+    }
     super.dispose();
+  }
+
+  // ─── WEEKLY SUMMARY VOICE ───
+  // On open the baby says the week's AlloBot flow, the same words home starts
+  // with and the Weekly Summary card shows, with a Stop Speaking bar under it.
+
+  bool _weeklyStarted = false;
+  bool _weeklyCancelled = false;
+  bool _weeklyPlaying = false;
+
+  /// `pregnancy_week_<n>_info` for the week being said; each line plays as
+  /// `<base>#<i>`.
+  String? _weeklyBase;
+
+  Future<void> _playWeeklySummary(int gestationalWeek) async {
+    if (_weeklyStarted || !BackgroundAudioController.isReady) return;
+    final audio = BackgroundAudioController.to;
+    if (!audio.isVoiceEnabled.value) return;
+    _weeklyStarted = true;
+
+    final week = WeeklyBabyTalk.pregnancyWeek(gestationalWeek);
+    final lines = await WeeklyBabyTalk.lines(week);
+    if (!mounted || _weeklyCancelled || lines.isEmpty) return;
+
+    final base = WeeklyBabyTalk.intentKey(week);
+    setState(() {
+      _weeklyBase = base;
+      _weeklyPlaying = true;
+    });
+    for (var i = 0; i < lines.length; i++) {
+      if (!mounted || _weeklyCancelled) return;
+      final key = '$base#$i';
+      audio.registerText(key, lines[i].text, audioUrl: lines[i].audioUrl);
+      // Every visit: home has usually said these already this session.
+      await audio.playByKey(key, force: true);
+      // Something else took the voice over mid-line.
+      if (audio.currentKey.value.isNotEmpty &&
+          !audio.currentKey.value.startsWith(base)) {
+        break;
+      }
+    }
+    if (mounted) setState(() => _weeklyPlaying = false);
+  }
+
+  void _stopWeeklySummary() {
+    _weeklyCancelled = true;
+    if (BackgroundAudioController.isReady) BackgroundAudioController.to.stop();
+    setState(() => _weeklyPlaying = false);
+  }
+
+  /// Whether the week's lines are sounding right now — the baby's mouth
+  /// follows it. Read inside an [Obx].
+  bool get _weeklySpeaking {
+    if (!BackgroundAudioController.isReady) return false;
+    final audio = BackgroundAudioController.to;
+    // Both observables are read on every build, before the week's key is
+    // known too — an Obx that reads none of them throws.
+    final playing = audio.isPlaying.value;
+    final key = audio.currentKey.value;
+    final base = _weeklyBase;
+    return playing && base != null && key.startsWith(base);
   }
 
   /// Loads the active pregnancy and past records from the local Drift
@@ -223,6 +300,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
           _resolveSelectedEntity();
           _isLoading = false;
         });
+        if (_isPregnant && info != null) {
+          _playWeeklySummary(info['gestationAgeWeeks'] as int);
+        }
       }
     } catch (e) {
       debugPrint('Error loading pregnancy data from local database: $e');
@@ -443,22 +523,36 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
         // The nine months as wagons; under the train the pregnancy info, then
         // the picked month's ANC, vaccinations and lab reports, then a box
         // for each full schedule. Replaces the banner and the old list.
-        NarrationOnVisible(
-          narrationKey: NarrationKeys.pgJourneyOpen,
-          child: PregnancyMonthTrack(
+        // The page opens on the week's summary, spoken by the baby, rather
+        // than the old journey-open narration.
+        PregnancyMonthTrack(
             onChanged: _loadAllPregnancyData,
             onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
-            aboveTrain: _buildPregnancyInfoCard(
-              context: context,
-              gestationalWeek: gestationalWeek,
-              trimester: trimester,
-              daysLeft: daysLeft,
-              eddFormatted: eddFormatted,
-              progressFraction: progressFraction,
-              progressPercent: progressPercent,
+            aboveTrain: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildPregnancyInfoCard(
+                  context: context,
+                  gestationalWeek: gestationalWeek,
+                  trimester: trimester,
+                  daysLeft: daysLeft,
+                  eddFormatted: eddFormatted,
+                  progressFraction: progressFraction,
+                  progressPercent: progressPercent,
+                ),
+                // Only while the baby is saying the week; stops the voice.
+                if (_weeklyPlaying) ...[
+                  const SizedBox(height: 10),
+                  _buildStopSpeakingButton(),
+                ],
+                const SizedBox(height: 16),
+                // What the baby says first on home, then this week's size,
+                // between the overview and the tallies.
+                WeeklySummaryCard(gestationalWeek: gestationalWeek),
+                BabySizeCard(gestationalWeek: gestationalWeek),
+              ],
             ),
           ),
-        ),
         const SizedBox(height: 20),
 
         // ─── COMPLETE PREGNANCY SECTION ───
@@ -726,95 +820,124 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage> {
     required double progressFraction,
     required int progressPercent,
   }) {
-    const pink = Color(0xFFFF3B5C);
     final weeksToGo = (40 - gestationalWeek).clamp(0, 40);
+    // The stat cards set the card's height; the baby then fills the left
+    // half at that height, 16px in from the card's edge like the cards.
+    const gap = 12.0;
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: _hair, width: 1.1),
       ),
-      // Two equal halves: the week ring on the left, the stat cards on the
-      // right, both centred on the same line.
-      child: Row(
+      child: Stack(
+        // The glow's blur spreads past the baby's box; let it into the
+        // padding instead of cutting it off square.
+        clipBehavior: Clip.none,
         children: [
-          Expanded(
-            child: Center(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final size = (constraints.maxWidth - 8).clamp(96.0, 140.0);
-                  return SizedBox(
-                    width: size,
-                    height: size,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        CircularProgressIndicator(
-                          value: progressFraction,
-                          strokeWidth: 11,
-                          strokeCap: StrokeCap.round,
-                          backgroundColor: pink.withValues(alpha: 0.1),
-                          valueColor: const AlwaysStoppedAnimation(pink),
-                        ),
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // The label sits over the number, as the
-                              // train's wagons do.
-                              Text(
-                                'Week',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: _inkMuted3,
-                                ),
-                              ),
-                              Text(
-                                '$gestationalWeek',
-                                style: TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.w800,
-                                  color: _ink,
-                                  height: 1.1,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+          Positioned.fill(
+            child: Row(
               children: [
-                _buildInfoStat(
-                  icon: Icons.event_available_rounded,
-                  label: 'Due Date',
-                  value: eddFormatted,
+                Expanded(
+                  // Home's baby on its glow, talking while it says the week.
+                  child: FittedBox(
+                    child: BackgroundAudioController.isReady
+                        ? Obx(
+                            () => AlloBotGeminiOrb(
+                              isSpeaking: _weeklySpeaking,
+                              isThinking: false,
+                              babySize: 190,
+                            ),
+                          )
+                        : const AlloBotGeminiOrb(
+                            isSpeaking: false,
+                            isThinking: false,
+                            babySize: 190,
+                          ),
+                  ),
                 ),
-                const SizedBox(height: 8),
-                _buildInfoStat(
-                  icon: Icons.child_friendly_rounded,
-                  label: 'Weeks to go',
-                  value: '$weeksToGo',
-                ),
-                const SizedBox(height: 8),
-                _buildInfoStat(
-                  icon: Icons.timelapse_rounded,
-                  label: 'Trimester',
-                  value: trimester.replaceFirst('Trimester ', ''),
-                ),
+                const SizedBox(width: gap),
+                const Spacer(),
               ],
             ),
           ),
+          Row(
+            children: [
+              const Spacer(),
+              const SizedBox(width: gap),
+              Expanded(
+                child: Column(
+                  children: [
+                    _buildInfoStat(
+                      icon: Icons.event_available_rounded,
+                      label: 'Due Date',
+                      value: eddFormatted,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInfoStat(
+                      icon: Icons.child_friendly_rounded,
+                      label: 'Weeks to go',
+                      value: '$weeksToGo',
+                    ),
+                    const SizedBox(height: 8),
+                    _buildInfoStat(
+                      icon: Icons.timelapse_rounded,
+                      label: 'Trimester',
+                      value: trimester.replaceFirst('Trimester ', ''),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  /// A frosted-glass bar under the baby, as on the kick counter: the page
+  /// shows through a blurred, tinted fill, with the accent red on the label.
+  Widget _buildStopSpeakingButton() {
+    const accent = Color(0xFFFF4E6A);
+    final radius = BorderRadius.circular(12);
+    return ClipRRect(
+      borderRadius: radius,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Material(
+          color: Colors.white.withValues(alpha: _p.isDark ? 0.08 : 0.55),
+          shape: RoundedRectangleBorder(
+            borderRadius: radius,
+            side: BorderSide(
+              color: _p.isDark
+                  ? Colors.white.withValues(alpha: 0.16)
+                  : accent.withValues(alpha: 0.25),
+            ),
+          ),
+          child: InkWell(
+            onTap: _stopWeeklySummary,
+            child: const SizedBox(
+              width: double.infinity,
+              height: 36,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.stop_rounded, size: 18, color: accent),
+                  SizedBox(width: 6),
+                  Text(
+                    'Stop Speaking',
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -105,49 +105,15 @@ class _HomePageState extends State<HomePage> {
       BackgroundAudioController.isReady &&
       BackgroundAudioController.to.isVoiceEnabled.value;
 
-  /// This week's AlloBot flow, `pregnancy_week_<n>_info`, as keys the global
-  /// voice can play — one per step, each with its text registered for the
-  /// bubble and the clip the flow named for it (Amma's or Appa's, by who is
-  /// signed in). Empty when there is no week or the catalogue lacks the intent.
-  Future<List<String>> _weeklyInfoKeys() async {
-    final week = WeeklyBabyTalk.currentWeek();
-    if (week == null) return const [];
-    final lines = await WeeklyBabyTalk.lines(week);
-    final audio = BackgroundAudioController.to;
-    final base = WeeklyBabyTalk.intentKey(week);
-    return [
-      for (var i = 0; i < lines.length; i++)
-        () {
-          final key = '$base#$i';
-          audio.registerText(key, lines[i].text, audioUrl: lines[i].audioUrl);
-          return key;
-        }(),
-    ];
-  }
-
   Future<void> _playHomeGreeting() async {
     if (!_greetingWillPlay) return;
     _homeGreetingPlayed = true;
 
-    // Only what the AlloBot flows say, in their own recordings (or TTS when
-    // a clip will not play) — none of the bundled asset narration: the week's
-    // flow while its card is on screen, then AlloBaby's opening flow.
-    final weeklyKeys = await _weeklyInfoKeys();
-    for (final key in weeklyKeys) {
-      if (!mounted || _greetingCancelled) return;
-      setState(() => _homeNarrationKey = key);
-      await BackgroundAudioController.to.playByKey(key);
-      // The week has been said: AlloBaby picks up in her own card, and the
-      // page turns to today once she has finished.
-      if (key == weeklyKeys.last) {
-        await _runAlloBabyFlow();
-        if (!mounted || _greetingCancelled) return;
-        _advanceToTodayOnce(const Duration(milliseconds: 800));
-      }
-    }
-    if (_greetingCancelled) return;
-
-    if (mounted) setState(() => _homeNarrationKey = null);
+    // AlloBaby's opening flow only. The week's summary is no longer read out
+    // here: the baby says it on My Pregnancy, where its card is.
+    await _runAlloBabyFlow();
+    if (!mounted || _greetingCancelled) return;
+    _advanceToTodayOnce(const Duration(milliseconds: 800));
   }
 
   Future<void> _loadTrySuggestions() async {

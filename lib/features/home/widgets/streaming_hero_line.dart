@@ -80,32 +80,44 @@ class _StreamingHeroLineState extends State<StreamingHeroLine> {
   @override
   Widget build(BuildContext context) {
     final typing = _shown < _plain.length;
+    final dark = context.palette.isDark;
+    final line = Text.rich(
+      TextSpan(
+        text: _plain.substring(0, _shown),
+        children: [
+          // A caret while she is still talking, in the app's pink.
+          if (typing)
+            const TextSpan(
+              text: ' ▍',
+              style: TextStyle(color: primaryColor),
+            ),
+        ],
+      ),
+      textAlign: TextAlign.center,
+      style: GoogleFonts.outfit(
+        fontSize: 16,
+        fontWeight: FontWeight.w700,
+        height: 1.35,
+        color: context.palette.textPrimary,
+      ),
+    );
     return SizedBox(
       height: widget.height,
       child: Center(
         child: SingleChildScrollView(
           controller: _scroll,
           physics: const BouncingScrollPhysics(),
-          child: Text.rich(
-            TextSpan(
-              text: _plain.substring(0, _shown),
-              children: [
-                // A caret while she is still talking, in the app's pink.
-                if (typing)
-                  const TextSpan(
-                    text: ' ▍',
-                    style: TextStyle(color: primaryColor),
+          // Light mode takes Talk 2 Baby's blue-purple-pink gradient; dark
+          // keeps plain ink, which reads better on the dark backdrop.
+          child: dark
+              ? line
+              : ShaderMask(
+                  blendMode: BlendMode.srcIn,
+                  shaderCallback: (bounds) => alloBotHeroGradient.createShader(
+                    Rect.fromLTWH(0, 0, bounds.width, bounds.height),
                   ),
-              ],
-            ),
-            textAlign: TextAlign.center,
-            style: GoogleFonts.outfit(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              height: 1.35,
-              color: context.palette.textPrimary,
-            ),
-          ),
+                  child: line,
+                ),
         ),
       ),
     );
