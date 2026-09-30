@@ -399,6 +399,7 @@ class CareCarouselCard extends StatelessWidget {
     required this.title,
     this.tag,
     this.subtitle,
+    this.background,
     this.done = false,
     this.actionLabel = '',
     this.actionEnabled = false,
@@ -416,6 +417,9 @@ class CareCarouselCard extends StatelessWidget {
   /// A short label on the top row, before the status — after "CURRENT -" on
   /// the current card, e.g. "MONTH 5".
   final String? tag;
+
+  /// Painted behind the card's content, e.g. the month's weather.
+  final Widget? background;
   final String? subtitle;
   final bool done;
   final String actionLabel;
@@ -437,6 +441,7 @@ class CareCarouselCard extends StatelessWidget {
     return CareCard(
       highlighted: isCurrent,
       onTap: onTap,
+      background: background,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

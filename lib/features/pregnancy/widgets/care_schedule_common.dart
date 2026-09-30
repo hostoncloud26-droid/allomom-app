@@ -299,12 +299,16 @@ class CareCard extends StatelessWidget {
     this.onTap,
     this.highlighted = false,
     this.padding = const EdgeInsets.all(16),
+    this.background,
   });
 
   final Widget child;
   final VoidCallback? onTap;
   final bool highlighted;
   final EdgeInsetsGeometry padding;
+
+  /// Painted behind [child], edge to edge and clipped to the card.
+  final Widget? background;
 
   @override
   Widget build(BuildContext context) {
@@ -333,7 +337,15 @@ class CareCard extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
-          child: Padding(padding: padding, child: child),
+          child: background == null
+              ? Padding(padding: padding, child: child)
+              : Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    Positioned.fill(child: background!),
+                    Padding(padding: padding, child: child),
+                  ],
+                ),
         ),
       ),
     );

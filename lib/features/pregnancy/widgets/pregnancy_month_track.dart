@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
@@ -8,6 +9,7 @@ import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_care_carousel.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/features/pregnancy/widgets/journey_train.dart';
+import 'package:allomom/features/pregnancy/widgets/month_weather.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 
 const _ancAccent = Color(0xFFFF3B5C);
@@ -216,6 +218,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     final due = i.date;
     final doneAt = i.doneAt;
     final canMark = careIsDue(due);
+    // An ANC is named by its month, so it wears that month's weather.
+    final weather = i.kind == _Kind.anc && due != null
+        ? MonthWeather.of(due.month, pincode: MainController.instance.pincode)
+        : null;
     final (kindLabel, doneWord) = switch (i.kind) {
       _Kind.anc => ('ANC Check-up', 'Attended'),
       _Kind.vaccine => ('Vaccination', 'Given'),
@@ -248,6 +254,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           : 'Due ${careDateFmt.format(due)} · ${relativeDayLabel(due)}',
       tag: i.kind == _Kind.anc ? 'MONTH ${i.month}' : null,
       title: i.title,
+      background: weather?.backdrop(context),
       done: i.done,
       actionLabel: canMark
           ? 'Mark as completed'
