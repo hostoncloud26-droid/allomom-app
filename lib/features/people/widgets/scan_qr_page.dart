@@ -78,10 +78,8 @@ class _ScanQrPageState extends State<ScanQrPage> {
           MobileScanner(
             controller: _controller,
             onDetect: _onDetect,
-            errorBuilder: (context, error) => _ScannerError(
-              error: error,
-              onOpenSettings: openAppSettings,
-            ),
+            errorBuilder: (context, error) =>
+                _ScannerError(error: error, onOpenSettings: openAppSettings),
           ),
           IgnorePointer(
             child: Center(

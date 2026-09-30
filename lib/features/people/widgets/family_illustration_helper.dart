@@ -199,11 +199,17 @@ class FamilyIllustrationHelper {
                       icon: const Icon(Icons.auto_awesome_rounded, size: 16),
                       label: const Text(
                         'Auto',
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                       style: TextButton.styleFrom(
                         foregroundColor: primaryColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                       ),
                     ),
                   ],
@@ -249,7 +255,9 @@ class FamilyIllustrationHelper {
                                       borderRadius: BorderRadius.circular(16),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.04),
+                                          color: Colors.black.withValues(
+                                            alpha: 0.04,
+                                          ),
                                           blurRadius: 8,
                                         ),
                                       ],
@@ -263,7 +271,8 @@ class FamilyIllustrationHelper {
                                   const SizedBox(width: 14),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           opt.title,
@@ -271,8 +280,8 @@ class FamilyIllustrationHelper {
                                             fontSize: 14.5,
                                             fontWeight: FontWeight.w700,
                                             color: isSelected
-                                              ? primaryColor
-                                              : palette.textPrimary,
+                                                ? primaryColor
+                                                : palette.textPrimary,
                                           ),
                                         ),
                                         const SizedBox(height: 2),
@@ -298,7 +307,9 @@ class FamilyIllustrationHelper {
                                       border: Border.all(
                                         color: isSelected
                                             ? primaryColor
-                                            : palette.textMuted.withValues(alpha: 0.4),
+                                            : palette.textMuted.withValues(
+                                                alpha: 0.4,
+                                              ),
                                         width: 1.5,
                                       ),
                                     ),

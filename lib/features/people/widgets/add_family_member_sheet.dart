@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
+import 'package:allomom/components/overlay_toast.dart';
+import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -109,8 +112,13 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
       _showMsg('This phone number already belongs to a member of your family');
       return false;
     }
-    if (_ageController.text.trim().isEmpty) {
+    final age = int.tryParse(_ageController.text.trim());
+    if (age == null) {
       _showMsg('Please enter member age');
+      return false;
+    }
+    if (age < 1 || age > 99) {
+      _showMsg('Please enter a valid age (1-99)');
       return false;
     }
     if (_selectedGender == null) {
@@ -126,16 +134,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
 
   void _showMsg(String msg, {bool isSuccess = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg),
-        backgroundColor: isSuccess
-            ? const Color(0xFF10B981)
-            : const Color(0xFFFF4E6A),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    showOverlayToast(context, msg, isSuccess: isSuccess);
   }
 
   Future<void> _submit() async {
@@ -187,6 +186,9 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final inputText = GoogleFonts.poppins(fontSize: 14, color: p.textPrimary);
+    final hintText = GoogleFonts.poppins(fontSize: 14, color: p.textMuted);
     return BabyOnScreen(
       wholeScreen: true,
       child: Container(
@@ -196,8 +198,8 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
           right: 24,
           bottom: MediaQuery.of(context).viewInsets.bottom + 28,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: p.card,
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SingleChildScrollView(
@@ -212,7 +214,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                   width: 44,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: p.divider,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -241,7 +243,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                     style: GoogleFonts.outfit(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
-                      color: textDark,
+                      color: p.textPrimary,
                     ),
                   ),
                 ],
@@ -260,27 +262,29 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
               ),
               const SizedBox(height: 6),
               TextField(
+                style: inputText,
                 controller: _nameController,
                 decoration: InputDecoration(
                   hintText: 'e.g. Meera Kumar',
-                  prefixIcon: const Icon(
+                  hintStyle: hintText,
+                  prefixIcon: Icon(
                     Icons.person_outline_rounded,
                     size: 20,
                     color: Color(0xFF9CA3AF),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: p.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -302,6 +306,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
               ),
               const SizedBox(height: 6),
               TextField(
+                style: inputText,
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 maxLength: 10,
@@ -314,24 +319,25 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                     }) => null,
                 decoration: InputDecoration(
                   hintText: '9876543210',
-                  prefixIcon: const Icon(
+                  hintStyle: hintText,
+                  prefixIcon: Icon(
                     Icons.phone_outlined,
                     size: 20,
                     color: Color(0xFF9CA3AF),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: p.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
@@ -361,32 +367,34 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                         ),
                         const SizedBox(height: 6),
                         TextField(
+                          style: inputText,
                           controller: _ageController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(2),
+                          ],
                           decoration: InputDecoration(
                             hintText: 'e.g. 28',
+                            hintStyle: hintText,
                             prefixIcon: const Icon(
                               Icons.cake_outlined,
                               size: 20,
                               color: Color(0xFF9CA3AF),
                             ),
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: p.inputFill,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 14,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade200,
-                              ),
+                              borderSide: BorderSide(color: p.border),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade200,
-                              ),
+                              borderSide: BorderSide(color: p.border),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -419,32 +427,30 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String>(
+                          dropdownColor: p.card,
+                          style: inputText,
                           initialValue: _selectedGender,
                           hint: Text(
                             'Select',
                             style: GoogleFonts.poppins(
                               fontSize: 14,
-                              color: Colors.grey.shade500,
+                              color: p.textMuted,
                             ),
                           ),
                           decoration: InputDecoration(
                             filled: true,
-                            fillColor: Colors.grey.shade50,
+                            fillColor: p.inputFill,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 14,
                             ),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade200,
-                              ),
+                              borderSide: BorderSide(color: p.border),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
-                              borderSide: BorderSide(
-                                color: Colors.grey.shade200,
-                              ),
+                              borderSide: BorderSide(color: p.border),
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
@@ -482,33 +488,32 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
               ),
               const SizedBox(height: 6),
               DropdownButtonFormField<String>(
+                dropdownColor: p.card,
+                style: inputText,
                 initialValue: _selectedRelationship,
                 hint: Text(
                   'Select relationship',
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    color: Colors.grey.shade500,
-                  ),
+                  style: GoogleFonts.poppins(fontSize: 14, color: p.textMuted),
                 ),
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.family_restroom_rounded,
                     size: 20,
                     color: Color(0xFF9CA3AF),
                   ),
                   filled: true,
-                  fillColor: Colors.grey.shade50,
+                  fillColor: p.inputFill,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
-                    borderSide: BorderSide(color: Colors.grey.shade200),
+                    borderSide: BorderSide(color: p.border),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(14),
