@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
@@ -86,7 +87,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
       _Item(
         kind: _Kind.anc,
         id: a.id,
-        title: 'ANC Check-up',
+        // Named by the month it falls in, e.g. "September 2026".
+        title: a.scheduledDate == null
+            ? 'ANC Check-up'
+            : DateFormat('MMMM yyyy').format(a.scheduledDate!),
         date: a.scheduledDate,
         doneAt: a.completedAt,
         status: a.status,
@@ -229,17 +233,20 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           status: CareStatus.overdue,
           label: 'Overdue',
         ),
-        CareStatus.scheduled || CareStatus.dueSoon => CarePill(
-          status: status,
-          label: 'Upcoming',
-        ),
+        CareStatus.scheduled ||
+        CareStatus.dueSoon => CarePill(status: status, label: 'Upcoming'),
         _ => CarePill(status: status),
       },
       eyebrow: doneAt != null
           ? '$doneWord ${careDateFmt.format(doneAt)}'
           : due == null
           ? 'Date to be decided'
+          // An ANC's title is already its month and year, and its pregnancy
+          // month sits on the top row.
+          : i.kind == _Kind.anc
+          ? ''
           : 'Due ${careDateFmt.format(due)} · ${relativeDayLabel(due)}',
+      tag: i.kind == _Kind.anc ? 'MONTH ${i.month}' : null,
       title: i.title,
       done: i.done,
       actionLabel: canMark
@@ -255,7 +262,9 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
         facts: [
           (
             Icons.event_rounded,
-            due == null ? 'Date to be decided' : 'Due ${careDateFmt.format(due)}',
+            due == null
+                ? 'Date to be decided'
+                : 'Due ${careDateFmt.format(due)}',
           ),
           if (doneAt != null)
             (Icons.verified_rounded, '$doneWord ${careDateFmt.format(doneAt)}'),

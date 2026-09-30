@@ -397,6 +397,7 @@ class CareCarouselCard extends StatelessWidget {
     required this.pill,
     required this.eyebrow,
     required this.title,
+    this.tag,
     this.subtitle,
     this.done = false,
     this.actionLabel = '',
@@ -407,8 +408,14 @@ class CareCarouselCard extends StatelessWidget {
 
   final bool isCurrent;
   final Widget pill;
+
+  /// The line above the title; nothing when empty.
   final String eyebrow;
   final String title;
+
+  /// A short label on the top row, before the status — after "CURRENT -" on
+  /// the current card, e.g. "MONTH 5".
+  final String? tag;
   final String? subtitle;
   final bool done;
   final String actionLabel;
@@ -422,6 +429,8 @@ class CareCarouselCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final sub = subtitle?.trim() ?? '';
+    final tag = this.tag;
+    final lead = [if (isCurrent) 'CURRENT', ?tag].join(' - ');
 
     final onAction = this.onAction;
 
@@ -434,31 +443,38 @@ class CareCarouselCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              if (isCurrent) ...[
-                const Text(
-                  'CURRENT',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: _pink,
+              // The label takes the free width, pushing the status into the
+              // top-right corner.
+              if (lead.isNotEmpty) ...[
+                Expanded(
+                  child: Text(
+                    lead,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                      color: isCurrent ? _pink : p.textMuted,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
-              ],
-              // The status sits in the top-right corner.
-              const Spacer(),
+              ] else
+                const Spacer(),
               pill,
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            eyebrow,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: p.textMuted),
-          ),
-          const SizedBox(height: 2),
+          if (eyebrow.isNotEmpty) ...[
+            Text(
+              eyebrow,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, color: p.textMuted),
+            ),
+            const SizedBox(height: 2),
+          ],
           Text(
             title,
             maxLines: 1,
