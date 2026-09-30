@@ -14,6 +14,7 @@ import 'package:allomom/features/pregnancy/widgets/baby_feature_row.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_growth_track.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_profile_card.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_size_card.dart';
+import 'package:allomom/features/pregnancy/widgets/mother_week_cards.dart';
 import 'package:allomom/features/pregnancy/widgets/weekly_summary_card.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_feature_row.dart';
 import 'package:allomom/features/pregnancy/widgets/pregnancy_month_track.dart';
@@ -591,6 +592,9 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                   week: WeeklyBabyTalk.pregnancyWeek(gestationalWeek),
                 ),
                 BabySizeCard(gestationalWeek: gestationalWeek),
+                const SizedBox(height: 14),
+                // How she might feel and what to eat this week.
+                MotherWeekCards(gestationalWeek: gestationalWeek),
               ],
             ),
           ),
