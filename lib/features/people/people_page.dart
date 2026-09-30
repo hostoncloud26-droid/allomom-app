@@ -18,6 +18,11 @@ import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/people/member_view.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/controllers/baby_controller.dart';
+import 'package:allomom/api/community_api.dart';
+import 'package:allomom/features/people/community/all_communities_page.dart';
+import 'package:allomom/features/people/community/community_detail_page.dart';
+import 'package:allomom/features/people/community/community_widgets.dart';
+import 'package:allomom/models/community.dart';
 import 'package:get/get.dart';
 
 class PeoplePage extends StatefulWidget {
@@ -53,10 +58,18 @@ class _PeoplePageState extends State<PeoplePage> {
   List<dynamic> _apiFamilyMembers = [];
   bool _isLoadingFamily = true;
 
+  List<Community> _featuredCommunities = [];
+  List<Community> _myCommunities = [];
+  bool _isLoadingCommunities = true;
+  final Set<String> _joiningCommunityIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadFamilyData();
+    _loadCommunities();
+    // The search box narrows My Communities, which is already loaded.
+    _searchController.addListener(() => setState(() {}));
     final pending = widget.pendingAddMemberRelationship;
     if (pending != null && pending.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -169,6 +182,56 @@ class _PeoplePageState extends State<PeoplePage> {
         });
       }
     }
+  }
+
+  /// Featured and joined communities, fetched together.
+  Future<void> _loadCommunities() async {
+    final results = await Future.wait([
+      CommunityApi.getFeatured(),
+      CommunityApi.getMyCommunities(),
+    ]);
+    if (!mounted) return;
+    final featured = results[0];
+    final mine = results[1];
+    setState(() {
+      _isLoadingCommunities = false;
+      if (featured.success) {
+        _featuredCommunities = Community.listFrom(featured.items);
+      }
+      if (mine.success) _myCommunities = Community.listFrom(mine.items);
+    });
+  }
+
+  Future<void> _joinCommunity(Community community) async {
+    setState(() => _joiningCommunityIds.add(community.id));
+    final ok = await joinCommunity(context, community);
+    if (!mounted) return;
+    setState(() => _joiningCommunityIds.remove(community.id));
+    if (ok) await _loadCommunities();
+  }
+
+  Future<void> _leaveCommunity(Community community) async {
+    if (await leaveCommunityWithConfirm(context, community)) {
+      await _loadCommunities();
+    }
+  }
+
+  Future<void> _openCommunity(Community community) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CommunityDetailPage(community: community),
+      ),
+    );
+    if (changed == true) await _loadCommunities();
+  }
+
+  Future<void> _openAllCommunities() async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const AllCommunitiesPage()),
+    );
+    if (changed == true) await _loadCommunities();
   }
 
   @override
@@ -1773,41 +1836,43 @@ class _PeoplePageState extends State<PeoplePage> {
   // ─── COMMUNITY TAB ─────────────────────────────────────────────────────────
   // ===========================================================================
   Widget _buildCommunityTab() {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-      children: [
-        _buildFeaturedCommunitiesHeader(),
-        mediumSpacingBox(),
-        _buildFeaturedCommunitiesGrid(),
-        largeSpacingBox(),
-        _buildMyCommunitiesHeader(),
-        mediumSpacingBox(),
-        _buildCommunitySearchBar(),
-        mediumSpacingBox(),
-        // The disclaimer belongs with the first list of other mothers' posts,
-        // not buried in a settings screen.
-        _buildCommunityListItem(
-          avatarLetter: 'P',
-          avatarBg: const Color(0xFFFCE7F0),
-          avatarTextColor: primaryColor,
-          title: 'Penmai 2026',
+    final query = _searchController.text.trim().toLowerCase();
+    final myCommunities = query.isEmpty
+        ? _myCommunities
+        : _myCommunities
+              .where((c) => c.name.toLowerCase().contains(query))
+              .toList();
+
+    return RefreshIndicator(
+      onRefresh: _loadCommunities,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
-        mediumSpacingBox(),
-        _buildCommunityListItem(
-          avatarLetter: 'K',
-          avatarBg: const Color(0xFFDCFCE7),
-          avatarTextColor: const Color(0xFF15803D),
-          title: 'Kallur PHC mothers',
-        ),
-        mediumSpacingBox(),
-        _buildCommunityListItem(
-          avatarLetter: 'AS',
-          avatarBg: const Color(0xFFDBEAFE),
-          avatarTextColor: const Color(0xFF1E40AF),
-          title: 'ASHA support circle',
-        ),
-      ],
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
+        children: [
+          _buildFeaturedCommunitiesHeader(),
+          mediumSpacingBox(),
+          _buildFeaturedCommunitiesGrid(),
+          largeSpacingBox(),
+          _buildMyCommunitiesHeader(),
+          mediumSpacingBox(),
+          _buildCommunitySearchBar(),
+          mediumSpacingBox(),
+          if (_isLoadingCommunities && _myCommunities.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (myCommunities.isEmpty)
+            _buildMyCommunitiesEmpty(searching: query.isNotEmpty)
+          else
+            for (final community in myCommunities) ...[
+              _buildCommunityListItem(community),
+              mediumSpacingBox(),
+            ],
+        ],
+      ),
     );
   }
 
@@ -1823,112 +1888,102 @@ class _PeoplePageState extends State<PeoplePage> {
             color: _p.textPrimary,
           ),
         ),
-        Text(
-          'Explore More',
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: primaryColor,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeaturedCommunitiesGrid() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildFeaturedCommunityCard(
-            monogram: 'AK',
-            monogramBg: const Color(0xFFFCE7F0),
-            monogramTextColor: primaryColor,
-            title: 'AlloKonnect',
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: _buildFeaturedCommunityCard(
-            monogram: 'BA',
-            monogramBg: const Color(0xFFEFF6FF),
-            monogramTextColor: const Color(0xFF1D4ED8),
-            title: 'Build with AI',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeaturedCommunityCard({
-    required String monogram,
-    required Color monogramBg,
-    required Color monogramTextColor,
-    required String title,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: _p.tint(monogramTextColor, monogramBg),
-            ),
-            child: Center(
-              child: Text(
-                monogram,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: _ink(monogramTextColor),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
+        GestureDetector(
+          onTap: _openAllCommunities,
+          child: Text(
+            'Explore More',
             style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: _p.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: primaryColor,
             ),
-            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: primaryColor,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+        ),
+      ],
+    );
+  }
+
+  /// Up to five of the newest communities, two to a screen width, scrolling
+  /// sideways.
+  Widget _buildFeaturedCommunitiesGrid() {
+    if (_isLoadingCommunities && _featuredCommunities.isEmpty) {
+      return const SizedBox(
+        height: 190,
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    if (_featuredCommunities.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Text(
+          'No communities yet',
+          style: TextStyle(fontSize: 13, color: _p.textMuted),
+        ),
+      );
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 14.0;
+        final cardWidth = (constraints.maxWidth - gap) / 2;
+        return SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            physics: const BouncingScrollPhysics(),
+            itemCount: _featuredCommunities.length,
+            separatorBuilder: (_, _) => const SizedBox(width: gap),
+            itemBuilder: (_, i) => SizedBox(
+              width: cardWidth,
+              child: _buildFeaturedCommunityCard(_featuredCommunities[i]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFeaturedCommunityCard(Community community) {
+    return GestureDetector(
+      onTap: () => _openCommunity(community),
+      child: Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: _p.card,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            CommunityAvatar(community: community, size: 54),
+            const SizedBox(height: 12),
+            Expanded(
+              child: Text(
+                community.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: _p.textPrimary,
                 ),
-              ),
-              child: const Text(
-                'Join',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                textAlign: TextAlign.center,
               ),
             ),
-          ),
-        ],
+            CommunityJoinButton(
+              joined: community.isJoined,
+              busy: _joiningCommunityIds.contains(community.id),
+              onJoin: () => _joinCommunity(community),
+              expand: true,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1971,16 +2026,45 @@ class _PeoplePageState extends State<PeoplePage> {
     );
   }
 
-  Widget _buildCommunityListItem({
-    required String avatarLetter,
-    required Color avatarBg,
-    required Color avatarTextColor,
-    required String title,
-  }) {
+  Widget _buildMyCommunitiesEmpty({required bool searching}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _p.card,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.groups_outlined, size: 40, color: _p.textMuted),
+          const SizedBox(height: 8),
+          Text(
+            searching
+                ? 'None of your communities match'
+                : "You haven't joined any community yet",
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13.5, color: _p.textSecondary),
+          ),
+          if (!searching) ...[
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: _openAllCommunities,
+              child: const Text(
+                'Explore communities',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommunityListItem(Community community) {
     return GestureDetector(
-      // Opening a community is the moment for the disclaimer: what she is
-      // about to read is other mothers talking, not medical advice.
-      onTap: () => speak(NarrationKeys.pgCommunityDisclaimer),
+      onTap: () => _openCommunity(community),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -1996,31 +2080,16 @@ class _PeoplePageState extends State<PeoplePage> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _p.tint(avatarTextColor, avatarBg),
-              ),
-              child: Center(
-                child: Text(
-                  avatarLetter,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: _ink(avatarTextColor),
-                  ),
-                ),
-              ),
-            ),
+            CommunityAvatar(community: community),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    title,
+                    community.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -2028,55 +2097,48 @@ class _PeoplePageState extends State<PeoplePage> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _p.tint(
-                        const Color(0xFF22C55E),
-                        const Color(0xFFDCFCE7),
-                      ),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.check,
-                          size: 12,
-                          color: _ink(Color(0xFF15803D)),
-                        ),
-                        SizedBox(width: 4),
-                        Text(
-                          'Joined',
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                            color: _ink(const Color(0xFF15803D)),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  const CommunityJoinedBadge(),
                 ],
               ),
             ),
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: primaryColor.withValues(alpha: 0.08),
-              ),
-              child: Icon(
-                Icons.chat_bubble_outline_rounded,
-                color: primaryColor,
-                size: 18,
-              ),
+            _buildCommunityActionButton(
+              icon: Icons.logout_rounded,
+              color: dangerRed,
+              tooltip: 'Leave community',
+              onTap: () => _leaveCommunity(community),
+            ),
+            const SizedBox(width: 8),
+            _buildCommunityActionButton(
+              icon: Icons.chat_bubble_outline_rounded,
+              color: primaryColor,
+              tooltip: 'Open community',
+              onTap: () => _openCommunity(community),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCommunityActionButton({
+    required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: InkResponse(
+        onTap: onTap,
+        radius: 24,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: color.withValues(alpha: 0.08),
+          ),
+          child: Icon(icon, color: color, size: 18),
         ),
       ),
     );
