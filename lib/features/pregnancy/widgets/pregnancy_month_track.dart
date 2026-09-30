@@ -42,48 +42,100 @@ class _Item {
   bool get done => doneAt != null;
 }
 
-/// The pregnancy's nine months as a train, with the ANC check-ups,
-/// vaccinations and lab reports under it as swipeable cards — laid out as
-/// the baby's milestone train and carousels are. Picking a month swipes each
-/// carousel to that month's first item.
+/// The ANC check-ups, vaccinations and lab reports of the month the picked
+/// week is in, as swipeable cards — laid out as the baby's carousels are.
+/// The page owns the picked week and its [PregnancyWeekTrain]; picking a
+/// week in another month swipes each carousel to that month's first item.
 class PregnancyMonthTrack extends StatefulWidget {
   const PregnancyMonthTrack({
     super.key,
     required this.onChanged,
-    this.aboveTrain,
-    this.onMonthSelected,
+    required this.currentWeek,
+    required this.selectedWeek,
+    this.header,
   });
 
   /// Called after an item is marked or a schedule page closes, so the page
   /// can reload.
   final VoidCallback onChanged;
 
-  /// Shown above the train.
-  final Widget? aboveTrain;
+  /// The pregnancy's week today (1–40), outlined on the train.
+  final int currentWeek;
 
-  /// Called when the user selects a month wagon on the train.
-  final ValueChanged<int>? onMonthSelected;
+  /// The week picked on the train (1–40).
+  final int selectedWeek;
+
+  /// Shown above the carousels.
+  final Widget? header;
+
+  /// The pregnancy month (1–9) a week falls in, by the rule the schedules
+  /// use, taken at the middle of the week.
+  static int monthOfWeek(int week) =>
+      (((week * 7 + 3) / 30.44).floor() + 1).clamp(1, 9);
 
   @override
   State<PregnancyMonthTrack> createState() => _PregnancyMonthTrackState();
 }
 
-class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
-  int? _month;
-  CareCarouselFocus? _focus;
+/// The forty weeks as wagons, with the picked week's month in the heading.
+/// Not part of the page: it is pinned to the top once the features grid
+/// starts scrolling under it.
+class PregnancyWeekTrain extends StatelessWidget {
+  const PregnancyWeekTrain({
+    super.key,
+    required this.currentWeek,
+    required this.selectedWeek,
+    required this.onSelected,
+  });
 
-  PregnancyController get _preg => PregnancyController.instance;
+  final int currentWeek;
+  final int selectedWeek;
+  final ValueChanged<int> onSelected;
 
-  /// Pregnancy month (1–9) today, by the same rule the schedules use.
-  int get _currentMonth {
-    final lmp = _preg.lmpDate;
+  /// The month a week is in; today's week keeps today's month, by the rule
+  /// the schedules use, so the two never disagree at a month's edge.
+  static int monthFor(int week, {required int currentWeek}) {
+    if (week != currentWeek) return PregnancyMonthTrack.monthOfWeek(week);
+    final lmp = PregnancyController.instance.lmpDate;
     if (lmp == null) return 1;
     final days = DateTime.now().difference(lmp).inDays;
     if (days < 0) return 1;
     return ((days / 30.44).floor() + 1).clamp(1, 9);
   }
 
-  int get _selected => _month ?? _currentMonth;
+  @override
+  Widget build(BuildContext context) => JourneyTrain(
+    title: 'Week Train',
+    chip: 'Month ${monthFor(selectedWeek, currentWeek: currentWeek)}',
+    selected: selectedWeek,
+    current: currentWeek,
+    onSelected: onSelected,
+    wagons: [
+      for (var w = 1; w <= 40; w++)
+        TrainWagon(value: w, number: '$w', label: 'Week'),
+    ],
+  );
+}
+
+class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
+  CareCarouselFocus? _focus;
+
+  PregnancyController get _preg => PregnancyController.instance;
+
+  int _monthOf(int week) =>
+      PregnancyWeekTrain.monthFor(week, currentWeek: widget.currentWeek);
+
+  int get _selected => _monthOf(widget.selectedWeek);
+
+  @override
+  void didUpdateWidget(covariant PregnancyMonthTrack old) {
+    super.didUpdateWidget(old);
+    final month = _selected;
+    if (old.selectedWeek != widget.selectedWeek &&
+        _monthOf(old.selectedWeek) != month) {
+      _focus = (month: month, seq: (_focus?.seq ?? 0) + 1);
+    }
+  }
 
   List<_Item> get _items => [
     for (final a in _preg.ancCheckups)
@@ -151,28 +203,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (widget.aboveTrain != null) ...[
-          widget.aboveTrain!,
+        if (widget.header != null) ...[
+          widget.header!,
           const SizedBox(height: 16),
         ],
-        const SizedBox(height: 2),
-        JourneyTrain(
-          title: 'Pregnancy Checklist',
-          selected: _selected,
-          current: _currentMonth,
-          onSelected: (m) {
-            setState(() {
-              _month = m;
-              _focus = (month: m, seq: (_focus?.seq ?? 0) + 1);
-            });
-            widget.onMonthSelected?.call(m);
-          },
-          wagons: [
-            for (var m = 1; m <= 9; m++)
-              TrainWagon(value: m, number: '$m', label: 'Month'),
-          ],
-        ),
-        const SizedBox(height: 8),
         for (final (kind, label, color) in const [
           (_Kind.anc, 'ANC Check-ups', _ancAccent),
           (_Kind.vaccine, 'Vaccinations', _vaccineAccent),
