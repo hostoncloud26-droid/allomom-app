@@ -60,7 +60,16 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
 
   bool _isLoading = true;
   bool _isPregnant = false;
-  int? _selectedPregnancyMonth;
+
+  /// The week picked on the week train; null follows today's week.
+  int? _pickedPregnancyWeek;
+
+  /// The page's scroll, watched so the week train shows, pinned to the top,
+  /// once the features grid starts scrolling under it.
+  final _scroll = ScrollController();
+  final _scrollBox = GlobalKey();
+  final _featuresGrid = GlobalKey();
+  bool _weekTrainPinned = false;
   Map<String, dynamic>? _pregnancyInfo;
   List<Baby> _babies = [];
 
@@ -147,12 +156,28 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
   void initState() {
     super.initState();
     MainController.instance.addListener(_onSessionChanged);
+    _scroll.addListener(_updateWeekTrainPin);
     _loadAllPregnancyData();
+  }
+
+  /// Shows the week train once the features grid's top goes under the top of
+  /// the page.
+  void _updateWeekTrainPin() {
+    final train =
+        _featuresGrid.currentContext?.findRenderObject() as RenderBox?;
+    final box = _scrollBox.currentContext?.findRenderObject() as RenderBox?;
+    final pinned =
+        train != null &&
+        box != null &&
+        train.attached &&
+        train.localToGlobal(Offset.zero, ancestor: box).dy < 0;
+    if (pinned != _weekTrainPinned) setState(() => _weekTrainPinned = pinned);
   }
 
   @override
   void dispose() {
     MainController.instance.removeListener(_onSessionChanged);
+    _scroll.dispose();
     _weeklyRun++;
     // Only the week's own lines: a page this one pushed may already be
     // talking.
@@ -499,42 +524,80 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
             ? const Center(
                 child: CircularProgressIndicator(color: Color(0xFFFF3B5C)),
               )
-            : RefreshIndicator(
-                color: const Color(0xFFFF3B5C),
-                onRefresh: _loadAllPregnancyData,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildEntitySwitcher(),
-                      _expandIn(
-                        key: _selectedEntityId ?? '',
-                        child: _isPregnancySelected
-                            ? (_isPregnant
-                                  ? _buildActivePregnancyView(
-                                      context: context,
-                                      gestationalWeek: week,
-                                      pregnancyMonth: pregnancyMonth,
-                                      trimester: trimesterText,
-                                      daysLeft: daysLeft,
-                                      eddFormatted: eddFormatted,
-                                      progressFraction: progressFraction,
-                                      progressPercent: progressPercent,
-                                    )
-                                  : _buildUnregisteredPregnancyView(context))
-                            : _buildBabyJourneyView(context),
+            : Stack(
+                key: _scrollBox,
+                children: [
+                  RefreshIndicator(
+                    color: const Color(0xFFFF3B5C),
+                    onRefresh: _loadAllPregnancyData,
+                    child: SingleChildScrollView(
+                      controller: _scroll,
+                      physics: const AlwaysScrollableScrollPhysics(
+                        parent: BouncingScrollPhysics(),
                       ),
-                    ],
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 6,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildEntitySwitcher(),
+                          _expandIn(
+                            key: _selectedEntityId ?? '',
+                            child: _isPregnancySelected
+                                ? (_isPregnant
+                                      ? _buildActivePregnancyView(
+                                          context: context,
+                                          gestationalWeek: week,
+                                          pregnancyMonth: pregnancyMonth,
+                                          trimester: trimesterText,
+                                          daysLeft: daysLeft,
+                                          eddFormatted: eddFormatted,
+                                          progressFraction: progressFraction,
+                                          progressPercent: progressPercent,
+                                        )
+                                      : _buildUnregisteredPregnancyView(
+                                          context,
+                                        ))
+                                : _buildBabyJourneyView(context),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  if (_weekTrainPinned && _isPregnancySelected && _isPregnant)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: _buildPinnedWeekTrain(week),
+                    ),
+                ],
               ),
+      ),
+    );
+  }
+
+  /// The week train held at the top while the page scrolls under it.
+  Widget _buildPinnedWeekTrain(int gestationalWeek) {
+    final currentWeek = WeeklyBabyTalk.pregnancyWeek(gestationalWeek);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 8),
+      decoration: BoxDecoration(
+        color: _p.scaffoldSoft,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _p.pick(0.06, 0.3)),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: PregnancyWeekTrain(
+        currentWeek: currentWeek,
+        selectedWeek: _pickedPregnancyWeek ?? currentWeek,
+        onSelected: (w) => setState(() => _pickedPregnancyWeek = w),
       ),
     );
   }
@@ -552,19 +615,21 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     required double progressFraction,
     required int progressPercent,
   }) {
+    final currentWeek = WeeklyBabyTalk.pregnancyWeek(gestationalWeek);
+    final week = _pickedPregnancyWeek ?? currentWeek;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ─── PREGNANCY TRAIN ───
-        // The nine months as wagons; under the train the pregnancy info, then
-        // the picked month's ANC, vaccinations and lab reports, then a box
-        // for each full schedule. Replaces the banner and the old list.
-        // The page opens on the week's summary, spoken by the baby, rather
-        // than the old journey-open narration.
+        // ─── PICKED WEEK ───
+        // The pregnancy info and features, then the week's summary spoken by
+        // the baby, its size, the mother's cards and the month's ANC,
+        // vaccinations and lab reports. The week train pinned to the top
+        // once the features grid scrolls under it switches all of them.
         PregnancyMonthTrack(
           onChanged: _loadAllPregnancyData,
-          onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
-          aboveTrain: Column(
+          currentWeek: currentWeek,
+          selectedWeek: week,
+          header: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildPregnancyInfoCard(
@@ -584,17 +649,17 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
               const SizedBox(height: 14),
               // Kick Counter, ANC, Vaccination and Lab Reports, swiped
               // sideways as the baby's features are.
-              PregnancyFeatureRow(onChanged: _loadAllPregnancyData),
-              const SizedBox(height: 14),
-              // What the baby says first on home, then this week's size,
-              // between the overview and the tallies.
-              WeeklySummaryCard(
-                week: WeeklyBabyTalk.pregnancyWeek(gestationalWeek),
+              PregnancyFeatureRow(
+                key: _featuresGrid,
+                onChanged: _loadAllPregnancyData,
               ),
-              BabySizeCard(gestationalWeek: gestationalWeek),
               const SizedBox(height: 14),
-              // How she might feel and what to eat this week.
-              MotherWeekCards(gestationalWeek: gestationalWeek),
+              // What the baby says first on home, for the picked week.
+              WeeklySummaryCard(week: week),
+              BabySizeCard(gestationalWeek: week),
+              const SizedBox(height: 14),
+              // How she might feel and what to eat that week.
+              MotherWeekCards(gestationalWeek: week),
             ],
           ),
         ),
@@ -602,7 +667,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
 
         // ─── COMPLETE PREGNANCY SECTION ───
         // Only visible when viewing month 7 onwards (or if current gestational month >= 7).
-        if ((_selectedPregnancyMonth ?? pregnancyMonth) >= 7) ...[
+        if ((_pickedPregnancyWeek == null
+                ? pregnancyMonth
+                : PregnancyMonthTrack.monthOfWeek(week)) >=
+            7) ...[
           NarrationOnVisible(
             narrationKey: NarrationKeys.pgJourneyComplete,
             child: _buildCompletePregnancySection(context),
