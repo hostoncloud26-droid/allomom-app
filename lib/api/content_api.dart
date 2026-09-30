@@ -1,5 +1,6 @@
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/response.dart';
+import 'package:allomom/services/app_language.dart';
 
 /// `/me/content` — the Feeds tab: active system content plus content from
 /// the communities she belongs to, newest first — and her likes and
@@ -10,12 +11,16 @@ class ContentApi {
     int size = 10,
     String? viewType,
     String? entityId,
+    String? langCode,
   }) async {
+    // Items come back in the language her narration plays in.
+    final lang = langCode ?? await AppLanguage.current();
     return await ApiBase.get(
       "/me/content",
       query: {
         "page": "$page",
         "size": "$size",
+        "lang_code": lang,
         if (viewType != null) "view_type": viewType,
         if (entityId != null) "entity_id": entityId,
       },

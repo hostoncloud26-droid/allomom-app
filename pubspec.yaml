@@ -128,6 +128,7 @@ flutter:
     - assets/audio/en/onboard/
     - assets/audio/en/screens/
     - assets/babyicons/
+    - assets/bg/
     - assets/family/
     - assets/cry_samples/
     # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"

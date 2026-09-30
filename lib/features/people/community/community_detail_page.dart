@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/api/community_api.dart';
@@ -207,15 +208,14 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                   Container(
                     height: 170,
                     width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: _p.tint(primaryColor, accentLight),
-                      image: banner == null || banner.isEmpty
-                          ? null
-                          : DecorationImage(
-                              image: NetworkImage(banner),
-                              fit: BoxFit.cover,
-                            ),
-                    ),
+                    color: _p.tint(primaryColor, accentLight),
+                    child: banner == null || banner.isEmpty
+                        ? null
+                        : CachedNetworkImage(
+                            imageUrl: banner,
+                            fit: BoxFit.cover,
+                            errorWidget: (_, _, _) => const SizedBox.shrink(),
+                          ),
                   ),
                   SafeArea(
                     child: Padding(

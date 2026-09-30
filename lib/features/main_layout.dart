@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -19,6 +21,8 @@ import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
+import 'package:allomom/services/part_of_day.dart';
+import 'package:allomom/controllers/theme_controller.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -108,6 +112,48 @@ class _MainLayoutState extends State<MainLayout> {
     await SystemNavigator.pop();
   }
 
+  /// Home's app bar is frosted glass over the time-of-day scene. Over the
+  /// dark evening and night rooms the glass is smoked and the title, icons
+  /// and status bar go light; by day it is milky with dark text.
+  Widget _homeAppBar(BuildContext context, PartOfDay part) {
+    final dark = part.isDark;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: ThemeController.overlayFor(dark ? Brightness.dark : Brightness.light),
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: dark
+                    ? [
+                        Colors.black.withValues(alpha: 0.38),
+                        Colors.black.withValues(alpha: 0.22),
+                      ]
+                    : [
+                        Colors.white.withValues(alpha: 0.55),
+                        Colors.white.withValues(alpha: 0.35),
+                      ],
+              ),
+              border: Border(
+                bottom: BorderSide(
+                  color: Colors.white.withValues(alpha: dark ? 0.18 : 0.6),
+                  width: 0.8,
+                ),
+              ),
+            ),
+            child: Theme(
+              data: dark ? AppTheme.dark : AppTheme.light,
+              child: CustomAppBar(title: _titles[0]),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildShell(BuildContext context) {
     return Scaffold(
       extendBody: true,
@@ -119,7 +165,15 @@ class _MainLayoutState extends State<MainLayout> {
       // One app bar for the whole shell: the tabs underneath keep their own
       // scroll views, but the title and her three shortcuts stay put. The tabs
       // do not repeat the title themselves.
-      appBar: CustomAppBar(title: _titles[_currentIndex]),
+      appBar: _currentIndex == 0
+          ? PreferredSize(
+              preferredSize: const CustomAppBar().preferredSize,
+              child: ValueListenableBuilder<PartOfDay>(
+                valueListenable: PartOfDayClock.instance,
+                builder: (context, part, _) => _homeAppBar(context, part),
+              ),
+            )
+          : CustomAppBar(title: _titles[_currentIndex]),
       body: _pages[_currentIndex],
       bottomNavigationBar: CustomBottomNavigationBar(
         currentIndex: _currentIndex,

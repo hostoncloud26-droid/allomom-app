@@ -101,6 +101,11 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
   final Set<int> _failedVideos = {};
   final Set<int> _pausedByUser = {};
 
+  /// The reel whose caption (tag, title, description) she opened with the
+  /// info button. Captions stay hidden otherwise so they don't sit on top of
+  /// text burned into the video.
+  int? _captionOpenId;
+
   /// Items with a like or unlike in flight, so a double tap sends one.
   final Set<int> _liking = {};
   bool _muted = false;
@@ -161,6 +166,8 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appActive = state == AppLifecycleState.resumed;
     _syncPlayback();
+    // Card carousels read [_appActive] when they build.
+    if (mounted) setState(() {});
   }
 
   @override
@@ -247,6 +254,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
   void _onPageChanged(int index) {
     _currentIndex = index;
     _pausedByUser.clear();
+    _captionOpenId = null;
 
     if (index < _items.length) {
       // The first recipe she lands on introduces itself. Once per session,
@@ -597,7 +605,14 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
             flex: 55,
             child: item.attachments.isEmpty
                 ? const _AttachmentPlaceholder()
-                : _AttachmentCarousel(attachments: item.attachments),
+                : _AttachmentCarousel(
+                    attachments: item.attachments,
+                    active: _currentIndex < _items.length &&
+                        _items[_currentIndex].id == item.id &&
+                        _appActive &&
+                        _routeVisible,
+                    muted: _muted,
+                  ),
           ),
 
           // Bottom Content Section (White Background)
@@ -808,6 +823,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
     final controller = _videos[item.id];
     final unavailable =
         item.reelVideo == null || _failedVideos.contains(item.id);
+    final captionOpen = _captionOpenId == item.id;
 
     return GestureDetector(
       onTap: controller == null ? null : () => _toggleReelPlayback(item),
@@ -871,26 +887,27 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
             ),
 
           // Scrim so the caption stays legible over bright footage
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: 320,
-            child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.7),
-                    ],
+          if (captionOpen)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 320,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.7),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
 
           // Top Right Audio / Sound Toggle Button
           Positioned(
@@ -914,60 +931,61 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
           ),
 
           // Bottom Left: Tag, Title, Subtitle Description
-          Positioned(
-            bottom: MediaQuery.paddingOf(context).bottom + 16,
-            left: 20,
-            right: 80,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Tag pill (e.g. PREGNANCY WEEK 1 - REEL)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    item.label,
-                    style: GoogleFonts.poppins(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFFFCA5A5),
-                      letterSpacing: 0.8,
+          if (captionOpen)
+            Positioned(
+              bottom: MediaQuery.paddingOf(context).bottom + 16,
+              left: 20,
+              right: 80,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Tag pill (e.g. PREGNANCY WEEK 1 - REEL)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      item.label,
+                      style: GoogleFonts.poppins(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFFCA5A5),
+                        letterSpacing: 0.8,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
+                  const SizedBox(height: 8),
 
-                // Title
-                Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.outfit(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                  // Title
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.outfit(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                // Subtitle
-                Text(
-                  item.description,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 12.5,
-                    color: Colors.white.withValues(alpha: 0.85),
-                    height: 1.35,
+                  // Subtitle
+                  Text(
+                    item.description,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      color: Colors.white.withValues(alpha: 0.85),
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
           // Bottom Right: Floating Like & Comment Actions
           Positioned(
@@ -1022,6 +1040,19 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+
+                // Info Button — shows or hides the caption
+                GestureDetector(
+                  onTap: () => setState(
+                    () => _captionOpenId = captionOpen ? null : item.id,
+                  ),
+                  child: Icon(
+                    captionOpen ? Icons.info_rounded : Icons.info_outline_rounded,
+                    color: Colors.white,
+                    size: 26,
                   ),
                 ),
               ],
@@ -1111,10 +1142,19 @@ class _AttachmentPlaceholder extends StatelessWidget {
 }
 
 /// A card's attachments, swiped through horizontally across its top half.
+///
+/// While [active] (the card is on screen), a video on the current slide
+/// plays by itself; swiping to another slide stops it.
 class _AttachmentCarousel extends StatefulWidget {
   final List<ContentAttachment> attachments;
+  final bool active;
+  final bool muted;
 
-  const _AttachmentCarousel({required this.attachments});
+  const _AttachmentCarousel({
+    required this.attachments,
+    required this.active,
+    required this.muted,
+  });
 
   @override
   State<_AttachmentCarousel> createState() => _AttachmentCarouselState();
@@ -1169,7 +1209,11 @@ class _AttachmentCarouselState extends State<_AttachmentCarousel> {
               // One slide at a time, even on a hard fling.
               physics: const PageScrollPhysics(parent: ClampingScrollPhysics()),
               onPageChanged: _onPageChanged,
-              itemBuilder: (context, i) => _AttachmentSlide(attachment: attachments[i]),
+              itemBuilder: (context, i) => _AttachmentSlide(
+                attachment: attachments[i],
+                active: widget.active && i == _index,
+                muted: widget.muted,
+              ),
             ),
           ),
         ),
@@ -1239,12 +1283,20 @@ class _AttachmentCarouselState extends State<_AttachmentCarousel> {
 
 class _AttachmentSlide extends StatelessWidget {
   final ContentAttachment attachment;
+  final bool active;
+  final bool muted;
 
-  const _AttachmentSlide({required this.attachment});
+  const _AttachmentSlide({
+    required this.attachment,
+    required this.active,
+    required this.muted,
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (attachment.isVideo) return _InlineVideo(url: attachment.fileUrl);
+    if (attachment.isVideo) {
+      return _InlineVideo(url: attachment.fileUrl, active: active, muted: muted);
+    }
 
     if (attachment.isImage) {
       return CachedNetworkImage(
@@ -1303,12 +1355,19 @@ class _SlideMessage extends StatelessWidget {
   }
 }
 
-/// A video inside a card's carousel. It loads only when she taps play, and
-/// stops when she swipes it out of view (the slide is disposed).
+/// A video inside a card's carousel. It loads and plays once it is [active]
+/// (its card and slide are on screen), and pauses and rewinds when she
+/// swipes away. A tap pauses or resumes it.
 class _InlineVideo extends StatefulWidget {
   final String url;
+  final bool active;
+  final bool muted;
 
-  const _InlineVideo({required this.url});
+  const _InlineVideo({
+    required this.url,
+    required this.active,
+    required this.muted,
+  });
 
   @override
   State<_InlineVideo> createState() => _InlineVideoState();
@@ -1317,6 +1376,33 @@ class _InlineVideo extends StatefulWidget {
 class _InlineVideoState extends State<_InlineVideo> {
   VideoPlayerController? _controller;
   bool _failed = false;
+  bool _pausedByUser = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.active) _start();
+  }
+
+  @override
+  void didUpdateWidget(_InlineVideo old) {
+    super.didUpdateWidget(old);
+    if (widget.muted != old.muted) {
+      _controller?.setVolume(widget.muted ? 0 : 1);
+    }
+    if (widget.active == old.active) return;
+    if (widget.active) {
+      _pausedByUser = false;
+      _controller == null ? _start() : _controller!.play();
+    } else {
+      final controller = _controller;
+      if (controller != null && controller.value.isInitialized) {
+        controller
+          ..pause()
+          ..seekTo(Duration.zero);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -1324,19 +1410,17 @@ class _InlineVideoState extends State<_InlineVideo> {
     super.dispose();
   }
 
-  Future<void> _togglePlay() async {
-    final existing = _controller;
-    if (existing != null) {
-      existing.value.isPlaying ? existing.pause() : existing.play();
-      return;
-    }
+  Future<void> _start() async {
+    if (_controller != null || _failed) return;
     final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
     setState(() => _controller = controller);
     try {
       await controller.initialize();
       if (!mounted) return;
       await controller.setLooping(true);
-      await controller.play();
+      await controller.setVolume(widget.muted ? 0 : 1);
+      // She may have swiped on, or paused it, while it loaded.
+      if (widget.active && !_pausedByUser) await controller.play();
     } catch (_) {
       if (!mounted) return;
       controller.dispose();
@@ -1344,6 +1428,23 @@ class _InlineVideoState extends State<_InlineVideo> {
         _controller = null;
         _failed = true;
       });
+    }
+  }
+
+  void _togglePlay() {
+    final controller = _controller;
+    if (controller == null) {
+      _pausedByUser = false;
+      _start();
+      return;
+    }
+    if (!controller.value.isInitialized) return;
+    if (controller.value.isPlaying) {
+      _pausedByUser = true;
+      controller.pause();
+    } else {
+      _pausedByUser = false;
+      controller.play();
     }
   }
 
