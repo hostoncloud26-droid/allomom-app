@@ -41,11 +41,12 @@ class VaccinationCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final sorted = [...doses]..sort(_byDate((d) => d.expectedDate));
 
-    return _CareCarousel<BabyImmunizationRecord>(
+    return CareCarousel<BabyImmunizationRecord>(
       title: 'Vaccinations',
       accent: _vaccineAccent,
       onShowAll: onShowAll,
-      focus: focus,
+      focus: _monthFocus(focus),
+      monthOf: (d) => babyMonthOf(focus!.birth, d.expectedDate),
       height: 150,
       items: sorted,
       dateOf: (d) => d.expectedDate,
@@ -57,7 +58,7 @@ class VaccinationCarousel extends StatelessWidget {
           date: due,
         );
         final canMark = careIsDue(due);
-        return _CarouselCard(
+        return CareCarouselCard(
           isCurrent: isCurrent,
           pill: switch (status) {
             CareStatus.completed => const CarePill(
@@ -144,12 +145,13 @@ class MilestoneCarousel extends StatelessWidget {
   Widget build(BuildContext context) {
     final sorted = [...milestones]..sort(_byDate((m) => m.expectedDate));
 
-    return _CareCarousel<BabyMilestone>(
+    return CareCarousel<BabyMilestone>(
       title: 'Milestones',
       accent: _milestoneAccent,
       height: 150,
       onShowAll: onShowAll,
-      focus: focus,
+      focus: _monthFocus(focus),
+      monthOf: (m) => babyMonthOf(focus!.birth, m.expectedDate),
       items: sorted,
       dateOf: (m) => m.expectedDate,
       card: (m, isCurrent) {
@@ -159,7 +161,7 @@ class MilestoneCarousel extends StatelessWidget {
             DateUtils.dateOnly(
               expected,
             ).isBefore(DateUtils.dateOnly(DateTime.now()));
-        return _CarouselCard(
+        return CareCarouselCard(
           isCurrent: isCurrent,
           pill: m.achieved
               ? const CarePill(status: CareStatus.completed, label: 'Reached')
@@ -218,6 +220,13 @@ class MilestoneCarousel extends StatelessWidget {
 /// every tap, so picking the same wagon again still brings the pager back.
 typedef BabyCarouselFocus = ({DateTime birth, int month, int seq});
 
+/// A month picked on a train — the baby's or the pregnancy's — for a
+/// [CareCarousel] to swipe to. [seq] goes up on every tap.
+typedef CareCarouselFocus = ({int month, int seq});
+
+CareCarouselFocus? _monthFocus(BabyCarouselFocus? f) =>
+    f == null ? null : (month: f.month, seq: f.seq);
+
 int Function(T, T) _byDate<T>(DateTime? Function(T) dateOf) => (a, b) {
   final da = dateOf(a), db = dateOf(b);
   if (da == null && db == null) return 0;
@@ -227,9 +236,10 @@ int Function(T, T) _byDate<T>(DateTime? Function(T) dateOf) => (a, b) {
 };
 
 /// A section title with "Show all", over a full-width
-/// pager whose next card peeks in from the right.
-class _CareCarousel<T> extends StatefulWidget {
-  const _CareCarousel({
+/// pager whose next card peeks in from the right. Shared by the baby's
+/// vaccinations and milestones and the pregnancy's checklist.
+class CareCarousel<T> extends StatefulWidget {
+  const CareCarousel({
     super.key,
     required this.title,
     required this.accent,
@@ -237,6 +247,7 @@ class _CareCarousel<T> extends StatefulWidget {
     required this.items,
     required this.dateOf,
     required this.card,
+    required this.monthOf,
     this.onShowAll,
     this.focus,
   });
@@ -250,13 +261,16 @@ class _CareCarousel<T> extends StatefulWidget {
   final DateTime? Function(T) dateOf;
   final Widget Function(T item, bool isCurrent) card;
   final VoidCallback? onShowAll;
-  final BabyCarouselFocus? focus;
+  final CareCarouselFocus? focus;
+
+  /// The train month an item falls in; asked only while [focus] is set.
+  final int Function(T) monthOf;
 
   @override
-  State<_CareCarousel<T>> createState() => _CareCarouselState<T>();
+  State<CareCarousel<T>> createState() => CareCarouselState<T>();
 }
 
-class _CareCarouselState<T> extends State<_CareCarousel<T>> {
+class CareCarouselState<T> extends State<CareCarousel<T>> {
   late final PageController _controller;
 
   /// The latest item by date: the last one due on or before today, the
@@ -289,10 +303,10 @@ class _CareCarouselState<T> extends State<_CareCarousel<T>> {
   }
 
   @override
-  void didUpdateWidget(covariant _CareCarousel<T> old) {
-    super.didUpdateWidget(old);
+  void didUpdateWidget(covariant CareCarousel<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
     final focus = widget.focus;
-    if (focus == null || focus.seq == old.focus?.seq) return;
+    if (focus == null || focus.seq == oldWidget.focus?.seq) return;
     final index = _indexForMonth(focus);
     if (index == null || !_controller.hasClients) return;
     _controller.animateToPage(
@@ -304,12 +318,11 @@ class _CareCarouselState<T> extends State<_CareCarousel<T>> {
 
   /// The first item in [focus]'s month; failing that, the first one after
   /// it, or the last one before it.
-  int? _indexForMonth(BabyCarouselFocus focus) {
+  int? _indexForMonth(CareCarouselFocus focus) {
     if (widget.items.isEmpty) return null;
-    int monthAt(int i) =>
-        babyMonthOf(focus.birth, widget.dateOf(widget.items[i]));
     for (var i = 0; i < widget.items.length; i++) {
-      if (widget.dateOf(widget.items[i]) != null && monthAt(i) >= focus.month) {
+      final item = widget.items[i];
+      if (widget.dateOf(item) != null && widget.monthOf(item) >= focus.month) {
         return i;
       }
     }
@@ -377,8 +390,9 @@ class _CareCarouselState<T> extends State<_CareCarousel<T>> {
 /// One item: its status, when it is due and what it is. With [onAction], a
 /// round tick in the bottom-right corner marks it done — or, once done,
 /// undoes it. The status sits in the top-right corner.
-class _CarouselCard extends StatelessWidget {
-  const _CarouselCard({
+class CareCarouselCard extends StatelessWidget {
+  const CareCarouselCard({
+    super.key,
     required this.isCurrent,
     required this.pill,
     required this.eyebrow,

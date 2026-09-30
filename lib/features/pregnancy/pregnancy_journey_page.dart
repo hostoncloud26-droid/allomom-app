@@ -42,7 +42,6 @@ class PregnancyJourneyPage extends StatefulWidget {
 
 class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     with TickerProviderStateMixin {
-  static final _dateFmt = DateFormat('dd MMM yyyy');
   static final _shortDateFmt = DateFormat('dd MMM');
 
   // Neutral ink follows light / dark mode: the light value is kept exactly,
@@ -53,7 +52,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
   Color get _inkSec => _p.textSecondary;
   Color get _inkSec2 => _p.pick(const Color(0xFF4B5563), _p.textSecondary);
   Color get _inkMuted => _p.pick(const Color(0xFF8E95A5), _p.textMuted);
-  Color get _inkMuted2 => _p.textMuted;
   Color get _inkMuted3 => _p.pick(const Color(0xFF8A90A0), _p.textMuted);
   Color get _card => _p.card;
   Color get _hair => _p.pick(const Color(0xFFF0F1F5), _p.border);
@@ -63,7 +61,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
   bool _isPregnant = false;
   int? _selectedPregnancyMonth;
   Map<String, dynamic>? _pregnancyInfo;
-  List<Map<String, dynamic>> _completedPregnancies = [];
   List<Baby> _babies = [];
 
   /// Stands for the pregnancy in [_selectedEntityId], where every other value
@@ -308,28 +305,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         };
       }
 
-      final completedRows = await HealthDbService.instance
-          .getCompletedPregnancies(healthId);
-      final completed = completedRows
-          .map(
-            (p) => {
-              'id': p.id,
-              'status': p.status,
-              'lmpDate': p.lmpDate?.toIso8601String(),
-              'edDate': p.eddDate?.toIso8601String(),
-              'deliveryDate': p.deliveryDateTime?.toIso8601String(),
-              'completedAt': p.deliveryDateTime?.toIso8601String(),
-              'csectionDeliveries': p.csectionDeliveries,
-              'deliveryConductedAt': p.status,
-            },
-          )
-          .toList();
-
       if (mounted) {
         setState(() {
           _pregnancyInfo = info;
           _isPregnant = active != null && active.status == 'active';
-          _completedPregnancies = completed;
           // After `_isPregnant` is known, so a pregnancy that has just ended
           // hands the row over to her babies rather than leaving it on a card
           // that is no longer there.
@@ -410,6 +389,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                   final baby = _selectedBaby;
                   if (baby != null) await _editBaby(baby);
                   break;
+                case 'delete_baby':
+                  final baby = _selectedBaby;
+                  if (baby != null) await _deleteBaby(baby);
+                  break;
                 case 'complete':
                   _showCompletePregnancyModal(context);
                   break;
@@ -433,6 +416,25 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                       ),
                       SizedBox(width: 10),
                       Text('Edit Baby'),
+                    ],
+                  ),
+                ),
+              if (_selectedEntityId != _pregnancyEntity &&
+                  _selectedBaby != null)
+                const PopupMenuItem(
+                  value: 'delete_baby',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.delete_outline_rounded,
+                        size: 18,
+                        color: Color(0xFFEF4444),
+                      ),
+                      SizedBox(width: 10),
+                      Text(
+                        'Delete Baby',
+                        style: TextStyle(color: Color(0xFFEF4444)),
+                      ),
                     ],
                   ),
                 ),
@@ -781,15 +783,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
               'Keep all ultrasound sonographies, glucose tests, and blood counts organized.',
         ),
         const SizedBox(height: 24),
-
-        // ─── COMPLETED PREGNANCIES HISTORY (IF ANY) ───
-        _buildMyBabiesSection(),
-        const SizedBox(height: 20),
-
-        if (_completedPregnancies.isNotEmpty) ...[
-          _buildCompletedPregnanciesSection(),
-          const SizedBox(height: 24),
-        ],
       ],
     );
   }
@@ -1157,198 +1150,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // COMPLETED PREGNANCIES HISTORY SECTION
-  // ═══════════════════════════════════════════════════════════════════════════
-  Widget _buildCompletedPregnanciesSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.history_edu_rounded, size: 16, color: _inkSec),
-            const SizedBox(width: 6),
-            Text(
-              'PAST PREGNANCY JOURNEYS (${_completedPregnancies.length})',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: _inkSec,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ..._completedPregnancies.map((p) => _buildCompletedPregnancyCard(p)),
-      ],
-    );
-  }
-
-  Widget _buildCompletedPregnancyCard(Map<String, dynamic> p) {
-    final delivStr = p['deliveryDate'] ?? p['completedAt'];
-    String formattedDeliv = 'Delivered';
-    if (delivStr != null) {
-      try {
-        formattedDeliv = _dateFmt.format(DateTime.parse(delivStr.toString()));
-      } catch (_) {}
-    }
-
-    final lmpStr = p['lmpDate'];
-    String formattedLmp = '—';
-    if (lmpStr != null) {
-      try {
-        formattedLmp = _dateFmt.format(DateTime.parse(lmpStr.toString()));
-      } catch (_) {}
-    }
-
-    final isCsec = (p['csectionDeliveries'] as int? ?? 0) > 0;
-    final hospital = p['deliveryConductedAt']?.toString() ?? '';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _p.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: _p.tint(
-                        const Color(0xFF10B981),
-                        const Color(0xFFECFDF5),
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.check_rounded,
-                      color: Color(0xFF10B981),
-                      size: 14,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Journey Completed',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: _ink,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: _chipGrey,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  isCsec ? 'C-Section' : 'Delivered',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: _inkSec2,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Delivery Date',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _inkMuted2,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      formattedDeliv,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _ink,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LMP Date',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: _inkMuted2,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      formattedLmp,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: _ink,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (hospital.isNotEmpty)
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hospital',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: _inkMuted2,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        hospital,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: _ink,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
           ),
         ],
       ),
@@ -1862,6 +1663,52 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     if (id != null) await _loadAllPregnancyData();
   }
 
+  /// As on My Babies: confirm, then remove the baby with their schedule. The
+  /// switcher then falls back to the newest baby left, or the pregnancy.
+  Future<void> _deleteBaby(Baby baby) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Text(
+          'Remove ${baby.name}?',
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: const Text(
+          'This also deletes their vaccination schedule, milestones and '
+          'health record. This cannot be undone.',
+          style: TextStyle(fontSize: 13.5, height: 1.45),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFEF4444),
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await BabyRepository.instance.deleteBaby(baby.id);
+    await _loadAllPregnancyData();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Baby removed'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   /// She is postpartum, not out of the app — this keeps registering the next
   /// pregnancy one tap away without dominating the screen.
   Widget _buildNewPregnancyPrompt(BuildContext context) {
@@ -1919,162 +1766,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         ],
       ),
     );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MY BABIES
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  /// Entry point to the babies feature.
-  ///
-  /// Shown whether or not a pregnancy is active: a mother can add a previous
-  /// child at any time, and after delivery this is where the newborn lives.
-  Widget _buildMyBabiesSection() {
-    final count = _babies.length;
-    final names = _babies
-        .map((b) => b.name)
-        .whereType<String>()
-        .where((n) => n.isNotEmpty)
-        .toList();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: _p.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: _roseSoft,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.child_care_rounded,
-                  color: _rose,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'My Babies',
-                      style: TextStyle(
-                        fontSize: 16.5,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      count == 0
-                          ? 'Add your newborn or an older child'
-                          : names.isEmpty
-                          ? '$count ${count == 1 ? 'baby' : 'babies'} recorded'
-                          : names.join(', '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: _inkSoft),
-                    ),
-                  ],
-                ),
-              ),
-              if (count > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 5,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _roseSoft,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    '$count',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: _rose,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: OutlinedButton.icon(
-                    onPressed: _addBabyFromJourney,
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: _rose,
-                      side: BorderSide(color: _roseBorder),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    label: Text(
-                      'Add baby',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 44,
-                  child: ElevatedButton.icon(
-                    onPressed: _openMyBabies,
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _rose,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    label: Text(
-                      count == 0 ? 'Open' : 'Vaccines & milestones',
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _addBabyFromJourney() async {
-    final id = await showBabyFormSheet(context);
-    if (id == null) return;
-    speak(NarrationKeys.pgConfBabyAdded, force: true);
-    await _loadAllPregnancyData();
   }
 
   Future<void> _openMyBabies() async {

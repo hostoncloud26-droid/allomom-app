@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
-import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
+import 'package:allomom/features/pregnancy/widgets/baby_care_carousel.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/features/pregnancy/widgets/journey_train.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
@@ -15,15 +15,14 @@ const _labAccent = Color(0xFF3898EC);
 
 enum _Kind { anc, vaccine, lab }
 
-/// One ANC visit, vaccine dose or lab report, reduced to what the timeline
-/// shows.
+/// One ANC visit, vaccine dose or lab report, reduced to what a card shows.
 class _Item {
   const _Item({
     required this.kind,
     required this.id,
     required this.title,
     required this.date,
-    required this.done,
+    required this.doneAt,
     required this.status,
     required this.month,
   });
@@ -32,14 +31,17 @@ class _Item {
   final String id;
   final String title;
   final DateTime? date;
-  final bool done;
+  final DateTime? doneAt;
   final String status;
   final int month;
+
+  bool get done => doneAt != null;
 }
 
-/// The pregnancy's nine months as a train, with that month's ANC check-ups,
-/// vaccinations and lab reports under it — laid out as the baby's milestone
-/// track is.
+/// The pregnancy's nine months as a train, with the ANC check-ups,
+/// vaccinations and lab reports under it as swipeable cards — laid out as
+/// the baby's milestone train and carousels are. Picking a month swipes each
+/// carousel to that month's first item.
 class PregnancyMonthTrack extends StatefulWidget {
   const PregnancyMonthTrack({
     super.key,
@@ -48,7 +50,8 @@ class PregnancyMonthTrack extends StatefulWidget {
     this.onMonthSelected,
   });
 
-  /// Called after a schedule page closes, so the page can reload.
+  /// Called after an item is marked or a schedule page closes, so the page
+  /// can reload.
   final VoidCallback onChanged;
 
   /// Shown above the train.
@@ -63,6 +66,7 @@ class PregnancyMonthTrack extends StatefulWidget {
 
 class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
   int? _month;
+  CareCarouselFocus? _focus;
 
   PregnancyController get _preg => PregnancyController.instance;
 
@@ -84,7 +88,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
         id: a.id,
         title: 'ANC Check-up',
         date: a.scheduledDate,
-        done: a.isDone,
+        doneAt: a.completedAt,
         status: a.status,
         month: a.pregnancyMonth.clamp(1, 9),
       ),
@@ -94,7 +98,7 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
         id: v.id,
         title: v.vaccineName,
         date: v.scheduledDate,
-        done: v.isDone,
+        doneAt: v.receivedDate,
         status: v.status,
         month: (v.pregnancyMonth ?? 1).clamp(1, 9),
       ),
@@ -104,18 +108,11 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
         id: r.id,
         title: r.reportName,
         date: r.expectedDate,
-        done: r.isDone,
+        doneAt: r.completedDate,
         status: r.status,
         month: (r.pregnancyMonth ?? 1).clamp(1, 9),
       ),
   ];
-
-  static String _ordinal(int m) => switch (m) {
-    1 => '1st',
-    2 => '2nd',
-    3 => '3rd',
-    _ => '${m}th',
-  };
 
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -129,19 +126,20 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
     _Kind.lab => const LabReportsSchedulePage(),
   };
 
+  Future<void> _setDone(_Item i, bool done) async {
+    final at = done ? DateTime.now() : null;
+    await switch (i.kind) {
+      _Kind.anc => _preg.setAncCompleted(i.id, at),
+      _Kind.vaccine => _preg.setVaccinationReceived(i.id, at),
+      _Kind.lab => _preg.setReportCompleted(i.id, at),
+    };
+    widget.onChanged();
+    if (mounted) setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    final items = _items;
-    final inMonth = items.where((i) => i.month == _selected).toList()
-      ..sort(_byDate);
-
-    // The next thing to do of each kind, across the whole pregnancy.
-    final next = <_Kind, String>{};
-    for (final kind in _Kind.values) {
-      final pending = items.where((i) => i.kind == kind && !i.done).toList()
-        ..sort(_byDate);
-      if (pending.isNotEmpty) next[kind] = pending.first.id;
-    }
+    final items = _items..sort(_byDate);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -156,7 +154,10 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
           selected: _selected,
           current: _currentMonth,
           onSelected: (m) {
-            setState(() => _month = m);
+            setState(() {
+              _month = m;
+              _focus = (month: m, seq: (_focus?.seq ?? 0) + 1);
+            });
             widget.onMonthSelected?.call(m);
           },
           wagons: [
@@ -164,118 +165,112 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
               TrainWagon(value: m, number: '$m', label: 'Month'),
           ],
         ),
-        const SizedBox(height: 14),
-
-        if (inMonth.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'Nothing scheduled in the ${_ordinal(_selected)} month.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
-                color: context.palette.textSecondary,
-              ),
-            ),
-          ),
+        const SizedBox(height: 8),
         for (final (kind, label, color) in const [
           (_Kind.anc, 'ANC Check-ups', _ancAccent),
-          (_Kind.vaccine, 'Vaccination', _vaccineAccent),
+          (_Kind.vaccine, 'Vaccinations', _vaccineAccent),
           (_Kind.lab, 'Lab Reports & Scans', _labAccent),
         ])
-          ..._section(
-            label,
-            color,
-            inMonth.where((i) => i.kind == kind).toList(),
-            next[kind],
-          ),
+          ..._carousel(kind, label, color, items),
       ],
     );
   }
 
-  List<Widget> _section(
+  /// One kind's carousel — left out once the picked month is past its last
+  /// item, as vaccinations are after the fifth month.
+  List<Widget> _carousel(
+    _Kind kind,
     String label,
     Color color,
-    List<_Item> items,
-    String? nextId,
+    List<_Item> all,
   ) {
+    final items = all.where((i) => i.kind == kind).toList();
     if (items.isEmpty) return const [];
+    final lastMonth = items.map((i) => i.month).reduce((a, b) => a > b ? a : b);
+    if (_selected > lastMonth) return const [];
     return [
-      CareSectionLabel(label, color: color),
-      for (var i = 0; i < items.length; i++)
-        CareTimelineTile(
-          marker: _marker(items[i], nextId),
-          isFirst: i == 0,
-          isLast: i == items.length - 1,
-          child: _card(items[i], items[i].id == nextId),
-        ),
+      CareCarousel<_Item>(
+        key: ValueKey(kind),
+        title: label,
+        accent: color,
+        height: 150,
+        focus: _focus,
+        monthOf: (i) => i.month,
+        items: items,
+        dateOf: (i) => i.date,
+        onShowAll: () => _open(_pageFor(kind)),
+        card: _card,
+      ),
+      const SizedBox(height: 12),
     ];
   }
 
-  CareMarker _marker(_Item i, String? nextId) {
-    if (i.done) return CareMarker.done;
-    if (i.id == nextId) return CareMarker.next;
-    final d = i.date;
-    if (d != null && d.isBefore(DateUtils.dateOnly(DateTime.now()))) {
-      return CareMarker.missed;
-    }
-    return CareMarker.later;
-  }
-
-  Widget _card(_Item i, bool isNext) {
-    final p = context.palette;
+  /// As the baby's vaccination card: status top right, when it is due, what
+  /// it is, and a tick to mark it done once the day arrives.
+  Widget _card(_Item i, bool isCurrent) {
     final status = CareStatus.resolve(status: i.status, date: i.date);
-    final d = i.date;
-    return CareCard(
-      highlighted: isNext,
-      onTap: () => _open(_pageFor(i.kind)),
-      padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (isNext) ...[
-                  const Text(
-                    'NEXT UP',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: _ancAccent,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                ],
-                Text(
-                  d == null ? 'Date to be decided' : careDateFmt.format(d),
-                  style: TextStyle(fontSize: 12, color: p.textMuted),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  i.title,
-                  style: TextStyle(
-                    fontSize: isNext ? 16 : 15,
-                    fontWeight: FontWeight.w800,
-                    color: p.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                CarePill(
-                  status: status,
-                  label:
-                      status == CareStatus.scheduled ||
-                          status == CareStatus.dueSoon
-                      ? 'Upcoming'
-                      : null,
-                ),
-              ],
-            ),
+    final due = i.date;
+    final doneAt = i.doneAt;
+    final canMark = careIsDue(due);
+    final (kindLabel, doneWord) = switch (i.kind) {
+      _Kind.anc => ('ANC Check-up', 'Attended'),
+      _Kind.vaccine => ('Vaccination', 'Given'),
+      _Kind.lab => ('Lab Report', 'Done'),
+    };
+
+    return CareCarouselCard(
+      isCurrent: isCurrent,
+      pill: switch (status) {
+        CareStatus.completed => CarePill(
+          status: CareStatus.completed,
+          label: doneWord,
+        ),
+        CareStatus.overdue => const CarePill(
+          status: CareStatus.overdue,
+          label: 'Overdue',
+        ),
+        CareStatus.scheduled || CareStatus.dueSoon => CarePill(
+          status: status,
+          label: 'Upcoming',
+        ),
+        _ => CarePill(status: status),
+      },
+      eyebrow: doneAt != null
+          ? '$doneWord ${careDateFmt.format(doneAt)}'
+          : due == null
+          ? 'Date to be decided'
+          : 'Due ${careDateFmt.format(due)} · ${relativeDayLabel(due)}',
+      title: i.title,
+      done: i.done,
+      actionLabel: canMark
+          ? 'Mark as completed'
+          : 'Can mark from ${careDateFmt.format(due!)}',
+      actionEnabled: canMark,
+      onAction: (value) => _setDone(i, value),
+      onTap: () => showCareDetailSheet(
+        context,
+        eyebrow: kindLabel,
+        title: i.title,
+        status: status,
+        facts: [
+          (
+            Icons.event_rounded,
+            due == null ? 'Date to be decided' : 'Due ${careDateFmt.format(due)}',
           ),
-          const CareChevron(),
+          if (doneAt != null)
+            (Icons.verified_rounded, '$doneWord ${careDateFmt.format(doneAt)}'),
         ],
+        primaryLabel: i.done ? 'Mark as not done' : 'Mark as completed',
+        primaryIcon: i.done
+            ? Icons.undo_rounded
+            : Icons.check_circle_outline_rounded,
+        primaryQuiet: i.done,
+        primaryEnabled: i.done || canMark,
+        disabledNote: 'You can mark it once the date arrives.',
+        onPrimary: () => _setDone(i, !i.done),
+        secondaryLabel: 'Open full schedule',
+        secondaryIcon: Icons.list_alt_rounded,
+        onSecondary: () => _open(_pageFor(i.kind)),
       ),
     );
   }
