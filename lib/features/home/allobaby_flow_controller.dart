@@ -4,6 +4,7 @@ import 'package:allomom/features/background_audio/controller/background_audio_co
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/services/speech_activity.dart';
+import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
 
 /// Runs Ask Allo's opening flow on Home, inside the AlloBaby card.
@@ -54,10 +55,14 @@ class AlloBabyFlowController extends ChangeNotifier {
   /// Starts the opening flow from the top. Completes once it has been said —
   /// or stopped — so a caller can sequence what comes after it.
   ///
-  /// [intentKey] runs that intent instead of the opening one; a key the
-  /// catalogue lacks says nothing, leaving [line] empty for the caller's own
-  /// fallback.
-  Future<void> start({String? intentKey}) async {
+  /// [intentKey] runs that intent instead of the opening one.
+  /// If [resolveHint] is true, first visit plays [intentKey], and subsequent visits
+  /// play [hintKey] (or auto-derived `_hint` key).
+  Future<void> start({
+    String? intentKey,
+    String? hintKey,
+    bool resolveHint = true,
+  }) async {
     final generation = ++_generation;
     _claimVoice();
     _session = BotSession();
@@ -68,10 +73,25 @@ class AlloBabyFlowController extends ChangeNotifier {
 
     final chatbot = OfflineChatbotController.instance;
     await chatbot.ready;
-    final reply = await chatbot.runDetachedTurn(
+
+    String? targetKey = intentKey;
+    if (targetKey != null && resolveHint) {
+      targetKey = await ScreenVoiceHintService.resolveIntentKey(
+        introKey: targetKey,
+        hintKey: hintKey,
+      );
+    }
+
+    var reply = await chatbot.runDetachedTurn(
       session: _session,
-      intentKey: intentKey ?? chatbot.initialIntentKey,
+      intentKey: targetKey ?? chatbot.initialIntentKey,
     );
+    if (reply == null && targetKey != intentKey && intentKey != null) {
+      reply = await chatbot.runDetachedTurn(
+        session: _session,
+        intentKey: intentKey,
+      );
+    }
     if (generation != _generation) return;
     await _deliver(reply, generation);
   }
@@ -193,7 +213,10 @@ class AlloBabyFlowController extends ChangeNotifier {
       );
       return;
     }
-    final lang = OfflineChatbotController.instance.langCode.value.trim();
+    final lang = (BackgroundAudioController.isReady &&
+            BackgroundAudioController.to.languageCode.value.isNotEmpty)
+        ? BackgroundAudioController.to.languageCode.value
+        : OfflineChatbotController.instance.langCode.value.trim();
     await _tts.speakAndWait(
       text,
       audioUrl: OfflineChatbotController.resolveAudioUrl(audioUrl),

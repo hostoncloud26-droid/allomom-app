@@ -2,11 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
-import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/feeding_tracker/feeding_tracker_stats_page.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/services/tts_service.dart';
 
 class FeedingTrackerPage extends StatefulWidget {
   const FeedingTrackerPage({super.key});
@@ -16,6 +19,9 @@ class FeedingTrackerPage extends StatefulWidget {
 }
 
 class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
+  static const _feedingIntentKey = 'screen_feeding_tracker_info';
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   AppPalette get _p => context.palette;
 
   int _selectedFeedType = 0; // 0: Breast, 1: Bottle, 2: Solids
@@ -30,8 +36,37 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
   final List<Map<String, dynamic>> _recentFeeds = [];
 
   @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _feedingIntentKey);
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
     super.dispose();
   }
 
@@ -194,19 +229,21 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
             const SizedBox(height: 6),
 
             // Hero Baby Card (Fixed)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: BabyHeroBanner(
-                // Introduces the tracker on the first visit and then gets out
-                // of the way: `bindNarrationText` false leaves the card's own
-                // line in place once the clip has played.
-                narrationKey: NarrationKeys.newFeedingIntro,
-                bindNarrationText: false,
-                speechText: "Time for\nbaby's feed! 🍼",
+                speechText: _baby.line.trim().isEmpty
+                    ? "Time for\nbaby's feed! 🍼"
+                    : _baby.line.trim(),
+                speakingOverride: _baby.isRunning,
                 bubblePosition: SpeechBubblePosition.topCenter,
                 height: 250,
               ),
             ),
+            if (_baby.isRunning) ...[
+              const SizedBox(height: 10),
+              StopSpeakingButton(onTap: _stopSpeaking),
+            ],
 
             const SizedBox(height: 14),
 

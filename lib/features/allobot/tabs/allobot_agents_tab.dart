@@ -1,20 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allobot/data/agent_catalog.dart';
 
 class AlloBotAgentsTab extends StatefulWidget {
   final VoidCallback onAskTap;
+  final bool isActive;
 
-  const AlloBotAgentsTab({super.key, required this.onAskTap});
+  const AlloBotAgentsTab({
+    super.key,
+    required this.onAskTap,
+    this.isActive = false,
+  });
 
   @override
   State<AlloBotAgentsTab> createState() => _AlloBotAgentsTabState();
 }
 
 class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
+  static const _agentsIntentKey = 'screen_agents_info';
+  static const _fallbackText =
+      'Every feature is its own helper. Tap one, or ask AlloBot to open it.';
+
   String _searchQuery = '';
 
   AppPalette get _p => context.palette;
@@ -22,6 +32,7 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
   @override
   void initState() {
     super.initState();
+
     // The status pills read from what has actually been recorded, so the tab
     // asks for the readings once when it opens rather than showing every agent
     // idle until she visits My Health.
@@ -48,59 +59,72 @@ class _AlloBotAgentsTabState extends State<AlloBotAgentsTab> {
           if (matches.isNotEmpty) groups[group] = matches;
         }
 
-        return SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 12),
-
-              // ─── HEADER ───
-              Row(
+        return Stack(
+          children: [
+            SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Text(
-                      'Agents',
-                      style: GoogleFonts.outfit(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
+                  const SizedBox(height: 12),
+
+                  // ─── HEADER ───
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Agents',
+                          style: GoogleFonts.outfit(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: _p.pick(const Color(0xFF1E2024), _p.textPrimary),
+                          ),
+                        ),
                       ),
+                      _buildAskPill(),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Every feature is its own helper. Tap one, or ask AlloBot to open it.',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12.5,
+                      color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
                     ),
                   ),
-                  _buildAskPill(),
+                  const SizedBox(height: 18),
+
+                  // ─── SEARCH INPUT ───
+                  _buildSearchField(),
+                  const SizedBox(height: 18),
+
+                  // ─── GROUPED AGENTS ───
+                  if (groups.isEmpty)
+                    _buildNoResults()
+                  else
+                    for (final entry in groups.entries) ...[
+                      _buildGroupHeader(entry.key, entry.value.length),
+                      const SizedBox(height: 12),
+                      _buildAgentGrid(entry.value),
+                      const SizedBox(height: 22),
+                    ],
+
+                  const SizedBox(height: 140), // Bottom clearance for floating baby
                 ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                'Every feature is its own helper. Tap one, or ask AlloBot to open it.',
-                style: GoogleFonts.poppins(
-                  fontSize: 12.5,
-                  color: _p.pick(const Color(0xFF6B7280), _p.textSecondary),
-                ),
+            ),
+
+            // ─── FLOATING BABY BOTTOM POPUP WITH SLIDE & OPACITY (MATCHING FEEDS) ───
+            if (widget.isActive)
+              const FloatingBabySpeechOverlay(
+                intentKey: _agentsIntentKey,
+                fallbackText: _fallbackText,
+                bottom: 12,
+                showScrim: true,
               ),
-              const SizedBox(height: 18),
-
-              // ─── SEARCH INPUT ───
-              _buildSearchField(),
-              const SizedBox(height: 18),
-
-              // ─── GROUPED AGENTS ───
-              if (groups.isEmpty)
-                _buildNoResults()
-              else
-                for (final entry in groups.entries) ...[
-                  _buildGroupHeader(entry.key, entry.value.length),
-                  const SizedBox(height: 12),
-                  _buildAgentGrid(entry.value),
-                  const SizedBox(height: 22),
-                ],
-
-              const SizedBox(height: 90), // Bottom space for bar
-            ],
-          ),
+          ],
         );
       },
     );

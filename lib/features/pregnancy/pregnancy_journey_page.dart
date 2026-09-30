@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:io';
-import 'dart:ui' show ImageFilter;
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' show Obx;
 import 'package:intl/intl.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart'
@@ -33,6 +35,7 @@ import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/pregnancy/widgets/welcome_baby_sheet.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 
 class PregnancyJourneyPage extends StatefulWidget {
   const PregnancyJourneyPage({super.key});
@@ -122,7 +125,10 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     }
   }
 
+  static const _babyProfileIntentKey = 'screen_baby_profile_info';
+
   Future<void> _selectEntity(String id) async {
+    _stopWeeklySummary(updateUi: false);
     setState(() {
       _selectedEntityId = id;
       if (id != _pregnancyEntity) _selectedBabyId = id;
@@ -172,6 +178,12 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         train.attached &&
         train.localToGlobal(Offset.zero, ancestor: box).dy < 0;
     if (pinned != _weekTrainPinned) setState(() => _weekTrainPinned = pinned);
+  }
+
+  @override
+  void deactivate() {
+    _stopWeeklySummary(updateUi: false);
+    super.deactivate();
   }
 
   @override
@@ -262,7 +274,13 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     _weeklyPlaying = false;
   }
 
-  void _stopWeeklySummary() => setState(_silenceWeeklySummary);
+  void _stopWeeklySummary({bool updateUi = true}) {
+    if (updateUi && mounted) {
+      setState(_silenceWeeklySummary);
+    } else {
+      _silenceWeeklySummary();
+    }
+  }
 
   /// Whether the week's lines are sounding right now — the baby's mouth
   /// follows it. Read inside an [Obx].
@@ -374,11 +392,14 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     final progressFraction = (week / 40.0).clamp(0.0, 1.0);
     final progressPercent = (progressFraction * 100).toInt();
 
-    return Scaffold(
-      backgroundColor: _p.scaffoldSoft,
-      appBar: AppBar(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _stopWeeklySummary(updateUi: false);
+      },
+      child: Scaffold(
         backgroundColor: _p.scaffoldSoft,
-        elevation: 0,
+        appBar: AppBar(
+          elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -575,6 +596,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                     ),
                 ],
               ),
+        ),
       ),
     );
   }
@@ -1066,7 +1088,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
       ),
     );
   }
-
   /// One small card in the overview's right half: an icon, then the label
   /// over its value.
   Widget _buildInfoStat({
@@ -1811,7 +1832,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: _roseSoft, shape: BoxShape.circle),
-            child: const Icon(Icons.favorite_rounded, color: _rose, size: 19),
+            child: Icon(Icons.favorite_rounded, color: _rose, size: 19),
           ),
           const SizedBox(width: 12),
           Expanded(

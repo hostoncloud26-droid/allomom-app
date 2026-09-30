@@ -163,8 +163,7 @@ class NarrationCatalog {
         'Tell me about Mommy, so I can look after her with you.',
     NarrationKeys.pregPartnerSkip: "That's okay. You can add them anytime.",
     NarrationKeys.pregPartnerSaved: 'Now Daddy is with us too.',
-    NarrationKeys.pregKids:
-        'Do I already have a big brother or a big sister?',
+    NarrationKeys.pregKids: 'Do I already have a big brother or a big sister?',
     NarrationKeys.pregKidsYes: "How lovely! Then I'm not alone.",
     NarrationKeys.pregKidsNo:
         "So I'm your first! That makes this extra special.",
@@ -263,8 +262,7 @@ class NarrationCatalog {
         "Mommy, this will gently remove our whole record and we'd start again from the beginning. Are you sure?",
 
     // ─── Welcome your baby ───
-    NarrationKeys.pgBirthDate:
-        "I'm here, Mommy! Tell me the day I was born.",
+    NarrationKeys.pgBirthDate: "I'm here, Mommy! Tell me the day I was born.",
     NarrationKeys.pgBirthDetails:
         'How did I arrive, Mommy? Am I a boy or a girl, and how much did I weigh?',
     NarrationKeys.pgBirthPhoto:
@@ -419,5 +417,117 @@ class NarrationCatalog {
         'Congratulations, Mommy. Our journey together is complete, and a new one begins today.',
     NarrationKeys.pgConfFamilySaved:
         'Our family is ready, Mommy. Share the code and they can come in.',
+
+    // ─── Screen Info Intent Keys (First Visit) ───
+    NarrationKeys.screenDailyActivityInfo:
+        "Here are your daily care activities and health reminders for today, Mommy!",
+    NarrationKeys.screenDailyActivityHint:
+        "Here are your daily activities, Mommy.",
+    NarrationKeys.screenHomeCareInfo:
+        "Here are your daily care activities and health reminders for today, Mommy!",
+    NarrationKeys.screenHomeCareHint:
+        "Here are your daily care reminders, Mommy.",
+    NarrationKeys.screenAllocryInfo:
+        "I can listen for baby crying and tell you why baby might be crying, Mommy.",
+    NarrationKeys.screenAllocryHint:
+        "AlloCry is ready to listen, Mommy.",
+    NarrationKeys.screenBabyMilestonesInfo:
+        "Track your baby's growth and important development milestones here, Mommy.",
+    NarrationKeys.screenBabyMilestonesHint:
+        "Check your baby's milestones here, Mommy.",
+    NarrationKeys.screenBabyVaccinesInfo:
+        "Here is the vaccination schedule to keep your little one protected and healthy, Mommy.",
+    NarrationKeys.screenBabyVaccinesHint:
+        "Here is your baby's vaccine schedule, Mommy.",
+    NarrationKeys.screenBabyProfileInfo:
+        "Manage your baby's profile and details here, Mommy.",
+    NarrationKeys.screenBabyProfileHint:
+        "Here is your baby's profile, Mommy.",
+    NarrationKeys.screenAskAlloInfo:
+        "Ask me anything about your pregnancy, health, or baby care, Mommy!",
+    NarrationKeys.screenAskAlloHint:
+        "Ask Allo is here to help you, Mommy.",
+    NarrationKeys.screenAgentsInfo:
+        "Here are all your specialized care agents and health helpers, Mommy.",
+    NarrationKeys.screenAgentsHint:
+        "Here are your care agents, Mommy.",
+    NarrationKeys.screenAllobotChatInfo:
+        "Chat with AlloBot anytime for quick answers and guidance, Mommy.",
+    NarrationKeys.screenAllobotChatHint:
+        "Chat with AlloBot, Mommy.",
+    NarrationKeys.screenAllobotSettingsInfo:
+        "Customize your AlloBot settings, language, and voice preferences here, Mommy.",
+    NarrationKeys.screenAllobotSettingsHint:
+        "Here are your AlloBot settings, Mommy.",
+    NarrationKeys.screenFeedingTrackerInfo:
+        "Log your baby's breastfeeding, bottle feeds, and meal schedules here, Mommy.",
+    NarrationKeys.screenFeedingTrackerHint:
+        "Log your baby's feeds here, Mommy.",
+    NarrationKeys.screenFeedsInfo:
+        "Discover health tips, recipes, and expert articles tailored for you, Mommy.",
+    NarrationKeys.screenFeedsHint:
+        "Here are your daily tips and feeds, Mommy.",
+    NarrationKeys.screenHomeInfo:
+        "Welcome home, Mommy! Everything you need is right here.",
+    NarrationKeys.screenHomeNutritionInfo:
+        "Track your daily meals, hydration, and nutrition intake here, Mommy.",
+    NarrationKeys.screenHomeNutritionHint:
+        "Track your nutrition here, Mommy.",
+    NarrationKeys.screenHomeVitalsInfo:
+        "Monitor your vital signs, steps, heart rate, and sleep quality here, Mommy.",
+    NarrationKeys.screenHomeVitalsHint:
+        "Check your vitals here, Mommy.",
+    NarrationKeys.screenKickCounterInfo:
+        "Count and track your baby's kicks to monitor movement and wellbeing, Mommy.",
+    NarrationKeys.screenKickCounterHint:
+        "Count your baby's kicks here, Mommy.",
+    NarrationKeys.screenMyCyclePhaseInfo:
+        "Track your cycle phases and fertile window here, Mommy.",
+    NarrationKeys.screenMyCyclePhaseHint:
+        "Here is your cycle phase, Mommy.",
+    NarrationKeys.screenMyCycleTrackerInfo:
+        "Track your menstrual cycle, symptoms, and health patterns here, Mommy.",
+    NarrationKeys.screenMyCycleTrackerHint:
+        "Here is your cycle tracker, Mommy.",
+    NarrationKeys.screenMyHealthInfo:
+        "Overview of your complete maternal health and wellbeing, Mommy.",
+    NarrationKeys.screenMyHealthHint:
+        "Here is your health overview, Mommy.",
+    NarrationKeys.screenMyPrescriptionsInfo:
+        "View and manage your doctor's prescriptions and medicine timings here, Mommy.",
+    NarrationKeys.screenMyPrescriptionsHint:
+        "Here are your prescriptions, Mommy.",
+    NarrationKeys.screenMyProfileInfo:
+        "View and update your personal health profile and account information, Mommy.",
+    NarrationKeys.screenMyProfileHint:
+        "Here is your profile, Mommy.",
+    NarrationKeys.screenMyReportsInfo:
+        "Access your lab test results, ultrasound scans, and medical reports here, Mommy.",
+    NarrationKeys.screenMyReportsHint:
+        "Here are your reports, Mommy.",
+    NarrationKeys.screenMyVitalsInfo:
+        "Log and review your blood pressure, sugar, and vital readings, Mommy.",
+    NarrationKeys.screenMyVitalsHint:
+        "Here are your vitals, Mommy.",
+    NarrationKeys.screenPeopleCommunityInfo:
+        "Connect, share, and learn with other mothers in our community, Mommy.",
+    NarrationKeys.screenPeopleCommunityHint:
+        "Welcome to the community, Mommy.",
+    NarrationKeys.screenPeopleFamilyInfo:
+        "Invite your partner and family members to share your pregnancy journey, Mommy.",
+    NarrationKeys.screenPeopleFamilyHint:
+        "Here is your family circle, Mommy.",
+    NarrationKeys.screenPregnancyJourneyInfo:
+        "Follow your pregnancy week by week and see your baby's development, Mommy.",
+    NarrationKeys.screenPregnancyJourneyHint:
+        "Here is your pregnancy journey, Mommy.",
+    NarrationKeys.screenRegisterPregnancyInfo:
+        "Register your pregnancy details and estimated due date here, Mommy.",
+    NarrationKeys.screenRegisterPregnancyHint:
+        "Register your pregnancy here, Mommy.",
+    NarrationKeys.screenSettingsInfo:
+        "Manage your app preferences, language, notifications, and security, Mommy.",
+    NarrationKeys.screenSettingsHint:
+        "Here are your app settings, Mommy.",
   };
 }

@@ -16,6 +16,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
@@ -40,13 +41,22 @@ const Map<String, String> _languageNames = {
 };
 
 class AlloBotSettingsTab extends StatefulWidget {
-  const AlloBotSettingsTab({super.key});
+  final bool isActive;
+
+  const AlloBotSettingsTab({
+    super.key,
+    this.isActive = false,
+  });
 
   @override
   State<AlloBotSettingsTab> createState() => _AlloBotSettingsTabState();
 }
 
 class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
+  static const _settingsIntentKey = 'screen_allobot_settings_info';
+  static const _fallbackText =
+      'Configure the voice AlloBot listens with, the language she answers in, and the voice she answers with.';
+
   final OfflineChatbotController chatbot = OfflineChatbotController.instance;
   final AlloBotSpeechController speech = AlloBotSpeechController.instance;
   final OnlineTtsSettings onlineVoice = OnlineTtsSettings.instance;
@@ -63,6 +73,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
   @override
   void initState() {
     super.initState();
+
     // Only reaches the network when the phone has no catalogue to read the
     // list from.
     chatbot.loadLanguages();
@@ -145,28 +156,41 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
   Widget build(BuildContext context) {
     return Container(
       color: _p.pick(const Color(0xFFFAF6F7), _p.scaffoldSoft),
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+      child: Stack(
         children: [
-          Text(
-            'Configure the voice AlloBot listens with, the language she '
-            'answers in, and the voice she answers with.',
-            style: GoogleFonts.poppins(
-              fontSize: 13,
-              height: 1.5,
-              color: _muted,
-            ),
+          ListView(
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 140),
+            children: [
+              Text(
+                'Configure the voice AlloBot listens with, the language she '
+                'answers in, and the voice she answers with.',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  height: 1.5,
+                  color: _muted,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _buildLanguageCard(),
+              const SizedBox(height: 16),
+              _buildVoiceModelCard(),
+              const SizedBox(height: 16),
+              _buildOnlineVoiceCard(),
+              const SizedBox(height: 16),
+              _buildSyncCard(),
+              const SizedBox(height: 20),
+              _buildFootnote(),
+            ],
           ),
-          const SizedBox(height: 18),
-          _buildLanguageCard(),
-          const SizedBox(height: 16),
-          _buildVoiceModelCard(),
-          const SizedBox(height: 16),
-          _buildOnlineVoiceCard(),
-          const SizedBox(height: 16),
-          _buildSyncCard(),
-          const SizedBox(height: 20),
-          _buildFootnote(),
+
+          // ─── FLOATING BABY BOTTOM POPUP WITH SLIDE & OPACITY (MATCHING FEEDS) ───
+          if (widget.isActive)
+            const FloatingBabySpeechOverlay(
+              intentKey: _settingsIntentKey,
+              fallbackText: _fallbackText,
+              bottom: 12,
+              showScrim: true,
+            ),
         ],
       ),
     );

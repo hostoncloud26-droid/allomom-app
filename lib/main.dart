@@ -18,6 +18,7 @@ import 'package:allomom/features/prescriptions/prescription_reminder_page.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/services/health_vital_sync_service.dart';
+import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
@@ -65,6 +66,7 @@ void main() async {
   await MainController.instance.bootstrap();
   await ConnectionController.instance.init();
   HealthVitalSyncService.instance.init();
+  await ScreenVoiceHintService.init();
 
   // The baby's voice. Permanent so one player is shared by every screen —
   // navigating away from a card must not leave a second clip talking over the

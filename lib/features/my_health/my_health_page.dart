@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/day_date_selector.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/reports/reports_page.dart';
 import 'package:allomom/features/prescriptions/prescriptions_page.dart';
@@ -343,6 +345,16 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   /// layout rather than a guessed scroll offset.
   final GlobalKey _dateScopeAnchorKey = GlobalKey();
 
+  /// Sits on the Steps/Vitals section to detect when it scrolls into view/top.
+  final GlobalKey _vitalsAnchorKey = GlobalKey();
+  bool _hasTriggeredVitals = false;
+
+  /// Sits on the Nutrition section to detect when it scrolls into view/top.
+  final GlobalKey _nutritionAnchorKey = GlobalKey();
+  bool _hasTriggeredNutrition = false;
+
+  final AlloBabyFlowController _speechBaby = AlloBabyFlowController();
+
   /// The section's own box: the page's app bar sits above it, so the anchor is
   /// measured against this rather than the screen.
   final GlobalKey _sectionKey = GlobalKey();
@@ -361,6 +373,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
 
   @override
   void dispose() {
+    _speechBaby.dispose();
     _vitals.removeListener(_onVitalsChanged);
     _scrollController
       ..removeListener(_onScroll)
@@ -424,6 +437,46 @@ class _MyHealthSectionState extends State<MyHealthSection> {
       widget.onCollapsedChanged?.call(collapsed);
     }
     _updateDateSelectorVisibility();
+    _checkVitalsVisibility();
+    _checkNutritionVisibility();
+  }
+
+  void _checkVitalsVisibility() {
+    if (_hasTriggeredVitals) return;
+    final anchorBox =
+        _vitalsAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final sectionBox =
+        _sectionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (anchorBox == null || !anchorBox.hasSize || sectionBox == null) return;
+
+    final vitalsTop = anchorBox
+        .localToGlobal(Offset.zero, ancestor: sectionBox)
+        .dy;
+    final viewportHeight = sectionBox.size.height;
+    // When the steps/vitals section scrolls up into the upper half of the viewport
+    if (vitalsTop <= viewportHeight * 0.45) {
+      _hasTriggeredVitals = true;
+      _speechBaby.start(intentKey: 'screen_home_vitals_info');
+    }
+  }
+
+  void _checkNutritionVisibility() {
+    if (_hasTriggeredNutrition) return;
+    final anchorBox =
+        _nutritionAnchorKey.currentContext?.findRenderObject() as RenderBox?;
+    final sectionBox =
+        _sectionKey.currentContext?.findRenderObject() as RenderBox?;
+    if (anchorBox == null || !anchorBox.hasSize || sectionBox == null) return;
+
+    final nutritionTop = anchorBox
+        .localToGlobal(Offset.zero, ancestor: sectionBox)
+        .dy;
+    final viewportHeight = sectionBox.size.height;
+    // When the nutrition section scrolls up towards the upper half of the viewport
+    if (nutritionTop <= viewportHeight * 0.45) {
+      _hasTriggeredNutrition = true;
+      _speechBaby.start(intentKey: 'screen_home_nutrition_info');
+    }
   }
 
   void _updateDateSelectorVisibility() {
@@ -557,17 +610,21 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                 ),
               ),
 
-              // ── Vital tiles ──────────────────────────────────────────────
+              // ── Vital tiles (Steps, Sleep, HR, etc.) ──────────────────────
               SliverToBoxAdapter(
-                child: GetBuilder<HealthVitalsController>(
-                  init: _vitals,
-                  builder: _buildVitalTiles,
+                child: KeyedSubtree(
+                  key: _vitalsAnchorKey,
+                  child: GetBuilder<HealthVitalsController>(
+                    init: _vitals,
+                    builder: _buildVitalTiles,
+                  ),
                 ),
               ),
 
               // ── Nutrition (NutritionTiles draws its own heading) ─────────
               SliverToBoxAdapter(
                 child: Padding(
+                  key: _nutritionAnchorKey,
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
                   child: NutritionTiles(date: _selectedDate),
                 ),
@@ -593,6 +650,14 @@ class _MyHealthSectionState extends State<MyHealthSection> {
               const SliverToBoxAdapter(child: SizedBox(height: 80)),
             ],
           ),
+        ),
+
+        // ── Floating Baby Speech Overlay (Scroll-triggered for Vitals & Nutrition) ───
+        FloatingBabySpeechOverlay(
+          controller: _speechBaby,
+          fallbackText: 'Here is your daily health and vitals overview!',
+          bottom: 12,
+          autoStart: false,
         ),
 
         // ── Sticky date selector (overlay only) ──────────────────────────

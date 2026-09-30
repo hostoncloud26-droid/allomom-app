@@ -46,7 +46,7 @@ class TodaysCareChecklistPage extends StatelessWidget {
       body: const SafeArea(
         child: SingleChildScrollView(
           physics: BouncingScrollPhysics(),
-          padding: EdgeInsets.fromLTRB(0, 8, 0, 32),
+          padding: EdgeInsets.fromLTRB(0, 8, 0, 40),
           child: TodocareSection(allDayParts: true),
         ),
       ),

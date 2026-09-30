@@ -4,6 +4,7 @@ import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 
 class LanguageSelector extends StatefulWidget {
   final String initialAppLanguage;
@@ -34,7 +35,10 @@ class _LanguageSelectorState extends State<LanguageSelector> {
     {'code': 'en', 'symbol': 'E', 'name': 'English'},
     {'code': 'ta', 'symbol': 'த', 'name': 'தமிழ்'},
     {'code': 'hi', 'symbol': 'ह', 'name': 'हिंदी'},
+    {'code': 'kn', 'symbol': 'ಕ', 'name': 'ಕನ್ನಡ'},
     {'code': 'te', 'symbol': 'తె', 'name': 'తెలుగు'},
+    {'code': 'mr', 'symbol': 'म', 'name': 'मराठी'},
+    {'code': 'gu', 'symbol': 'ગુ', 'name': 'ગુજરાતી'},
   ];
 
   @override
@@ -122,28 +126,27 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: _languages.map((lang) {
-              final isSelected = _selectedAppLang == lang['code'];
-              return _buildLanguageCircle(
-                symbol: lang['symbol']!,
-                name: lang['name']!,
-                isSelected: isSelected,
-                onTap: () async {
-                  setState(() => _selectedAppLang = lang['code']!);
-                  widget.onAppLanguageChanged?.call(lang['code']!);
-                  // The baby switches over too, then says so in the new
-                  // language — which is the only way she can check it worked.
-                  if (BackgroundAudioController.isReady) {
-                    await BackgroundAudioController.to.setLanguage(
-                      lang['code']!,
-                    );
-                  }
-                  speak(NarrationKeys.pgConfLanguageSaved, force: true);
-                },
-              );
-            }).toList(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: _languages.map((lang) {
+                final isSelected = _selectedAppLang == lang['code'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _buildLanguageCircle(
+                    symbol: lang['symbol']!,
+                    name: lang['name']!,
+                    isSelected: isSelected,
+                    onTap: () async {
+                      setState(() => _selectedAppLang = lang['code']!);
+                      widget.onAppLanguageChanged?.call(lang['code']!);
+                      speak(NarrationKeys.pgConfLanguageSaved, force: true);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
           ),
 
           const SizedBox(height: 20),
@@ -161,21 +164,35 @@ class _LanguageSelectorState extends State<LanguageSelector> {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: _languages.map((lang) {
-              final isSelected = _selectedSpeechLang == lang['code'];
-              return _buildLanguageCircle(
-                symbol: lang['symbol']!,
-                name: lang['name']!,
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() => _selectedSpeechLang = lang['code']!);
-                  widget.onSpeechLanguageChanged?.call(lang['code']!);
-                  speak(NarrationKeys.pgConfVoiceSaved, force: true);
-                },
-              );
-            }).toList(),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: _languages.map((lang) {
+                final isSelected = _selectedSpeechLang == lang['code'];
+                return Padding(
+                  padding: const EdgeInsets.only(right: 12),
+                  child: _buildLanguageCircle(
+                    symbol: lang['symbol']!,
+                    name: lang['name']!,
+                    isSelected: isSelected,
+                    onTap: () async {
+                      setState(() => _selectedSpeechLang = lang['code']!);
+                      widget.onSpeechLanguageChanged?.call(lang['code']!);
+                      if (BackgroundAudioController.isReady) {
+                        await BackgroundAudioController.to.setLanguage(
+                          lang['code']!,
+                        );
+                      }
+                      await OfflineChatbotController.instance.setLanguage(
+                        lang['code']!,
+                      );
+                      speak(NarrationKeys.pgConfVoiceSaved, force: true);
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
           ),
 
           const SizedBox(height: 18),

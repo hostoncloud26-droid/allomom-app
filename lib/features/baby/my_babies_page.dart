@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/baby/baby_detail_page.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
@@ -9,8 +10,6 @@ import 'package:allomom/features/baby/baby_options.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/baby_db_service.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
 /// Every baby the mother has recorded — the one just delivered, and any
 /// previous children added during registration or here.
@@ -22,6 +21,9 @@ class MyBabiesPage extends StatefulWidget {
 }
 
 class _MyBabiesPageState extends State<MyBabiesPage> {
+  static const _screenIntentKey = 'screen_baby_profile_info';
+  static const _fallbackText =
+      'Here are your baby profiles, immunisation details, and health milestones!';
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
   // Neutral ink and surfaces follow light / dark mode.
@@ -73,11 +75,6 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
       _babies = babies;
       _loading = false;
     });
-
-    // One baby on the list is the moment to mention a twin — this is the only
-    // screen where a second one can be added, and the prompt makes no sense
-    // before the first is there or after the second has been.
-    if (babies.length == 1) speak(NarrationKeys.newBabyTwin);
   }
 
   Future<void> _addBaby() async {
@@ -177,21 +174,32 @@ class _MyBabiesPageState extends State<MyBabiesPage> {
           ),
         ),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _babies.isEmpty
-          ? _empty()
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView.builder(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
+      body: Stack(
+        children: [
+          _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _babies.isEmpty
+              ? _empty()
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+                    itemCount: _babies.length,
+                    itemBuilder: (_, i) => _babyCard(_babies[i]),
+                  ),
                 ),
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                itemCount: _babies.length,
-                itemBuilder: (_, i) => _babyCard(_babies[i]),
-              ),
-            ),
+
+          // Floating Baby Speech Overlay (Bottom positioned, transparent background)
+          const FloatingBabySpeechOverlay(
+            intentKey: _screenIntentKey,
+            fallbackText: _fallbackText,
+            bottom: 4,
+          ),
+        ],
+      ),
     );
   }
 

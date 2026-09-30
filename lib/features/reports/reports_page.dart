@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -515,78 +516,88 @@ class _ReportsPageState extends State<ReportsPage> {
           style: GoogleFonts.manrope(fontWeight: FontWeight.w800, color: Colors.white),
         ),
       ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        color: const Color(0xFFFF3B5C),
-        child: _isLoading && _reports.isEmpty
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF3B5C)))
-            : _reports.isEmpty
-                ? ListView(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                    children: [
-                      _buildHeader(),
-                      SizedBox(height: MediaQuery.of(context).size.height * 0.12),
-                      Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(22),
-                              decoration: BoxDecoration(
-                                color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(Icons.file_copy_outlined, size: 48, color: Color(0xFFFF3B5C)),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _refresh,
+            color: const Color(0xFFFF3B5C),
+            child: _isLoading && _reports.isEmpty
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF3B5C)))
+                : _reports.isEmpty
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                        children: [
+                          _buildHeader(),
+                          SizedBox(height: MediaQuery.of(context).size.height * 0.12),
+                          Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(22),
+                                  decoration: BoxDecoration(
+                                    color: _p.tint(const Color(0xFFFF3B5C), const Color(0xFFFFECEF)),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.file_copy_outlined, size: 48, color: Color(0xFFFF3B5C)),
+                                ),
+                                const SizedBox(height: 18),
+                                Text(
+                                  'No reports found',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: _ink,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  'Scan and upload your first medical report',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 13,
+                                    color: _muted,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 18),
-                            Text(
-                              'No reports found',
-                              style: GoogleFonts.manrope(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: _ink,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Scan and upload your first medical report',
-                              style: GoogleFonts.manrope(
-                                fontSize: 13,
-                                color: _muted,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  )
-                : ListView.builder(
-                    controller: _scrollController,
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
-                    itemCount: _reports.length + 1 + (_hasMore ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return _buildHeader();
-                      }
-
-                      final reportIndex = index - 1;
-
-                      if (reportIndex == _reports.length) {
-                        return const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 20),
-                          child: Center(
-                            child: CircularProgressIndicator(color: Color(0xFFFF3B5C), strokeWidth: 2),
                           ),
-                        );
-                      }
+                        ],
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 100),
+                        itemCount: _reports.length + 1 + (_hasMore ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index == 0) {
+                            return _buildHeader();
+                          }
 
-                      final report = _reports[reportIndex];
-                      return _buildReportCard(report);
-                    },
-                  ),
+                          final reportIndex = index - 1;
+
+                          if (reportIndex == _reports.length) {
+                            return const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 20),
+                              child: Center(
+                                child: CircularProgressIndicator(color: Color(0xFFFF3B5C), strokeWidth: 2),
+                              ),
+                            );
+                          }
+
+                          final report = _reports[reportIndex];
+                          return _buildReportCard(report);
+                        },
+                      ),
+          ),
+          FloatingBabySpeechOverlay(
+            intentKey: 'screen_my_reports_info',
+            fallbackText:
+                "Your reports are safe here, Mommy — you can view your reports. Back it up to your own Drive anytime.",
+            bottom: _memberId == null ? 76 : 12,
+          ),
+        ],
       ),
     );
   }

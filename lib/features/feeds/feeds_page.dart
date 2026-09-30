@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
@@ -384,34 +385,47 @@ class _FeedsPageState extends State<FeedsPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: PageView.builder(
-        controller: _pageController,
-        scrollDirection: Axis.vertical,
-        itemCount: _feedItems.length,
-        onPageChanged: (index) {
-          // The first recipe she lands on introduces itself. Once per session,
-          // so swiping through a dozen reels stays quiet.
-          if (_feedItems[index].tag.toUpperCase().contains('RECIPE')) {
-            speak(NarrationKeys.pgFeedsRecipe);
-          }
+      body: Stack(
+        children: [
+          PageView.builder(
+            controller: _pageController,
+            scrollDirection: Axis.vertical,
+            itemCount: _feedItems.length,
+            onPageChanged: (index) {
+              // The first recipe she lands on introduces itself. Once per session,
+              // so swiping through a dozen reels stays quiet.
+              if (_feedItems[index].tag.toUpperCase().contains('RECIPE')) {
+                speak(NarrationKeys.pgFeedsRecipe);
+              }
 
-          // Stop speech reading when swiped to another page
-          if (_currentlyReadingId != null) {
-            _speechTimer?.cancel();
-            setState(() {
-              _currentlyReadingId = null;
-              _readingProgress = 0.0;
-            });
-          }
-        },
-        itemBuilder: (context, index) {
-          final item = _feedItems[index];
-          if (item.type == FeedType.tipCard) {
-            return _buildTipCardView(item);
-          } else {
-            return _buildVideoReelView(item);
-          }
-        },
+              // Stop speech reading when swiped to another page
+              if (_currentlyReadingId != null) {
+                _speechTimer?.cancel();
+                setState(() {
+                  _currentlyReadingId = null;
+                  _readingProgress = 0.0;
+                });
+              }
+            },
+            itemBuilder: (context, index) {
+              final item = _feedItems[index];
+              if (item.type == FeedType.tipCard) {
+                return _buildTipCardView(item);
+              } else {
+                return _buildVideoReelView(item);
+              }
+            },
+          ),
+
+          // Floating Baby Speech Overlay (Matching bottom nav bar layout)
+          const FloatingBabySpeechOverlay(
+            intentKey: 'screen_feeds_info',
+            fallbackText:
+                'Discover helpful daily tips, recipes, and videos for you and your baby!',
+            bottom: 12,
+            showScrim: true,
+          ),
+        ],
       ),
     );
   }

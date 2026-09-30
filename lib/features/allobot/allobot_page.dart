@@ -10,9 +10,8 @@ import 'package:allomom/features/allobot/tabs/allobot_chat_tab.dart';
 import 'package:allomom/features/allobot/tabs/allobot_settings_tab.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
-import 'package:allomom/controllers/connection_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 
 class AlloBotPage extends StatefulWidget {
   final int initialTab;
@@ -68,9 +67,15 @@ class _AlloBotPageState extends State<AlloBotPage> {
   }
 
   void _onTabSelected(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    if (_currentIndex != index) {
+      if (BackgroundAudioController.isReady) {
+        BackgroundAudioController.to.stop();
+      }
+      TtsService().stop();
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   void _openListeningPopup() {
@@ -161,6 +166,7 @@ class _AlloBotPageState extends State<AlloBotPage> {
                   AlloBotAskAiTab(
                     key: _askAiKey,
                     initialListening: widget.autoStartListening,
+                    isActive: _currentIndex == 0,
                     onListeningChanged: (isListening) {
                       _isListeningNotifier.value = isListening;
                     },
@@ -168,13 +174,21 @@ class _AlloBotPageState extends State<AlloBotPage> {
                   ),
 
                   // Tab 1: Agents
-                  AlloBotAgentsTab(onAskTap: _openListeningPopup),
+                  AlloBotAgentsTab(
+                    onAskTap: _openListeningPopup,
+                    isActive: _currentIndex == 1,
+                  ),
 
                   // Tab 2: Chat
-                  AlloBotChatTab(onBack: () => _onTabSelected(0)),
+                  AlloBotChatTab(
+                    onBack: () => _onTabSelected(0),
+                    isActive: _currentIndex == 2,
+                  ),
 
                   // Tab 3: Settings
-                  const AlloBotSettingsTab(),
+                  AlloBotSettingsTab(
+                    isActive: _currentIndex == 3,
+                  ),
                 ],
               ),
             ),

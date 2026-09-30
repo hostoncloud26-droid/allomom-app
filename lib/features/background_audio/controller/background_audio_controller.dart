@@ -11,6 +11,7 @@ import 'package:allomom/features/background_audio/model/narration_audio.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/services/app_language.dart';
+import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
 
 /// The baby's voice, played behind whatever screen the mother is on.
@@ -196,12 +197,33 @@ class BackgroundAudioController extends GetxController {
 
   Future<void> toggleVoice() => setVoiceEnabled(!isVoiceEnabled.value);
 
-  /// The text the baby head card should show for [key], regardless of whether
-  /// its clip is bundled or the voice is switched off.
-  String textFor(String key) =>
-      NarrationCatalog.textFor(key, languageCode: languageCode.value) ??
-      _registeredText[key.trim()] ??
-      '';
+  /// The text the baby head card should show for [key], preferring the
+  /// audio library transcription from the bot bundle/file.
+  String textFor(String key, [String? langCode]) {
+    final cleanKey = key.trim();
+    if (cleanKey.isEmpty) return '';
+
+    final lang = (langCode != null && langCode.trim().isNotEmpty)
+        ? langCode.trim()
+        : languageCode.value;
+
+    final botAudio = OfflineChatbotController.instance.libraryAudioNow(
+      cleanKey,
+      lang,
+    );
+    if (botAudio != null &&
+        botAudio.transcription != null &&
+        botAudio.transcription!.trim().isNotEmpty) {
+      return botAudio.transcription!.trim();
+    }
+
+    final registered = _registeredText[cleanKey];
+    if (registered != null && registered.trim().isNotEmpty) {
+      return registered.trim();
+    }
+
+    return '';
+  }
 
   /// Gives a key outside the local catalogue its words, so the bubble can show
   /// them and the line can be read aloud when no recording exists.
@@ -225,26 +247,9 @@ class BackgroundAudioController extends GetxController {
 
   /// Resolves [key] to the clip that should voice it.
   ///
-  /// Prefers the chosen language and falls back to English, so a language whose
-  /// recordings have not landed yet still gets a voice rather than silence.
+  /// Local asset audios are disabled; always routes through the audio library / online URL / TTS.
   Future<NarrationAudio> resolve(String key) async {
-    await _loadManifest();
-
     final text = textFor(key);
-    final candidates = <String>{
-      NarrationCatalog.assetPath(languageCode.value, key),
-      NarrationCatalog.assetPath(NarrationCatalog.fallbackLanguage, key),
-    };
-
-    for (final path in candidates) {
-      // An empty manifest means the read failed; assume a catalogue key's
-      // asset is there rather than muting the whole flow over it.
-      if (_bundledAudio.contains(path) ||
-          (_bundledAudio.isEmpty && NarrationCatalog.contains(key))) {
-        return NarrationAudio(key: key, asset: path, text: text);
-      }
-    }
-
     return NarrationAudio(key: key, asset: null, text: text);
   }
 
@@ -274,13 +279,6 @@ class BackgroundAudioController extends GetxController {
       return;
     }
 
-    if (!force && _playedKeysThisSession.contains(trimmed)) {
-      // Already said once. Leave the text on the card so the bubble does not
-      // fall back to a different line on a revisit.
-      currentKey.value = trimmed;
-      currentText.value = textFor(trimmed);
-      return;
-    }
     _playedKeysThisSession.add(trimmed);
 
     final generation = ++_generation;
@@ -296,18 +294,22 @@ class BackgroundAudioController extends GetxController {
       }
     }
 
-    final clip = await resolve(trimmed);
+    final targetKey = force
+        ? trimmed
+        : ScreenVoiceHintService.resolveKeySync(introKey: trimmed);
+
+    final clip = await resolve(targetKey);
     if (generation != _generation) {
       _playedKeysThisSession.remove(trimmed);
       return;
     }
 
-    currentKey.value = trimmed;
+    currentKey.value = targetKey;
     currentText.value = clip.text;
 
     final path = clip.playerPath;
     if (path == null) {
-      await _speakFromLibrary(trimmed, clip.text, generation);
+      await _speakFromLibrary(targetKey, clip.text, generation);
       return;
     }
 

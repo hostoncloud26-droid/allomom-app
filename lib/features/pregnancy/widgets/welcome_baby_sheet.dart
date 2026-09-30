@@ -8,7 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 
@@ -592,7 +591,9 @@ class _WelcomeBabySheetState extends State<WelcomeBabySheet> {
   // ─── BABY & BUTTONS ────────────────────────────────────────
   Widget _buildBaby() {
     final key = _narrationKey;
-    final text = NarrationCatalog.textFor(key) ?? '';
+    final text = BackgroundAudioController.isReady
+        ? BackgroundAudioController.to.textFor(key)
+        : '';
     if (!BackgroundAudioController.isReady) {
       return BabyOnScreen(
         child: BabyLinePopup(text: text, speaking: false, onSpeakerTap: () {}),
