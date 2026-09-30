@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_analysis_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_summary_screen.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
@@ -7,7 +8,7 @@ import 'vital_tile_chrome.dart';
 import 'package:allomom/config/quick_action_images.dart';
 
 /// AlloConnect's blood-oxygen tile: SpO₂ % with a sparkline. The "START"
-/// chip opens Allomom's log sheet instead of a camera scan.
+/// chip measures live on the connected AlloWear, as on AlloConnect.
 class BloodOxygenTile extends StatelessWidget {
   final VitalsStreamResponse? vital;
 
@@ -60,8 +61,15 @@ class BloodOxygenTile extends StatelessWidget {
       onEmptyLog: isToday ? log : null,
       onTap: () => openVitalPage(context, const BloodOxygenSummaryScreen()),
       details: [VitalTileDetail(_status(value), color: color)],
-      action: value > 0 && isToday
-          ? VitalTileActionChip(color: color, onTap: log)
+      // AlloConnect's "START": a live reading from the connected AlloWear.
+      action: isToday
+          ? VitalTileActionChip(
+              color: color,
+              label: 'START',
+              icon: Icons.play_arrow_rounded,
+              onTap: () =>
+                  showBloodOxygenMeasureSheet(context, onDone: onLogged),
+            )
           : null,
       chart: MiniSparklineChart(
         data: vitalTrendUpTo(const ['blood_oxygen', 'spo2'], date),

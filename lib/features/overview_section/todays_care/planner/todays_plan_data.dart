@@ -89,7 +89,7 @@ class PlannedMeal {
 
   /// The Today's Care meal this is, for the log sheet and its vital key.
   CareMeal? get careMeal =>
-      CareMeal.values.firstWhereOrNull((m) => m.vitalKey == type);
+      CareMeal.values.firstWhereOrNull((m) => m.mealType == type);
 
   /// When the logged meal was eaten; older logs without times start at
   /// `createdAt` and last [MealTimes.defaultDuration].
@@ -120,7 +120,7 @@ class TodaysPlanData {
   /// The vital keys each meal is logged under: Today's Care's own key, then
   /// the older `break_fast` spelling.
   static const Map<String, List<String>> _mealKeys = {
-    'breakfast': ['breakfast', 'break_fast'],
+    'breakfast': ['break_fast'],
     'lunch': ['lunch'],
     'dinner': ['dinner'],
   };

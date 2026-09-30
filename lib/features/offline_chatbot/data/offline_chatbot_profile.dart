@@ -15,6 +15,7 @@
 /// authoring.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'dart:convert';
 
 import 'package:allomom/controllers/baby_controller.dart';
@@ -336,13 +337,8 @@ bool _activeToday() {
 /// How many glasses of water a day the My Health tile counts towards.
 const int _waterTargetGlasses = 10;
 
-/// Every meal the My Health page tracks, with the legacy breakfast spelling
-/// earlier builds wrote.
-const Map<String, List<String>> _mealKeys = {
-  'breakfast': ['breakfast', 'break_fast'],
-  'lunch': ['lunch'],
-  'dinner': ['dinner'],
-};
+/// The meals the My Health page tracks, by AlloConnect's `meal_type`.
+const List<String> _mealKeys = ['breakfast', 'lunch', 'dinner'];
 
 Map<String, dynamic> _rowData(Map<String, dynamic> row) {
   final raw = row['data'];
@@ -433,19 +429,29 @@ Future<Map<String, dynamic>> _todayNutrition() async {
   final nutrition = <String, dynamic>{};
   var totalCalories = 0.0;
 
+  // Every meal, snack and drink is an AlloConnect `food` row, told apart
+  // by its `meal_type`.
+  final foodRows = <Map<String, dynamic>>[
+    for (final key in VitalShapes.foodReadKeys) ...await today(key),
+  ];
+  List<Map<String, dynamic>> rowsOf(String mealType) => newestFirst([
+    for (final row in foodRows)
+      if (VitalShapes.mealTypeOf(row['key']?.toString() ?? '', _rowData(row)) ==
+          mealType)
+        row,
+  ]);
+
   // ── Meals ──
-  for (final entry in _mealKeys.entries) {
-    final rows = newestFirst([
-      for (final key in entry.value) ...await today(key),
-    ]);
+  for (final meal in _mealKeys) {
+    final rows = rowsOf(meal);
     final calories = rows.fold<double>(0, (sum, row) => sum + _rowValue(row));
     totalCalories += calories;
 
     final items = rows.map(_rowNote).whereType<String>().toList();
     final latest = rows.isEmpty ? null : _rowTime(rows.first);
 
-    nutrition['had_${entry.key}'] = rows.isNotEmpty;
-    nutrition[entry.key] = <String, dynamic>{
+    nutrition['had_$meal'] = rows.isNotEmpty;
+    nutrition[meal] = <String, dynamic>{
       'had': rows.isNotEmpty,
       'calories': _whole(calories),
       'times_logged': rows.length,
@@ -455,8 +461,8 @@ Future<Map<String, dynamic>> _todayNutrition() async {
   }
 
   // ── Snacks and drinks ──
-  for (final key in const ['snacks', 'drinks']) {
-    final rows = newestFirst(await today(key));
+  for (final key in const [VitalShapes.snacks, VitalShapes.drinks]) {
+    final rows = rowsOf(key);
     final calories = rows.fold<double>(0, (sum, row) => sum + _rowValue(row));
     totalCalories += calories;
     final items = rows.map(_rowNote).whereType<String>().toList();
@@ -473,8 +479,11 @@ Future<Map<String, dynamic>> _todayNutrition() async {
 
   // ── Water ──
   final waterRows = newestFirst(await today('water'));
+  // Rows hold ml.
   final glasses = _whole(
-    waterRows.fold<double>(0, (sum, row) => sum + _rowValue(row)),
+    VitalShapes.waterGlasses(
+      waterRows.fold<double>(0, (sum, row) => sum + _rowValue(row)),
+    ),
   ).clamp(0, 1 << 30);
   final lastWater = waterRows
       .where((row) => _rowValue(row) > 0)
@@ -498,7 +507,7 @@ Future<Map<String, dynamic>> _todayNutrition() async {
   };
 
   nutrition['total_calories'] = _whole(totalCalories);
-  nutrition['meals_logged'] = _mealKeys.keys
+  nutrition['meals_logged'] = _mealKeys
       .where((meal) => nutrition['had_$meal'] == true)
       .length;
 

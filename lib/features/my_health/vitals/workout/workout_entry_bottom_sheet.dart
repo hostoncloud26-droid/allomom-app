@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -28,9 +29,10 @@ Future<bool?> showWorkoutEntrySheet(
   );
 }
 
-/// Allomom stores sessions in minutes: Pelvic Exercise under `exercise`,
-/// everything else under `workout`. The MET-based kcal AlloConnect computes
-/// goes into `data['calories']`.
+/// Sessions are stored in AlloConnect's shape: key `workout`, kcal burned in
+/// the value (the MET-based estimate, also in `data['calories']`), the minutes
+/// in `data['duration']` and the kind — Pelvic Exercise included — in
+/// `data['workout_type']`.
 class WorkoutEntryBottomSheet extends StatefulWidget {
   final String? userId;
   final VitalsStreamResponse? vital;
@@ -142,8 +144,10 @@ class _WorkoutEntryBottomSheetState extends State<WorkoutEntryBottomSheet> {
           _matchWorkout(data['workout_type']) ??
           _matchWorkout(data['type']) ??
           _matchWorkout(data['activity']) ??
-          (vital.key == 'exercise' ? _pelvicName : 'Prenatal Yoga');
-      _durationController.text = vital.value.round().toString();
+          (VitalShapes.isPelvicWorkout(data)
+              ? _pelvicName
+              : 'Prenatal Yoga');
+      _durationController.text = VitalShapes.workoutMinutes(data).round().toString();
       final details =
           (data['details'] ?? data['activity'])?.toString().trim() ?? '';
       _detailsController.text = details == _selectedWorkoutType ? '' : details;
@@ -209,12 +213,12 @@ class _WorkoutEntryBottomSheetState extends State<WorkoutEntryBottomSheet> {
       final userId = widget.userId?.trim().isNotEmpty == true
           ? widget.userId!.trim()
           : MainController.instance.userId;
-      final key = _selectedWorkoutType == _pelvicName ? 'exercise' : 'workout';
-
+      // AlloConnect's shape: one `workout` key, kcal burned in the value, the
+      // minutes and the kind (Pelvic Exercise included) in data.
       final result = await HealthVitalsController.instance.addVitalEntry(
-        key: key,
-        value: duration.toDouble(),
-        unit: 'minutes',
+        key: VitalShapes.workout,
+        value: calories,
+        unit: 'kcal',
         createdAt: existing?.createdAt ?? DateTime.now(),
         userId: userId,
         data: {

@@ -249,6 +249,27 @@ class LocalReminderScheduler {
     );
   }
 
+  /// Schedules one notification at [scheduledDate], for reminders that live
+  /// outside [LocalReminderType] (the AlloWear charge reminders).
+  static Future<void> scheduleZoned({
+    required int id,
+    required String title,
+    required String body,
+    required tz.TZDateTime scheduledDate,
+    required NotificationDetails notificationDetails,
+    String? payload,
+  }) async {
+    await init();
+    await _scheduleZoned(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: scheduledDate,
+      notificationDetails: notificationDetails,
+      payload: payload,
+    );
+  }
+
   static Future<void> _scheduleZoned({
     required int id,
     required String title,

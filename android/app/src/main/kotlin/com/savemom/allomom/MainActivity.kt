@@ -1,5 +1,7 @@
 package com.savemom.allomom
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// A FragmentActivity, as on AlloConnect: Health Connect's permission request
+// (AlloWear's phone-steps sync) needs one.
+class MainActivity : FlutterFragmentActivity()

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/allowear/allowear_controller.dart';
+import 'package:allomom/allowear/allowear_home.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -28,7 +31,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   late TextEditingController _adline2Controller;
   late TextEditingController _cityController;
   late TextEditingController _pincodeController;
-  late TextEditingController _macController;
 
   // Selected State
   DateTime? _dob;
@@ -64,9 +66,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _adline2Controller = TextEditingController(text: session.adline2);
     _cityController = TextEditingController(text: session.city);
     _pincodeController = TextEditingController(text: session.pincode);
-    _macController = TextEditingController(
-      text: session.allowearMacAddress ?? '',
-    );
 
     _dob = session.dob;
     _gender = session.gender.trim().toLowerCase() == 'male' ? 'male' : 'female';
@@ -87,7 +86,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     _adline2Controller.dispose();
     _cityController.dispose();
     _pincodeController.dispose();
-    _macController.dispose();
     super.dispose();
   }
 
@@ -175,7 +173,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
     if (_lmpDate != null) await session.updateLmpDate(_lmpDate!);
     if (_eddDate != null) await session.updateEddDate(_eddDate!);
-    await session.setAllowearMacAddress(orNull(_macController.text));
 
     // Whether she is pregnant is the status of her pregnancy row, not a field
     // on the profile — so switching it starts or closes out a pregnancy.
@@ -559,12 +556,43 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         title: 'Allowear Smart Device',
                         icon: Icons.watch_rounded,
                         children: [
-                          _buildTextField(
-                            controller: _macController,
-                            label: 'Allowear MAC Address',
-                            hint: 'AA:BB:CC:11:22:33',
-                            icon: Icons.bluetooth_searching_rounded,
-                          ),
+                          // Paired over Bluetooth from the AlloWear screen,
+                          // which reads the band's real MAC — not typed in.
+                          Obx(() {
+                            final device = allowear.connectedDevice.value;
+                            final mac = allowear.deviceMac.value ??
+                                MainController.instance.allowearMacAddress;
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                device != null
+                                    ? Icons.bluetooth_connected_rounded
+                                    : Icons.bluetooth_searching_rounded,
+                                color: p.textSecondary,
+                              ),
+                              title: Text(
+                                device?.name ??
+                                    (mac != null && mac.isNotEmpty
+                                        ? 'Not connected'
+                                        : 'No device paired'),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: mac != null && mac.isNotEmpty
+                                  ? Text(mac,
+                                      style: GoogleFonts.poppins(fontSize: 12))
+                                  : null,
+                              trailing: TextButton(
+                                onPressed: () =>
+                                    Get.to(() => const AllowearHome()),
+                                child: Text(device != null || (mac ?? '').isNotEmpty
+                                    ? 'Manage'
+                                    : 'Pair'),
+                              ),
+                            );
+                          }),
                           const SizedBox(height: 6),
                           Text(
                             'Pair with Allowear to sync maternal vitals, heart rate, and temperature continuously.',

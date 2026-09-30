@@ -1,6 +1,7 @@
 // Ported from AlloConnect lib/features/health_section/vitals/snacks/snacks_entry_bottom_sheet.dart.
 // AlloConnect's AI food analysis, camera photo and Auto/Manual toggle are left
 // out, so the sheet is always in its Manual mode.
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -74,8 +75,9 @@ class _SnacksEntryBottomSheetState extends State<SnacksEntryBottomSheet> {
     final existing = widget.vital;
     final when = existing?.createdAt ?? DateTime.now();
 
-    // Home's snack shape (kcal in value, portions in data['count']) plus the
-    // note AlloConnect collects. An edit keeps the row's own count.
+    // AlloConnect's snack row (key `food`, `meal_type` 'snacks'); the portion
+    // count is kept for Home's snack counter. An edit keeps the row's own
+    // count.
     final data = <String, dynamic>{
       'count': 1,
       'count_unit': 'portions',
@@ -102,7 +104,7 @@ class _SnacksEntryBottomSheetState extends State<SnacksEntryBottomSheet> {
         ok = true;
       } else {
         final result = await HealthVitalsController.instance.addVitalEntry(
-          key: 'snacks',
+          key: VitalShapes.food,
           value: calories,
           unit: 'kcal',
           createdAt: when,

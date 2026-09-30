@@ -49,7 +49,7 @@ class WellnessSnapshot {
     'hrv': ['hrv'],
     'heart_rate': ['heart_rate'],
     'steps': ['steps'],
-    'sleep': ['sleep_data', 'sleep', 'sleep_hours'],
+    'sleep': ['sleep_data'],
     'stress': ['stress'],
     'blood_oxygen': ['blood_oxygen', 'spo2'],
     'blood_pressure': ['blood_pressure'],

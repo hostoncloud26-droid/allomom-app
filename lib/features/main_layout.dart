@@ -11,6 +11,7 @@ import 'package:allomom/features/feeds/feeds_page.dart';
 import 'package:allomom/features/people/people_page.dart';
 import 'package:allomom/features/settings/settings_page.dart';
 import 'package:allomom/controllers/connection_controller.dart';
+import 'package:allomom/allowear/allowear_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
@@ -45,6 +46,11 @@ class _MainLayoutState extends State<MainLayout> {
   @override
   void initState() {
     super.initState();
+    // Touching `allowear` registers the controller for the app's lifetime,
+    // which reconnects to the remembered band and syncs it — AlloConnect
+    // starts it from its main layout the same way.
+    allowear;
+
     // The promise made during sign-up — "just for this step we need internet"
     // — kept the first time she actually loses it. Once per session, from the
     // shell rather than a page, since the drop can happen on any tab.

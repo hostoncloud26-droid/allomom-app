@@ -125,15 +125,11 @@ class _HealthInfoEditorSheetState extends State<HealthInfoEditorSheet> {
       }
 
       if (_selectedBloodGroup != null && _selectedBloodGroup!.isNotEmpty) {
-        await HealthVitalsController.instance.addVitalEntry(
-          key: 'blood_group',
-          value: 0,
-          unit: _selectedBloodGroup!,
-          createdAt: now,
-          userId: widget.userId,
-          data: {'blood_group': _selectedBloodGroup},
+        // One row, in AlloConnect's shape (see VitalsController.setBloodGroup).
+        await MainController.instance.updateBloodGroup(_selectedBloodGroup!);
+        await HealthVitalsController.instance.fetchLatestVitals(
+          showLoading: false,
         );
-        MainController.instance.updateBloodGroup(_selectedBloodGroup!);
       }
 
       if (mounted) {

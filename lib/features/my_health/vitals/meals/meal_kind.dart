@@ -9,7 +9,7 @@ enum MealKind { breakfast, lunch, dinner }
 
 extension MealKindSpec on MealKind {
   /// The vital key Allomom writes (Home, Today's care and the calorie tile read it).
-  String get vitalKey => switch (this) {
+  String get mealType => switch (this) {
     MealKind.breakfast => 'breakfast',
     MealKind.lunch => 'lunch',
     MealKind.dinner => 'dinner',
@@ -17,7 +17,7 @@ extension MealKindSpec on MealKind {
 
   /// Every key a row of this meal may have been stored under.
   List<String> get readKeys => switch (this) {
-    MealKind.breakfast => const ['breakfast', 'break_fast'],
+    MealKind.breakfast => const ['break_fast'],
     MealKind.lunch => const ['lunch'],
     MealKind.dinner => const ['dinner'],
   };

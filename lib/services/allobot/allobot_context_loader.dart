@@ -23,6 +23,7 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// Vital keys read as point-in-time measurements rather than daily sums.
@@ -43,9 +44,9 @@ const Set<String> measurementVitalKeys = {
 /// Every key a main meal is stored under, the legacy breakfast spelling
 /// included.
 final Set<String> mealVitalKeys = {
-  for (final meal in CareMeal.values) meal.vitalKey,
+  for (final meal in CareMeal.values) meal.mealType,
   for (final meal in CareMeal.values)
-    if (meal.legacyVitalKey != null) meal.legacyVitalKey!,
+    if (meal.legacyMealKey != null) meal.legacyMealKey!,
 };
 
 /// Vital keys summed over the day, because their rows hold increments.
@@ -258,31 +259,46 @@ class AlloBotContextLoader {
     final startOfToday = _startOfToday();
     final totals = <String, double>{};
 
-    for (final key in keys) {
+    // AlloConnect's `food` rows count toward the meal, snacks or drinks their
+    // `meal_type` names; `break_fast` is an older spelling of breakfast.
+    final rowsByKey = <String, List<Map<String, dynamic>>>{};
+    for (final key in {...keys, VitalShapes.food}) {
       try {
         final rows = await VitalsSqLiteService().getVitalsHistory(
           userId,
           key,
           fromDate: startOfToday,
         );
-        if (rows.isEmpty) continue;
-
-        var total = 0.0;
         for (final row in rows) {
-          if (calorieBackedKeys.contains(key)) {
-            final recorded = _decodeData(row)['count'];
-            final parsed = recorded is num
-                ? recorded.toDouble()
-                : double.tryParse(recorded?.toString() ?? '');
-            total += parsed ?? 1;
-          } else {
-            total += (row['value'] as num?)?.toDouble() ?? 0;
-          }
+          final meal = VitalShapes.mealTypeOf(key, _decodeData(row));
+          final target = meal ?? key;
+          if (target == VitalShapes.food) continue;
+          rowsByKey.putIfAbsent(target, () => []).add(row);
         }
-        if (total > 0) totals[key] = total;
       } catch (e) {
         debugPrint('AlloBotContextLoader: could not sum "$key" vitals: $e');
       }
+    }
+
+    for (final entry in rowsByKey.entries) {
+      final key = entry.key;
+      var total = 0.0;
+      for (final row in entry.value) {
+        final value = (row['value'] as num?)?.toDouble() ?? 0;
+        if (calorieBackedKeys.contains(key)) {
+          final recorded = _decodeData(row)['count'];
+          final parsed = recorded is num
+              ? recorded.toDouble()
+              : double.tryParse(recorded?.toString() ?? '');
+          total += parsed ?? 1;
+        } else if (key == VitalShapes.water) {
+          // AlloConnect's water rows hold ml; AlloBot talks in glasses.
+          total += VitalShapes.waterGlasses(value);
+        } else {
+          total += value;
+        }
+      }
+      if (total > 0) totals[key] = total;
     }
 
     return totals;
@@ -300,7 +316,7 @@ class AlloBotContextLoader {
     final startOfToday = _startOfToday();
     final notes = <String, String>{};
 
-    for (final key in mealVitalKeys) {
+    for (final key in {...mealVitalKeys, VitalShapes.food}) {
       try {
         final rows = await VitalsSqLiteService().getVitalsHistory(
           userId,
@@ -309,14 +325,15 @@ class AlloBotContextLoader {
         );
         for (final row in rows) {
           final data = _decodeData(row);
+          final meal = VitalShapes.mealTypeOf(key, data) ?? key;
+          if (notes.containsKey(meal) || meal == VitalShapes.food) continue;
           final note =
               (data['items'] ?? data['details'] ?? data['note'])
                   ?.toString()
                   .trim() ??
               '';
           if (note.isEmpty) continue;
-          notes[key] = note;
-          break;
+          notes[meal] = note;
         }
       } catch (e) {
         debugPrint('AlloBotContextLoader: could not read "$key" notes: $e');

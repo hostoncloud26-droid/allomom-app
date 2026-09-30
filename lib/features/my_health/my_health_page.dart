@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:allomom/config/app_theme.dart';
+import 'package:allomom/allowear/allowear_controller.dart';
+import 'package:allomom/allowear/allowear_home.dart';
+import 'package:allomom/allowear/entry/allowear_status_tile_card.dart';
 import 'package:allomom/components/day_date_selector.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -23,6 +26,7 @@ import 'package:allomom/features/my_health/tiles/blood_pressure_tile.dart';
 import 'package:allomom/features/my_health/tiles/stress_tile.dart';
 import 'package:allomom/features/my_health/tiles/bmi_tile.dart';
 import 'package:allomom/features/my_health/tiles/hrv_tile.dart';
+import 'package:allomom/features/my_health/tiles/temperature_tile.dart';
 import 'package:allomom/features/my_health/tiles/hemoglobin_tile.dart';
 import 'package:allomom/features/my_health/tiles/blood_glucose_tile.dart';
 import 'package:allomom/features/my_health/tiles/kick_count_tile.dart';
@@ -55,7 +59,6 @@ class _MyHealthPageState extends State<MyHealthPage> {
   /// her name instead.
   bool _healthCollapsed = false;
   late final PageController _pageController;
-  bool _isSyncingAllowear = false;
 
   // Accent colours stay fixed; surfaces and neutral text follow light / dark.
   AppPalette get _p => context.palette;
@@ -83,30 +86,6 @@ class _MyHealthPageState extends State<MyHealthPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
-  }
-
-  void _syncAllowearDevice() async {
-    setState(() => _isSyncingAllowear = true);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Syncing with Allowear device & cloud...'),
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-
-    await HealthVitalsController.instance.syncAllVitals();
-
-    if (mounted) {
-      setState(() => _isSyncingAllowear = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vitals synced and stored successfully!'),
-          backgroundColor: Color(0xFF10B981),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
   }
 
   /// "My Health" with her name under it, once the profile card is gone.
@@ -184,18 +163,21 @@ class _MyHealthPageState extends State<MyHealthPage> {
           ? null
           : FloatingActionButton(
         heroTag: 'my_health_allowear_fab',
-        onPressed: _isSyncingAllowear ? null : _syncAllowearDevice,
+        // As on AlloConnect's My Health: the band button opens AlloWear,
+        // where she pairs, syncs and measures.
+        onPressed: () => Get.to(() => const AllowearHome()),
         backgroundColor: const Color(0xFFFF3B5C),
         elevation: 6,
         shape: const CircleBorder(),
         // AlloConnect's band icon: it turns while a sync runs, and is dimmed
-        // until a band has been paired.
+        // until a band is connected.
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: _RotatingAllowearIcon(
-            spinning: _isSyncingAllowear,
-            paired:
-                (MainController.instance.allowearMacAddress ?? '').isNotEmpty,
+          child: Obx(
+            () => _RotatingAllowearIcon(
+              spinning: allowear.isSyncing.value,
+              paired: allowear.connectedDevice.value != null,
+            ),
           ),
         ),
       ),
@@ -450,6 +432,12 @@ class _MyHealthSectionState extends State<MyHealthSection> {
   double get _appBarBottom => 0;
 
   Future<void> _refresh() async {
+    // A connected band is pulled first, as AlloConnect's refresh does, so the
+    // cloud sync below carries what it just handed over.
+    if (!MainController.instance.isViewingMember &&
+        allowear.connectedDevice.value != null) {
+      await allowear.startSync();
+    }
     await _vitals.syncAllVitals();
     await _loadDayVitals();
   }
@@ -506,6 +494,17 @@ class _MyHealthSectionState extends State<MyHealthSection> {
                   child: AdvancedHealthSummaryCard(),
                 ),
               ),
+
+              // ── AlloWear status ──────────────────────────────────────────
+              // Her band: connection, battery and last sync; taps through to
+              // the AlloWear screen. Not on a family member's record.
+              if (!MainController.instance.isViewingMember)
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    child: AllowearStatusTileCard(),
+                  ),
+                ),
 
               // ── Cycle tracker (not pregnant) ─────────────────────────────
               SliverToBoxAdapter(child: _buildCycleCard()),
@@ -645,7 +644,7 @@ class _MyHealthSectionState extends State<MyHealthSection> {
 
     final sleepVital = today
         ? c.sleepVital
-        : (_dayVitals['sleep'] ?? _dayVitals['sleep_data']);
+        : _dayVitals['sleep_data'];
     final glucoseVital = today
         ? _todayGlucoseVital
         : (_dayVitals['glucose'] ?? _dayVitals['blood_glucose']);
@@ -692,6 +691,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
       ),
       HrvTile(
         vital: _vitalFor('hrv', c.hrvVital),
+        date: date,
+        onLogged: onLogged,
+      ),
+      TemperatureTile(
+        vital: _vitalFor('temperature', c.getLatestVitalByKey('temperature')),
         date: date,
         onLogged: onLogged,
       ),

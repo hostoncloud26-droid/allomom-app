@@ -115,8 +115,8 @@ enum CareDayPart {
   };
 }
 
-/// A main meal that Today's Care can log, mapped onto the vital keys the rest
-/// of the app already reads (see `nutrition_tiles.dart`).
+/// A main meal that Today's Care can log. [mealType] is the meal's name, which
+/// is AlloConnect's `meal_type`; the row itself is stored as `food`.
 ///
 /// Snacks and drinks are deliberately not here — they are logged as counts
 /// (portions / cups) rather than through the meal sheet.
@@ -125,16 +125,16 @@ enum CareMeal {
   lunch('lunch', 'Lunch', 600),
   dinner('dinner', 'Dinner', 550);
 
-  const CareMeal(this.vitalKey, this.label, this.typicalCalories);
+  const CareMeal(this.mealType, this.label, this.typicalCalories);
 
   /// Vital key this meal is stored under.
-  final String vitalKey;
+  final String mealType;
   final String label;
 
   /// Pre-filled calorie estimate in the log sheet.
   final int typicalCalories;
 
   /// Legacy alias also written by earlier builds; readers must check both.
-  String? get legacyVitalKey =>
+  String? get legacyMealKey =>
       this == CareMeal.breakfast ? 'break_fast' : null;
 }
