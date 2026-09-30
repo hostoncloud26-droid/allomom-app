@@ -99,18 +99,9 @@ class _PeoplePageState extends State<PeoplePage> {
 
     final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
-    final refreshed = await FamilyController.instance.refreshFromServer();
+    await FamilyController.instance.refreshFromServer();
     if (!mounted) return;
     await _loadFamilyDataInner();
-    if (!refreshed && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Couldn't refresh your family list — showing the last saved version.",
-          ),
-        ),
-      );
-    }
   }
 
   Future<void> _loadFamilyDataInner({bool keepLoadingIfEmpty = false}) async {
@@ -531,7 +522,7 @@ class _PeoplePageState extends State<PeoplePage> {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF8F5),
+        color: _p.tint(const Color(0xFF10B981), const Color(0xFFEAF8F5)),
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -553,8 +544,8 @@ class _PeoplePageState extends State<PeoplePage> {
                     height: 76,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFFCE7F0),
-                      border: Border.all(color: Colors.white, width: 3),
+                      color: _p.tint(primaryColor, const Color(0xFFFCE7F0)),
+                      border: Border.all(color: _p.card, width: 3),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.08),
@@ -591,10 +582,10 @@ class _PeoplePageState extends State<PeoplePage> {
               children: [
                 Text(
                   familyName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: textDark,
+                    color: _p.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -607,15 +598,15 @@ class _PeoplePageState extends State<PeoplePage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFDCFCE7),
+                        color: _p.tint(const Color(0xFF15803D), const Color(0xFFDCFCE7)),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
                         '$membersCount ${membersCount == 1 ? "member" : "members"}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
-                          color: Color(0xFF15803D),
+                          color: _ink(const Color(0xFF15803D)),
                         ),
                       ),
                     ),
@@ -643,7 +634,7 @@ class _PeoplePageState extends State<PeoplePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: _p.card,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: primaryColor.withValues(alpha: 0.3),

@@ -135,34 +135,39 @@ class AllomomApp extends StatelessWidget {
     return GetBuilder<MainController>(
       init: MainController.instance,
       builder: (_) {
-        return GetMaterialApp(
-          navigatorKey: rootNavigatorKey,
-          // Lets the baby popup tell a sheet over a screen from a new screen,
-          // and the home AlloBaby card go quiet when a page opens over it.
-          navigatorObservers: [
-            BabyOnScreen.observer,
-            AlloBabyFlowController.observer,
-          ],
-          title: 'Allomom',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.light,
-          darkTheme: AppTheme.dark,
-          themeMode: ThemeController.instance.resolvedThemeMode,
-          // Status bar icons follow whichever theme is actually showing,
-          // including when "System" hands the choice to the phone.
-          builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-            value: ThemeController.overlayFor(Theme.of(context).brightness),
-            // The baby's popup for screens with no baby card of their own,
-            // above the navigator so it rides over every route and sheet.
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                child ?? const SizedBox.shrink(),
-                const BabyBottomAvatar(),
+        return GetBuilder<ThemeController>(
+          init: ThemeController.instance,
+          builder: (themeCtrl) {
+            return GetMaterialApp(
+              navigatorKey: rootNavigatorKey,
+              // Lets the baby popup tell a sheet over a screen from a new screen,
+              // and the home AlloBaby card go quiet when a page opens over it.
+              navigatorObservers: [
+                BabyOnScreen.observer,
+                AlloBabyFlowController.observer,
               ],
-            ),
-          ),
-          home: _home(),
+              title: 'Allomom',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light,
+              darkTheme: AppTheme.dark,
+              themeMode: themeCtrl.resolvedThemeMode,
+              // Status bar icons follow whichever theme is actually showing,
+              // including when "System" hands the choice to the phone.
+              builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+                value: ThemeController.overlayFor(Theme.of(context).brightness),
+                // The baby's popup for screens with no baby card of their own,
+                // above the navigator so it rides over every route and sheet.
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    child ?? const SizedBox.shrink(),
+                    const BabyBottomAvatar(),
+                  ],
+                ),
+              ),
+              home: _home(),
+            );
+          },
         );
       },
     );
