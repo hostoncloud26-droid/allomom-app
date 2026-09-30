@@ -133,9 +133,6 @@ class BabyHeroBanner extends StatelessWidget {
   /// size whether it is showing or not.
   static const _bubbleAllowance = 18.0 + 8 + 36 + 2 * 13.5 * 1.45 + 6;
 
-  /// The card's pink wash, dimmed to a rose-tinted dark for dark mode.
-  static const _darkWash = Color(0xFF2A1D21);
-
   @override
   Widget build(BuildContext context) => BabyOnScreen(child: _build(context));
 
@@ -447,15 +444,16 @@ class BabyHeroBanner extends StatelessWidget {
     bool speaking, {
     bool tailLeft = false,
   }) {
+    final p = context.palette;
     final label = Text(
       text,
       textAlign: TextAlign.center,
       overflow: TextOverflow.ellipsis,
       maxLines: 4,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 13.5,
         fontWeight: FontWeight.w500,
-        color: Color(0xFF2D3142),
+        color: p.textPrimary,
         height: 1.45,
         letterSpacing: 0.1,
       ),
@@ -466,8 +464,11 @@ class BabyHeroBanner extends StatelessWidget {
       constraints: const BoxConstraints(maxWidth: 320),
       child: CustomPaint(
         painter: _ChatBubbleTailPainter(
-          color: Colors.white,
-          shadowColor: const Color(0xFFFF8A9E).withValues(alpha: 0.16),
+          color: p.pick(Colors.white, p.card),
+          shadowColor: p.pick(
+            const Color(0xFFFF8A9E).withValues(alpha: 0.16),
+            p.shadow,
+          ),
           tailLeft: tailLeft,
         ),
         child: Container(
@@ -713,11 +714,11 @@ class BabyPromptBar extends StatelessWidget {
   static const barKey = Key('babyPromptBar');
 
   @override
-  Widget build(BuildContext context) => BabyOnScreen(child: _build());
+  Widget build(BuildContext context) => BabyOnScreen(child: _build(context));
 
-  Widget _build() {
+  Widget _build(BuildContext context) {
     final key = narrationKey;
-    if (key == null) return _buildBar(text, onSpeakerTap, speakingOverride);
+    if (key == null) return _buildBar(context, text, onSpeakerTap, speakingOverride);
 
     return BabyNarration(
       narrationKey: key,
@@ -726,27 +727,31 @@ class BabyPromptBar extends StatelessWidget {
       bindText: bindNarrationText,
       fallbackText: text,
       builder: (context, state) =>
-          _buildBar(state.text, state.onSpeakerTap, state.speaking),
+          _buildBar(context, state.text, state.onSpeakerTap, state.speaking),
     );
   }
 
-  Widget _buildBar(String label, VoidCallback? speakerTap, bool speaking) {
+  Widget _buildBar(BuildContext context, String label, VoidCallback? speakerTap, bool speaking) {
+    final p = context.palette;
     return Container(
       key: barKey,
       margin: margin,
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF2F5),
+        color: p.pick(const Color(0xFFFFF2F5), p.card),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFFFE2E8), width: 1.2),
+        border: Border.all(
+          color: p.pick(const Color(0xFFFFE2E8), p.border),
+          width: 1.2,
+        ),
       ),
       child: Row(
         children: [
           Container(
             width: 42,
             height: 42,
-            decoration: const BoxDecoration(
-              color: Colors.white,
+            decoration: BoxDecoration(
+              color: p.pick(Colors.white, p.surface),
               shape: BoxShape.circle,
             ),
             clipBehavior: Clip.antiAlias,
@@ -763,10 +768,10 @@ class BabyPromptBar extends StatelessWidget {
               label.replaceAll('\n', ' '),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF2D3142),
+                color: p.textPrimary,
                 height: 1.35,
               ),
             ),
