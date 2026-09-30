@@ -140,7 +140,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               initialAppLanguage: AppLanguage.cachedOrFallback,
               initialSpeechLanguage: BackgroundAudioController.isReady
                   ? BackgroundAudioController.to.languageCode.value
-                  : AppLanguage.cachedOrFallback,
+                  : AppLanguage.voiceCachedOrFallback,
               onAppLanguageChanged:
                   OfflineChatbotController.instance.applyAppLanguage,
               onSpeechLanguageChanged:

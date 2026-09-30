@@ -70,12 +70,19 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   /// catalogue so they do not reshuffle on every rebuild.
   List<String> _openingSuggestions = const [];
 
+  /// Redraws [_openingSuggestions] when a language switch swaps the catalogue.
+  Worker? _catalogueWorker;
+
   static const _askAlloIntentKey = 'screen_ask_allo_info';
 
   @override
   void initState() {
     super.initState();
     _openingSuggestions = _drawOpeningSuggestions();
+    _catalogueWorker = ever<DateTime?>(controller.lastSynced, (_) {
+      if (!mounted) return;
+      setState(() => _openingSuggestions = _drawOpeningSuggestions());
+    });
 
     if (widget.isActive) {
       _startSpeech();
@@ -131,6 +138,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   @override
   void dispose() {
+    _catalogueWorker?.dispose();
     _stopSpeaking();
     _input.dispose();
     _scroll.dispose();
@@ -221,8 +229,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   // ── Suggestions ──────────────────────────────────────────────────────────
 
-  /// Trigger phrases from the downloaded catalogue, falling back to a curated
-  /// pool while nothing has been downloaded yet.
+  /// Trigger phrases from the downloaded catalogue in her language.
   List<String> _drawOpeningSuggestions() =>
       alloBotOpeningSuggestions(controller);
 

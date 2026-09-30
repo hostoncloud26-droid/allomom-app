@@ -102,7 +102,7 @@ class HomeVoiceController extends ChangeNotifier {
     _hasGreeted = true;
 
     try {
-      _language = await AppLanguage.current();
+      _language = await AppLanguage.voice();
       await _tts.init();
       final loaded = await AlloBotContextLoader.load();
       _flow = await _buildFlow(loaded);
@@ -129,7 +129,7 @@ class HomeVoiceController extends ChangeNotifier {
   Future<void> startAncFollowUp() async {
     if (_flow == null) {
       try {
-        _language = await AppLanguage.current();
+        _language = await AppLanguage.voice();
         await _tts.init();
         _flow = await _buildFlow(await AlloBotContextLoader.load());
       } catch (e) {

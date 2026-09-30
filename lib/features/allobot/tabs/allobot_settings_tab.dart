@@ -206,7 +206,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
       child: Obx(() {
         final languages = chatbot.availableLanguages;
         final current = chatbot.langCode.value.isEmpty
-            ? AppLanguage.cachedOrFallback
+            ? AppLanguage.voiceCachedOrFallback
             : chatbot.langCode.value;
         final syncing = chatbot.isSyncing.value;
 

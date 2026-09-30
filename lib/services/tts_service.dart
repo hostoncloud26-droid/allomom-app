@@ -151,13 +151,24 @@ class TtsService {
 
   /// Points the engine at [language] (an app picker code).
   ///
-  /// A device with no voice for that locale throws or silently refuses, so a
-  /// failure falls back to English rather than leaving the engine unset.
+  /// Reads it with the language's speech tag from the Builder ("ta-IN"), then
+  /// the bare language ("ta") for a phone whose voice is filed under another
+  /// region, and English only when the phone has neither.
   Future<void> setLanguage(String language) async {
     final locale = AppLanguage.ttsLocale(language);
+    final bare = locale.split(RegExp('[-_]')).first;
     try {
-      final available = await _flutterTts.isLanguageAvailable(locale);
-      await _flutterTts.setLanguage(available == true ? locale : 'en-IN');
+      for (final candidate in {locale, bare}) {
+        if (await _flutterTts.isLanguageAvailable(candidate) == true) {
+          await _flutterTts.setLanguage(candidate);
+          return;
+        }
+      }
+      debugPrint(
+        'TtsService: no device voice for $locale — install it under '
+        'Settings › Text-to-speech; reading with en-IN instead',
+      );
+      await _flutterTts.setLanguage('en-IN');
     } catch (e) {
       debugPrint('TtsService: could not set language $locale: $e');
       try {
@@ -287,6 +298,13 @@ class TtsService {
 
     final cleanText = cleanForSpeech(text);
     final recordedUrl = audioUrl?.trim() ?? '';
+
+    // The words decide the voice: Tamil read by an English voice is noise,
+    // and most callers pass no language at all. Text the script does not
+    // settle keeps whatever was asked for, else English.
+    final requested = language?.trim().toLowerCase() ?? '';
+    language = AppLanguage.fromScript(cleanText, hint: requested) ??
+        ((requested.isEmpty || requested == 'all') ? 'en' : requested);
     if (recordedUrl.isEmpty && (cleanText.isEmpty || recordedOnly)) {
       done();
       return gate;

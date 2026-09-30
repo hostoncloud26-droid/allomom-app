@@ -75,6 +75,12 @@ class BotBundle {
     return null;
   }
 
+  /// Each language's speech tag, by code, for the ones that have one.
+  Map<String, String> get speechTags => {
+        for (final l in languages)
+          if (l.speechCode.isNotEmpty) l.code: l.speechCode,
+      };
+
   List<BotIntent> forLanguage(String? langCode) {
     if (langCode == null || langCode.isEmpty || langCode == 'all') {
       return intents;
@@ -111,14 +117,27 @@ class BotLanguage {
   final String code;
   final String name;
 
-  const BotLanguage({required this.code, required this.name});
+  /// The BCP-47 tag the phone's voice reads this language with ("ta-IN"), as
+  /// set on the language in the Builder. Empty when none was set.
+  final String speechCode;
+
+  const BotLanguage({
+    required this.code,
+    required this.name,
+    this.speechCode = '',
+  });
 
   factory BotLanguage.fromJson(Map<String, dynamic> json) => BotLanguage(
         code: (json['code'] ?? '').toString(),
         name: (json['name'] ?? '').toString(),
+        speechCode: (json['speech_code'] ?? '').toString().trim(),
       );
 
-  Map<String, dynamic> toJson() => {'code': code, 'name': name};
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'name': name,
+        if (speechCode.isNotEmpty) 'speech_code': speechCode,
+      };
 }
 
 class BotIntent {

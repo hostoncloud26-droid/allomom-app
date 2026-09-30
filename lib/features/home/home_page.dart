@@ -127,6 +127,9 @@ class _HomePageState extends State<HomePage> {
   /// Ask Allo's "Try asking" questions, drawn once the catalogue is ready.
   List<String> _trySuggestions = const [];
 
+  /// Redraws [_trySuggestions] whenever a new catalogue is adopted.
+  Worker? _suggestionsWorker;
+
   /// Keeps [_lastSpokenText] and the bubble in step with the player.
   final List<Worker> _audioWorkers = [];
 
@@ -152,6 +155,12 @@ class _HomePageState extends State<HomePage> {
     await chatbot.ready;
     if (!mounted) return;
     setState(() => _trySuggestions = alloBotOpeningSuggestions(chatbot));
+    // A language switch swaps the catalogue; the chips follow it rather than
+    // staying in the language Home first drew them in.
+    _suggestionsWorker = ever<DateTime?>(chatbot.lastSynced, (_) {
+      if (!mounted) return;
+      setState(() => _trySuggestions = alloBotOpeningSuggestions(chatbot));
+    });
   }
 
   /// A "Try asking" chip: whatever is talking stands down and AlloBaby
@@ -281,6 +290,7 @@ class _HomePageState extends State<HomePage> {
     for (final worker in _audioWorkers) {
       worker.dispose();
     }
+    _suggestionsWorker?.dispose();
     super.dispose();
   }
 

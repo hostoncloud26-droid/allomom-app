@@ -275,6 +275,7 @@ class OfflineChatbotController extends GetxController {
           name: l.name.isNotEmpty
               ? l.name
               : (_defaultLanguageNames[code] ?? code.toUpperCase()),
+          speechCode: l.speechCode,
         );
       }
     }
@@ -339,7 +340,7 @@ class OfflineChatbotController extends GetxController {
   /// Reads the cached catalogue and transcript, then downloads a fresh
   /// catalogue if there is none.
   Future<void> _bootstrap() async {
-    final appLang = await AppLanguage.current();
+    final appLang = await AppLanguage.voice();
     langCode.value = appLang;
     await _loadCached();
     if (!_cacheLoaded.isCompleted) _cacheLoaded.complete();
@@ -389,6 +390,7 @@ class OfflineChatbotController extends GetxController {
 
   void _adopt(BotBundle next) {
     bundle = next;
+    AppLanguage.useSpeechTags(next.speechTags);
     if ((next.langCode ?? '').isNotEmpty) langCode.value = next.langCode!;
     lastSynced.value = next.downloadedAt;
     _engine = OfflineChatbotEngine(
@@ -494,7 +496,7 @@ class OfflineChatbotController extends GetxController {
         langCode: request.langCode?.isNotEmpty == true
             ? request.langCode
             : (langCode.value.isEmpty
-                  ? AppLanguage.cachedOrFallback
+                  ? AppLanguage.voiceCachedOrFallback
                   : langCode.value),
         // Who is asking, so a step can pose a plain question and still get an
         // answer that knows which week and whose vitals it is talking about.
@@ -1692,6 +1694,7 @@ class OfflineChatbotController extends GetxController {
         intents: bundle?.intents ?? const [],
         audios: bundle?.audios ?? const [],
       );
+      AppLanguage.useSpeechTags(bundle!.speechTags);
       update();
     } catch (_) {
       // Without a list the picker simply shows what the bundle already had.
@@ -1706,6 +1709,10 @@ class OfflineChatbotController extends GetxController {
     if (BackgroundAudioController.isReady) {
       await BackgroundAudioController.to.setLanguage(next);
     }
+
+    // Saved first, so a restart opens in her choice rather than the app
+    // language even if the download below fails.
+    await AppLanguage.saveVoice(next);
 
     if (isSyncing.value) await isSyncing.stream.firstWhere((s) => !s);
     langCode.value = next;

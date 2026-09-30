@@ -26,24 +26,13 @@ import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_cont
 // ── Opening suggestions ───────────────────────────────────────────────────
 
 /// The "Try asking" questions shown before she has asked anything: a random
-/// draw from the downloaded catalogue's triggers, or a few standing questions
-/// while it has too few.
-List<String> alloBotOpeningSuggestions(OfflineChatbotController controller) {
-  final triggers = controller.sampleTriggers(limit: 10, randomize: true);
-  if (triggers.length >= 3) return triggers;
-
-  final pool = <String>[
-    'How is my baby this week?',
-    'What should I eat today?',
-    'Show my health vitals',
-    'When is my next checkup?',
-    'Open my reports',
-    'My baby is kicking',
-    'My baby is crying',
-    'What can you do?',
-  ]..shuffle();
-  return pool.take(6).toList();
-}
+/// draw from the example phrases of the intents loaded in her language.
+///
+/// Only phrases the catalogue was taught, so every chip is one the bot can
+/// actually answer. A catalogue with no examples draws none, and the row
+/// hides rather than offering questions that would only reach the fallback.
+List<String> alloBotOpeningSuggestions(OfflineChatbotController controller) =>
+    controller.sampleTriggers(limit: 10, randomize: true);
 
 // ── Hero line ─────────────────────────────────────────────────────────────
 

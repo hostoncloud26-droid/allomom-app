@@ -277,7 +277,7 @@ class _AlloBotVoicePopupState extends State<AlloBotVoicePopup>
     try {
       final selectedLanguage = widget.controller.langCode.value.isNotEmpty
           ? widget.controller.langCode.value
-          : await AppLanguage.current();
+          : await AppLanguage.voice();
       heard = await AlloBotSpeechService.instance.transcribe(
         path,
         language: selectedLanguage,

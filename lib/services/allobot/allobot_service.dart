@@ -32,7 +32,7 @@ class AlloBotService {
     return AlloBotEngine(
       knowledgeBase: await seeds,
       context: await context,
-      language: language ?? await AppLanguage.current(),
+      language: language ?? await AppLanguage.voice(),
     );
   }
 

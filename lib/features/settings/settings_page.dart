@@ -540,7 +540,7 @@ class _SettingsPageState extends State<SettingsPage> {
               initialAppLanguage: AppLanguage.cachedOrFallback,
               initialSpeechLanguage: BackgroundAudioController.isReady
                   ? BackgroundAudioController.to.languageCode.value
-                  : AppLanguage.cachedOrFallback,
+                  : AppLanguage.voiceCachedOrFallback,
               onAppLanguageChanged:
                   OfflineChatbotController.instance.applyAppLanguage,
               onSpeechLanguageChanged:

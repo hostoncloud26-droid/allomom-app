@@ -245,7 +245,7 @@ class AlloBotSpeechService extends GetxService {
 
       final langCode = (language != null && language.trim().isNotEmpty)
           ? language.trim().toLowerCase()
-          : (await AppLanguage.current());
+          : (await AppLanguage.voice());
 
       debugPrint(
           'Transcribing audio from: $audioPath with model at: $_modelPath, language: $langCode');

@@ -141,7 +141,7 @@ class BackgroundAudioController extends GetxController {
 
   Future<void> _loadLanguage() async {
     try {
-      languageCode.value = await AppLanguage.current();
+      languageCode.value = await AppLanguage.voice();
     } catch (e) {
       debugPrint('BackgroundAudio: could not read language: $e');
       languageCode.value = NarrationCatalog.fallbackLanguage;
