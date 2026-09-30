@@ -48,10 +48,9 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
   bool _isLoading = false;
 
   final List<String> _genderOptions = ['Male', 'Female'];
-  final List<String> _relationshipOptions = [
+  static const List<String> _allRelationships = [
     'Father',
     'Mother',
-    'Wife',
     'Children',
     'Brother',
     'Sister',
@@ -61,15 +60,30 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
     'Caregiver',
   ];
 
+  bool _familyHas(Set<String> relations) => widget.existingMembers.any((m) {
+    if (m is! Map) return false;
+    return relations.contains((m['relation'] ?? '').toString().toLowerCase());
+  });
+
+  /// A household has one father and one mother, so a role that is already
+  /// filled is not offered again.
+  List<String> get _relationshipOptions {
+    final hasFather = _familyHas({'father', 'dad'});
+    final hasMother = _familyHas({'mother', 'mom'});
+    return _allRelationships.where((r) {
+      if (r == 'Father') return !hasFather;
+      if (r == 'Mother') return !hasMother;
+      return true;
+    }).toList();
+  }
+
   @override
   void initState() {
     super.initState();
     final initial = widget.initialRelationship;
     if (initial != null && _relationshipOptions.contains(initial)) {
       _selectedRelationship = initial;
-      if (initial == 'Mother' ||
-          initial == 'Wife' ||
-          initial == 'Grandmother') {
+      if (initial == 'Mother' || initial == 'Grandmother') {
         _selectedGender = 'Female';
       } else if (initial == 'Father' || initial == 'Grandfather') {
         _selectedGender = 'Male';
@@ -526,9 +540,7 @@ class _AddFamilyMemberSheetState extends State<AddFamilyMemberSheet> {
                 onChanged: (val) {
                   setState(() {
                     _selectedRelationship = val;
-                    if (val == 'Mother' ||
-                        val == 'Wife' ||
-                        val == 'Grandmother') {
+                    if (val == 'Mother' || val == 'Grandmother') {
                       _selectedGender = 'Female';
                     } else if (val == 'Father' || val == 'Grandfather') {
                       _selectedGender = 'Male';
