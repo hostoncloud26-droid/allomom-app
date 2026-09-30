@@ -612,7 +612,10 @@ class _PeoplePageState extends State<PeoplePage> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: _p.tint(const Color(0xFF15803D), const Color(0xFFDCFCE7)),
+                        color: _p.tint(
+                          const Color(0xFF15803D),
+                          const Color(0xFFDCFCE7),
+                        ),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -745,10 +748,10 @@ class _PeoplePageState extends State<PeoplePage> {
     final canEditNickname = !isSelf && !isAutoAddedBaby && userId != null;
     final onEditName = canEditNickname
         ? () => _showEditNicknameDialog(
-              userId: userId,
-              realName: realName,
-              currentNickname: nickname,
-            )
+            userId: userId,
+            realName: realName,
+            currentNickname: nickname,
+          )
         : null;
 
     // The baby has no chat of its own — its card opens Baby Journey (care and
@@ -759,9 +762,9 @@ class _PeoplePageState extends State<PeoplePage> {
         : Icons.chat_bubble_outline_rounded;
     final onTrailingTap = isChild
         ? () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
-            )
+            context,
+            MaterialPageRoute(builder: (_) => const PregnancyJourneyPage()),
+          )
         : null;
 
     // Self-removal isn't offered here — the only way to leave a family is
@@ -943,7 +946,9 @@ class _PeoplePageState extends State<PeoplePage> {
     );
     if (!mounted) return;
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
       return;
     }
     _loadFamilyData();
@@ -1115,9 +1120,7 @@ class _PeoplePageState extends State<PeoplePage> {
                         if (userId.isEmpty) {
                           ScaffoldMessenger.of(ctx).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Sign in before creating a family',
-                              ),
+                              content: Text('Sign in before creating a family'),
                             ),
                           );
                           return;
@@ -1417,7 +1420,10 @@ class _PeoplePageState extends State<PeoplePage> {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: _p.tint(const Color(0xFF15803D), const Color(0xFFD1FAE5)),
+                color: _p.tint(
+                  const Color(0xFF15803D),
+                  const Color(0xFFD1FAE5),
+                ),
                 borderRadius: BorderRadius.circular(18),
               ),
               padding: const EdgeInsets.all(6),
@@ -1660,11 +1666,7 @@ class _PeoplePageState extends State<PeoplePage> {
                   shape: BoxShape.circle,
                   color: primaryColor.withValues(alpha: 0.08),
                 ),
-                child: Icon(
-                  trailingIcon,
-                  color: primaryColor,
-                  size: 18,
-                ),
+                child: Icon(trailingIcon, color: primaryColor, size: 18),
               ),
             ),
         ],
@@ -2112,13 +2114,6 @@ class _PeoplePageState extends State<PeoplePage> {
               tooltip: 'Leave community',
               onTap: () => _leaveCommunity(community),
             ),
-            const SizedBox(width: 8),
-            _buildCommunityActionButton(
-              icon: Icons.chat_bubble_outline_rounded,
-              color: primaryColor,
-              tooltip: 'Open community',
-              onTap: () => _openCommunity(community),
-            ),
           ],
         ),
       ),
@@ -2222,4 +2217,3 @@ class _FamilyTreeIllustrationPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-

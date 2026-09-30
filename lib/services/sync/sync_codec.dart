@@ -11,12 +11,28 @@ class SyncCodec {
   const SyncCodec._();
 
   /// Parses an ISO-8601 string to local time. Returns null on anything unusable.
+  ///
+  /// A timestamp without an offset is UTC. The server keeps some columns as
+  /// plain `DateTime` (`vitals_stream.createdAt` among them): it stores the
+  /// UTC value [isoUtc] sent, minus the offset, and hands it back that way.
+  /// Read as local time instead, every such row would come back shifted by
+  /// the device's offset — a reading at noon in India returning as 6:30. A
+  /// bare `YYYY-MM-DD` is a calendar day, not an instant, so it stays local.
   static DateTime? date(dynamic raw) {
     if (raw == null) return null;
     if (raw is DateTime) return raw;
-    final parsed = DateTime.tryParse(raw.toString());
+    final text = raw.toString().trim();
+    if (_dayOnly.hasMatch(text)) return DateTime.tryParse(text);
+    final parsed = DateTime.tryParse(
+      _hasOffset.hasMatch(text) ? text : '${text}Z',
+    );
     return parsed?.toLocal();
   }
+
+  static final RegExp _dayOnly = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+  /// A trailing `Z` or `±hh:mm` / `±hhmm` offset.
+  static final RegExp _hasOffset = RegExp(r'(Z|[+-]\d{2}:?\d{2})$', caseSensitive: false);
 
   /// Formats for the wire. Always UTC, so the server never has to guess at the
   /// device's offset.

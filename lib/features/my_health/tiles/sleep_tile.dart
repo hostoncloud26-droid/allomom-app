@@ -159,7 +159,7 @@ class SleepTile extends StatelessWidget {
   /// Falls back to [vital] alone when the controller holds no history for it.
   _SleepSession? _day() {
     final sessions = <_SleepSession>[];
-    final rows = vitalHistoryUpTo(const ['sleep', 'sleep_data'], date);
+    final rows = vitalHistoryUpTo(const ['sleep_data'], date);
     for (final r in rows) {
       final s = _session(r);
       if (s != null && DateUtils.isSameDay(s.wake, date)) sessions.add(s);

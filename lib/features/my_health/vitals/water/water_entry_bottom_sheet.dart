@@ -8,10 +8,11 @@ import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// Millilitres a `water` row stands for.
 ///
-/// Allomom stores water as glasses of [kGlassMl] ml in the value (increments,
-/// negative to undo); rows written by this sheet also keep the exact
-/// amount in `data['ml']`.
+/// Rows are increments (negative to undo). AlloConnect's shape, which Allomom
+/// now writes, has ml in the value; older Allomom rows hold glasses of
+/// [kGlassMl] ml, some with the exact amount in `data['ml']`.
 double waterRowMl(VitalsStreamResponse v) {
+  if (v.unit.toLowerCase() == 'ml') return v.value;
   final ml = v.data?['ml'];
   if (ml is num) return v.value < 0 ? -ml.abs().toDouble() : ml.toDouble();
   final parsed = double.tryParse(ml?.toString() ?? '');
@@ -89,8 +90,8 @@ class _WaterEntryBottomSheetState extends State<WaterEntryBottomSheet> {
     setState(() => _saving = true);
     try {
       final existing = widget.vital;
-      // Glasses in the value so every existing reader keeps summing glasses;
-      // the exact ml rides along in data.
+      // AlloConnect's shape: ml in the value. The glass count rides along for
+      // the screens that count glasses.
       final glasses = double.parse((amount / kGlassMl).toStringAsFixed(2));
       final userId = widget.userId?.trim().isNotEmpty == true
           ? widget.userId!.trim()
@@ -98,8 +99,8 @@ class _WaterEntryBottomSheetState extends State<WaterEntryBottomSheet> {
 
       final result = await HealthVitalsController.instance.addVitalEntry(
         key: 'water',
-        value: glasses,
-        unit: 'glasses',
+        value: amount.roundToDouble(),
+        unit: 'ml',
         createdAt: existing?.createdAt ?? DateTime.now(),
         userId: userId,
         data: {

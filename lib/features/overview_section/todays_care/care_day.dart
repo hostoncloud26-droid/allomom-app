@@ -3,6 +3,7 @@
 /// Planner, so both read and write the same rows.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -199,18 +200,31 @@ class CareDay {
       if (counts.containsKey(key)) continue;
 
       try {
-        final rows = await VitalsSqLiteService().getVitalsHistory(
-          userId,
-          key,
-          fromDate: _startOfToday(),
-        );
+        // Snacks and drinks are AlloConnect's `food` rows, told apart by
+        // `meal_type`; rows under the older keys still count.
+        final isFood = key == VitalShapes.snacks || key == VitalShapes.drinks;
+        final rows = <Map<String, dynamic>>[
+          for (final k in isFood ? VitalShapes.foodReadKeys : [key])
+            ...await VitalsSqLiteService().getVitalsHistory(
+              userId,
+              k,
+              fromDate: _startOfToday(),
+            ),
+        ].where((row) {
+          if (!isFood) return true;
+          final k = row['key']?.toString() ?? '';
+          return VitalShapes.mealTypeOf(k, _decodeData(row)) == key;
+        });
 
         // Summed before rounding: water can arrive in part-glasses (a 100 ml
         // entry is 0.4), and rounding each row would drop them.
         var total = 0.0;
         for (final row in rows) {
           if (item.caloriesPerUnit == null) {
-            total += (row['value'] as num?)?.toDouble() ?? 0;
+            final value = (row['value'] as num?)?.toDouble() ?? 0;
+            total += key == VitalShapes.water
+                ? VitalShapes.waterGlasses(value)
+                : value;
           } else {
             final recorded = _decodeData(row)['count'];
             final parsed = recorded is num
@@ -235,22 +249,23 @@ class CareDay {
     if (userId.isEmpty) return logged;
 
     final meals = items.map((i) => i.meal).whereType<CareMeal>().toSet();
-    for (final meal in meals) {
-      final keys = <String>[meal.vitalKey, ?meal.legacyVitalKey];
-      for (final key in keys) {
-        try {
-          final rows = await VitalsSqLiteService().getVitalsHistory(
-            userId,
-            key,
-            fromDate: _startOfToday(),
-          );
-          if (rows.isNotEmpty) {
-            logged.add(meal.vitalKey);
-            break;
+    if (meals.isEmpty) return logged;
+    // AlloConnect's `food` rows by `meal_type`, and the older per-meal keys.
+    for (final key in VitalShapes.foodReadKeys) {
+      try {
+        final rows = await VitalsSqLiteService().getVitalsHistory(
+          userId,
+          key,
+          fromDate: _startOfToday(),
+        );
+        for (final row in rows) {
+          final meal = VitalShapes.mealTypeOf(key, _decodeData(row));
+          for (final m in meals) {
+            if (m.mealType == meal) logged.add(m.mealType);
           }
-        } catch (e) {
-          debugPrint('⚠️ [CareDay] Could not read "$key" vitals: $e');
         }
+      } catch (e) {
+        debugPrint('⚠️ [CareDay] Could not read "$key" vitals: $e');
       }
     }
 
@@ -317,7 +332,7 @@ class CareDay {
   // ─── STATE OF AN ITEM ───────────────────────────────────────
 
   bool isDone(CareItem item) => switch (item.kind) {
-    CareActionKind.meal => mealsLogged.contains(item.meal!.vitalKey),
+    CareActionKind.meal => mealsLogged.contains(item.meal!.mealType),
     CareActionKind.count =>
       countFor(item) > 0 &&
           (item.dailyTarget == null || countFor(item) >= item.dailyTarget!),
@@ -402,7 +417,7 @@ class CareItemActions {
     HapticFeedback.mediumImpact();
     try {
       await HealthVitalsController.instance.addVitalEntry(
-        key: meal.vitalKey,
+        key: VitalShapes.food,
         value: log.calories,
         unit: 'kcal',
         createdAt: DateTime.now(),
@@ -411,8 +426,8 @@ class CareItemActions {
           'items': log.details,
           'details': log.details,
           'meal': meal.label,
-          'meal_type': meal.vitalKey,
-          'type': meal.vitalKey,
+          'meal_type': meal.mealType,
+          'type': meal.mealType,
           'day_part': day.partOf(item).name,
         },
       );
@@ -424,7 +439,7 @@ class CareItemActions {
         );
       }
     } catch (e) {
-      debugPrint('⚠️ [CareItemActions] Error logging ${meal.vitalKey}: $e');
+      debugPrint('⚠️ [CareItemActions] Error logging ${meal.mealType}: $e');
       if (context.mounted) {
         showError(context, 'Could not log ${meal.label.toLowerCase()}');
       }
@@ -474,23 +489,44 @@ class CareItemActions {
     }
     final unit = amount == 1 ? item.unitSingular : item.unitPlural;
     final caloriesPerUnit = item.caloriesPerUnit;
+    final vitals = HealthVitalsController.instance;
+    final extra = {
+      'details': '$amount $unit',
+      'count': amount,
+      'count_unit': item.unitPlural,
+      'day_part': day.partOf(item).name,
+    };
+    // AlloConnect's shapes: water in ml; snacks and drinks as `food` rows.
     try {
-      final saved = await HealthVitalsController.instance.addVitalEntry(
-        key: key,
-        value: caloriesPerUnit == null
-            ? amount.toDouble()
-            : (amount * caloriesPerUnit).toDouble(),
-        unit: caloriesPerUnit == null ? item.unitPlural : 'kcal',
-        createdAt: DateTime.now(),
-        userId: _userIdOrNull(),
-        data: {
-          'details': '$amount $unit',
-          'type': key,
-          'count': amount,
-          'count_unit': item.unitPlural,
-          'day_part': day.partOf(item).name,
-        },
-      );
+      final saved = switch (key) {
+        VitalShapes.water => await vitals.addWaterEntry(
+          ml: (amount * VitalShapes.mlPerGlass).toDouble(),
+          userId: _userIdOrNull(),
+          details: '$amount $unit',
+        ),
+        VitalShapes.drinks => await vitals.addFoodEntry(
+          drinkType: VitalShapes.beverages,
+          kcal: (amount * (caloriesPerUnit ?? 0)).toDouble(),
+          userId: _userIdOrNull(),
+          data: extra,
+        ),
+        VitalShapes.snacks => await vitals.addFoodEntry(
+          mealType: VitalShapes.snacks,
+          kcal: (amount * (caloriesPerUnit ?? 0)).toDouble(),
+          userId: _userIdOrNull(),
+          data: extra,
+        ),
+        _ => await vitals.addVitalEntry(
+          key: key,
+          value: caloriesPerUnit == null
+              ? amount.toDouble()
+              : (amount * caloriesPerUnit).toDouble(),
+          unit: caloriesPerUnit == null ? item.unitPlural : 'kcal',
+          createdAt: DateTime.now(),
+          userId: _userIdOrNull(),
+          data: {...extra, 'type': key},
+        ),
+      };
       return saved != null;
     } catch (e) {
       debugPrint('⚠️ [CareItemActions] Error logging $key: $e');

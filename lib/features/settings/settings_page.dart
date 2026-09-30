@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/quick_action_images.dart';
 import 'package:allomom/config/colors.dart';
+import 'package:allomom/allowear/allowear_controller.dart';
+import 'package:allomom/allowear/allowear_home.dart';
 import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
@@ -109,6 +111,26 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                     ),
                   ),
+                  _buildItemDivider(),
+
+                  // AlloWear — pair, sync and manage the band.
+                  Obx(() {
+                    final device = allowear.connectedDevice.value;
+                    final saved = allowear.savedDevice.value;
+                    return _buildListTile(
+                      icon: Icons.watch_rounded,
+                      title: 'AlloWear',
+                      subtitle: device != null
+                          ? 'Connected · ${device.name}'
+                          : saved != null
+                          ? 'Looking for ${saved.name}…'
+                          : 'Pair your bracelet, Fit or NX watch',
+                      onTap: () {
+                        speak(NarrationKeys.pgSettingsBand);
+                        Get.to(() => const AllowearHome());
+                      },
+                    );
+                  }),
                   _buildItemDivider(),
 
                   // 5. Language
@@ -492,102 +514,6 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   // ─── MODALS & DIALOGS ───
-
-  void _showAllowearDialog(BuildContext context, MainController session) {
-    // Said as the field appears: the number is printed on the band and she may
-    // have to go and find it.
-    speak(NarrationKeys.pgSettingsBandMac);
-
-    final macController = TextEditingController(
-      text: session.allowearMacAddress ?? '',
-    );
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: _cardTheme,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Icon(Icons.watch_rounded, color: _accentPrimary),
-            SizedBox(width: 10),
-            Text(
-              'Allowear Band',
-              style: TextStyle(fontWeight: FontWeight.bold, color: _textDark),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter your Allowear Smart Band MAC address to enable continuous maternal vital streaming:',
-              style: TextStyle(fontSize: 13, color: _textSecondary),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: macController,
-              style: TextStyle(color: _textDark),
-              decoration: InputDecoration(
-                labelText: 'MAC Address',
-                labelStyle: TextStyle(color: _textMuted),
-                hintText: 'AA:BB:CC:11:22:33',
-                hintStyle: TextStyle(color: _textMuted),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: _dividerTheme),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: _accentPrimary,
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: _textMuted)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await session.setAllowearMacAddress(macController.text.trim());
-              speakAll([
-                NarrationKeys.pgConfBandSaved,
-                NarrationKeys.pgSettingsBandOk,
-              ], force: true);
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Allowear settings saved!'),
-                  backgroundColor: _accentPrimary,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _accentPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              elevation: 0,
-            ),
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showLanguagePickerModal(BuildContext context) {
     showModalBottomSheet(

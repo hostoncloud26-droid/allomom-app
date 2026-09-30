@@ -9,6 +9,7 @@
 /// no place in Allomom and are left out.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'dart:async';
 import 'dart:math' as math;
 
@@ -2196,7 +2197,7 @@ class _TodaysPlanPageState extends State<TodaysPlanPage> {
             data: data,
           )
         : await _vitals.addVitalEntry(
-            key: careMeal.vitalKey,
+            key: VitalShapes.food,
             value: log.calories,
             unit: 'kcal',
             createdAt: start,

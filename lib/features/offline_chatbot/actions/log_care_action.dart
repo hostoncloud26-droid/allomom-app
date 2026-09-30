@@ -3,6 +3,7 @@
 /// `todocare_section.dart`'s `_logMeal`/`_logCount`, which this mirrors.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -31,7 +32,7 @@ class LogMealAction implements OfflineChatbotAction {
   final Color color;
 
   @override
-  String get name => 'open_${meal.vitalKey}_sheet';
+  String get name => 'open_${meal.mealType}_sheet';
 
   @override
   String get description =>
@@ -56,7 +57,7 @@ class LogMealAction implements OfflineChatbotAction {
 
     try {
       await HealthVitalsController.instance.addVitalEntry(
-        key: meal.vitalKey,
+        key: VitalShapes.food,
         value: log.calories,
         unit: 'kcal',
         createdAt: DateTime.now(),
@@ -65,8 +66,8 @@ class LogMealAction implements OfflineChatbotAction {
           'items': log.details,
           'details': log.details,
           'meal': meal.label,
-          'meal_type': meal.vitalKey,
-          'type': meal.vitalKey,
+          'meal_type': meal.mealType,
+          'type': meal.mealType,
           'day_part': CareDayPart.at().name,
         },
       );
@@ -108,19 +109,10 @@ class LogWaterAction implements OfflineChatbotAction {
     if (amount == null) return const ActionResult.ok(data: {'logged': false});
 
     try {
-      await HealthVitalsController.instance.addVitalEntry(
-        key: 'water',
-        value: amount.toDouble(),
-        unit: 'glasses',
-        createdAt: DateTime.now(),
+      await HealthVitalsController.instance.addWaterEntry(
+        ml: (amount * VitalShapes.mlPerGlass).toDouble(),
         userId: _userIdOrNull(),
-        data: {
-          'details': '$amount ${amount == 1 ? 'glass' : 'glasses'}',
-          'type': 'water',
-          'count': amount,
-          'count_unit': 'glasses',
-          'day_part': CareDayPart.at().name,
-        },
+        details: '$amount ${amount == 1 ? 'glass' : 'glasses'}',
       );
       return ActionResult.ok(data: {'logged': true, 'count': amount});
     } catch (e) {

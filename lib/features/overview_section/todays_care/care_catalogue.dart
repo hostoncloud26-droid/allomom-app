@@ -646,7 +646,7 @@ CareItem _mealItem(
   required Color color,
 }) {
   return CareItem(
-    id: 'meal_${meal.vitalKey}',
+    id: 'meal_${meal.mealType}',
     title: meal.label,
     subtitle: subtitle,
     icon: icon,

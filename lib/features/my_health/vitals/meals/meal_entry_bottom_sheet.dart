@@ -1,6 +1,7 @@
 // Ported from AlloConnect lib/features/health_section/vitals/{breakfast,lunch,dinner}/
 // *_entry_bottom_sheet.dart. AlloConnect's AI food analysis, camera photo and
 // Auto/Manual toggle are left out, so the sheet is always in its Manual mode.
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -184,14 +185,15 @@ class _MealEntryBottomSheetState extends State<MealEntryBottomSheet> {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final navigator = Navigator.of(context);
 
-    // Allomom's shape (items/details/meal) plus AlloConnect's timing fields.
+    // AlloConnect's meal row: key `food`, `type` / `meal_type` the meal, plus
+    // its timing fields.
     final data = <String, dynamic>{
       ...?widget.vital?.data,
       'items': details,
       'details': details,
       'meal': _meal.label,
-      'type': _meal.vitalKey,
-      'meal_type': _meal.vitalKey,
+      'type': _meal.mealType,
+      'meal_type': _meal.mealType,
       'eating_time': DateFormat('h:mm a').format(_selectedDateTime),
       'when_ate': DateFormat('h:mm a').format(_selectedDateTime),
       'time': DateFormat('HH:mm').format(_selectedDateTime),
@@ -211,7 +213,7 @@ class _MealEntryBottomSheetState extends State<MealEntryBottomSheet> {
         ok = true;
       } else {
         final result = await HealthVitalsController.instance.addVitalEntry(
-          key: _meal.vitalKey,
+          key: VitalShapes.food,
           value: calories,
           unit: 'kcal',
           createdAt: _selectedDateTime,

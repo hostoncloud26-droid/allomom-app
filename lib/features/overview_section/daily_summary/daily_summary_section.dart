@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -56,7 +57,8 @@ class _DailySummarySectionState extends State<DailySummarySection> {
       // Summed before rounding, so part-glasses (100 ml = 0.4) still count.
       var total = 0.0;
       for (final row in rows) {
-        total += (row['value'] as num?)?.toDouble() ?? 0;
+        // AlloConnect's water rows hold ml.
+        total += VitalShapes.waterGlasses((row['value'] as num?) ?? 0);
       }
       final glasses = total.round();
       if (mounted) setState(() => _waterGlasses = glasses < 0 ? 0 : glasses);

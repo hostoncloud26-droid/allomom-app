@@ -3,6 +3,7 @@ import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart'
 import 'package:get/get.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/edit_heart_rate_dialog.dart';
+import 'package:allomom/features/my_health/vitals/heart_rate/heart_rate_analysis_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/views/daily_view.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/views/weekly_view.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/views/monthly_view.dart';
@@ -47,12 +48,15 @@ class _HeartRateSummaryScreenState extends State<HeartRateSummaryScreen> {
 
     return Scaffold(
       backgroundColor: backgroundColor,
+      // As on AlloConnect: Start measures (AlloWear, or the phone camera).
+      // Typing a reading in is the + in the app bar.
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openEntryDialog,
+        onPressed: () =>
+            showHeartRateMeasureSheet(context, onDone: _refreshAnalysis),
         backgroundColor: theme.primaryColor,
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add_rounded),
-        label: const Text('Add'),
+        icon: const Icon(Icons.favorite_outline_rounded),
+        label: const Text('Start'),
       ),
       body: SafeArea(
         child: Column(
@@ -142,14 +146,21 @@ class _HeartRateSummaryScreenState extends State<HeartRateSummaryScreen> {
             onPressed: () => Navigator.of(context).maybePop(),
           ),
           const SizedBox(width: 8),
-          Text(
-            'Heart Rate Analysis',
-            style: TextStyle(
-              color: textColor,
-              fontWeight: FontWeight.w900,
-              fontSize: 20,
-              letterSpacing: -0.5,
+          Expanded(
+            child: Text(
+              'Heart Rate Analysis',
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                letterSpacing: -0.5,
+              ),
             ),
+          ),
+          IconButton(
+            tooltip: 'Add a reading',
+            icon: Icon(Icons.add_rounded, color: textColor),
+            onPressed: _openEntryDialog,
           ),
         ],
       ),

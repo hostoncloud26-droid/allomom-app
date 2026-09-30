@@ -1,4 +1,7 @@
+import 'package:allomom/allowear/allowear_images.dart';
 import 'package:flutter/material.dart';
+import 'package:allomom/allowear/allowear_home.dart';
+// import 'package:allomom/allowear/entry/allowear_app_open_popup.dart';
 import 'package:allomom/components/app_backdrop.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -17,6 +20,7 @@ import 'package:allomom/features/pregnancy/pregnancy_registration/pregnancy_conf
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/overview_section/todays_care/todocare_section.dart';
 import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
+import 'package:allomom/features/home/widgets/time_of_day_scene.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
@@ -60,6 +64,24 @@ class _HomePageState extends State<HomePage> {
   int _currentCarouselPage = 0;
 
   final ScrollController _scrollController = ScrollController();
+
+  /// The baby and her speech card; the time-of-day scene ends just below it.
+  final GlobalKey _heroKey = GlobalKey();
+
+  /// The speech card; the scene's bed is lined up just above its top edge.
+  final GlobalKey _seatKey = GlobalKey();
+
+  /// The baby's box, and how much of its height it claims in the layout.
+  /// Her artwork leaves empty room under her feet, which the card may sit in.
+  static const double _babyBox = 280;
+  static const double _babyHeightFactor = 0.8;
+
+  /// Room between the baby's box and the speech card.
+  static const double _babyCardGap = 16;
+
+  /// Where the scene's bed runs above the card: the gap, plus how far up her
+  /// box it sits (about 9% of the box), so she settles into the blanket.
+  static const double _babySeatLift = _babyCardGap + _babyBox * 0.09;
 
   /// Day the overview section (vitals and nutrition) reports on.
   DateTime _selectedDate = DateUtils.dateOnly(DateTime.now());
@@ -212,6 +234,8 @@ class _HomePageState extends State<HomePage> {
     _scrollController.addListener(_updateDateSelectorVisibility);
     _voice.addListener(_onVoiceChanged);
     _loadTrySuggestions();
+    // AlloWear's app-open card is off for now; uncomment to bring it back.
+    // _showAllowearOnAppOpen();
     if (BackgroundAudioController.isReady) {
       final audio = BackgroundAudioController.to;
       _audioWorkers
@@ -449,7 +473,17 @@ class _HomePageState extends State<HomePage> {
           body: SafeArea(
             bottom: false,
             child: Stack(
+              // The scene reaches up under the app bar and status bar.
+              clipBehavior: Clip.none,
               children: [
+                Positioned.fill(
+                  child: TimeOfDayScene(
+                    scroll: _scrollController,
+                    anchorKey: _heroKey,
+                    seatKey: _seatKey,
+                    seatLift: _babySeatLift,
+                  ),
+                ),
                 LayoutBuilder(
                   builder: (context, viewport) => CustomScrollView(
                     controller: _scrollController,
@@ -540,16 +574,15 @@ class _HomePageState extends State<HomePage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 10),
           Center(child: _buildAlloBabyHero(context)),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: 18),
               // While her flow waits on a choice, its options take the
               // "Try asking" row's place, so Quick Actions stays put.
               _buildTryAskingOrOptions(context),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
               // Rebuilt when the family loads: a dad's tiles point at his
               // wife's record once she is in his family.
               GetBuilder<FamilyController>(
@@ -572,25 +605,34 @@ class _HomePageState extends State<HomePage> {
     final speaking = _heroSpeaking;
 
     return Padding(
+      key: _heroKey,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
-          // The baby stands on the backdrop itself, no card.
-          SizedBox(
-            width: 190,
-            height: 190,
-            child: FittedBox(
-              child: AlloBotGeminiOrb(
-                isSpeaking: speaking,
-                isThinking: _alloBaby.isRunning && !speaking,
-                babySize: 190,
+          // The baby stands on the time-of-day scene, no card. Her artwork
+          // leaves empty room under her feet, so the orb claims only the
+          // top 80% of its height and the card sits right beneath her; the
+          // rest of the glow paints over the gap.
+          Align(
+            alignment: Alignment.topCenter,
+            heightFactor: _babyHeightFactor,
+            child: SizedBox(
+              width: _babyBox,
+              height: _babyBox,
+              child: FittedBox(
+                child: AlloBotGeminiOrb(
+                  isSpeaking: speaking,
+                  isThinking: _alloBaby.isRunning && !speaking,
+                  babySize: 190,
+                ),
               ),
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: _babyCardGap),
           // Her line types out in a fixed-height card: a long line scrolls
           // inside it rather than growing the card and pushing the page.
           _HeroSpeechCard(
+            key: _seatKey,
             speaking: speaking || _alloBaby.isRunning,
             child: StreamingHeroLine(
               text: line.isEmpty ? 'Hello! I am AlloBaby' : line,
@@ -1275,6 +1317,17 @@ class _HomePageState extends State<HomePage> {
       page: const AlloBotPage(),
     );
 
+    // Her AlloWear band: pair, sync and measure — AlloConnect's device card.
+    final alloWear = _quickAction(
+      id: 'allowear',
+      title: 'AlloWear',
+      subtitle: 'Band & Sync',
+      icon: Icons.watch_rounded,
+      color: const Color(0xFFFF3B5C),
+      image: AllowearImages.device,
+      page: const AllowearHome(),
+    );
+
     final journey = _quickAction(
       id: 'journey',
       title: session.hasKids ? 'My Baby' : 'My Pregnancy',
@@ -1378,6 +1431,16 @@ class _HomePageState extends State<HomePage> {
           image: 'assets/Quick Actions/Feeding.png',
           page: const FeedingTrackerPage(),
         ),
+        _quickAction(
+          id: 'my_health',
+          title: 'My Health',
+          subtitle: 'Your own vitals',
+          icon: Icons.monitor_heart_rounded,
+          color: const Color(0xFF3B82F6),
+          image: QuickActionImages.dad,
+          page: const MyHealthPage(),
+        ),
+        alloWear,
       ]);
     }
 
@@ -1394,6 +1457,7 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/Health.png',
         page: const MyHealthPage(),
       ),
+      alloWear,
       journey,
       _quickAction(
         id: 'allocry',
@@ -1526,6 +1590,17 @@ class _HomePageState extends State<HomePage> {
     pageBuilder: (_) => page,
   );
 
+  // /// AlloConnect's app-open AlloWear card — reconnecting and syncing her
+  // /// band, or offering to pair one — once per launch, after Home settles.
+  // /// Not over a family member's record: the band is the signed-in user's.
+  // void _showAllowearOnAppOpen() {
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     await Future.delayed(const Duration(milliseconds: 1500));
+  //     if (!mounted || MainController.instance.isViewingMember) return;
+  //     AllowearAppOpenPopup.showOnAppOpen(context);
+  //   });
+  // }
+
   // ─── TODAY'S CARE ─────────────────────────────────────────
   Widget _buildTodaysCareSection(BuildContext context) {
     return const TodocareSection(compact: true);
@@ -1615,6 +1690,7 @@ class _QuickActionBox extends StatelessWidget {
 /// dot while she is talking.
 class _HeroSpeechCard extends StatelessWidget {
   const _HeroSpeechCard({
+    super.key,
     required this.child,
     required this.speaking,
     this.actions = const [],

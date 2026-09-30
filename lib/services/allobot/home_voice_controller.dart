@@ -20,6 +20,7 @@ import 'package:allomom/services/allobot/home_voice_flow.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/services/tts_service.dart';
 
@@ -254,7 +255,12 @@ class HomeVoiceController extends ChangeNotifier {
 
       case HomeFlowAction.logWater:
         // One glass, as an increment: every reader of these rows sums the day.
-        await _logVital(waterVitalKey, 1, 'glasses');
+        await _logVital(
+          waterVitalKey,
+          VitalShapes.mlPerGlass.toDouble(),
+          'ml',
+          data: const {'details': '1 glass', 'type': 'water'},
+        );
 
       case HomeFlowAction.logMeal:
         await _logMeal(response.mealKey);
@@ -294,13 +300,19 @@ class HomeVoiceController extends ChangeNotifier {
     final userId = MainController.instance.userId;
     if (userId.isEmpty) return;
     try {
+      final now = DateTime.now();
       await VitalsSqLiteService().saveVital(
         key: key,
         value: value,
         unit: unit,
-        createdAt: DateTime.now(),
+        createdAt: now,
         userId: userId,
-        additionalData: data,
+        additionalData: await VitalShapes.completeData(
+          key: key,
+          value: value,
+          createdAt: now,
+          data: data,
+        ),
       );
     } catch (e) {
       debugPrint('HomeVoiceController: could not log "$key": $e');
@@ -309,14 +321,17 @@ class HomeVoiceController extends ChangeNotifier {
 
   Future<void> _logMeal(String? mealKey) async {
     if (mealKey == null) return;
-    // Meals are stored as calories under the meal's own key, matching what the
-    // care sheet writes, so Today's Care sees this as the meal being done.
-    final meal = CareMeal.values.where((m) => m.vitalKey == mealKey).firstOrNull;
+    // AlloConnect's meal row: `food`, with the meal as its `meal_type`, so
+    // Today's Care sees this as the meal being done.
+    final meal = CareMeal.values.where((m) => m.mealType == mealKey).firstOrNull;
     await _logVital(
-      mealKey,
+      VitalShapes.food,
       (meal?.typicalCalories ?? 400).toDouble(),
       'kcal',
-      data: {'source': 'allobot_home', 'logged_by': 'voice'},
+      data: VitalShapes.mealData(
+        mealKey,
+        extra: {'source': 'allobot_home', 'logged_by': 'voice'},
+      ),
     );
   }
 
@@ -334,7 +349,7 @@ class HomeVoiceController extends ChangeNotifier {
     final note = items?.trim() ?? '';
     if (mealKey == null || note.isEmpty) return;
 
-    final meal = CareMeal.values.where((m) => m.vitalKey == mealKey).firstOrNull;
+    final meal = CareMeal.values.where((m) => m.mealType == mealKey).firstOrNull;
     final data = <String, dynamic>{
       'items': note,
       'details': note,
@@ -349,10 +364,9 @@ class HomeVoiceController extends ChangeNotifier {
     if (userId.isEmpty) return;
 
     try {
-      final merged = await VitalsSqLiteService().mergeDataIntoLatest(
-        key: mealKey,
+      final merged = await VitalsSqLiteService().mergeDataIntoLatestMeal(
+        mealType: mealKey,
         data: data,
-        userId: userId,
       );
       if (merged) return;
     } catch (e) {
@@ -360,7 +374,7 @@ class HomeVoiceController extends ChangeNotifier {
     }
 
     await _logVital(
-      mealKey,
+      VitalShapes.food,
       (meal?.typicalCalories ?? 400).toDouble(),
       'kcal',
       data: data,

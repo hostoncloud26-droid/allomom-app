@@ -4,6 +4,8 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/models/vital_shapes.dart';
+import 'package:allomom/models/vital_sync_item.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/sqlite_service.dart';
@@ -202,6 +204,52 @@ class VitalsSqLiteService {
     return true;
   }
 
+  /// [mergeDataIntoLatest] for a meal: the newest row of [mealType]
+  /// (`breakfast`, `lunch`, `dinner`, `snacks`) on [on]'s day, whether it is
+  /// stored as AlloConnect's `food` row or under an older meal key.
+  Future<bool> mergeDataIntoLatestMeal({
+    required String mealType,
+    required Map<String, dynamic> data,
+    DateTime? on,
+  }) async {
+    final db = await SqLiteService().database;
+    final healthId = await _resolveHealthId();
+    if (healthId.isEmpty) return false;
+
+    final day = on ?? DateTime.now();
+    final start = DateTime(day.year, day.month, day.day);
+    final end = start.add(const Duration(days: 1));
+
+    final rows =
+        await (db.select(db.vitalsStreamTable)
+              ..where(
+                (tbl) =>
+                    tbl.healthId.equals(healthId) &
+                    tbl.key.isIn(VitalShapes.foodReadKeys) &
+                    tbl.deletedAt.isNull() &
+                    tbl.createdAt.isBiggerOrEqualValue(start) &
+                    tbl.createdAt.isSmallerThanValue(end),
+              )
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+            .get();
+    final row = rows
+        .where((r) => VitalShapes.mealTypeOf(r.key, _decodeData(r.data)) == mealType)
+        .firstOrNull;
+    if (row == null) return false;
+
+    final merged = <String, dynamic>{..._decodeData(row.data), ...data};
+    await (db.update(db.vitalsStreamTable)
+          ..where((tbl) => tbl.id.equals(row.id)))
+        .write(
+          VitalsStreamTableCompanion(
+            data: Value(jsonEncode(merged)),
+            updatedAt: Value(DateTime.now()),
+            synced: const Value(0),
+          ),
+        );
+    return true;
+  }
+
   Map<String, dynamic> _decodeData(String? raw) {
     if (raw == null || raw.trim().isEmpty) return <String, dynamic>{};
     try {
@@ -211,6 +259,171 @@ class VitalsSqLiteService {
       // A row whose data is not JSON is replaced rather than lost to a throw.
       return <String, dynamic>{};
     }
+  }
+
+  // ── AlloWear device writes ─────────────────────────────────────────────────
+  //
+  // A paired band measures whoever wears it, so its readings always land on
+  // the signed-in user's own record — never on a family member's that happens
+  // to be open on screen while a sync runs.
+
+  Future<String> _resolveOwnHealthId() async {
+    final own = MainController.instance.ownHealthDataId;
+    if (own.isNotEmpty) return own;
+    if (MainController.instance.isViewingMember) return '';
+    return _resolveHealthId();
+  }
+
+  VitalsStreamTableCompanion _companionFor(
+    VitalSyncItem item, {
+    required String healthId,
+    required int synced,
+    required DateTime now,
+  }) {
+    return VitalsStreamTableCompanion(
+      id: Value(item.id),
+      key: Value(item.key),
+      value: Value(item.value),
+      unit: Value(item.unit),
+      createdAt: Value(item.createdAt ?? now),
+      healthId: Value(healthId.isNotEmpty ? healthId : null),
+      data: Value(item.data != null ? jsonEncode(item.data) : null),
+      updatedAt: Value(now),
+      synced: Value(synced),
+    );
+  }
+
+  /// Saves one device reading (a live measurement, a battery level).
+  Future<void> saveVitalSyncItem(VitalSyncItem item, {int synced = 0}) =>
+      saveVitalsBulk([item], synced: synced);
+
+  /// Saves device readings, replacing any row with the same id.
+  ///
+  /// An AlloWear reading is stored under an id derived from what it measured
+  /// and when. The bracelet hands back its whole buffer on every sync;
+  /// AlloConnect's server folds the repeats, but Allomom's sync upserts by id,
+  /// so a fresh id per sync would store every reading again each time.
+  Future<void> saveVitalsBulk(List<VitalSyncItem> items, {int synced = 0}) async {
+    if (items.isEmpty) return;
+    final db = await SqLiteService().database;
+    final healthId = await _resolveOwnHealthId();
+    final now = DateTime.now();
+
+    await db.batch((batch) {
+      for (final item in items) {
+        batch.insert(
+          db.vitalsStreamTable,
+          _companionFor(
+            _withStableId(item),
+            healthId: healthId,
+            synced: synced,
+            now: now,
+          ).copyWith(syncedAt: synced == 1 ? Value(now) : const Value.absent()),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
+
+  VitalSyncItem _withStableId(VitalSyncItem item) {
+    final data = item.data;
+    final at = item.createdAt;
+    if (data?['source'] != 'allowear' || at == null) return item;
+    // Sleep sessions already carry a stable id of their own.
+    if (item.key == 'sleep_data') return item;
+    return VitalSyncItem(
+      id: _uuid.v5(
+        Namespace.url.value,
+        'allowear:${item.key}:${data?['device_type']}:${at.millisecondsSinceEpoch}',
+      ),
+      key: item.key,
+      value: item.value,
+      unit: item.unit,
+      createdAt: at,
+      data: data,
+    );
+  }
+
+  /// Saves one row per day and key — steps, which the band reports as a day's
+  /// running total — as AlloConnect does: the day's newest row is updated in
+  /// place (keeping its id, so the server updates the same row) and every
+  /// other row for that day goes.
+  Future<List<String>> saveVitalsBulkDailyDataWithIds(
+    List<VitalSyncItem> items, {
+    int synced = 0,
+  }) async {
+    final db = await SqLiteService().database;
+    final healthId = await _resolveOwnHealthId();
+    final ids = <String>[];
+
+    for (final item in items) {
+      final now = DateTime.now();
+      final date = item.createdAt ?? now;
+      final start = DateTime(date.year, date.month, date.day);
+      final end = start.add(const Duration(days: 1));
+
+      final sameDay =
+          await (db.select(db.vitalsStreamTable)
+                ..where(
+                  (tbl) =>
+                      tbl.healthId.equals(healthId) &
+                      tbl.key.equals(item.key) &
+                      tbl.deletedAt.isNull() &
+                      tbl.createdAt.isBiggerOrEqualValue(start) &
+                      tbl.createdAt.isSmallerThanValue(end),
+                )
+                ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)]))
+              .get();
+      final existing = sameDay;
+
+      if (existing.isEmpty) {
+        await db
+            .into(db.vitalsStreamTable)
+            .insert(
+              _companionFor(item, healthId: healthId, synced: synced, now: now)
+                  .copyWith(createdAt: Value(date)),
+              mode: InsertMode.insertOrReplace,
+            );
+        ids.add(item.id);
+        continue;
+      }
+
+      final latest = existing.first;
+      await (db.update(db.vitalsStreamTable)
+            ..where((tbl) => tbl.id.equals(latest.id)))
+          .write(
+            VitalsStreamTableCompanion(
+              value: Value(item.value),
+              unit: Value(item.unit),
+              data: Value(item.data != null ? jsonEncode(item.data) : null),
+              updatedAt: Value(now),
+              synced: Value(synced),
+            ),
+          );
+      for (final old in existing.skip(1)) {
+        await deleteVital(old.id);
+      }
+      ids.add(latest.id);
+    }
+    return ids;
+  }
+
+  /// The newest reading for [key] on her own record.
+  Future<Map<String, dynamic>?> getLatestVital(String userId, String key) async {
+    final db = await SqLiteService().database;
+    final healthId = await _resolveOwnHealthId();
+    final row =
+        await (db.select(db.vitalsStreamTable)
+              ..where(
+                (tbl) =>
+                    tbl.healthId.equals(healthId) &
+                    tbl.key.equals(key) &
+                    tbl.deletedAt.isNull(),
+              )
+              ..orderBy([(tbl) => OrderingTerm.desc(tbl.createdAt)])
+              ..limit(1))
+            .getSingleOrNull();
+    return row == null ? null : _toMap(row);
   }
 
   Future<List<Map<String, dynamic>>> getUnsyncedVitals() async {

@@ -76,6 +76,26 @@ dependencies:
   syncfusion_flutter_charts: ^33.2.13
   firebase_core: 4.6.0
   firebase_ai: 3.10.0
+  video_player: ^2.11.1
+  cached_network_image: ^3.4.1
+  allowear_sdk:
+    git:
+      url: https://github.com/adminsavemom/allowear_sdk.git
+      ref: main
+  # Pinned to the version allowear_sdk itself pins; used to read and switch on
+  # the Bluetooth adapter.
+  flutter_blue_classic: 0.1.0
+  # The bracelet's shutter button drives a camera page that saves to the gallery.
+  camera: ^0.11.1
+  gal: ^2.3.2
+  # Camera + flash heart-rate reading (PPG) for the measure sheet when no
+  # band is connected, as on AlloConnect.
+  scppg: ^1.2.1
+  # Used by the AlloWear module exactly as AlloConnect uses them.
+  localstorage: ^6.0.0
+  fluttertoast: ^9.0.0
+  health: ^13.3.1
+  geolocator: ^13.0.2
 
 dev_dependencies:
   flutter_test:
@@ -108,6 +128,7 @@ flutter:
     - assets/audio/en/onboard/
     - assets/audio/en/screens/
     - assets/babyicons/
+    - assets/bg/
     - assets/family/
     - assets/cry_samples/
     # AlloCry's two on-device TFLite graphs: YAMNet for "is this a baby cry"

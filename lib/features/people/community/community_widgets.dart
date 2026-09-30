@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/api/community_api.dart';
@@ -52,10 +53,11 @@ class CommunityAvatar extends StatelessWidget {
       ),
       child: logo == null || logo.isEmpty
           ? monogram
-          : Image.network(
-              logo,
+          : CachedNetworkImage(
+              imageUrl: logo,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => monogram,
+              placeholder: (_, _) => monogram,
+              errorWidget: (_, _, _) => monogram,
             ),
     );
   }

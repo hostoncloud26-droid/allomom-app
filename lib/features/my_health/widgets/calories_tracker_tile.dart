@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/config/app_theme.dart';
@@ -7,16 +8,9 @@ import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 import 'nutrition/health_tile_parts.dart';
 
-/// Keys whose value is kcal eaten or drunk.
-const List<String> _intakeKeys = [
-  'food',
-  'breakfast',
-  'break_fast',
-  'lunch',
-  'dinner',
-  'snacks',
-  'drinks',
-];
+/// Keys whose value is kcal eaten or drunk: AlloConnect's `food`, and the
+/// older per-meal keys.
+const List<String> _intakeKeys = VitalShapes.foodReadKeys;
 
 /// AlloConnect's "Calories" balance tile: kcal in vs. kcal out (BMR + activity
 /// + the extra energy pregnancy needs) for [date], with the net balance, a
@@ -100,7 +94,10 @@ class _CaloriesTrackerTileState extends State<CaloriesTrackerTile>
       final bounds = dayBounds(_selectedDate);
       final service = VitalsSqLiteService();
 
-      Future<double> sum(List<String> keys) async {
+      Future<double> sum(
+        List<String> keys, {
+        double Function(Map<String, dynamic> row)? valueOf,
+      }) async {
         final lists = await Future.wait([
           for (final k in keys)
             service.getVitalsHistory(
@@ -113,14 +110,20 @@ class _CaloriesTrackerTileState extends State<CaloriesTrackerTile>
         var total = 0.0;
         for (final rows in lists) {
           for (final r in rows) {
-            total += (r['value'] as num?)?.toDouble() ?? 0.0;
+            total += valueOf != null
+                ? valueOf(r)
+                : (r['value'] as num?)?.toDouble() ?? 0.0;
           }
         }
         return total;
       }
 
       final food = await sum(_intakeKeys);
-      final workout = await sum(const ['workout', 'exercise']);
+      // Minutes, from AlloConnect's `data['duration']` (the value is kcal).
+      final workout = await sum(
+        const ['workout'],
+        valueOf: (r) => VitalShapes.workoutMinutes(vitalFromRow(r).data),
+      );
       // Past days: that day's steps, and weight / height as they stood then.
       double? latestValue(List<Map<String, dynamic>> rows) =>
           rows.isEmpty ? null : (rows.first['value'] as num?)?.toDouble();

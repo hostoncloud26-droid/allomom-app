@@ -147,42 +147,51 @@ class _JourneyTrainState extends State<JourneyTrain> {
             ],
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            controller: _scroll,
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Stack(
-              children: [
-                // The rail the wheels sit on.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 4,
-                  child: Container(
-                    height: 2,
-                    color: p.pick(const Color(0xFFE5E7EB), p.border),
-                  ),
+          Stack(
+            children: [
+              // The rail the wheels sit on.
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 4,
+                child: Container(
+                  height: 2,
+                  color: p.pick(const Color(0xFFE5E7EB), p.border),
                 ),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Image.asset(
-                        'assets/Quick Actions/babytrain.png',
-                        height: 74,
-                        fit: BoxFit.contain,
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  // The engine stays at the left edge; only the wagons
+                  // scroll, disappearing behind it.
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Image.asset(
+                      'assets/Quick Actions/babytrain.png',
+                      height: 74,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      controller: _scroll,
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          for (final w in widget.wagons) ...[
+                            _coupler(p),
+                            _wagon(w, p),
+                          ],
+                          const SizedBox(width: 6),
+                        ],
                       ),
                     ),
-                    for (final w in widget.wagons) ...[
-                      _coupler(p),
-                      _wagon(w, p),
-                    ],
-                    const SizedBox(width: 6),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ],
       ),

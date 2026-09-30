@@ -274,7 +274,6 @@ class _SleepEntryBottomSheetState extends State<SleepEntryBottomSheet> {
       // Both ends carry their own date, so the window is taken as picked.
       final DateTime sleepDate = _sleepDateTime;
       final DateTime awakeDate = _awakeDateTime;
-      final hours = _hoursSlept;
 
       final controller = HealthVitalsController.instance;
       final data = SleepUtils.manualSessionData(
@@ -289,18 +288,18 @@ class _SleepEntryBottomSheetState extends State<SleepEntryBottomSheet> {
       if (existing != null) {
         saved = await controller.updateVitalEntry(
           vitalId: existing.id,
-          key: 'sleep',
-          value: hours,
-          unit: 'hours',
+          key: 'sleep_data',
+          value: (data['total_sleep_duration'] as int).toDouble(),
+          unit: 'minutes',
           data: data,
           createdAt: awakeDate,
           userId: _userId,
         );
       } else {
         saved = await controller.addVitalEntry(
-          key: 'sleep',
-          value: hours,
-          unit: 'hours',
+          key: 'sleep_data',
+          value: (data['total_sleep_duration'] as int).toDouble(),
+          unit: 'minutes',
           data: data,
           createdAt: awakeDate,
           userId: _userId,

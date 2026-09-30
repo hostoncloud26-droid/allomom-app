@@ -225,22 +225,16 @@ class _DrinksEntryBottomSheetState extends State<DrinksEntryBottomSheet> {
           ? widget.userId!.trim()
           : MainController.instance.userId;
 
-      // Same shape Allomom's drink logs write (kcal in the value, cups in
-      // data['count']), plus AlloConnect's temperature and drink type.
-      final result = await HealthVitalsController.instance.addVitalEntry(
-        key: 'drinks',
-        value: calories,
-        unit: 'kcal',
+      // AlloConnect's drink row: key `food`, `type` the drink ('tea',
+      // 'coffee', 'beverages'), `meal_type` 'beverages'.
+      final result = await HealthVitalsController.instance.addFoodEntry(
+        drinkType: _selectedType,
+        kcal: calories,
         createdAt: existing?.createdAt ?? DateTime.now(),
         userId: userId,
         data: {
           'details': details,
-          'type': 'drinks',
-          'drink': drinkNameOf(_selectedType),
-          'drink_type': _selectedType,
-          'temperature': _selectedTemp,
-          'count': count,
-          'count_unit': 'cups',
+          if (count > 1) 'count': count,
         },
       );
 

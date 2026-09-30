@@ -1,9 +1,10 @@
 // Ported from AlloConnect lib/features/health_section/vitals/blood_oxygen/blood_oxygen_summary_screen.dart.
-// The Allowear device analysis sheet is dropped; a manual "Add SpO₂" flow is added instead.
+// Measuring on the AlloWear is the app bar's "Start"; a manual "Add SpO₂" flow sits beside it.
 import 'package:flutter/material.dart';
 import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_add_bottom_sheet.dart';
+import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_analysis_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/views/daily_blood_oxygen_view.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/views/weekly_blood_oxygen_view.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/views/monthly_blood_oxygen_view.dart';
@@ -85,6 +86,14 @@ class _BloodOxygenSummaryScreenState extends State<BloodOxygenSummaryScreen> {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            tooltip: 'Measure with AlloWear',
+            icon: Icon(Icons.play_circle_outline_rounded, color: textColor),
+            onPressed: () =>
+                showBloodOxygenMeasureSheet(context, onDone: _refresh),
+          ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,

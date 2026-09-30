@@ -6,6 +6,7 @@ import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/features/pregnancy/data/anc_visit_guide.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
+import 'package:allomom/features/pregnancy/widgets/journey_train.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
@@ -192,17 +193,22 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
                         onRegistered: _load,
                       )
                     else ...[
-                      CareFilterChips(
-                        labels: const [
-                          'All',
-                          '1st Trimester',
-                          '2nd Trimester',
-                          '3rd Trimester',
-                        ],
+                      // The trimesters as wagons, today's outlined.
+                      JourneyTrain(
+                        title: 'Trimester Train',
                         selected: _trimesterFilter,
+                        current: PregnancyController
+                            .instance
+                            .currentTrimesterNumber,
                         onSelected: (i) => setState(() => _trimesterFilter = i),
+                        wagons: const [
+                          TrainWagon(value: 0, number: 'All', label: 'Visits'),
+                          TrainWagon(value: 1, number: '1st', label: 'Trimester'),
+                          TrainWagon(value: 2, number: '2nd', label: 'Trimester'),
+                          TrainWagon(value: 3, number: '3rd', label: 'Trimester'),
+                        ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 12),
                       if (_filtered.isEmpty)
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 28),
