@@ -8,7 +8,7 @@ import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
 import 'package:allomom/features/pregnancy/widgets/baby_feature_row.dart';
 
 /// The pregnancy's features as the baby's are: a sideways slider of Home's
-/// quick-action boxes — Kick Counter, ANC, Vaccination and Lab Reports.
+/// quick-action boxes — Kick Counter, Vaccination, Lab Reports and ANC.
 class PregnancyFeatureRow extends StatelessWidget {
   const PregnancyFeatureRow({super.key, required this.onChanged});
 
@@ -32,11 +32,6 @@ class PregnancyFeatureRow extends StatelessWidget {
           onTap: () => push(const KickCounterPage()),
         ),
         FeatureBox(
-          title: 'ANC',
-          icon: Icons.local_hospital_rounded,
-          onTap: () => push(const AncSchedulePage()),
-        ),
-        FeatureBox(
           title: 'Vaccination',
           icon: Icons.vaccines_rounded,
           color: const Color(0xFF8B5CF6),
@@ -47,6 +42,11 @@ class PregnancyFeatureRow extends StatelessWidget {
           icon: Icons.science_rounded,
           color: const Color(0xFF3898EC),
           onTap: () => push(const LabReportsSchedulePage()),
+        ),
+        FeatureBox(
+          title: 'ANC',
+          icon: Icons.local_hospital_rounded,
+          onTap: () => push(const AncSchedulePage()),
         ),
       ],
     );

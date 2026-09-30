@@ -1277,7 +1277,7 @@ class _HomePageState extends State<HomePage> {
 
     final journey = _quickAction(
       id: 'journey',
-      title: session.hasKids ? 'Baby Journey' : 'My Journey',
+      title: session.hasKids ? 'My Baby' : 'My Pregnancy',
       subtitle: session.hasKids ? 'Care & Growth' : 'Pregnancy Care',
       icon: session.hasKids
           ? Icons.child_friendly_rounded
@@ -1292,7 +1292,7 @@ class _HomePageState extends State<HomePage> {
     // A dad's own record holds no pregnancy and no babies — those are on his
     // wife's. Once she is in his family, his health, journey and reports tiles
     // open her record (read-only, apart from logging vitals), and his own
-    // My Health moves after them.
+    // My Health sits next to My Baby.
     final wife = session.isDad
         ? FamilyController.instance.family?.otherParent
         : null;
@@ -1343,6 +1343,15 @@ class _HomePageState extends State<HomePage> {
           builder: (_) => const PregnancyJourneyPage(),
         ),
         _quickAction(
+          id: 'my_health',
+          title: 'My Health',
+          subtitle: 'Your own vitals',
+          icon: Icons.monitor_heart_rounded,
+          color: const Color(0xFF3B82F6),
+          image: QuickActionImages.dad,
+          page: const MyHealthPage(),
+        ),
+        _quickAction(
           id: 'allocry',
           title: 'AlloCry',
           subtitle: 'Cry Analyzer',
@@ -1368,15 +1377,6 @@ class _HomePageState extends State<HomePage> {
           color: const Color(0xFFF59E0B),
           image: 'assets/Quick Actions/Feeding.png',
           page: const FeedingTrackerPage(),
-        ),
-        _quickAction(
-          id: 'my_health',
-          title: 'My Health',
-          subtitle: 'Your own vitals',
-          icon: Icons.monitor_heart_rounded,
-          color: const Color(0xFF3B82F6),
-          image: QuickActionImages.dad,
-          page: const MyHealthPage(),
         ),
       ]);
     }

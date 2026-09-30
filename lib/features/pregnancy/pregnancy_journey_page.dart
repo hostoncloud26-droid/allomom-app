@@ -562,42 +562,42 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
         // The page opens on the week's summary, spoken by the baby, rather
         // than the old journey-open narration.
         PregnancyMonthTrack(
-            onChanged: _loadAllPregnancyData,
-            onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
-            aboveTrain: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildPregnancyInfoCard(
-                  context: context,
-                  gestationalWeek: gestationalWeek,
-                  trimester: trimester,
-                  daysLeft: daysLeft,
-                  eddFormatted: eddFormatted,
-                  progressFraction: progressFraction,
-                  progressPercent: progressPercent,
-                ),
-                // Only while the baby is saying the week; stops the voice.
-                if (_weeklyPlaying) ...[
-                  const SizedBox(height: 10),
-                  _buildStopSpeakingButton(),
-                ],
-                const SizedBox(height: 14),
-                // Kick Counter, ANC, Vaccination and Lab Reports, swiped
-                // sideways as the baby's features are.
-                PregnancyFeatureRow(onChanged: _loadAllPregnancyData),
-                const SizedBox(height: 14),
-                // What the baby says first on home, then this week's size,
-                // between the overview and the tallies.
-                WeeklySummaryCard(
-                  week: WeeklyBabyTalk.pregnancyWeek(gestationalWeek),
-                ),
-                BabySizeCard(gestationalWeek: gestationalWeek),
-                const SizedBox(height: 14),
-                // How she might feel and what to eat this week.
-                MotherWeekCards(gestationalWeek: gestationalWeek),
+          onChanged: _loadAllPregnancyData,
+          onMonthSelected: (m) => setState(() => _selectedPregnancyMonth = m),
+          aboveTrain: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildPregnancyInfoCard(
+                context: context,
+                gestationalWeek: gestationalWeek,
+                trimester: trimester,
+                daysLeft: daysLeft,
+                eddFormatted: eddFormatted,
+                progressFraction: progressFraction,
+                progressPercent: progressPercent,
+              ),
+              // Only while the baby is saying the week; stops the voice.
+              if (_weeklyPlaying) ...[
+                const SizedBox(height: 10),
+                _buildStopSpeakingButton(),
               ],
-            ),
+              const SizedBox(height: 14),
+              // Kick Counter, ANC, Vaccination and Lab Reports, swiped
+              // sideways as the baby's features are.
+              PregnancyFeatureRow(onChanged: _loadAllPregnancyData),
+              const SizedBox(height: 14),
+              // What the baby says first on home, then this week's size,
+              // between the overview and the tallies.
+              WeeklySummaryCard(
+                week: WeeklyBabyTalk.pregnancyWeek(gestationalWeek),
+              ),
+              BabySizeCard(gestationalWeek: gestationalWeek),
+              const SizedBox(height: 14),
+              // How she might feel and what to eat this week.
+              MotherWeekCards(gestationalWeek: gestationalWeek),
+            ],
           ),
+        ),
         const SizedBox(height: 20),
 
         // ─── COMPLETE PREGNANCY SECTION ───
@@ -876,27 +876,16 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
             child: Row(
               children: [
                 Expanded(
-                  // Home's baby on its glow, talking while it says the week.
-                  // Empty while the switcher's avatar flies in to it.
+                  // Home's baby on its glow while it says the week; the
+                  // switcher's pregnancy icon, floating, the rest of the
+                  // time. Empty while the switcher's avatar flies in to it.
                   child: AnimatedOpacity(
                     key: _cardAvatarKey,
                     opacity: _flyingEntityId == _pregnancyEntity ? 0 : 1,
                     duration: const Duration(milliseconds: 200),
-                    child: FittedBox(
-                      child: BackgroundAudioController.isReady
-                          ? Obx(
-                              () => AlloBotGeminiOrb(
-                                isSpeaking: _weeklySpeaking,
-                                isThinking: false,
-                                babySize: 190,
-                              ),
-                            )
-                          : const AlloBotGeminiOrb(
-                              isSpeaking: false,
-                              isThinking: false,
-                              babySize: 190,
-                            ),
-                    ),
+                    child: BackgroundAudioController.isReady
+                        ? Obx(() => _buildCardBaby(_weeklySpeaking))
+                        : _buildCardBaby(false),
                   ),
                 ),
                 const SizedBox(width: gap),
@@ -935,6 +924,32 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
           ),
         ],
       ),
+    );
+  }
+
+  /// The talking baby while the week is being said — kept on through the
+  /// short gaps between its lines — otherwise the pregnancy icon, floating.
+  Widget _buildCardBaby(bool speaking) {
+    final talking = _weeklyPlaying || speaking;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 350),
+      transitionBuilder: (child, animation) => FadeTransition(
+        opacity: animation,
+        child: ScaleTransition(
+          scale: Tween(begin: 0.85, end: 1.0).animate(animation),
+          child: child,
+        ),
+      ),
+      child: talking
+          ? FittedBox(
+              key: const ValueKey('talking'),
+              child: AlloBotGeminiOrb(
+                isSpeaking: speaking,
+                isThinking: false,
+                babySize: 190,
+              ),
+            )
+          : const _FloatingPregnancyIcon(key: ValueKey('idle')),
     );
   }
 
@@ -1673,9 +1688,7 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Remove ${baby.name}?',
           style: const TextStyle(fontWeight: FontWeight.w800),
@@ -1871,6 +1884,52 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The switcher's pregnancy icon, bobbing gently up and down.
+class _FloatingPregnancyIcon extends StatefulWidget {
+  const _FloatingPregnancyIcon({super.key});
+
+  @override
+  State<_FloatingPregnancyIcon> createState() => _FloatingPregnancyIconState();
+}
+
+class _FloatingPregnancyIconState extends State<_FloatingPregnancyIcon>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _float = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..repeat(reverse: true);
+
+  late final Animation<double> _lift = CurvedAnimation(
+    parent: _float,
+    curve: Curves.easeInOut,
+  );
+
+  @override
+  void dispose() {
+    _float.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: AnimatedBuilder(
+        animation: _lift,
+        builder: (context, child) => Transform.translate(
+          offset: Offset(0, -10 * _lift.value),
+          child: child,
+        ),
+        child: Image.asset(
+          'assets/allobaby/BabyIllustration.png',
+          width: 110,
+          height: 110,
+          fit: BoxFit.contain,
+        ),
       ),
     );
   }
