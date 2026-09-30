@@ -309,7 +309,6 @@ class _BabyBottomAvatarState extends State<BabyBottomAvatar> {
                   opacity: _visible ? 1 : 0,
                   duration: const Duration(milliseconds: 240),
                   child: BabyLinePopup(
-                    key: BabyBottomAvatar.popupKey,
                     text: _text,
                     speaking: _speaking,
                     onSpeakerTap: _toggleSpeech,
@@ -438,7 +437,6 @@ class BabyLinePopup extends StatelessWidget {
                       top: -8,
                       right: -6,
                       child: BabyBubbleCloseButton(
-                        key: closeKey,
                         onTap: onClose!,
                       ),
                     ),

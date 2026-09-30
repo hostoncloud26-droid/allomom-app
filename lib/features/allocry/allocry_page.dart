@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allocry/controller/cry_controller.dart';
 import 'package:allomom/features/allocry/data/cry_data.dart';
@@ -17,6 +18,8 @@ import 'package:allomom/features/allocry/screens/cry_type_detail_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 
 /// AlloCry's home: listen to the baby, and learn what each cry means.
 ///
@@ -33,16 +36,20 @@ class AlloCryPage extends StatefulWidget {
 class _AlloCryPageState extends State<AlloCryPage>
     with SingleTickerProviderStateMixin {
   static const Color _pink = Color(0xFFFF4E6A);
+  static const _allocryIntentKey = 'screen_allocry_info';
 
   AppPalette get _p => context.palette;
 
   final CryController _controller = CryController.instance;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
 
   late final AnimationController _pulseController;
 
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _allocryIntentKey);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1400),
@@ -56,8 +63,30 @@ class _AlloCryPageState extends State<AlloCryPage>
     });
   }
 
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
   @override
   void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
     _pulseController.dispose();
     // She has left AlloCry: give back the 15MB of interpreter memory rather
     // than holding it for a feature that is no longer on screen.
@@ -96,9 +125,7 @@ class _AlloCryPageState extends State<AlloCryPage>
 
     // Silence first: AlloCry is about to record, and the baby's own voice
     // coming out of the speaker is exactly the sound it must not classify.
-    if (BackgroundAudioController.isReady) {
-      await BackgroundAudioController.to.stop();
-    }
+    _stopSpeaking();
 
     await Get.to(() => const CryListeningPage());
     await _controller.refreshHistory();
@@ -106,8 +133,13 @@ class _AlloCryPageState extends State<AlloCryPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _p.background,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: _p.background,
       body: SafeArea(
         child: GetBuilder<HealthVitalsController>(
           init: HealthVitalsController.instance,
@@ -122,17 +154,29 @@ class _AlloCryPageState extends State<AlloCryPage>
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: BabyHeroBanner(
-                      // Explains what to do the first time, then hands the
-                      // bubble back to the card's own line about the last cry.
-                      narrationKey: NarrationKeys.newAllocryIntro,
-                      bindNarrationText: false,
-                      speechText: records.isEmpty
-                          ? "I'm listening,\nAmma. ❤️"
-                          : 'Last time I was\n${records.first.type.heading.toLowerCase()}.',
+                      speechText: _baby.line.trim().isNotEmpty
+                          ? _baby.line.trim()
+                          : (records.isEmpty
+                              ? "I'm listening,\nAmma. ❤️"
+                              : 'Last time I was\n${records.first.type.heading.toLowerCase()}.'),
                       bubblePosition: SpeechBubblePosition.right,
                       height: 270,
+                      speakingOverride: _baby.isRunning,
                     ),
                   ),
+
+                  if (_baby.isRunning) ...[
+                    const SizedBox(height: 10),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: StopSpeakingButton(
+                        onTap: () {
+                          _stopSpeaking();
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 26),
                   _buildTitle(),
                   const SizedBox(height: 22),
@@ -150,6 +194,7 @@ class _AlloCryPageState extends State<AlloCryPage>
           },
         ),
       ),
+    ),
     );
   }
 
@@ -159,7 +204,10 @@ class _AlloCryPageState extends State<AlloCryPage>
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.maybePop(context),
+            onPressed: () {
+              _stopSpeaking();
+              Navigator.maybePop(context);
+            },
             style: IconButton.styleFrom(
               backgroundColor: _p.card,
               elevation: 1,
@@ -198,6 +246,7 @@ class _AlloCryPageState extends State<AlloCryPage>
           IconButton(
             tooltip: 'Cry history',
             onPressed: () async {
+              _stopSpeaking();
               await Get.to(() => const CryHistoryPage());
               await _controller.refreshHistory();
             },
@@ -537,7 +586,10 @@ class _AlloCryPageState extends State<AlloCryPage>
 
   Widget _buildCryTypeCard(CryType type) {
     return GestureDetector(
-      onTap: () => Get.to(() => CryTypeDetailPage(type: type)),
+      onTap: () {
+        _stopSpeaking();
+        Get.to(() => CryTypeDetailPage(type: type));
+      },
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -593,3 +645,4 @@ class _AlloCryPageState extends State<AlloCryPage>
     );
   }
 }
+

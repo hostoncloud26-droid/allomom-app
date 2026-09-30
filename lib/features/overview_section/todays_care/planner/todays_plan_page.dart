@@ -22,6 +22,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -43,6 +44,10 @@ class TodaysPlanPage extends StatefulWidget {
 }
 
 class _TodaysPlanPageState extends State<TodaysPlanPage> {
+  static const _plannerIntentKey = 'screen_daily_activity_info';
+  static const _fallbackText =
+      "Welcome to your daily planner! Here you can track meals, sleep, and care tasks.";
+
   static const double _hourHeight = 72;
   static const double _timeColumnWidth = 64;
 
@@ -1332,6 +1337,12 @@ class _TodaysPlanPageState extends State<TodaysPlanPage> {
             ),
           ),
         _buildAssistantSheet(isDark),
+        if (!_assistantOpen)
+          const FloatingBabySpeechOverlay(
+            intentKey: _plannerIntentKey,
+            fallbackText: _fallbackText,
+            bottom: 0,
+          ),
       ],
     );
   }

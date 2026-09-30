@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/config/app_theme.dart';
@@ -7,6 +5,7 @@ import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 
 class KickCounterPage extends StatefulWidget {
   const KickCounterPage({super.key});
@@ -31,7 +30,7 @@ class _KickCounterPageState extends State<KickCounterPage>
 
   /// The baby's words come from the chatbot's `test` intent; the fallback line
   /// shows until it says something, or when the catalogue has no such intent.
-  static const _introIntentKey = 'test';
+  static const _introIntentKey = 'screen_kick_counter_info';
   static const _fallbackLine = "Let's count\ntogether! ❤️";
   final AlloBabyFlowController _baby = AlloBabyFlowController();
 
@@ -172,7 +171,7 @@ class _KickCounterPageState extends State<KickCounterPage>
               const SizedBox(height: 10),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildStopSpeakingButton(context),
+                child: StopSpeakingButton(onTap: _baby.stop),
               ),
             ],
 
@@ -196,55 +195,6 @@ class _KickCounterPageState extends State<KickCounterPage>
 
             _buildCounterSection(),
           ],
-        ),
-      ),
-    );
-  }
-
-  /// A frosted-glass bar: the page shows through a blurred, tinted fill, with
-  /// the accent red on the label. The tint and edge follow the theme.
-  Widget _buildStopSpeakingButton(BuildContext context) {
-    final isDark = context.palette.isDark;
-    const accent = Color(0xFFFF4E6A);
-    final radius = BorderRadius.circular(12);
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Material(
-          color: Colors.white.withValues(
-            alpha: isDark ? 0.08 : 0.55,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: radius,
-            side: BorderSide(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.16)
-                  : accent.withValues(alpha: 0.25),
-            ),
-          ),
-          child: InkWell(
-            onTap: _baby.stop,
-            child: const SizedBox(
-              width: double.infinity,
-              height: 36,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.stop_rounded, size: 18, color: accent),
-                  SizedBox(width: 6),
-                  Text(
-                    'Stop Speaking',
-                    style: TextStyle(
-                      color: accent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ),
       ),
     );

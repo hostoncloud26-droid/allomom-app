@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
@@ -206,14 +207,16 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       backgroundColor: _p.scaffoldSoft,
       // No app bar of its own: it is the Profile tab of My Health, whose
       // app bar already says "My Profile".
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        physics: const BouncingScrollPhysics(),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 80),
+            physics: const BouncingScrollPhysics(),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Avatar header
               Center(
                 child: Stack(
@@ -444,7 +447,15 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
           ),
         ),
       ),
-    );
+      const FloatingBabySpeechOverlay(
+        intentKey: 'screen_my_profile_info',
+        fallbackText:
+            "Your details are here, Mommy. Change anything that isn't right.",
+        bottom: 12,
+      ),
+    ],
+  ),
+);
   }
 
   Widget _buildSectionHeader(String title) {

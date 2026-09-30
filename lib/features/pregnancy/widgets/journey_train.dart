@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 
 import 'package:allomom/config/app_theme.dart';
 
@@ -53,7 +52,6 @@ class JourneyTrain extends StatefulWidget {
 }
 
 class _JourneyTrainState extends State<JourneyTrain> {
-  final _selectedKey = GlobalKey();
   final _scroll = ScrollController();
 
   @override
@@ -75,18 +73,20 @@ class _JourneyTrainState extends State<JourneyTrain> {
   }
 
   /// Centres the selected wagon in the train's own horizontal scroll only.
-  /// `Scrollable.ensureVisible` would also scroll the page it sits on,
-  /// pulling the screen down so the top of it opened cut off.
   void _scrollToSelected() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final wagon = _selectedKey.currentContext?.findRenderObject();
-      if (wagon == null || !_scroll.hasClients) return;
-      final viewport = RenderAbstractViewport.maybeOf(wagon);
-      if (viewport == null) return;
-      final target = viewport
-          .getOffsetToReveal(wagon, 0.5)
-          .offset
+      if (!mounted || !_scroll.hasClients) return;
+      final selectedIndex =
+          widget.wagons.indexWhere((w) => w.value == widget.selected);
+      if (selectedIndex < 0) return;
+
+      final viewportWidth = _scroll.position.viewportDimension;
+      const engineWidth = 90.0;
+      const stepWidth = 66.0; // 58 wagon + 8 coupler
+      final wagonCenter = engineWidth + (selectedIndex * stepWidth) + 29.0;
+      final target = (wagonCenter - (viewportWidth / 2))
           .clamp(0.0, _scroll.position.maxScrollExtent);
+
       _scroll.animateTo(
         target,
         duration: const Duration(milliseconds: 350),
@@ -212,7 +212,6 @@ class _JourneyTrainState extends State<JourneyTrain> {
     final now = w.value == widget.current;
 
     return GestureDetector(
-      key: selected ? _selectedKey : null,
       onTap: () => widget.onSelected(w.value),
       child: Column(
         mainAxisSize: MainAxisSize.min,

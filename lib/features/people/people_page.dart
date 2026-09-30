@@ -17,6 +17,7 @@ import 'package:allomom/features/people/widgets/family_illustration_helper.dart'
 import 'package:allomom/features/my_health/my_health_page.dart';
 import 'package:allomom/features/people/member_view.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/api/community_api.dart';
 import 'package:allomom/features/people/community/all_communities_page.dart';
@@ -237,16 +238,29 @@ class _PeoplePageState extends State<PeoplePage> {
       backgroundColor: _p.scaffoldSoft,
       body: SafeArea(
         bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Stack(
           children: [
-            const SizedBox(height: 12),
-            _buildTabSwitcher(),
-            mediumSpacingBox(),
-            Expanded(
-              child: _selectedTab == 0
-                  ? _buildFamilyTab()
-                  : _buildCommunityTab(),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 12),
+                _buildTabSwitcher(),
+                mediumSpacingBox(),
+                Expanded(
+                  child: _selectedTab == 0
+                      ? _buildFamilyTab()
+                      : _buildCommunityTab(),
+                ),
+              ],
+            ),
+            FloatingBabySpeechOverlay(
+              intentKey: _selectedTab == 0
+                  ? NarrationKeys.screenPeopleFamilyInfo
+                  : NarrationKeys.screenPeopleCommunityInfo,
+              fallbackText: _selectedTab == 0
+                  ? 'Connect with your partner and family members!'
+                  : 'Connect with the AlloMom mother community!',
+              bottom: 4,
             ),
           ],
         ),

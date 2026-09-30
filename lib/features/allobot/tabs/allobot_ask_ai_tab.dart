@@ -32,17 +32,22 @@ import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.da
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
+import 'package:allomom/services/screen_voice_hint_service.dart';
+import 'package:allomom/services/tts_service.dart';
 
 class AlloBotAskAiTab extends StatefulWidget {
   final VoidCallback onOpenChat;
   final bool initialListening;
   final ValueChanged<bool>? onListeningChanged;
+  final bool isActive;
 
   const AlloBotAskAiTab({
     super.key,
     required this.onOpenChat,
     this.initialListening = false,
     this.onListeningChanged,
+    this.isActive = true,
   });
 
   @override
@@ -65,22 +70,68 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   /// catalogue so they do not reshuffle on every rebuild.
   List<String> _openingSuggestions = const [];
 
+  static const _askAlloIntentKey = 'screen_ask_allo_info';
+
   @override
   void initState() {
     super.initState();
     _openingSuggestions = _drawOpeningSuggestions();
 
-    // Opening the page does not start the initial flow: Home has already run
-    // it, and the transcript, current line and options it left are what this
-    // page shows.
-
-    if (widget.initialListening) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => startListening());
+    if (widget.isActive) {
+      _startSpeech();
     }
   }
 
   @override
+  void didUpdateWidget(covariant AlloBotAskAiTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _startSpeech();
+      } else {
+        _stopSpeaking();
+      }
+    }
+  }
+
+  void _startSpeech() {
+    if (ScreenVoiceHintService.hasPlayedInSession(_askAlloIntentKey)) {
+      if (widget.initialListening) {
+        startListening();
+      }
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      await controller.ready;
+      final targetKey = await ScreenVoiceHintService.resolveIntentKey(
+        introKey: _askAlloIntentKey,
+      );
+      if (!mounted) return;
+      await controller.startIntentByKey(targetKey, speak: true);
+      if (widget.initialListening) {
+        startListening();
+      }
+    });
+  }
+
+  void _stopSpeaking() {
+    controller.stopCurrentTurn();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  @override
+  void deactivate() {
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    _stopSpeaking();
     _input.dispose();
     _scroll.dispose();
     _inputFocus.dispose();
@@ -572,6 +623,12 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                   reply: hasInteracted ? spoken : null,
                   intro: _headlineMessage(spoken),
                 ),
+                if (controller.isSpeaking.value) ...[
+                  const SizedBox(height: 12),
+                  StopSpeakingButton(
+                    onTap: _stopSpeaking,
+                  ),
+                ],
               ],
             ),
           ),

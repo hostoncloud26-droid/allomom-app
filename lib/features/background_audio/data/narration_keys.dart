@@ -11,6 +11,7 @@ class NarrationKeys {
   static const onbLang = 'onb_lang';
   static const onbLangSelected = 'onb_lang_selected';
   static const onbLangOther = 'onb_lang_other';
+  static const onbVoiceLang = 'onb_voice_lang';
 
   // ─── Onboarding: mobile number ───
   static const onbMobile = 'onb_mobile';
@@ -20,6 +21,11 @@ class NarrationKeys {
 
   // ─── Onboarding: OTP ───
   static const onbOtp = 'onb_otp';
+  static const onbOtpMethod = 'onb_otp_method';
+  static const onbOtpWhatsapp = 'onb_otp_whatsapp';
+  static const onbOtpSms = 'onb_otp_sms';
+  static const onbOtpResendWhatsapp = 'onb_otp_resend_whatsapp';
+  static const onbOtpResendSms = 'onb_otp_resend_sms';
   static const onbOtpWhere = 'onb_otp_where';
   static const onbOtpWrong = 'onb_otp_wrong';
   static const onbOtpResend = 'onb_otp_resend';
@@ -35,6 +41,18 @@ class NarrationKeys {
   static const onbNamePromptDad = 'onb_name_prompt_dad';
   static const onbNameReaction = 'onb_name_reaction';
   static const onbNameEmpty = 'onb_name_empty';
+
+  // ─── Onboarding: Dad family steps ───
+  static const dadFamilyChoice = 'dad_family_choice';
+  static const dadFamilySetup = 'dad_family_setup';
+  static const dadJoinCode = 'dad_join_code';
+  static const dadJoinWrong = 'dad_join_wrong';
+  static const dadJoinSuccess = 'dad_join_success';
+  static const onbDadFamilyChoice = dadFamilyChoice;
+  static const onbDadFamilySetup = dadFamilySetup;
+  static const onbDadJoinCode = dadJoinCode;
+  static const onbDadJoinWrong = dadJoinWrong;
+  static const onbDadJoinSuccess = dadJoinSuccess;
 
   // ─── Onboarding: status ───
   static const onbStatus = 'onb_status';
@@ -62,7 +80,7 @@ class NarrationKeys {
   static const pregEddDoctorDate = 'preg_edd_doctor_date';
   static const pregEddSaved = 'preg_edd_saved';
 
-  // ─── Pregnant: family ───
+  // ─── Pregnant: family & siblings ───
   static const pregPartner = 'preg_partner';
   static const pregPartnerDad = 'preg_partner_dad';
   static const pregPartnerSkip = 'preg_partner_skip';
@@ -70,6 +88,14 @@ class NarrationKeys {
   static const pregKids = 'preg_kids';
   static const pregKidsYes = 'preg_kids_yes';
   static const pregKidsNo = 'preg_kids_no';
+  static const sibAdd = 'sib_add';
+  static const sibGender = 'sib_gender';
+  static const sibNameBrother = 'sib_name_brother';
+  static const sibNameSister = 'sib_name_sister';
+  static const sibDobBrother = 'sib_dob_brother';
+  static const sibDobSister = 'sib_dob_sister';
+  static const sibSavedBrother = 'sib_saved_brother';
+  static const sibSavedSister = 'sib_saved_sister';
 
   // ─── Pregnant: done + home ───
   static const pregSetupDone = 'preg_setup_done';
@@ -103,6 +129,7 @@ class NarrationKeys {
   static const newVaccineIntro = 'new_vaccine_intro';
   static const newPartner = 'new_partner';
   static const newKids = 'new_kids';
+  static const newChildrenList = 'new_children_list';
   static const newSetupDone = 'new_setup_done';
   static const newHomeWelcome = 'new_home_welcome';
   static const newHomeFirstQuestion = 'new_home_first_question';
@@ -227,4 +254,63 @@ class NarrationKeys {
   static const pgConfBabyAdded = 'pg_conf_baby_added';
   static const pgConfJourneyDone = 'pg_conf_journey_done';
   static const pgConfFamilySaved = 'pg_conf_family_saved';
+
+  // ─── Screen Info Intent Keys ───
+  static const screenAllocryInfo = 'screen_allocry_info';
+  static const screenBabyMilestonesInfo = 'screen_baby_milestones_info';
+  static const screenBabyVaccinesInfo = 'screen_baby_vaccines_info';
+  static const screenBabyProfileInfo = 'screen_baby_profile_info';
+  static const screenDailyActivityInfo = 'screen_daily_activity_info';
+  static const screenAskAlloInfo = 'screen_ask_allo_info';
+  static const screenAgentsInfo = 'screen_agents_info';
+  static const screenAllobotChatInfo = 'screen_allobot_chat_info';
+  static const screenAllobotSettingsInfo = 'screen_allobot_settings_info';
+  static const screenFeedingTrackerInfo = 'screen_feeding_tracker_info';
+  static const screenFeedsInfo = 'screen_feeds_info';
+  static const screenHomeInfo = 'screen_home_info';
+  static const screenHomeCareInfo = 'screen_home_care_info';
+  static const screenHomeNutritionInfo = 'screen_home_nutrition_info';
+  static const screenHomeVitalsInfo = 'screen_home_vitals_info';
+  static const screenKickCounterInfo = 'screen_kick_counter_info';
+  static const screenMyCyclePhaseInfo = 'screen_my_cycle_phase_info';
+  static const screenMyCycleTrackerInfo = 'screen_my_cycle_tracker_info';
+  static const screenMyHealthInfo = 'screen_my_health_info';
+  static const screenMyPrescriptionsInfo = 'screen_my_prescriptions_info';
+  static const screenMyProfileInfo = 'screen_my_profile_info';
+  static const screenMyReportsInfo = 'screen_my_reports_info';
+  static const screenMyVitalsInfo = 'screen_my_vitals_info';
+  static const screenPeopleCommunityInfo = 'screen_people_community_info';
+  static const screenPeopleFamilyInfo = 'screen_people_family_info';
+  static const screenPregnancyJourneyInfo = 'screen_pregnancy_journey_info';
+  static const screenRegisterPregnancyInfo = 'screen_register_pregnancy_info';
+  static const screenSettingsInfo = 'screen_settings_info';
+
+  // ─── Screen Hint Intent Keys (Played on subsequent visits) ───
+  static const screenAllocryHint = 'screen_allocry_hint';
+  static const screenBabyMilestonesHint = 'screen_baby_milestones_hint';
+  static const screenBabyVaccinesHint = 'screen_baby_vaccines_hint';
+  static const screenBabyProfileHint = 'screen_baby_profile_hint';
+  static const screenDailyActivityHint = 'screen_daily_activity_hint';
+  static const screenAskAlloHint = 'screen_ask_allo_hint';
+  static const screenAgentsHint = 'screen_agents_hint';
+  static const screenAllobotChatHint = 'screen_allobot_chat_hint';
+  static const screenAllobotSettingsHint = 'screen_allobot_settings_hint';
+  static const screenFeedingTrackerHint = 'screen_feeding_tracker_hint';
+  static const screenFeedsHint = 'screen_feeds_hint';
+  static const screenHomeCareHint = 'screen_home_care_hint';
+  static const screenHomeNutritionHint = 'screen_home_nutrition_hint';
+  static const screenHomeVitalsHint = 'screen_home_vitals_hint';
+  static const screenKickCounterHint = 'screen_kick_counter_hint';
+  static const screenMyCyclePhaseHint = 'screen_my_cycle_phase_hint';
+  static const screenMyCycleTrackerHint = 'screen_my_cycle_tracker_hint';
+  static const screenMyHealthHint = 'screen_my_health_hint';
+  static const screenMyPrescriptionsHint = 'screen_my_prescriptions_hint';
+  static const screenMyProfileHint = 'screen_my_profile_hint';
+  static const screenMyReportsHint = 'screen_my_reports_hint';
+  static const screenMyVitalsHint = 'screen_my_vitals_hint';
+  static const screenPeopleCommunityHint = 'screen_people_community_hint';
+  static const screenPeopleFamilyHint = 'screen_people_family_hint';
+  static const screenPregnancyJourneyHint = 'screen_pregnancy_journey_hint';
+  static const screenRegisterPregnancyHint = 'screen_register_pregnancy_hint';
+  static const screenSettingsHint = 'screen_settings_hint';
 }

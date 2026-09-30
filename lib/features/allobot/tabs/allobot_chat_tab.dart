@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/allobot/pages/chat_history_page.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
@@ -18,14 +19,23 @@ import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.da
 
 class AlloBotChatTab extends StatefulWidget {
   final VoidCallback? onBack;
+  final bool isActive;
 
-  const AlloBotChatTab({super.key, this.onBack});
+  const AlloBotChatTab({
+    super.key,
+    this.onBack,
+    this.isActive = false,
+  });
 
   @override
   State<AlloBotChatTab> createState() => _AlloBotChatTabState();
 }
 
 class _AlloBotChatTabState extends State<AlloBotChatTab> {
+  static const _chatIntentKey = 'screen_allobot_chat_info';
+  static const _fallbackText =
+      'Ask me something here, or talk to me from Ask Allo — everything we say lands in this transcript.';
+
   final OfflineChatbotController controller = OfflineChatbotController.instance;
   final TextEditingController _input = TextEditingController();
   final ScrollController _scroll = ScrollController();
@@ -86,44 +96,57 @@ class _AlloBotChatTabState extends State<AlloBotChatTab> {
       backgroundColor: p.pick(const Color(0xFFFAF6F7), p.scaffoldSoft),
       body: SafeArea(
         bottom: false,
-        child: Column(
+        child: Stack(
           children: [
-            _buildAppBar(),
-            Expanded(
-              child: Obx(() {
-                final messages = controller.messages;
-                _scrollToBottom();
+            Column(
+              children: [
+                _buildAppBar(),
+                Expanded(
+                  child: Obx(() {
+                    final messages = controller.messages;
+                    _scrollToBottom();
 
-                if (messages.isEmpty) return _buildEmptyState();
+                    if (messages.isEmpty) return _buildEmptyState();
 
-                return ListView.builder(
-                  controller: _scroll,
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                  itemCount:
-                      messages.length + (controller.isTyping.value ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index >= messages.length) {
-                      return const OfflineChatbotTypingBubble(showAvatar: true);
-                    }
-                    final isLast = index == messages.length - 1;
-                    return OfflineChatMessageBubble(
-                      message: messages[index],
-                      showOptions:
-                          isLast && controller.activeOptions.isNotEmpty,
-                      onOptionSelected: _send,
+                    return ListView.builder(
+                      controller: _scroll,
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                      itemCount:
+                          messages.length + (controller.isTyping.value ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index >= messages.length) {
+                          return const OfflineChatbotTypingBubble(showAvatar: true);
+                        }
+                        final isLast = index == messages.length - 1;
+                        return OfflineChatMessageBubble(
+                          message: messages[index],
+                          showOptions:
+                              isLast && controller.activeOptions.isNotEmpty,
+                          onOptionSelected: _send,
+                        );
+                      },
                     );
-                  },
-                );
-              }),
+                  }),
+                ),
+                OfflineChatbotComposer(
+                  input: _input,
+                  focusNode: _inputFocus,
+                  onSend: _send,
+                  controller: controller,
+                  onMicTap: _openVoice,
+                  hintText: 'Message AlloBot…',
+                ),
+              ],
             ),
-            OfflineChatbotComposer(
-              input: _input,
-              focusNode: _inputFocus,
-              onSend: _send,
-              controller: controller,
-              onMicTap: _openVoice,
-              hintText: 'Message AlloBot…',
-            ),
+
+            // ─── FLOATING BABY BOTTOM POPUP WITH SLIDE & OPACITY (MATCHING FEEDS) ───
+            if (widget.isActive)
+              const FloatingBabySpeechOverlay(
+                intentKey: _chatIntentKey,
+                fallbackText: _fallbackText,
+                bottom: 60,
+                showScrim: true,
+              ),
           ],
         ),
       ),

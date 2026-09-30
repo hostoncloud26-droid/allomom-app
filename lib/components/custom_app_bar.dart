@@ -6,6 +6,7 @@ import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/services/app_language.dart';
 
@@ -137,11 +138,13 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
             const SizedBox(height: 16),
             LanguageSelector(
               initialAppLanguage: AppLanguage.cachedOrFallback,
-              initialSpeechLanguage: AppLanguage.cachedOrFallback,
-              // Saves it and moves AlloBot's catalogue with it, so her
-              // settings page shows the same language.
+              initialSpeechLanguage: BackgroundAudioController.isReady
+                  ? BackgroundAudioController.to.languageCode.value
+                  : AppLanguage.cachedOrFallback,
               onAppLanguageChanged:
                   OfflineChatbotController.instance.applyAppLanguage,
+              onSpeechLanguageChanged:
+                  OfflineChatbotController.instance.setLanguage,
             ),
             const SizedBox(height: 16),
           ],

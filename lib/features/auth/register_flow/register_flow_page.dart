@@ -4,20 +4,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
 import 'package:allomom/services/google_auth_service.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:allomom/features/auth/register_flow/register_name_page.dart';
@@ -50,6 +55,7 @@ class RegisterFlowPage extends StatefulWidget {
   final String phone;
   final String countryCode;
   final String selectedLanguage;
+  final String? selectedVoiceLanguage;
   final String selectedRole;
   final String status;
   final DateTime? lmpDate;
@@ -66,6 +72,7 @@ class RegisterFlowPage extends StatefulWidget {
     this.phone = '9876543210',
     this.countryCode = '+91',
     this.selectedLanguage = 'en',
+    this.selectedVoiceLanguage,
     this.selectedRole = 'Mom',
     this.status = '',
     this.lmpDate,
@@ -84,6 +91,8 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   final List<RegisterStep> _stepHistory = [];
   late RegisterStep _currentStep;
   bool _isForward = true;
+
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
 
   // Flow State
   late String _userName;
@@ -137,11 +146,28 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     return s.contains('pregnan');
   }
 
+  String _selectedVoiceLanguageCode = 'en';
+
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
     _currentStep = widget.initialStep;
     _stepHistory.add(_currentStep);
+
+    final voiceLang = widget.selectedVoiceLanguage ??
+        (BackgroundAudioController.isReady &&
+                BackgroundAudioController.to.languageCode.value.isNotEmpty
+            ? BackgroundAudioController.to.languageCode.value
+            : widget.selectedLanguage);
+
+    _selectedVoiceLanguageCode = voiceLang.isNotEmpty ? voiceLang : 'en';
+
+    if (BackgroundAudioController.isReady &&
+        _selectedVoiceLanguageCode.isNotEmpty) {
+      BackgroundAudioController.to.setLanguage(_selectedVoiceLanguageCode);
+    }
+    OfflineChatbotController.instance.setLanguage(_selectedVoiceLanguageCode);
 
     _userName = widget.userName;
     _selectedRole = widget.selectedRole;
@@ -167,14 +193,41 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     );
 
     _updateNarrationForStep(_currentStep);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _say(_narrationKey);
+      }
+    });
 
     if (_currentStep == RegisterStep.name) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _prefillFromGoogle());
     }
   }
 
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
   @override
   void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
     _nameController.dispose();
     _dayController.dispose();
     _monthController.dispose();
@@ -187,9 +240,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   void _say(String key) {
     if (!mounted) return;
     setState(() => _narrationKey = key);
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(key, force: true);
-    }
+    _baby.start(intentKey: key, resolveHint: false);
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -235,13 +286,15 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
         _narrationKey = NarrationFlowKeys.of(_status).kids;
         break;
       case RegisterStep.kids:
-        _narrationKey = NarrationFlowKeys.of(_status).kids;
+        _narrationKey = isNewMomRegistrationLabel(_status) && _children.isEmpty
+            ? NarrationKeys.newChildrenList
+            : NarrationFlowKeys.of(_status).kids;
         break;
       case RegisterStep.dadSetup:
-        _narrationKey = NarrationKeys.onbNamePromptDad;
+        _narrationKey = NarrationKeys.dadFamilyChoice;
         break;
       case RegisterStep.joinCode:
-        _narrationKey = NarrationKeys.onbNamePromptDad;
+        _narrationKey = NarrationKeys.dadJoinCode;
         break;
     }
   }
@@ -257,9 +310,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
       }
       _updateNarrationForStep(step);
     });
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(_narrationKey, force: true);
-    }
+    _say(_narrationKey);
   }
 
   void _resetStepState(RegisterStep prevStep) {
@@ -297,9 +348,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
         _currentStep = prevStep;
         _updateNarrationForStep(prevStep);
       });
-      if (BackgroundAudioController.isReady) {
-        BackgroundAudioController.to.playByKey(_narrationKey, force: true);
-      }
+      _say(_narrationKey);
     } else if (Navigator.canPop(context)) {
       narratedPop(context);
     }
@@ -327,35 +376,6 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
         return 'Family Setup';
       case RegisterStep.joinCode:
         return 'Join Family';
-    }
-  }
-
-  String get _currentSpeechFallback {
-    switch (_currentStep) {
-      case RegisterStep.name:
-        return 'You have such a lovely name! 💕';
-      case RegisterStep.status:
-        return 'Tell me where we are on this magical journey! ✨';
-      case RegisterStep.lmp:
-        return _isDad
-            ? "When was the first day of Mommy's last\nmenstrual period? 🌸"
-            : 'When was the first day of your last\nmenstrual period? 🌸';
-      case RegisterStep.edd:
-        return 'Yay! I can\'t wait to meet you on your due date! 👶🎉';
-      case RegisterStep.cyclePrediction:
-        return 'Here is your predicted cycle window! 🌸';
-      case RegisterStep.partner:
-        return _isDad
-            ? 'Tell me a bit about Mommy so we can stay close! 💕'
-            : 'Would you like to connect with your partner? 👫';
-      case RegisterStep.family:
-        return 'Do you have other lovely little ones in your family? 👶';
-      case RegisterStep.kids:
-        return 'Add your lovely children so I can care for all of them! 👶✨';
-      case RegisterStep.dadSetup:
-        return 'Welcome Daddy! How would you like to set up your family? 👨‍👩‍👦';
-      case RegisterStep.joinCode:
-        return 'Enter your family code to connect with Mommy! 🔑';
     }
   }
 
@@ -395,11 +415,11 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       _say(NarrationKeys.onbNameEmpty);
-      _showMessage('Please enter your name');
+      _showMessage('Please enter your name', isError: true);
       return;
     }
     _userName = name;
-    speak(NarrationKeys.onbNameReaction, force: true);
+    _say(NarrationKeys.onbNameReaction);
 
     if (_isDad) {
       _goToStep(RegisterStep.dadSetup);
@@ -412,17 +432,17 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   void _handleStatusSelected(String st) {
     setState(() {
       _status = st;
-      switch (st.trim().toLowerCase()) {
-        case 'pre pregnancy':
-          _narrationKey = NarrationKeys.onbStatusPrePregnancy;
-          break;
-        case 'new mom':
-          _narrationKey = NarrationKeys.onbStatusNewMom;
-          break;
-        default:
-          _narrationKey = NarrationKeys.onbStatusPregnant;
-      }
     });
+    switch (st.trim().toLowerCase()) {
+      case 'pre pregnancy':
+        _say(NarrationKeys.onbStatusPrePregnancy);
+        break;
+      case 'new mom':
+        _say(NarrationKeys.onbStatusNewMom);
+        break;
+      default:
+        _say(NarrationKeys.onbStatusPregnant);
+    }
   }
 
   void _handleStatusNext() {
@@ -431,7 +451,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
       _showMessage('Please select an option to continue');
       return;
     }
-    speak(NarrationKeys.onbAlmostDone);
+    _say(NarrationKeys.onbAlmostDone);
     _goToStep(RegisterStep.lmp);
   }
 
@@ -506,11 +526,10 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     _lmpDate = lmp;
     _eddDate = lmp.add(const Duration(days: 280));
 
-    speak(
+    _say(
       _isPregnancyFlow
           ? NarrationKeys.pregLmpConfirm
           : NarrationKeys.preCycleSaved,
-      force: true,
     );
 
     if (_isPregnancyFlow) {
@@ -522,7 +541,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
 
   // ─── STEP 3: EDD / CYCLE ACTIONS ───
   void _handleEddConfirm() {
-    speak(NarrationKeys.pregEddSaved, force: true);
+    _say(NarrationKeys.pregEddSaved);
     if (_isDad) {
       _goToStep(RegisterStep.family);
     } else {
@@ -531,7 +550,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   }
 
   void _handleCycleConfirm() {
-    speak(NarrationKeys.preCycleSaved, force: true);
+    _say(NarrationKeys.preCycleSaved);
     _goToStep(RegisterStep.partner);
   }
 
@@ -578,7 +597,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
 
     _partnerName = pName;
     _partnerPhone = pPhone;
-    speak(NarrationKeys.pregPartnerSaved, force: true);
+    _say(NarrationKeys.pregPartnerSaved);
     _goToAfterPartner();
   }
 
@@ -589,7 +608,10 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     return me.isEmpty ? 'My Family' : "$me's Family";
   }
 
-  void _handlePartnerSkip() => _goToAfterPartner();
+  void _handlePartnerSkip() {
+    _say(NarrationKeys.pregPartnerSkip);
+    _goToAfterPartner();
+  }
 
   /// A new mom has a baby by definition, so she skips the "any kids?"
   /// question and goes straight to adding them.
@@ -719,7 +741,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     }
   }
 
-  // ─── STEP 7: DAD SETUP ACTIONS ───
+  // ─── STEP 6: DAD SETUP ACTIONS ───
   void _handleDadJoinByCode() {
     _goToStep(RegisterStep.joinCode);
   }
@@ -727,12 +749,16 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   /// A dad either joins his family by code or finishes here. There is nothing
   /// else for him to set up: the pregnancy and the children are Mommy's, and
   /// he sees them from People once they are in the same family.
-  Future<void> _handleDadContinue() => _completeRegistration();
+  Future<void> _handleDadContinue() {
+    speak(NarrationKeys.dadFamilySetup, force: true);
+    return _completeRegistration();
+  }
 
-  // ─── STEP 8: JOIN CODE ACTIONS ───
+  // ─── STEP 7: JOIN CODE ACTIONS ───
   Future<void> _handleJoinFamilyCode() async {
     final code = _joinCodeController.text.trim().toUpperCase();
     if (code.length < 6) {
+      _say(NarrationKeys.dadJoinWrong);
       _showMessage('Please enter a 6-character family code', isError: true);
       return;
     }
@@ -749,12 +775,14 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
     setState(() => _isJoiningCode = false);
 
     if (error != null) {
+      _say(NarrationKeys.dadJoinWrong);
       setState(() => _codeErrorMessage = error);
       _showMessage(error, isError: true);
       return;
     }
 
     _familyCode = code;
+    speak(NarrationKeys.dadJoinSuccess, force: true);
     _showMessage('Successfully connected to family!');
     await _completeRegistration();
   }
@@ -820,7 +848,10 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
       case RegisterStep.family:
         return FamilyDetailsStepView(
           hasKids: _hasKids,
-          onHasKidsChanged: (val) => setState(() => _hasKids = val),
+          onHasKidsChanged: (val) {
+            setState(() => _hasKids = val);
+            _say(val ? NarrationKeys.pregKidsYes : NarrationKeys.pregKidsNo);
+          },
           isLoading: _isSavingFamily,
           onNext: _handleFamilyNext,
         );
@@ -859,6 +890,25 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
   @override
   Widget build(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final String activeVoiceLang = _selectedVoiceLanguageCode.isNotEmpty
+        ? _selectedVoiceLanguageCode
+        : (BackgroundAudioController.isReady &&
+                BackgroundAudioController.to.languageCode.value.isNotEmpty
+            ? BackgroundAudioController.to.languageCode.value
+            : 'en');
+
+    final String currentText = _baby.line.trim().isNotEmpty
+        ? _baby.line.trim()
+        : (BackgroundAudioController.isReady &&
+                BackgroundAudioController.to.currentText.value.trim().isNotEmpty
+            ? BackgroundAudioController.to.currentText.value.trim()
+            : (BackgroundAudioController.isReady
+                ? BackgroundAudioController.to.textFor(_narrationKey, activeVoiceLang)
+                : (OfflineChatbotController.instance.libraryAudioNow(_narrationKey, activeVoiceLang)?.transcription?.trim() ??
+                    '')));
+    final bool isSpeaking = _baby.isRunning ||
+        (BackgroundAudioController.isReady &&
+            BackgroundAudioController.to.isPlaying.value);
 
     return PopScope(
       canPop: _stepHistory.length <= 1,
@@ -931,14 +981,32 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                       ),
                       SizedBox(height: isKeyboardOpen ? 4 : 12),
 
-                      // Animated Baby Avatar Section
+                      // Animated Baby Avatar Section (AlloCry pattern)
                       Expanded(
-                        child: BabyPrompt(
-                          compact: isKeyboardOpen,
-                          expand: true,
-                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                          narrationKey: _narrationKey,
-                          text: _currentSpeechFallback,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: BabyHeroBanner(
+                                  speechText: currentText,
+                                  bubblePosition: SpeechBubblePosition.topCenter,
+                                  expand: true,
+                                  speakingOverride: isSpeaking,
+                                  onSpeakerTap: () => _say(_narrationKey),
+                                ),
+                              ),
+                              if (isSpeaking) ...[
+                                const SizedBox(height: 8),
+                                StopSpeakingButton(
+                                  onTap: () {
+                                    _stopSpeaking();
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
 

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/connection_controller.dart';
@@ -12,10 +13,12 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_flow.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/baby/baby_form_sheet.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/repositories/baby_repository.dart';
 import 'package:allomom/repositories/pregnancy_state.dart';
@@ -23,9 +26,11 @@ import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/google_auth_service.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sync/sync_codec.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:allomom/features/auth/language_selection_page.dart';
+import 'package:allomom/features/auth/voice_language_selection_page.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/auth/verify_otp_page.dart';
 import 'package:allomom/features/auth/widgets/otp_channel_sheet.dart';
@@ -40,9 +45,11 @@ import 'package:allomom/features/auth/register_flow/family_details_page.dart';
 import 'package:allomom/features/auth/register_flow/kids_details_page.dart';
 import 'package:allomom/features/auth/register_flow/dad_family_setup_page.dart';
 import 'package:allomom/features/auth/register_flow/join_family_code_page.dart';
+import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 
 enum AuthFlowStep {
   language,
+  voiceLanguage,
   contact,
   otpChannel,
   verifyOtp,
@@ -62,6 +69,7 @@ enum AuthFlowStep {
 class AuthFlowPage extends StatefulWidget {
   final AuthFlowStep initialStep;
   final String initialLanguage;
+  final String? initialVoiceLanguage;
   final String initialPhone;
   final String initialCountryCode;
   final String initialRole;
@@ -71,6 +79,7 @@ class AuthFlowPage extends StatefulWidget {
     super.key,
     this.initialStep = AuthFlowStep.language,
     this.initialLanguage = 'en',
+    this.initialVoiceLanguage,
     this.initialPhone = '',
     this.initialCountryCode = '+91',
     this.initialRole = 'Mom',
@@ -86,8 +95,11 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   late AuthFlowStep _currentStep;
   bool _isForward = true;
 
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   // Language state
   String _selectedLanguageCode = 'en';
+  String _selectedVoiceLanguageCode = 'en';
 
   // Contact number state
   final TextEditingController _phoneController = TextEditingController();
@@ -125,10 +137,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   DateTime? _eddDate;
   int _cycleLength = 28;
 
-  // LMP Wheel controllers
+  // LMP Wheel state
   late DateTime _selectedLmpDate;
-  late FixedExtentScrollController _dayController;
-  late FixedExtentScrollController _monthController;
 
   // Partner state
   final TextEditingController _partnerNameController = TextEditingController();
@@ -174,10 +184,25 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
     _currentStep = widget.initialStep;
     _stepHistory.add(_currentStep);
 
+    final String initialVoice = widget.initialVoiceLanguage ??
+        (BackgroundAudioController.isReady &&
+                BackgroundAudioController.to.languageCode.value.isNotEmpty
+            ? BackgroundAudioController.to.languageCode.value
+            : widget.initialLanguage);
+
     _selectedLanguageCode = widget.initialLanguage;
+    _selectedVoiceLanguageCode =
+        widget.initialStep == AuthFlowStep.language ? 'en' : initialVoice;
+
+    if (BackgroundAudioController.isReady &&
+        widget.initialStep != AuthFlowStep.language &&
+        _selectedVoiceLanguageCode.isNotEmpty) {
+      BackgroundAudioController.to.setLanguage(_selectedVoiceLanguageCode);
+    }
     _selectedRole = widget.initialRole;
     if (widget.initialPhone.isNotEmpty) {
       _phoneController.text = widget.initialPhone;
@@ -188,14 +213,13 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
     final now = DateTime.now();
     _selectedLmpDate = DateTime(now.year, now.month, now.day);
-    _dayController = FixedExtentScrollController(
-      initialItem: _selectedLmpDate.day - 1,
-    );
-    _monthController = FixedExtentScrollController(
-      initialItem: _selectedLmpDate.month - 1,
-    );
 
     _updateNarrationForStep(_currentStep);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _say(_narrationKey);
+      }
+    });
 
     for (int i = 0; i < 6; i++) {
       _otpFocusNodes[i].addListener(() {
@@ -212,12 +236,32 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     }
   }
 
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
   @override
   void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
     _phoneController.dispose();
     _nameController.dispose();
-    _dayController.dispose();
-    _monthController.dispose();
     _partnerNameController.dispose();
     _partnerPhoneController.dispose();
     _joinCodeController.dispose();
@@ -233,9 +277,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   void _say(String key) {
     if (!mounted) return;
     setState(() => _narrationKey = key);
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(key, force: true);
-    }
+    _baby.start(intentKey: key, resolveHint: false);
   }
 
   void _showMessage(String message, {bool isError = false}) {
@@ -258,19 +300,22 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       case AuthFlowStep.language:
         _narrationKey = NarrationKeys.onbLang;
         break;
+      case AuthFlowStep.voiceLanguage:
+        _narrationKey = NarrationKeys.onbVoiceLang;
+        break;
       case AuthFlowStep.contact:
         _narrationKey = NarrationKeys.onbMobile;
         break;
       case AuthFlowStep.otpChannel:
-        _narrationKey = NarrationKeys.onbMobile;
+        _narrationKey = NarrationKeys.onbOtpMethod;
         break;
       case AuthFlowStep.verifyOtp:
-        _narrationKey = NarrationKeys.onbOtp;
+        _narrationKey = _otpChannel == OtpChannel.sms
+            ? NarrationKeys.onbOtpSms
+            : NarrationKeys.onbOtpWhatsapp;
         break;
       case AuthFlowStep.role:
-        _narrationKey = _selectedRole.toLowerCase() == 'dad'
-            ? NarrationKeys.onbRoleDad
-            : NarrationKeys.onbRoleMom;
+        _narrationKey = NarrationKeys.onbRole;
         break;
       case AuthFlowStep.name:
         _narrationKey = _isDad
@@ -300,13 +345,15 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         _narrationKey = NarrationFlowKeys.of(_status).kids;
         break;
       case AuthFlowStep.kids:
-        _narrationKey = NarrationFlowKeys.of(_status).kids;
+        _narrationKey = isNewMomRegistrationLabel(_status) && _children.isEmpty
+            ? NarrationKeys.newChildrenList
+            : NarrationFlowKeys.of(_status).kids;
         break;
       case AuthFlowStep.dadSetup:
-        _narrationKey = NarrationKeys.onbNamePromptDad;
+        _narrationKey = NarrationKeys.dadFamilyChoice;
         break;
       case AuthFlowStep.joinCode:
-        _narrationKey = NarrationKeys.onbNamePromptDad;
+        _narrationKey = NarrationKeys.dadJoinCode;
         break;
     }
   }
@@ -322,9 +369,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       }
       _updateNarrationForStep(step);
     });
-    if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.playByKey(_narrationKey, force: true);
-    }
+    _say(_narrationKey);
   }
 
   void _resetStepState(AuthFlowStep prevStep) {
@@ -367,9 +412,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         _currentStep = prevStep;
         _updateNarrationForStep(prevStep);
       });
-      if (BackgroundAudioController.isReady) {
-        BackgroundAudioController.to.playByKey(_narrationKey, force: true);
-      }
+      _say(_narrationKey);
     } else if (Navigator.canPop(context)) {
       narratedPop(context);
     }
@@ -378,7 +421,9 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   String get _currentStepTitle {
     switch (_currentStep) {
       case AuthFlowStep.language:
-        return 'Please Select Your Language';
+        return 'Please Select Your App Language';
+      case AuthFlowStep.voiceLanguage:
+        return "Baby's Voice Language";
       case AuthFlowStep.contact:
         return 'Set Your Contact Number';
       case AuthFlowStep.otpChannel:
@@ -410,60 +455,40 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     }
   }
 
-  String get _currentSpeechFallback {
-    switch (_currentStep) {
-      case AuthFlowStep.language:
-        return 'Hello there! Which language should\nwe speak together? 💬';
-      case AuthFlowStep.contact:
-        return "What's your mobile number\nso I can stay close? 📱";
-      case AuthFlowStep.otpChannel:
-        return 'Where should I send your\nsecret code? 🔑';
-      case AuthFlowStep.verifyOtp:
-        return 'I just sent a secret 6-digit code to\nyour phone! 🔑';
-      case AuthFlowStep.role:
-        return 'Yay! Are you my Mommy or my\nDaddy? 👶✨';
-      case AuthFlowStep.name:
-        return 'You have such a lovely name! 💕';
-      case AuthFlowStep.status:
-        return 'Tell me where we are on this magical journey! ✨';
-      case AuthFlowStep.lmp:
-        return _isDad
-            ? "When was the first day of Mommy's last\nmenstrual period? 🌸"
-            : 'When was the first day of your last\nmenstrual period? 🌸';
-      case AuthFlowStep.edd:
-        return 'Yay! I can\'t wait to meet you on your due date! 👶🎉';
-      case AuthFlowStep.cyclePrediction:
-        return 'Here is your predicted cycle window! 🌸';
-      case AuthFlowStep.partner:
-        return _isDad
-            ? 'Tell me a bit about Mommy so we can stay close! 💕'
-            : 'Would you like to connect with your partner? 👫';
-      case AuthFlowStep.family:
-        return 'Do you have other lovely little ones in your family? 👶';
-      case AuthFlowStep.kids:
-        return 'Add your lovely children so I can care for all of them! 👶✨';
-      case AuthFlowStep.dadSetup:
-        return 'Welcome Daddy! How would you like to set up your family? 👨‍👩‍👦';
-      case AuthFlowStep.joinCode:
-        return 'Enter your family code to connect with Mommy! 🔑';
-    }
-  }
-
   // ─── STEP 0: LANGUAGE ACTIONS ───
   void _handleLanguageSelected(String code) {
     setState(() {
       _selectedLanguageCode = code;
-      _narrationKey = code == 'other'
-          ? NarrationKeys.onbLangOther
-          : NarrationKeys.onbLang;
     });
+    if (AppLanguage.supported.contains(code)) {
+      _say(NarrationKeys.onbLangSelected);
+    } else {
+      _say(NarrationKeys.onbLangOther);
+    }
   }
 
   Future<void> _handleLanguageProceed() async {
     await AppLanguage.save(_selectedLanguageCode);
+    _goToStep(AuthFlowStep.voiceLanguage);
+  }
+
+  // ─── STEP 0B: VOICE LANGUAGE ACTIONS ───
+  void _handleVoiceLanguageSelected(String code) {
+    setState(() {
+      _selectedVoiceLanguageCode = code;
+    });
     if (BackgroundAudioController.isReady) {
-      await BackgroundAudioController.to.setLanguage(_selectedLanguageCode);
+      BackgroundAudioController.to.setLanguage(code);
     }
+    OfflineChatbotController.instance.setLanguage(code);
+    _say(NarrationKeys.onbLangSelected);
+  }
+
+  Future<void> _handleVoiceLanguageProceed() async {
+    if (BackgroundAudioController.isReady) {
+      await BackgroundAudioController.to.setLanguage(_selectedVoiceLanguageCode);
+    }
+    await OfflineChatbotController.instance.setLanguage(_selectedVoiceLanguageCode);
     _goToStep(AuthFlowStep.contact);
   }
 
@@ -475,7 +500,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
         .replaceAll('-', '');
     if (phone.length < 10) {
       _say(NarrationKeys.onbMobileInvalid);
-      _showMessage('Please enter a valid 10-digit mobile number');
+      _showMessage('Please enter a valid 10-digit mobile number', isError: true);
       return;
     }
 
@@ -536,7 +561,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     for (final controller in _otpControllers) {
       controller.clear();
     }
-    if (isResend) _say(NarrationKeys.onbOtpResend);
 
     final isTest = _testNumbers.contains(phone);
     _showMessage(
@@ -546,6 +570,16 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     );
 
     _goToStep(AuthFlowStep.verifyOtp);
+
+    if (isResend) {
+      _say(channel == OtpChannel.whatsapp
+          ? NarrationKeys.onbOtpResendWhatsapp
+          : NarrationKeys.onbOtpResendSms);
+    } else {
+      _say(channel == OtpChannel.whatsapp
+          ? NarrationKeys.onbOtpWhatsapp
+          : NarrationKeys.onbOtpSms);
+    }
   }
 
   // ─── STEP 2: OTP ACTIONS ───
@@ -555,7 +589,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     final otpCode = _enteredOtp;
     if (otpCode.length < 6) {
       _say(NarrationKeys.onbOtpWrong);
-      _showMessage('Please enter the full 6-digit code');
+      _showMessage('Please enter the full 6-digit code', isError: true);
       return;
     }
 
@@ -610,19 +644,18 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   // ─── STEP 3: ROLE ACTIONS ───
   void _handleRoleSelected(String role) {
+    final isDad = role.trim().toLowerCase() == 'dad';
     setState(() {
       _selectedRole = role;
-      _narrationKey = role.trim().toLowerCase() == 'dad'
-          ? NarrationKeys.onbRoleDad
-          : NarrationKeys.onbRoleMom;
     });
+    _say(isDad ? NarrationKeys.onbRoleDad : NarrationKeys.onbRoleMom);
     // Saved immediately rather than waiting for the end of registration —
     // screens reached before then (e.g. People's own "Create Family" dialog)
     // read gender off the profile to work out the caller's role, and an
     // unset gender there silently falls back to "mother".
     unawaited(
       MainController.instance.saveRegistration(
-        gender: role.trim().toLowerCase() == 'dad' ? 'male' : 'female',
+        gender: isDad ? 'male' : 'female',
         markRegistered: false,
       ),
     );
@@ -668,10 +701,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     final name = _nameController.text.trim();
     if (name.isEmpty) {
       _say(NarrationKeys.onbNameEmpty);
-      _showMessage('Please enter your name');
+      _showMessage('Please enter your name', isError: true);
       return;
     }
-    speak(NarrationKeys.onbNameReaction, force: true);
+    _say(NarrationKeys.onbNameReaction);
 
     if (_isDad) {
       _goToStep(AuthFlowStep.dadSetup);
@@ -684,17 +717,17 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   void _handleStatusSelected(String st) {
     setState(() {
       _status = st;
-      switch (st.trim().toLowerCase()) {
-        case 'pre pregnancy':
-          _narrationKey = NarrationKeys.onbStatusPrePregnancy;
-          break;
-        case 'new mom':
-          _narrationKey = NarrationKeys.onbStatusNewMom;
-          break;
-        default:
-          _narrationKey = NarrationKeys.onbStatusPregnant;
-      }
     });
+    switch (st.trim().toLowerCase()) {
+      case 'pre pregnancy':
+        _say(NarrationKeys.onbStatusPrePregnancy);
+        break;
+      case 'new mom':
+        _say(NarrationKeys.onbStatusNewMom);
+        break;
+      default:
+        _say(NarrationKeys.onbStatusPregnant);
+    }
   }
 
   void _handleStatusNext() {
@@ -703,46 +736,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       _showMessage('Please select an option to continue');
       return;
     }
-    speak(NarrationKeys.onbAlmostDone);
+    _say(NarrationKeys.onbAlmostDone);
     _goToStep(AuthFlowStep.lmp);
-  }
-
-  // ─── STEP 6: LMP ACTIONS ───
-  int _getDaysInMonth(int year, int month) => DateTime(year, month + 1, 0).day;
-
-  DateTime _resolveDate(int month, int day) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final daysInCurrentYear = _getDaysInMonth(today.year, month);
-    final validDayCurrentYear = day.clamp(1, daysInCurrentYear);
-    DateTime candidate = DateTime(today.year, month, validDayCurrentYear);
-
-    if (candidate.isAfter(today)) {
-      final daysInPastYear = _getDaysInMonth(today.year - 1, month);
-      final validDayPastYear = day.clamp(1, daysInPastYear);
-      candidate = DateTime(today.year - 1, month, validDayPastYear);
-    }
-    return candidate;
-  }
-
-  void _onLmpDayChanged(int dayIndex) {
-    HapticFeedback.selectionClick();
-    final targetDay = dayIndex + 1;
-    setState(() {
-      _selectedLmpDate = _resolveDate(_selectedLmpDate.month, targetDay);
-    });
-  }
-
-  void _onLmpMonthChanged(int monthIndex) {
-    HapticFeedback.selectionClick();
-    final targetMonth = monthIndex + 1;
-    setState(() {
-      _selectedLmpDate = _resolveDate(targetMonth, _selectedLmpDate.day);
-    });
-    final maxDays = _getDaysInMonth(_selectedLmpDate.year, targetMonth);
-    if (_dayController.hasClients && _dayController.selectedItem >= maxDays) {
-      _dayController.jumpToItem(maxDays - 1);
-    }
   }
 
   void _handleLmpCalculate() {
@@ -778,11 +773,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     _lmpDate = lmp;
     _eddDate = lmp.add(const Duration(days: 280));
 
-    speak(
+    _say(
       _isPregnancyFlow
           ? NarrationKeys.pregLmpConfirm
           : NarrationKeys.preCycleSaved,
-      force: true,
     );
 
     if (_isPregnancyFlow) {
@@ -850,7 +844,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
     _partnerName = pName;
     _partnerPhone = pPhone;
-    speak(NarrationKeys.pregPartnerSaved, force: true);
+    _say(NarrationKeys.pregPartnerSaved);
     _goToAfterPartner();
   }
 
@@ -861,7 +855,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     return me.isEmpty ? 'My Family' : "$me's Family";
   }
 
-  void _handlePartnerSkip() => _goToAfterPartner();
+  void _handlePartnerSkip() {
+    _say(NarrationKeys.pregPartnerSkip);
+    _goToAfterPartner();
+  }
 
   /// A new mom has a baby by definition, so she skips the "any kids?"
   /// question and goes straight to adding them.
@@ -977,7 +974,7 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       await main.completeRegistration();
 
       if (!mounted) return;
-      speak(NarrationFlowKeys.of(_status).setupDone, force: true);
+      _say(NarrationFlowKeys.of(_status).setupDone);
       _showMessage(
         'Welcome, ${_nameController.text.trim()}! Your family profile is ready.',
       );
@@ -1001,12 +998,16 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   /// A dad either joins his family by code or finishes here. There is nothing
   /// else for him to set up: the pregnancy and the children are Mommy's, and
   /// he sees them from People once they are in the same family.
-  Future<void> _handleDadContinue() => _completeRegistration();
+  Future<void> _handleDadContinue() {
+    _say(NarrationKeys.dadFamilySetup);
+    return _completeRegistration();
+  }
 
   // ─── STEP 11: JOIN CODE ACTIONS ───
   Future<void> _handleJoinFamilyCode() async {
     final code = _joinCodeController.text.trim().toUpperCase();
     if (code.length < 6) {
+      _say(NarrationKeys.dadJoinWrong);
       _showMessage('Please enter a 6-character family code', isError: true);
       return;
     }
@@ -1023,11 +1024,13 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     setState(() => _isJoiningCode = false);
 
     if (error != null) {
+      _say(NarrationKeys.dadJoinWrong);
       setState(() => _codeErrorMessage = error);
       _showMessage(error, isError: true);
       return;
     }
 
+    speak(NarrationKeys.dadJoinSuccess, force: true);
     _showMessage('Successfully connected to family!');
     await _completeRegistration();
   }
@@ -1061,6 +1064,12 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
           selectedLanguageCode: _selectedLanguageCode,
           onLanguageSelected: _handleLanguageSelected,
           onProceed: _handleLanguageProceed,
+        );
+      case AuthFlowStep.voiceLanguage:
+        return VoiceLanguageStepView(
+          selectedVoiceLanguageCode: _selectedVoiceLanguageCode,
+          onVoiceLanguageSelected: _handleVoiceLanguageSelected,
+          onProceed: _handleVoiceLanguageProceed,
         );
       case AuthFlowStep.contact:
         return ContactNumberStepView(
@@ -1149,7 +1158,10 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       case AuthFlowStep.family:
         return FamilyDetailsStepView(
           hasKids: _hasKids,
-          onHasKidsChanged: (val) => setState(() => _hasKids = val),
+          onHasKidsChanged: (val) {
+            setState(() => _hasKids = val);
+            _say(val ? NarrationKeys.pregKidsYes : NarrationKeys.pregKidsNo);
+          },
           isLoading: _isSavingRegistration,
           onNext: _handleFamilyNext,
         );
@@ -1187,6 +1199,25 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   Widget _buildFlow(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
+    final String activeLanguageForNarration =
+        _currentStep == AuthFlowStep.language
+            ? 'en'
+            : (_selectedVoiceLanguageCode.isNotEmpty
+                ? _selectedVoiceLanguageCode
+                : 'en');
+
+    final String currentText = _baby.line.trim().isNotEmpty
+        ? _baby.line.trim()
+        : (BackgroundAudioController.isReady &&
+                BackgroundAudioController.to.currentText.value.trim().isNotEmpty
+            ? BackgroundAudioController.to.currentText.value.trim()
+            : (BackgroundAudioController.isReady
+                ? BackgroundAudioController.to.textFor(_narrationKey, activeLanguageForNarration)
+                : (OfflineChatbotController.instance.libraryAudioNow(_narrationKey, activeLanguageForNarration)?.transcription?.trim() ??
+                    '')));
+    final bool isSpeaking = _baby.isRunning ||
+        (BackgroundAudioController.isReady &&
+            BackgroundAudioController.to.isPlaying.value);
 
     return PopScope(
       canPop: _stepHistory.length <= 1,
@@ -1263,14 +1294,32 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
                       ),
                       SizedBox(height: isKeyboardOpen ? 4 : 12),
 
-                      // Animated Baby Avatar Section (Stays static in tree, speaks on step change)
+                      // Animated Baby Avatar Section (AlloCry pattern)
                       Expanded(
-                        child: BabyPrompt(
-                          compact: isKeyboardOpen,
-                          expand: true,
-                          margin: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                          narrationKey: _narrationKey,
-                          text: _currentSpeechFallback,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Column(
+                            children: [
+                              Expanded(
+                                child: BabyHeroBanner(
+                                  speechText: currentText,
+                                  bubblePosition: SpeechBubblePosition.topCenter,
+                                  expand: true,
+                                  speakingOverride: isSpeaking,
+                                  onSpeakerTap: () => _say(_narrationKey),
+                                ),
+                              ),
+                              if (isSpeaking) ...[
+                                const SizedBox(height: 8),
+                                StopSpeakingButton(
+                                  onTap: () {
+                                    _stopSpeaking();
+                                    setState(() {});
+                                  },
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                       ),
 

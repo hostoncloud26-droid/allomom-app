@@ -22,6 +22,7 @@ import 'package:allomom/features/background_audio/controller/background_audio_co
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
 
@@ -35,16 +36,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback(
-      (_) => speak(NarrationKeys.pgSettingsOpen),
-    );
-  }
-
   // AlloMom Theme Color Palette from config/colors.dart
-  // Brand colours stay fixed; surfaces and text follow light / dark mode.
   static const Color _accentPrimary = primaryColor;
   static const Color _logoutRed = dangerRed;
   Color get _bgTheme => context.palette.background;
@@ -61,20 +53,22 @@ class _SettingsPageState extends State<SettingsPage> {
     return Scaffold(
       backgroundColor: _bgTheme,
       body: SafeArea(
-        child: ListenableBuilder(
-          listenable: MainController.instance,
-          builder: (context, _) {
-            final session = MainController.instance;
-            final isPregnant = session.isPregnant;
-            final gestationalWeek = session.currentGestationalWeek;
-            final trimester = session.currentTrimester;
+        child: Stack(
+          children: [
+            ListenableBuilder(
+              listenable: MainController.instance,
+              builder: (context, _) {
+                final session = MainController.instance;
+                final isPregnant = session.isPregnant;
+                final gestationalWeek = session.currentGestationalWeek;
+                final trimester = session.currentTrimester;
 
-            return SingleChildScrollView(
-              physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                return SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                   // ─── PROFILE HEADER (FLAT, NO CARD WRAPPER) ───
                   _buildProfileHeader(
                     context,
@@ -253,9 +247,16 @@ class _SettingsPageState extends State<SettingsPage> {
             );
           },
         ),
-      ),
-    );
-  }
+        const FloatingBabySpeechOverlay(
+          intentKey: NarrationKeys.screenSettingsInfo,
+          fallbackText: 'Manage your app settings and preferences here!',
+          bottom: 4,
+        ),
+      ],
+    ),
+  ),
+);
+}
 
   // ─── PROFILE HEADER (FLAT / NO CARD WRAPPER) ───
   Widget _buildProfileHeader(
@@ -541,9 +542,13 @@ class _SettingsPageState extends State<SettingsPage> {
             const SizedBox(height: 16),
             LanguageSelector(
               initialAppLanguage: AppLanguage.cachedOrFallback,
-              initialSpeechLanguage: AppLanguage.cachedOrFallback,
+              initialSpeechLanguage: BackgroundAudioController.isReady
+                  ? BackgroundAudioController.to.languageCode.value
+                  : AppLanguage.cachedOrFallback,
               onAppLanguageChanged:
                   OfflineChatbotController.instance.applyAppLanguage,
+              onSpeechLanguageChanged:
+                  OfflineChatbotController.instance.setLanguage,
             ),
             const SizedBox(height: 16),
           ],

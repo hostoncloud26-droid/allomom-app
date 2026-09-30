@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:percent_indicator/circular_percent_indicator.dart';
 
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/features/cycle_tracker/cycle_setup_sheet.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/cycle_tracker/cycle_theme.dart';
@@ -163,48 +164,58 @@ class _CycleTrackerPageState extends State<CycleTrackerPage> {
         const Color(0xFFFAF7F8),
         context.palette.scaffoldSoft,
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            Expanded(
-              child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: CycleColors.accent,
-                      ),
-                    )
-                  : status == null
-                  ? _buildEmptyState()
-                  : RefreshIndicator(
-                      color: CycleColors.accent,
-                      onRefresh: () => _load(fromDisk: true),
-                      child: ListView(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 32),
-                        physics: const AlwaysScrollableScrollPhysics(
-                          parent: BouncingScrollPhysics(),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: CycleColors.accent,
+                          ),
+                        )
+                      : status == null
+                      ? _buildEmptyState()
+                      : RefreshIndicator(
+                          color: CycleColors.accent,
+                          onRefresh: () => _load(fromDisk: true),
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
+                            physics: const AlwaysScrollableScrollPhysics(
+                              parent: BouncingScrollPhysics(),
+                            ),
+                            children: [
+                              _buildPhaseCard(status),
+                              const SizedBox(height: 14),
+                              // Next period and ovulation are predicted from a
+                              // finished period, so they wait until she marks
+                              // this one ended.
+                              if (!status.onPeriod) ...[
+                                _buildKeyDates(status),
+                                const SizedBox(height: 14),
+                              ],
+                              _buildCalendar(status),
+                              const SizedBox(height: 14),
+                              _buildGuidance(status.guidance),
+                              const SizedBox(height: 14),
+                              _buildHistory(),
+                            ],
+                          ),
                         ),
-                        children: [
-                          _buildPhaseCard(status),
-                          const SizedBox(height: 14),
-                          // Next period and ovulation are predicted from a
-                          // finished period, so they wait until she marks
-                          // this one ended.
-                          if (!status.onPeriod) ...[
-                            _buildKeyDates(status),
-                            const SizedBox(height: 14),
-                          ],
-                          _buildCalendar(status),
-                          const SizedBox(height: 14),
-                          _buildGuidance(status.guidance),
-                          const SizedBox(height: 14),
-                          _buildHistory(),
-                        ],
-                      ),
-                    ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const FloatingBabySpeechOverlay(
+            intentKey: 'screen_my_cycle_tracker_info',
+            fallbackText:
+                "This is your cycle tracker! I'll help track your periods and fertile window.",
+            bottom: 4,
+          ),
+        ],
       ),
     );
   }

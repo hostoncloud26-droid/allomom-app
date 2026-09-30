@@ -10,6 +10,7 @@ import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/api/chatbot_api.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_actions.dart';
 import 'package:allomom/features/offline_chatbot/data/offline_chatbot_profile.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
@@ -244,14 +245,42 @@ class OfflineChatbotController extends GetxController {
 
   bool get hasBundle => bundle != null && !bundle!.isEmpty;
 
+  static const Map<String, String> _defaultLanguageNames = {
+    'en': 'English',
+    'ta': 'தமிழ் · Tamil',
+    'hi': 'हिन्दी · Hindi',
+    'kn': 'ಕನ್ನಡ · Kannada',
+    'te': 'తెలుగు · Telugu',
+    'mr': 'मराठी · Marathi',
+    'gu': 'ગુજરાતી · Gujarati',
+  };
+
   /// The languages the catalogue can be downloaded in.
-  ///
-  /// Read from the bundle already on the phone rather than fetched: the server
-  /// ships the language list inside every download, so the picker works with no
-  /// connection, and [loadLanguages] only has to reach out when there is no
-  /// catalogue yet.
-  List<BotLanguage> get availableLanguages =>
-      bundle?.languages ?? const <BotLanguage>[];
+  List<BotLanguage> get availableLanguages {
+    final serverLangs = bundle?.languages ?? const <BotLanguage>[];
+    final Map<String, BotLanguage> merged = {};
+
+    for (final code in AppLanguage.supported) {
+      merged[code] = BotLanguage(
+        code: code,
+        name: _defaultLanguageNames[code] ?? code.toUpperCase(),
+      );
+    }
+
+    for (final l in serverLangs) {
+      if (l.code.isNotEmpty) {
+        final code = l.code.toLowerCase().trim();
+        merged[code] = BotLanguage(
+          code: code,
+          name: l.name.isNotEmpty
+              ? l.name
+              : (_defaultLanguageNames[code] ?? code.toUpperCase()),
+        );
+      }
+    }
+
+    return merged.values.toList();
+  }
 
   int get intentCount => bundle?.intents.length ?? 0;
 
@@ -1450,7 +1479,23 @@ class OfflineChatbotController extends GetxController {
         }
         if (intent != null) break;
       }
-      if (intent == null) return null;
+      if (intent == null) {
+        final audio = libraryAudioNow(key, lang);
+        if (audio != null) {
+          final transcription = (audio.transcription ?? '').trim();
+          final reply = BotReply();
+          reply.say(transcription.isNotEmpty ? transcription : key);
+          reply.addAudio(audio.url);
+          return reply;
+        }
+        final text = NarrationCatalog.textFor(key, languageCode: lang);
+        if (text != null && text.trim().isNotEmpty) {
+          final reply = BotReply();
+          reply.say(text.trim());
+          return reply;
+        }
+        return null;
+      }
       return await engine.runIntent(intent, session: session, profile: profile);
     } catch (e) {
       debugPrint('Chatbot: detached turn failed: $e');
@@ -1653,41 +1698,37 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
-  /// Switches AlloBot's language from her own settings page. The same change
-  /// as picking it anywhere else, so the app language follows too.
-  Future<void> setLanguage(String code) => applyAppLanguage(code);
-
-  /// The one place a language change lands, from any picker: the app
-  /// language, the narration voice and AlloBot's catalogue move together, so
-  /// the Home sheet and AlloBot Settings never disagree.
-  ///
-  /// The catalogue is per-language, so switching it is a re-download and the
-  /// conversation starts again. A language AlloBot has no catalogue for (the
-  /// app offers more than the builder has content in) leaves her on the one
-  /// she has rather than an empty download.
-  Future<void> applyAppLanguage(String code) async {
-    final next = code.trim();
+  /// Switches AlloBot's speech/voice catalogue language.
+  Future<void> setLanguage(String code) async {
+    final next = code.trim().toLowerCase();
     if (next.isEmpty) return;
 
-    await AppLanguage.save(next);
     if (BackgroundAudioController.isReady) {
       await BackgroundAudioController.to.setLanguage(next);
     }
 
-    // A refresh already under way would otherwise swallow this download, and
-    // then restore the old language when it lands.
     if (isSyncing.value) await isSyncing.stream.firstWhere((s) => !s);
-    if (next == langCode.value || !offersLanguage(next)) return;
-
     langCode.value = next;
+    update();
     await sync(language: next);
+  }
+
+  /// Sets the app's UI language without overriding the speech/voice language.
+  Future<void> applyAppLanguage(String code) async {
+    final next = code.trim().toLowerCase();
+    if (next.isEmpty) return;
+
+    await AppLanguage.save(next);
+    update();
   }
 
   /// Whether AlloBot can download a catalogue in [code]. Before the list is
   /// known every language is worth trying.
   bool offersLanguage(String code) {
+    final clean = code.trim().toLowerCase();
+    if (AppLanguage.supported.contains(clean)) return true;
     final languages = availableLanguages;
-    return languages.isEmpty || languages.any((l) => l.code == code);
+    return languages.isEmpty || languages.any((l) => l.code == clean);
   }
 
   /// Trigger phrases the downloaded catalogue answers to, for a quick hint.

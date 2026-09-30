@@ -3,12 +3,16 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/components/lmp_wheel_picker.dart';
+import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
 import 'package:allomom/services/pregnancy_care_scheduler.dart';
+import 'package:allomom/services/tts_service.dart';
 
 const _accent = Color(0xFFFF3B5C);
 
@@ -43,6 +47,8 @@ class PregnancyConfirmationPage extends StatefulWidget {
 class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   static final _dateFmt = DateFormat('dd MMM yyyy');
 
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   /// Starts on today, as sign-up's wheels do: she scrolls back from now. It
   /// used to open on a made-up "eight weeks ago", which read as her answer.
   late DateTime _lmp = _today;
@@ -51,6 +57,40 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   static DateTime get _today {
     final now = DateTime.now();
     return DateTime(now.year, now.month, now.day);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: NarrationKeys.screenRegisterPregnancyInfo);
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   // ─── DERIVED VALUES ─────────────────────────────────────────
@@ -153,70 +193,78 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
       context.palette.scaffoldSoft,
     );
 
-    return Scaffold(
-      backgroundColor: background,
-      appBar: AppBar(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _stopSpeaking();
+      },
+      child: Scaffold(
         backgroundColor: background,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: _inkOf(context),
-            size: 20,
+        appBar: AppBar(
+          backgroundColor: background,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: _inkOf(context),
+              size: 20,
+            ),
+            onPressed: () {
+              _stopSpeaking();
+              Navigator.maybePop(context);
+            },
           ),
-          onPressed: () => Navigator.maybePop(context),
-        ),
-        centerTitle: true,
-        title: Text(
-          'Register Pregnancy',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: _inkOf(context),
+          centerTitle: true,
+          title: Text(
+            'Register Pregnancy',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: _inkOf(context),
+            ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  return SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          children: [
-                            const SizedBox(height: 8),
-                            _buildHeader(),
-                            const SizedBox(height: 16),
-                            const Spacer(flex: 1),
-                            LmpWheelPicker(
-                              selectedDate: _lmp,
-                              onDateChanged: (date) =>
-                                  setState(() => _lmp = date),
-                            ),
-                            const SizedBox(height: 16),
-                            const Spacer(flex: 1),
-                            _buildSummary(),
-                            const SizedBox(height: 16),
-                            const Spacer(flex: 1),
-                          ],
+        body: SafeArea(
+          child: Column(
+            children: [
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          minHeight: constraints.maxHeight,
+                        ),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            children: [
+                              const SizedBox(height: 8),
+                              _buildHeader(),
+                              const SizedBox(height: 16),
+                              const Spacer(flex: 1),
+                              LmpWheelPicker(
+                                selectedDate: _lmp,
+                                onDateChanged: (date) =>
+                                    setState(() => _lmp = date),
+                              ),
+                              const SizedBox(height: 16),
+                              const Spacer(flex: 1),
+                              _buildSummary(),
+                              const SizedBox(height: 16),
+                              const Spacer(flex: 1),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-            _buildFooter(background),
-          ],
+              _buildFooter(background),
+            ],
+          ),
         ),
       ),
     );
@@ -226,10 +274,26 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   /// as sign-up — this is that step again for a mother who skipped it then.
   /// Her bubble is the only instruction the page needs.
   Widget _buildHeader() {
-    return const BabyHeroBanner(
-      narrationKey: NarrationKeys.pregLmp,
-      speechText: 'Mommy, when did your last period start?',
-      height: 210,
+    return Column(
+      children: [
+        BabyHeroBanner(
+          speechText: _baby.line.trim().isNotEmpty
+              ? _baby.line.trim()
+              : 'Mommy, when did your last period start?',
+          speakingOverride: _baby.isRunning,
+          height: 210,
+        ),
+        if (_baby.isRunning) ...[
+          const SizedBox(height: 10),
+          StopSpeakingButton(
+            onTap: () {
+              _stopSpeaking();
+              setState(() {});
+            },
+            accentColor: _accent,
+          ),
+        ],
+      ],
     );
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/features/auth/auth_flow_page.dart';
+import 'package:allomom/services/app_language.dart';
 
 class LanguageSelectionPage extends StatelessWidget {
   const LanguageSelectionPage({super.key});
@@ -29,6 +30,8 @@ class LanguageStepView extends StatelessWidget {
     {'code': 'ta', 'name': 'Tamil', 'char': 'த', 'iconType': 'char'},
     {'code': 'kn', 'name': 'Kannada', 'char': 'ಕ', 'iconType': 'char'},
     {'code': 'te', 'name': 'Telugu', 'char': 'తె', 'iconType': 'char'},
+    {'code': 'mr', 'name': 'Marathi', 'char': 'म', 'iconType': 'char'},
+    {'code': 'gu', 'name': 'Gujarati', 'char': 'ગુ', 'iconType': 'char'},
     {'code': 'other', 'name': 'Other', 'iconType': 'globe_blue'},
   ];
 
@@ -43,7 +46,7 @@ class LanguageStepView extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Select Language',
+                'Select App Language',
                 style: GoogleFonts.outfit(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -52,25 +55,36 @@ class LanguageStepView extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // 3x2 Grid
-              Row(
-                children: [
-                  Expanded(child: _buildLanguageCard(languages[0])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildLanguageCard(languages[1])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildLanguageCard(languages[2])),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(child: _buildLanguageCard(languages[3])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildLanguageCard(languages[4])),
-                  const SizedBox(width: 10),
-                  Expanded(child: _buildLanguageCard(languages[5])),
-                ],
+              // 3-column rows of language cards
+              Builder(
+                builder: (context) {
+                  final rows = <List<Map<String, dynamic>>>[];
+                  for (int i = 0; i < languages.length; i += 3) {
+                    rows.add(languages.sublist(
+                      i,
+                      (i + 3).clamp(0, languages.length),
+                    ));
+                  }
+
+                  return Column(
+                    children: [
+                      for (int r = 0; r < rows.length; r++) ...[
+                        if (r > 0) const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            for (int c = 0; c < 3; c++) ...[
+                              if (c > 0) const SizedBox(width: 10),
+                              if (c < rows[r].length)
+                                Expanded(child: _buildLanguageCard(rows[r][c]))
+                              else
+                                const Expanded(child: SizedBox()),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ],
+                  );
+                },
               ),
             ],
           ),
@@ -121,10 +135,15 @@ class LanguageStepView extends StatelessWidget {
   }
 
   Widget _buildLanguageCard(Map<String, dynamic> lang) {
-    final isSelected = selectedLanguageCode == lang['code'];
+    final code = lang['code'] as String;
+    final isSelected = selectedLanguageCode.toLowerCase().trim() ==
+        code.toLowerCase().trim();
 
     return GestureDetector(
-      onTap: () => onLanguageSelected(lang['code'] as String),
+      onTap: () {
+        AppLanguage.save(code);
+        onLanguageSelected(code);
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
@@ -173,7 +192,7 @@ class LanguageStepView extends StatelessWidget {
   }
 
   Widget _buildLeadingIcon(Map<String, dynamic> lang, bool isSelected) {
-    final type = lang['iconType'] as String;
+    final type = (lang['iconType'] as String?) ?? 'char';
 
     if (type == 'globe_pink') {
       return const Icon(
@@ -189,11 +208,12 @@ class LanguageStepView extends StatelessWidget {
       );
     } else {
       return Text(
-        lang['char'] as String,
+        (lang['char'] as String?) ?? (lang['code'] as String).toUpperCase(),
         style: GoogleFonts.notoSans(
           fontSize: 14,
           fontWeight: FontWeight.bold,
-          color: isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF6B7280),
+          color:
+              isSelected ? const Color(0xFFFF4E6A) : const Color(0xFF6B7280),
         ),
       );
     }

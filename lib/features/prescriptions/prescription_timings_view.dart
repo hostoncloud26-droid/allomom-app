@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/prescription_timing.dart';
@@ -195,17 +196,19 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
           : null,
       // Keeps the header clear of the status bar when there is no app bar and
       // no parent one to do it — a no-op under either.
-      body: SafeArea(
-        bottom: false,
-        child: RefreshIndicator(
-        color: const Color(0xFFFF3B5C),
-        onRefresh: _loadTimings,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: RefreshIndicator(
+              color: const Color(0xFFFF3B5C),
+              onRefresh: _loadTimings,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 140),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               // Top Action Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -378,13 +381,21 @@ class _PrescriptionTimingsViewState extends State<PrescriptionTimingsView> {
                 _buildTimeSlotSection('Evening', const Color(0xFFF59E0B), Icons.dinner_dining_rounded, 17, 20),
                 _buildTimeSlotSection('Night', const Color(0xFF8B5CF6), Icons.bedtime_rounded, 20, 24),
               ],
-              const SizedBox(height: 60),
+              const SizedBox(height: 16),
             ],
           ),
         ),
       ),
       ),
-    );
+      const FloatingBabySpeechOverlay(
+        intentKey: 'screen_my_prescriptions_info',
+        fallbackText:
+            "Your medicines are here, Mommy. I'll remind you when each dose is due so none get missed.",
+        bottom: 0,
+      ),
+    ],
+  ),
+);
   }
 
   Widget _buildDateStrip() {
