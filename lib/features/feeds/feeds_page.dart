@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
-
-import 'package:allomom/components/floating_baby_speech_overlay.dart';
-
 import 'package:video_player/video_player.dart';
 import 'package:allomom/api/content_api.dart';
 import 'package:allomom/api/response.dart';
-
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/controllers/theme_controller.dart';
@@ -490,7 +487,23 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
           );
 
     if (!_standalone) {
-      return Scaffold(backgroundColor: Colors.black, body: feed);
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(
+          children: [
+            Positioned.fill(child: feed),
+
+            // The baby introduces the feed, played from its intent key.
+            const FloatingBabySpeechOverlay(
+              intentKey: 'screen_feeds_info',
+              fallbackText:
+                  'Discover helpful daily tips, recipes, and videos for you and your baby!',
+              bottom: 12,
+              showScrim: true,
+            ),
+          ],
+        ),
+      );
     }
 
     // Full-screen: a black band behind the status bar, and a way back.
@@ -522,53 +535,6 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
       ),
     );
   }
-
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          PageView.builder(
-            controller: _pageController,
-            scrollDirection: Axis.vertical,
-            itemCount: _feedItems.length,
-            onPageChanged: (index) {
-              // The first recipe she lands on introduces itself. Once per session,
-              // so swiping through a dozen reels stays quiet.
-              if (_feedItems[index].tag.toUpperCase().contains('RECIPE')) {
-                speak(NarrationKeys.pgFeedsRecipe);
-              }
-
-              // Stop speech reading when swiped to another page
-              if (_currentlyReadingId != null) {
-                _speechTimer?.cancel();
-                setState(() {
-                  _currentlyReadingId = null;
-                  _readingProgress = 0.0;
-                });
-              }
-            },
-            itemBuilder: (context, index) {
-              final item = _feedItems[index];
-              if (item.type == FeedType.tipCard) {
-                return _buildTipCardView(item);
-              } else {
-                return _buildVideoReelView(item);
-              }
-            },
-          ),
-
-          // Floating Baby Speech Overlay (Matching bottom nav bar layout)
-          const FloatingBabySpeechOverlay(
-            intentKey: 'screen_feeds_info',
-            fallbackText:
-                'Discover helpful daily tips, recipes, and videos for you and your baby!',
-            bottom: 12,
-            showScrim: true,
-          ),
-        ],
 
   Widget _buildEmptyState() {
     return Center(
@@ -637,7 +603,6 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                 ),
               )
             : const CircularProgressIndicator(color: Color(0xFFFF4E6A)),
-
       ),
     );
   }

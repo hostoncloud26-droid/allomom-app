@@ -5,7 +5,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart' show Obx;
 import 'package:intl/intl.dart';
-import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/config/colors.dart' show darkCard;
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart'
@@ -35,7 +34,6 @@ import 'package:allomom/features/pregnancy/data/weekly_baby_talk.dart';
 import 'package:allomom/features/pregnancy/widgets/welcome_baby_sheet.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:allomom/features/background_audio/widgets/narration_on_visible.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 
 class PregnancyJourneyPage extends StatefulWidget {
   const PregnancyJourneyPage({super.key});
