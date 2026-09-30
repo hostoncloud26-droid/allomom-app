@@ -817,6 +817,8 @@ Future<void> showCareDetailSheet(
   String? eyebrow,
   required CareStatus status,
   String? statusLabel,
+  String? description,
+  String descriptionTitle = 'What this check-up looks at',
   List<CareFact> facts = const [],
   required String primaryLabel,
   IconData? primaryIcon,
@@ -943,6 +945,51 @@ Future<void> showCareDetailSheet(
                 CarePill(status: status, label: statusLabel),
               ],
             ),
+            if (description != null && description.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
+                decoration: BoxDecoration(
+                  color: p.tint(_carePink, const Color(0xFFFFF1F3)),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.child_care_rounded,
+                          size: 17,
+                          color: _carePink,
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            descriptionTitle,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: p.textPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      description,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        height: 1.45,
+                        color: p.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (facts.isNotEmpty) ...[
               const SizedBox(height: 16),
               for (final (icon, text) in facts)

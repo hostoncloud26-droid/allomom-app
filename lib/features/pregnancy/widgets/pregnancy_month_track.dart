@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
+import 'package:allomom/features/pregnancy/data/anc_visit_guide.dart';
 import 'package:allomom/features/pregnancy/anc_schedule_page.dart';
 import 'package:allomom/features/pregnancy/lab_reports_schedule_page.dart';
 import 'package:allomom/features/pregnancy/vaccination_schedule_page.dart';
@@ -266,6 +267,9 @@ class _PregnancyMonthTrackState extends State<PregnancyMonthTrack> {
         eyebrow: kindLabel,
         title: i.title,
         status: status,
+        description: i.kind == _Kind.anc
+            ? AncVisitGuide.forMonth(i.month)
+            : null,
         facts: [
           (
             Icons.event_rounded,

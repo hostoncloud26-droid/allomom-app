@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:allomom/config/app_theme.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/pregnancy/data/anc_visit_guide.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
@@ -375,6 +376,7 @@ class _AncSchedulePageState extends State<AncSchedulePage> {
           status == CareStatus.scheduled || status == CareStatus.dueSoon
           ? 'Upcoming'
           : null,
+      description: AncVisitGuide.forMonth(v.pregnancyMonth),
       facts: [
         (Icons.calendar_view_month_rounded, monthLabel(v.pregnancyMonth)),
         (Icons.event_rounded, when ?? 'Date to be decided'),
