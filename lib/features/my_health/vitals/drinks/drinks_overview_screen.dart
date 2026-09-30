@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
 import 'package:intl/intl.dart';
@@ -47,12 +48,16 @@ class _DrinksOverviewScreenState extends State<DrinksOverviewScreen> {
 
     try {
       final today = dayBounds(DateTime.now());
+      // AlloConnect's drinks: `food` rows with `meal_type` 'beverages'.
       final rows = await VitalsSqLiteService().getVitalsHistory(
         _userId,
-        'drinks',
+        VitalShapes.food,
       );
 
-      final allDrinks = rows.map(vitalFromRow).toList()
+      final allDrinks = rows
+          .map(vitalFromRow)
+          .where((v) => VitalShapes.mealTypeOf(v.key, v.data) == VitalShapes.drinks)
+          .toList()
         ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       // Separate today's drinks

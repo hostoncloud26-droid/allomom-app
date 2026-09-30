@@ -1,3 +1,5 @@
+import 'package:allomom/services/sync/sync_codec.dart';
+
 class VitalsStreamResponse {
   final String id;
   final String key;
@@ -21,9 +23,8 @@ class VitalsStreamResponse {
       key: json['key']?.toString() ?? '',
       value: (json['value'] is num) ? (json['value'] as num).toDouble() : 0.0,
       unit: json['unit']?.toString() ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      // The server's naive timestamps are UTC (see SyncCodec.date).
+      createdAt: SyncCodec.date(json['createdAt']) ?? DateTime.now(),
       data: json['data'] is Map<String, dynamic> ? json['data'] as Map<String, dynamic> : null,
     );
   }

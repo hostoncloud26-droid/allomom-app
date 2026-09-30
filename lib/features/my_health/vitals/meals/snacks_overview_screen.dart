@@ -51,7 +51,7 @@ class _SnacksOverviewScreenState extends State<SnacksOverviewScreen> {
 
       final allSnacks = await MealVitalsStore.loadHistory(
         _userId,
-        keys: const ['snacks'],
+        keys: const [],
         foodType: 'snacks',
       );
 

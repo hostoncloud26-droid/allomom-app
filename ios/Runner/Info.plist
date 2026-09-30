@@ -6,6 +6,24 @@
 	<string>AlloBot uses speech recognition to understand what you say and assist you during your pregnancy.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>AlloBot uses the microphone to listen to your voice questions and commands.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>We need access to read your step count and health data to display in the app.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>We need access to write step count and health data to sync with Apple Health.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allomom uses Bluetooth to connect to your AlloWear device and sync your vitals.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Required to connect to your AlloWear health device.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allomom uses your location only to discover nearby AlloWear devices over Bluetooth.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allomom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allomom saves photos taken with your AlloWear bracelet to your photo library.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

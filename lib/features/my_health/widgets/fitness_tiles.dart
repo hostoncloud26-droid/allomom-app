@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
@@ -12,7 +13,8 @@ const Color _pelvicColor = Color(0xFFEC4899);
 
 /// The day's gentle pregnancy fitness as AlloConnect's workout tile — total
 /// active minutes, the latest session and quick logs for Prenatal Yoga
-/// (`workout`) and Pelvic Exercise (`exercise`), both stored in minutes.
+/// and Pelvic Exercise, stored as AlloConnect's `workout` rows (older Allomom
+/// rows used `exercise` for the pelvic session, in minutes).
 ///
 /// Shows [date] (today when null). A past day is read-only.
 class FitnessTiles extends StatefulWidget {
@@ -69,7 +71,7 @@ class _FitnessTilesState extends State<FitnessTiles> {
       final service = VitalsSqLiteService();
 
       final results = await Future.wait([
-        for (final key in const ['workout', 'exercise'])
+        for (final key in const ['workout'])
           service.getVitalsHistory(
             targetUserId,
             key,
@@ -144,7 +146,12 @@ class _WorkoutTile extends StatelessWidget {
 
   static final Color _workoutColor = Colors.teal.shade500;
 
-  bool _isPelvic(VitalsStreamResponse v) => v.key == 'exercise';
+  bool _isPelvic(VitalsStreamResponse v) =>
+      VitalShapes.isPelvicWorkout(v.data);
+
+  /// Session length, from AlloConnect's `data['duration']` (the value is kcal).
+  double _minutesOf(VitalsStreamResponse v) =>
+      VitalShapes.workoutMinutes(v.data);
 
   String _nameOf(VitalsStreamResponse v) {
     final activity = v.data?['activity']?.toString().trim();
@@ -199,7 +206,7 @@ class _WorkoutTile extends StatelessWidget {
     final latestIcon = _isPelvic(latest)
         ? Icons.fitness_center_rounded
         : Icons.self_improvement_rounded;
-    final totalMinutes = sessions.fold<double>(0, (s, v) => s + v.value);
+    final totalMinutes = sessions.fold<double>(0, (s, v) => s + _minutesOf(v));
     final kcal = (totalMinutes * kWorkoutKcalPerMinute).round();
 
     return Column(
@@ -229,7 +236,7 @@ class _WorkoutTile extends StatelessWidget {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${_nameOf(latest)} (${latest.value.round()}m)',
+                          '${_nameOf(latest)} (${_minutesOf(latest).round()}m)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(

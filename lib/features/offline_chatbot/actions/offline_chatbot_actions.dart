@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 
+import 'package:allomom/allowear/allowear_home.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/allobot/pages/daily_activity_page.dart';
 import 'package:allomom/features/allocry/allocry_page.dart';
@@ -172,6 +173,13 @@ class OfflineChatbotActions {
     description: 'Opens the app settings.',
     label: 'Settings',
     builder: (_) => const SettingsPage(),
+  );
+
+  static final _openAllowearHome = OpenPageAction(
+    name: 'open_allowear_home',
+    description: 'Opens AlloWear: pair, sync and measure with the band.',
+    label: 'AlloWear',
+    builder: (_) => const AllowearHome(),
   );
 
   static final _openEditProfile = OpenPageAction(
@@ -517,10 +525,13 @@ class OfflineChatbotActions {
     _openAgents.name: _openAgents,
     'agents': _openAgents,
 
-    // AlloWear pairing is a dialog inside Settings, not its own page — the
-    // redirect goes to the screen that hosts it.
-    'open_allowear': _openSettings,
-    'allowear': _openSettings,
+    // AlloWear — the same names AlloConnect's flows use.
+    _openAllowearHome.name: _openAllowearHome,
+    'open_allowear': _openAllowearHome,
+    'allowear_home': _openAllowearHome,
+    'allowear': _openAllowearHome,
+    'open_wear': _openAllowearHome,
+    'wear': _openAllowearHome,
 
     // Name mismatches between the flow-builder export and this registry —
     // same destinations under the names those flows already use.

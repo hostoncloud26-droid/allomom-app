@@ -153,15 +153,9 @@ class _HealthProfilePageState extends State<HealthProfilePage> {
       }
 
       if (_selectedBloodGroup != null) {
-        await vitals.addVitalEntry(
-          key: 'blood_group',
-          value: 0,
-          unit: _selectedBloodGroup!,
-          createdAt: now,
-          userId: session.userId,
-          data: {'blood_group': _selectedBloodGroup},
-        );
-        session.updateBloodGroup(_selectedBloodGroup!);
+        // One row, in AlloConnect's shape (see VitalsController.setBloodGroup).
+        await session.updateBloodGroup(_selectedBloodGroup!);
+        await vitals.fetchLatestVitals(showLoading: false);
       }
 
       // Only the three fields `health_data` actually has. Height and weight

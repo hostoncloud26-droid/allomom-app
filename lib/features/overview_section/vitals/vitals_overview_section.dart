@@ -172,12 +172,7 @@ class _VitalsOverviewSectionState extends State<VitalsOverviewSection> {
     }
 
     final day = _loadedDay ?? widget.dayVitals ?? const {};
-    // Sleep may sit under either key; the newer one wins.
-    final sleepCandidates = [day['sleep'], day['sleep_data']]
-        .whereType<VitalsStreamResponse>()
-        .toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    final sleep = sleepCandidates.isEmpty ? null : sleepCandidates.first;
+    final sleep = day['sleep_data'];
     final glucoseCandidates = [day['glucose'], day['blood_glucose']]
         .whereType<VitalsStreamResponse>()
         .toList()

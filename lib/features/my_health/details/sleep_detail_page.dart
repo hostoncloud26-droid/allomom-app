@@ -1,3 +1,5 @@
+import 'package:allomom/models/vitals_stream_model.dart';
+import 'package:allomom/features/my_health/vitals/sleep/sleep_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:intl/intl.dart' hide TextDirection;
@@ -188,8 +190,7 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
       dateRangeText = '${DateFormat('dd MMM').format(start)} - Today';
     }
 
-    final history =
-        HealthVitalsController.instance.getHistoryForPeriod('sleep', _selectedTab);
+    final history = _sleepHistory(_selectedTab);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -257,10 +258,31 @@ class _SleepDetailPageState extends State<SleepDetailPage> {
     );
   }
 
+  /// Sleep sessions in [period], each valued in hours: AlloConnect's
+  /// `sleep_data` rows (minutes) and older `sleep` rows (hours), oldest first.
+  List<VitalsStreamResponse> _sleepHistory(String period) {
+    final vitals = HealthVitalsController.instance;
+    final rows = [
+      for (final key in SleepUtils.sleepVitalKeys)
+        ...vitals.getHistoryForPeriod(key, period),
+    ];
+    return [
+      for (final v in rows)
+        VitalsStreamResponse(
+          id: v.id,
+          key: v.key,
+          value: SleepUtils.valueMinutes(v.value, v.unit) / 60.0,
+          unit: 'hours',
+          createdAt: v.createdAt,
+          data: v.data,
+        ),
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+  }
+
   Widget _buildBottomStatsRow() {
     final vitals = HealthVitalsController.instance;
     final hasSleep = vitals.hasSleep;
-    final periodHistory = vitals.getHistoryForPeriod('sleep', _selectedTab);
+    final periodHistory = _sleepHistory(_selectedTab);
 
     double sleepHours = vitals.sleepHoursValue;
     if (periodHistory.isNotEmpty) {

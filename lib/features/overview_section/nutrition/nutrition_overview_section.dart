@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -240,7 +241,7 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     HapticFeedback.mediumImpact();
     try {
       await HealthVitalsController.instance.addVitalEntry(
-        key: meal.vitalKey,
+        key: VitalShapes.food,
         value: log.calories,
         unit: 'kcal',
         createdAt: DateTime.now(),
@@ -249,14 +250,14 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
           'items': log.details,
           'details': log.details,
           'meal': meal.label,
-          'meal_type': meal.vitalKey,
-          'type': meal.vitalKey,
+          'meal_type': meal.mealType,
+          'type': meal.mealType,
           'day_part': CareDayPart.at().name,
         },
       );
       speak(NarrationKeys.pgConfMealSaved, force: true);
     } catch (e) {
-      debugPrint('⚠️ [NutritionOverview] Error logging ${meal.vitalKey}: $e');
+      debugPrint('⚠️ [NutritionOverview] Error logging ${meal.mealType}: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Could not log ${meal.label.toLowerCase()}')),
@@ -285,18 +286,10 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
 
   Future<void> _logWater(int glasses) async {
     if (_readOnly || glasses <= 0) return;
-    await HealthVitalsController.instance.addVitalEntry(
-      key: 'water',
-      value: glasses.toDouble(),
-      unit: 'glasses',
-      createdAt: DateTime.now(),
+    await HealthVitalsController.instance.addWaterEntry(
+      ml: (glasses * VitalShapes.mlPerGlass).toDouble(),
       userId: _userIdOrNull(),
-      data: {
-        'details': '$glasses ${glasses == 1 ? 'glass' : 'glasses'}',
-        'type': 'water',
-        'count': glasses,
-        'count_unit': 'glasses',
-      },
+      details: '$glasses ${glasses == 1 ? 'glass' : 'glasses'}',
     );
     await _load();
   }
@@ -334,22 +327,17 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     final unit = count == 1 ? 'cup' : 'cups';
     HapticFeedback.mediumImpact();
     try {
-      // The same row the Hot & Cold Drinks sheet writes.
-      await HealthVitalsController.instance.addVitalEntry(
-        key: 'drinks',
-        value: (count * _kcalPerCup).toDouble(),
-        unit: 'kcal',
-        createdAt: DateTime.now(),
+      // AlloConnect's drink row, as the Hot & Cold Drinks sheet writes it.
+      await HealthVitalsController.instance.addFoodEntry(
+        drinkType: switch (drink) {
+          'Tea' => 'tea',
+          'Coffee' => 'coffee',
+          _ => VitalShapes.beverages,
+        },
+        kcal: (count * _kcalPerCup).toDouble(),
         userId: _userIdOrNull(),
         data: {
           'details': '$count $unit · $drink',
-          'type': 'drinks',
-          'drink': drink,
-          'drink_type': switch (drink) {
-            'Tea' => 'tea',
-            'Coffee' => 'coffee',
-            _ => 'beverages',
-          },
           'count': count,
           'count_unit': 'cups',
         },
@@ -404,7 +392,7 @@ class _NutritionOverviewSectionState extends State<NutritionOverviewSection> {
     final icon = _mealIcon(meal);
     final kcal = _mealKcal(meal);
     final hasData = kcal > 0;
-    final details = _summary.todayMealNotes[meal.vitalKey] ?? '';
+    final details = _summary.todayMealNotes[meal.mealType] ?? '';
 
     return _shell(
       onTap: _readOnly

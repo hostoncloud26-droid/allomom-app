@@ -6,6 +6,9 @@ import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:allomom/allowear/allowear_controller.dart';
+import 'package:allomom/allowear/device_raw_vitals_storage.dart';
+import 'package:allomom/allowear/vitals_verification_storage.dart';
 import 'package:allomom/api/health_api.dart';
 import 'package:allomom/api/profile_api.dart';
 import 'package:allomom/controllers/baby_controller.dart';
@@ -344,6 +347,9 @@ class MainController extends GetxController {
         await SyncService.instance.seedFromServer();
         await loadFromLocal();
       } else {
+        // Rows pulled before the UTC fix sit hours off; one full re-pull
+        // puts them right. A no-op after its first run.
+        await SyncService.instance.repairShiftedTimestampsOnce();
         unawaited(SyncService.instance.syncAll());
       }
       SyncService.instance.start();
@@ -776,6 +782,13 @@ class MainController extends GetxController {
   /// Drops every trace of the account from the device.
   Future<void> clearSession() async {
     SyncService.instance.stop();
+    // Drop the band link and its remembered state; it pairs again on the
+    // next sign-in. Only if it was ever started — no need to spin it up here.
+    if (Get.isRegistered<AllowearController>()) {
+      await Get.find<AllowearController>().resetForLogout();
+    }
+    await DeviceRawVitalsStorage.clearRawVitals();
+    await VitalsVerificationStorage.clearUnverifiedVitals();
     final db = await _db;
     await db.clearAccountData();
     _user = null;

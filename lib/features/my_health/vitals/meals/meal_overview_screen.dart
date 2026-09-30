@@ -131,7 +131,7 @@ class _MealOverviewScreenState extends State<MealOverviewScreen> {
       final all = await MealVitalsStore.loadHistory(
         _userId,
         keys: _meal.readKeys,
-        foodType: _meal.vitalKey,
+        foodType: _meal.mealType,
       );
 
       _todayMeals = all

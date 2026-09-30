@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 
@@ -21,8 +22,9 @@ enum NutritionMetric {
   drinks,
   water;
 
-  /// Vital key this metric is stored under.
-  String get vitalKey => switch (this) {
+  /// Which food this metric is — AlloConnect's `meal_type` (drinks are the
+  /// `beverages` rows) — or `water`.
+  String get mealType => switch (this) {
         NutritionMetric.breakfast => 'breakfast',
         NutritionMetric.lunch => 'lunch',
         NutritionMetric.dinner => 'dinner',
@@ -30,10 +32,6 @@ enum NutritionMetric {
         NutritionMetric.drinks => 'drinks',
         NutritionMetric.water => 'water',
       };
-
-  /// Alias written by earlier builds, which readers must also check.
-  String? get legacyVitalKey =>
-      this == NutritionMetric.breakfast ? 'break_fast' : null;
 
   String get label => switch (this) {
         NutritionMetric.breakfast => 'Breakfast',
@@ -145,12 +143,11 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
   /// Every row for this metric in the chosen period, oldest first.
   List<VitalsStreamResponse> get _history {
     final vitals = HealthVitalsController.instance;
-    final rows = [
-      ...vitals.getHistoryForPeriod(_metric.vitalKey, _selectedTab),
-      if (_metric.legacyVitalKey != null)
-        ...vitals.getHistoryForPeriod(_metric.legacyVitalKey!, _selectedTab),
-    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-    return rows;
+    // Water is its own key; everything else is a `food` row by meal_type.
+    if (_metric == NutritionMetric.water) {
+      return vitals.getHistoryForPeriod(VitalShapes.water, _selectedTab);
+    }
+    return vitals.getMealHistoryForPeriod(_metric.mealType, _selectedTab);
   }
 
   /// Water is logged as +1 and -1 increments, so a correction must not draw a
@@ -158,8 +155,11 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
   List<VitalsStreamResponse> get _plottable =>
       _history.where((r) => r.value > 0).toList();
 
-  double get _periodTotal =>
-      _history.fold(0.0, (sum, r) => sum + r.value);
+  /// kcal, or for water glasses (rows hold ml).
+  double get _periodTotal {
+    final sum = _history.fold(0.0, (sum, r) => sum + r.value);
+    return _metric == NutritionMetric.water ? VitalShapes.waterGlasses(sum) : sum;
+  }
 
   /// Portions or cups behind the calories; rows written elsewhere carry no
   /// count, so they stand for one unit.
@@ -199,13 +199,11 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
         icon: _metric.icon,
       );
       if (log == null) return;
-      await HealthVitalsController.instance.addVitalEntry(
-        key: meal.vitalKey,
-        value: log.calories,
-        unit: 'kcal',
-        createdAt: DateTime.now(),
+      await HealthVitalsController.instance.addFoodEntry(
+        mealType: meal.mealType,
+        kcal: log.calories,
         userId: _userIdOrNull(),
-        data: {'items': log.details, 'meal': meal.label},
+        data: {'items': log.details, 'details': log.details, 'meal': meal.label},
       );
       if (mounted) setState(() {});
       return;
@@ -228,34 +226,60 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
     );
     if (amount == null || amount <= 0) return;
 
-    await HealthVitalsController.instance.addVitalEntry(
-      key: _metric.vitalKey,
-      value: perUnit == null ? amount.toDouble() : (amount * perUnit).toDouble(),
-      unit: perUnit == null ? _metric.unitPlural : 'kcal',
-      createdAt: DateTime.now(),
-      userId: _userIdOrNull(),
-      data: {
-        'details':
-            '$amount ${amount == 1 ? _metric.unitSingular : _metric.unitPlural}',
-        'type': _metric.vitalKey,
-        'count': amount,
-        'count_unit': _metric.unitPlural,
-      },
-    );
+    final vitals = HealthVitalsController.instance;
+    final details =
+        '$amount ${amount == 1 ? _metric.unitSingular : _metric.unitPlural}';
+    final extra = {
+      'details': details,
+      'count': amount,
+      'count_unit': _metric.unitPlural,
+    };
+    final kcal = (amount * (perUnit ?? 0)).toDouble();
+    // AlloConnect's shapes: water in ml, snacks and drinks as `food` rows.
+    switch (_metric) {
+      case NutritionMetric.water:
+        await vitals.addWaterEntry(
+          ml: (amount * VitalShapes.mlPerGlass).toDouble(),
+          userId: _userIdOrNull(),
+          details: details,
+        );
+      case NutritionMetric.drinks:
+        await vitals.addFoodEntry(
+          drinkType: VitalShapes.beverages,
+          kcal: kcal,
+          userId: _userIdOrNull(),
+          data: extra,
+        );
+      default:
+        await vitals.addFoodEntry(
+          mealType: _metric.mealType,
+          kcal: kcal,
+          userId: _userIdOrNull(),
+          data: extra,
+        );
+    }
     if (mounted) setState(() {});
   }
 
   int _todayUnits() {
     final today = DateTime.now();
     var total = 0;
-    for (final row in HealthVitalsController.instance
-        .getHistoryForPeriod(_metric.vitalKey, 'Day')) {
+    final vitals = HealthVitalsController.instance;
+    final rows = _metric == NutritionMetric.water
+        ? vitals.getHistoryForPeriod(VitalShapes.water, 'Day')
+        : vitals.getMealHistoryForPeriod(_metric.mealType, 'Day');
+    for (final row in rows) {
       if (row.createdAt.day != today.day) continue;
+      if (_metric == NutritionMetric.water) {
+        // ml → glasses.
+        total += VitalShapes.waterGlasses(row.value).round();
+        continue;
+      }
       final recorded = row.data?['count'];
       final parsed = recorded is num
           ? recorded.round()
           : int.tryParse(recorded?.toString() ?? '');
-      total += parsed ?? (_metric.caloriesPerUnit == null ? row.value.round() : 1);
+      total += parsed ?? 1;
     }
     return total < 0 ? 0 : total;
   }
@@ -690,7 +714,7 @@ class _NutritionDetailPageState extends State<NutritionDetailPage> {
         : DateFormat('dd MMM · h:mm a').format(row.createdAt);
 
     final amount = _metric == NutritionMetric.water
-        ? '${row.value.abs().round()} ${row.value.abs() == 1 ? 'glass' : 'glasses'}'
+        ? '${row.value.abs().round()} ml'
         : '${row.value.abs().round()} kcal';
 
     return Padding(

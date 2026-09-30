@@ -1,4 +1,7 @@
+import 'package:allomom/allowear/allowear_images.dart';
 import 'package:flutter/material.dart';
+import 'package:allomom/allowear/allowear_home.dart';
+// import 'package:allomom/allowear/entry/allowear_app_open_popup.dart';
 import 'package:allomom/components/app_backdrop.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -212,6 +215,8 @@ class _HomePageState extends State<HomePage> {
     _scrollController.addListener(_updateDateSelectorVisibility);
     _voice.addListener(_onVoiceChanged);
     _loadTrySuggestions();
+    // AlloWear's app-open card is off for now; uncomment to bring it back.
+    // _showAllowearOnAppOpen();
     if (BackgroundAudioController.isReady) {
       final audio = BackgroundAudioController.to;
       _audioWorkers
@@ -1275,6 +1280,17 @@ class _HomePageState extends State<HomePage> {
       page: const AlloBotPage(),
     );
 
+    // Her AlloWear band: pair, sync and measure — AlloConnect's device card.
+    final alloWear = _quickAction(
+      id: 'allowear',
+      title: 'AlloWear',
+      subtitle: 'Band & Sync',
+      icon: Icons.watch_rounded,
+      color: const Color(0xFFFF3B5C),
+      image: AllowearImages.device,
+      page: const AllowearHome(),
+    );
+
     final journey = _quickAction(
       id: 'journey',
       title: session.hasKids ? 'My Baby' : 'My Pregnancy',
@@ -1378,6 +1394,16 @@ class _HomePageState extends State<HomePage> {
           image: 'assets/Quick Actions/Feeding.png',
           page: const FeedingTrackerPage(),
         ),
+        _quickAction(
+          id: 'my_health',
+          title: 'My Health',
+          subtitle: 'Your own vitals',
+          icon: Icons.monitor_heart_rounded,
+          color: const Color(0xFF3B82F6),
+          image: QuickActionImages.dad,
+          page: const MyHealthPage(),
+        ),
+        alloWear,
       ]);
     }
 
@@ -1394,6 +1420,7 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/Health.png',
         page: const MyHealthPage(),
       ),
+      alloWear,
       journey,
       _quickAction(
         id: 'allocry',
@@ -1525,6 +1552,17 @@ class _HomePageState extends State<HomePage> {
     image: image,
     pageBuilder: (_) => page,
   );
+
+  // /// AlloConnect's app-open AlloWear card — reconnecting and syncing her
+  // /// band, or offering to pair one — once per launch, after Home settles.
+  // /// Not over a family member's record: the band is the signed-in user's.
+  // void _showAllowearOnAppOpen() {
+  //   WidgetsBinding.instance.addPostFrameCallback((_) async {
+  //     await Future.delayed(const Duration(milliseconds: 1500));
+  //     if (!mounted || MainController.instance.isViewingMember) return;
+  //     AllowearAppOpenPopup.showOnAppOpen(context);
+  //   });
+  // }
 
   // ─── TODAY'S CARE ─────────────────────────────────────────
   Widget _buildTodaysCareSection(BuildContext context) {

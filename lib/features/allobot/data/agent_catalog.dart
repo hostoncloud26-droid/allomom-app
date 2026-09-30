@@ -7,6 +7,7 @@
 /// there rather than a second, thinner copy.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -92,6 +93,7 @@ class AgentSpec {
     required this.group,
     required this.pageBuilder,
     this.vitalKeys = const [],
+    this.mealType,
     this.fixedStatus,
     this.keywords = const [],
     this.image,
@@ -111,6 +113,10 @@ class AgentSpec {
   /// Vitals-stream keys the status pill is read from. Several where earlier
   /// builds wrote the same reading under a different name.
   final List<String> vitalKeys;
+
+  /// For a food agent: which AlloConnect `meal_type` of the `food` rows it
+  /// reads (`breakfast`, `lunch`, `dinner`, `snacks`, `drinks`).
+  final String? mealType;
 
   /// A pill that never changes, for an agent whose state is not a reading.
   final AgentStatus? fixedStatus;
@@ -134,7 +140,11 @@ class AgentSpec {
 
     var hasAny = false;
     for (final key in vitalKeys) {
-      final history = controller.getHistory(key);
+      final history = controller.getHistory(key).where(
+        (row) =>
+            mealType == null ||
+            VitalShapes.mealTypeOf(row.key, row.data) == mealType,
+      );
       if (history.isEmpty) continue;
       hasAny = true;
       final loggedToday = history.any(
@@ -282,7 +292,7 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFF8B5CF6),
       iconBackground: Color(0xFFEDE9FE),
       group: AgentGroup.vitals,
-      vitalKeys: ['sleep'],
+      vitalKeys: ['sleep_data'],
       keywords: ['rest', 'night', 'hours'],
       image: 'assets/Quick Actions/Sleep.png',
       pageBuilder: _sleep,
@@ -361,7 +371,8 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFFF59E0B),
       iconBackground: Color(0xFFFEF3C7),
       group: AgentGroup.nutrition,
-      vitalKeys: ['breakfast', 'break_fast'],
+      vitalKeys: VitalShapes.foodReadKeys,
+      mealType: 'breakfast',
       keywords: ['meal', 'calories', 'morning'],
       image: 'assets/Quick Actions/Breakfast.png',
       pageBuilder: _breakfast,
@@ -374,7 +385,8 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFF10B981),
       iconBackground: Color(0xFFD1FAE5),
       group: AgentGroup.nutrition,
-      vitalKeys: ['lunch'],
+      vitalKeys: VitalShapes.foodReadKeys,
+      mealType: 'lunch',
       keywords: ['meal', 'calories', 'afternoon'],
       pageBuilder: _lunch,
     ),
@@ -386,7 +398,8 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFF8B5CF6),
       iconBackground: Color(0xFFEDE9FE),
       group: AgentGroup.nutrition,
-      vitalKeys: ['dinner'],
+      vitalKeys: VitalShapes.foodReadKeys,
+      mealType: 'dinner',
       keywords: ['meal', 'calories', 'night'],
       image: 'assets/Quick Actions/Dinner.png',
       pageBuilder: _dinner,
@@ -399,7 +412,8 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFFF472B6),
       iconBackground: Color(0xFFFCE7F3),
       group: AgentGroup.nutrition,
-      vitalKeys: ['snacks'],
+      vitalKeys: VitalShapes.foodReadKeys,
+      mealType: 'snacks',
       keywords: ['snack', 'calories', 'portions'],
       image: 'assets/Quick Actions/Snacks.png',
       pageBuilder: _snacks,
@@ -412,7 +426,8 @@ abstract final class AgentCatalog {
       iconColor: Color(0xFFD97706),
       iconBackground: Color(0xFFFEF3C7),
       group: AgentGroup.nutrition,
-      vitalKeys: ['drinks'],
+      vitalKeys: VitalShapes.foodReadKeys,
+      mealType: 'drinks',
       keywords: ['tea', 'coffee', 'juice', 'cups'],
       image: 'assets/Quick Actions/Drinks.png',
       pageBuilder: _drinks,

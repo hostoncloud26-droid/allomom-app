@@ -3,13 +3,15 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 
 /// One day's food and drink, summed from the vitals stream.
 ///
-/// Meal keys hold kcal in the value; `snacks` and `drinks` do too, and keep the
-/// portion or cup count in `data['count']`. `water` is the odd one out — its
-/// value *is* the number of glasses, logged as increments.
+/// Meals, snacks and drinks are AlloConnect's `food` rows — kcal in the value,
+/// which one in `data['meal_type']` — or rows under Allomom's older per-meal
+/// keys; snacks and drinks keep the portion or cup count in `data['count']`.
+/// `water` rows are increments, in ml (AlloConnect) or glasses (older rows).
 class NutritionDay {
   final DateTime date;
   final double breakfastKcal;
@@ -92,8 +94,6 @@ int waterGoalGlasses() {
 /// Recommended daily energy intake in pregnancy, matching the calorie tracker.
 const double kDailyCalorieGoal = 2200;
 
-const _breakfastKeys = ['breakfast', 'break_fast'];
-
 /// Loads the last [dayCount] days (today last) of meals, snacks, drinks and water.
 ///
 /// [endDate] moves the window so it ends on that day instead of today; the
@@ -141,63 +141,49 @@ Future<NutritionSummary> loadNutritionSummary({
     return (index >= 0 && index < dayCount) ? index : null;
   }
 
-  // ── Meals ──
-  for (final entry in {
-    'breakfast': _breakfastKeys,
-    'lunch': ['lunch'],
-    'dinner': ['dinner'],
-  }.entries) {
-    for (final key in entry.value) {
-      for (final row in await rowsFor(key)) {
-        final when = _dateOf(row);
-        final slot = when == null ? null : slotOf(when);
-        if (slot == null) continue;
+  // ── Meals, snacks and drinks: `food` rows, or the older per-meal keys ──
+  final foodRows = <Map<String, dynamic>>[
+    for (final key in VitalShapes.foodReadKeys) ...await rowsFor(key),
+  ];
+  for (final row in foodRows) {
+    final when = _dateOf(row);
+    final slot = when == null ? null : slotOf(when);
+    if (slot == null) continue;
 
-        final kcal = _numOf(row['value']) ?? 0;
-        switch (entry.key) {
-          case 'breakfast':
-            breakfast[slot] += kcal;
-          case 'lunch':
-            lunch[slot] += kcal;
-          default:
-            dinner[slot] += kcal;
-        }
+    final data = _dataOf(row);
+    final meal = VitalShapes.mealTypeOf(row['key']?.toString() ?? '', data);
+    if (meal == null) continue;
+    final kcal = _numOf(row['value']) ?? 0;
 
-        // Keep the newest note from today, which is what the card shows.
+    switch (meal) {
+      case VitalShapes.snacks:
+        snacks[slot] += kcal;
+        snackCount[slot] += _countOf(row);
+        continue;
+      case VitalShapes.drinks:
+        final units = _countOf(row);
+        drinks[slot] += kcal;
+        drinkCount[slot] += units;
         if (slot == dayCount - 1) {
-          final data = _dataOf(row);
-          final note = (data['items'] ?? data['details'])?.toString().trim();
-          final seen = latestNoteAt[entry.key];
-          if (note != null && note.isNotEmpty && (seen == null || when!.isAfter(seen))) {
-            mealNotes[entry.key] = note;
-            latestNoteAt[entry.key] = when!;
-          }
+          final name = VitalShapes.drinkNameOf(data);
+          drinkCounts[name] = (drinkCounts[name] ?? 0) + units;
         }
-      }
+        continue;
+      case VitalShapes.breakfast:
+        breakfast[slot] += kcal;
+      case VitalShapes.lunch:
+        lunch[slot] += kcal;
+      default:
+        dinner[slot] += kcal;
     }
-  }
 
-  // ── Snacks and drinks: kcal in the value, units in data['count'] ──
-  for (final row in await rowsFor('snacks')) {
-    final when = _dateOf(row);
-    final slot = when == null ? null : slotOf(when);
-    if (slot == null) continue;
-    snacks[slot] += _numOf(row['value']) ?? 0;
-    snackCount[slot] += _countOf(row);
-  }
-
-  for (final row in await rowsFor('drinks')) {
-    final when = _dateOf(row);
-    final slot = when == null ? null : slotOf(when);
-    if (slot == null) continue;
-    final units = _countOf(row);
-    drinks[slot] += _numOf(row['value']) ?? 0;
-    drinkCount[slot] += units;
-
+    // Keep the newest note from today, which is what the card shows.
     if (slot == dayCount - 1) {
-      final name = _dataOf(row)['drink']?.toString().trim();
-      if (name != null && name.isNotEmpty) {
-        drinkCounts[name] = (drinkCounts[name] ?? 0) + units;
+      final note = (data['items'] ?? data['details'])?.toString().trim();
+      final seen = latestNoteAt[meal];
+      if (note != null && note.isNotEmpty && (seen == null || when!.isAfter(seen))) {
+        mealNotes[meal] = note;
+        latestNoteAt[meal] = when!;
       }
     }
   }
@@ -207,7 +193,7 @@ Future<NutritionSummary> loadNutritionSummary({
     final when = _dateOf(row);
     final slot = when == null ? null : slotOf(when);
     if (slot == null) continue;
-    water[slot] += (_numOf(row['value']) ?? 0).toDouble();
+    water[slot] += VitalShapes.waterGlasses(_numOf(row['value']) ?? 0);
   }
 
   return NutritionSummary(

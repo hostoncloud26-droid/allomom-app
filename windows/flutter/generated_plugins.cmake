@@ -11,6 +11,8 @@ list(APPEND FLUTTER_PLUGIN_LIST
   flutter_secure_storage_windows
   flutter_timezone
   flutter_tts
+  gal
+  geolocator_windows
   permission_handler_windows
   record_windows
   speech_to_text_windows

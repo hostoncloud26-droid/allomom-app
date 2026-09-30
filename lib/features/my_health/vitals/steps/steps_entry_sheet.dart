@@ -3,7 +3,7 @@
 // doesn't have), so this sheet takes the look of AlloConnect's "Set Daily Step
 // Goal" sheet and writes the same row Allomom's vital log sheet does:
 // key `steps`, value = the day's step count, unit `steps`,
-// data {steps, distanceKm, calories} (via `addStepsEntry`).
+// data {source, distance, calories, steps} (via `addStepsEntry`).
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -124,10 +124,10 @@ class _StepsEntrySheetState extends State<_StepsEntrySheet> {
       final data = Map<String, dynamic>.from(existing.data ?? const {})
         ..remove('hourly_data')
         ..remove('hourlyData')
-        ..remove('distance')
+        ..remove('distanceKm')
         ..['steps'] = steps
-        ..['distanceKm'] = (steps * 0.00078).toStringAsFixed(2)
-        ..['calories'] = (steps * 0.04).toInt();
+        ..['distance'] = double.parse((steps * 0.00078).toStringAsFixed(2))
+        ..['calories'] = (steps * 0.04).round();
       saved = await vitals.updateVitalEntry(
         vitalId: existing.id,
         key: 'steps',

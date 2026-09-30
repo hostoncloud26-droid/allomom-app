@@ -328,14 +328,24 @@ class VitalsController extends GetxController {
     return id;
   }
 
-  /// The blood group, read from the latest reading carrying one.
+  /// The blood group, read from the latest reading carrying one: AlloConnect's
+  /// `data['blood_group']`, with the unit and the older `data['value']` as
+  /// fallbacks.
   String? get bloodGroup {
     final reading = latest(VitalKeys.bloodGroup);
     if (reading == null) return null;
     final data = SyncCodec.decodeMap(reading.data);
-    return data['value']?.toString();
+    final group = data['blood_group'] ?? data['value'] ?? reading.unit;
+    final text = group?.toString().trim();
+    return (text == null || text.isEmpty) ? null : text;
   }
 
-  Future<void> setBloodGroup(String group) =>
-      record(VitalKeys.bloodGroup, data: {'value': group}).then((_) {});
+  /// In AlloConnect's shape: value 0, the group as the unit and in
+  /// `data['blood_group']`.
+  Future<void> setBloodGroup(String group) => record(
+    VitalKeys.bloodGroup,
+    value: 0,
+    unit: group,
+    data: {'blood_group': group},
+  ).then((_) {});
 }

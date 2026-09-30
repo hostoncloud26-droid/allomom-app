@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:allomom/api/family_member_api.dart';
 import 'package:allomom/api/profile_api.dart';
@@ -219,6 +220,29 @@ class SyncService {
   Future<void> resetWatermarks() async {
     final db = await _db;
     await db.delete(db.syncStates).go();
+  }
+
+  static const _utcRepairKey = 'sync_naive_utc_repair_v1';
+
+  /// Once per install: re-pulls every module from the server.
+  ///
+  /// Builds before the fix in [SyncCodec.date] read the server's offset-less
+  /// timestamps (all UTC) as local time, so every row they pulled was stored
+  /// shifted by the phone's offset — a morning reading showing hours early,
+  /// a day's steps landing on the day before. The server's copies were
+  /// always right; clearing the watermarks makes the next pass fetch them
+  /// again, and each one overwrites its shifted local row. Local edits not
+  /// yet sent are pushed in that same pass, so none is lost.
+  Future<void> repairShiftedTimestampsOnce() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_utcRepairKey) == true) return;
+      await resetWatermarks();
+      await prefs.setBool(_utcRepairKey, true);
+      debugPrint('🛠 [SyncService] watermarks cleared to re-pull UTC timestamps');
+    } catch (e) {
+      debugPrint('⚠️ [SyncService] timestamp repair skipped: $e');
+    }
   }
 
   // ── Seeding ────────────────────────────────────────────────────────────────

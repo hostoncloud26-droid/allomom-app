@@ -22,11 +22,7 @@ class SleepUtils {
   /// Every key a sleep session is stored under in Allomom: `sleep` is the
   /// manual log (value in hours), `sleep_data` the device / AlloConnect row
   /// (value in minutes), `sleep_hours` an older spelling.
-  static const List<String> sleepVitalKeys = <String>[
-    'sleep',
-    'sleep_data',
-    'sleep_hours',
-  ];
+  static const List<String> sleepVitalKeys = <String>['sleep_data'];
 
   static bool isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -41,27 +37,18 @@ class SleepUtils {
     return (value * 60).round();
   }
 
-  /// The data map the entry sheet writes for a manual session, under key
-  /// `sleep` with the value in hours, so Allomom's tile, Home and summary
-  /// card keep reading it, while carrying AlloConnect's `sleep_data` window.
+  /// The data map a manual session is written with — AlloConnect's manual
+  /// `sleep_data` fields exactly. The row itself holds the minutes.
   static Map<String, dynamic> manualSessionData({
     required DateTime sleepTime,
     required DateTime awakeTime,
   }) {
     final minutes = math.max(0, awakeTime.difference(sleepTime).inMinutes);
-    final hours = minutes / 60.0;
-    // The sheet asks for no stages. Allomom's own log keeps a 25% deep share
-    // as its default split, which the tile reads as "not measured".
-    final deep = hours * 0.25;
     return <String, dynamic>{
       'source': 'manual',
       'sleep_time': sleepTime.toIso8601String(),
       'awake_time': awakeTime.toIso8601String(),
       'total_sleep_duration': minutes,
-      'totalMinutes': minutes,
-      'hours': hours,
-      'deepSleep': deep,
-      'lightSleep': hours - deep,
     };
   }
 

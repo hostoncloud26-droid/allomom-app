@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
 
+import 'package:allomom/features/my_health/vitals/heart_rate/heart_rate_analysis_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/heart_rate_summary_screen.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
 import 'vital_tile_chrome.dart';
 import 'package:allomom/config/quick_action_images.dart';
 
-/// AlloConnect's heart-rate tile: bpm with a sparkline of recent readings.
-/// AlloConnect's camera "START" chip becomes a "LOG" chip that opens
-/// Allomom's log sheet.
+/// AlloConnect's heart-rate tile: bpm with a sparkline of recent readings,
+/// and its "START" chip — a live AlloWear reading, or the phone camera when no
+/// band is connected. Typing a reading in stays on the empty state and the
+/// summary screen's Add.
 class HeartRateTile extends StatelessWidget {
   final VitalsStreamResponse? vital;
 
@@ -62,8 +64,13 @@ class HeartRateTile extends StatelessWidget {
       onEmptyLog: canLog ? log : null,
       onTap: () => openVitalPage(context, const HeartRateSummaryScreen()),
       details: [VitalTileDetail(_status(value), color: color)],
-      action: value > 0 && canLog
-          ? VitalTileActionChip(color: color, onTap: log, pulse: true)
+      action: canLog
+          ? VitalTileActionChip(
+              color: color,
+              label: 'START',
+              icon: Icons.play_arrow_rounded,
+              onTap: () => showHeartRateMeasureSheet(context, onDone: onLogged),
+            )
           : null,
       chart: MiniSparklineChart(
         data: vitalTrendUpTo(const ['heart_rate'], date),

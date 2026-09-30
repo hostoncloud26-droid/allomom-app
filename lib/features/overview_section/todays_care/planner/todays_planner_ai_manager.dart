@@ -7,6 +7,7 @@
 /// off care items and logging counts (water, snacks) are added.
 library;
 
+import 'package:allomom/models/vital_shapes.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -517,7 +518,7 @@ Return only the transcript as plain text: no quotes, labels or markdown.
             data: data,
           )
         : await vitals.addVitalEntry(
-            key: meal?.careMeal?.vitalKey ?? type,
+            key: VitalShapes.food,
             value: calories,
             unit: 'kcal',
             createdAt: start,

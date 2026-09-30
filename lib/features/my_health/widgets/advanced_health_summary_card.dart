@@ -425,7 +425,13 @@ class AdvancedHealthSummaryCard extends StatelessWidget {
     return GetBuilder<HealthVitalsController>(
       init: HealthVitalsController.instance,
       builder: (vitals) {
-        final snapshot = WellnessSnapshot.from(vitals.vitals);
+        // Today's sleep is every session that ended today, summed, as
+        // AlloConnect's card reads it.
+        final todaySleep = vitals.todaySleepMinutes;
+        final snapshot = WellnessSnapshot.from(
+          vitals.vitals,
+          todaySleepHours: todaySleep > 0 ? todaySleep / 60.0 : null,
+        );
         final weight = snapshot.weight?.value ??
             (vitals.hasWeight ? vitals.weightValue : 0.0);
         final height = snapshot.height?.value ?? vitals.heightVital?.value ?? 0.0;

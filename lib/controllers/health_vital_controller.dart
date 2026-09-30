@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:uuid/uuid.dart';
+import 'package:allomom/features/my_health/vitals/sleep/sleep_utils.dart';
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/services/sq_lite/services/vitals_sqlite_service.dart';
 import 'package:allomom/controllers/connection_controller.dart';
@@ -63,6 +66,11 @@ class HealthVitalsController extends GetxController {
   String _stress = '--';
 
   double _sleepHours = 0.0;
+
+  /// Every sleep session that ended today, summed — AlloConnect's
+  /// `todaySleepMinutes`.
+  int _todaySleepMinutes = 0;
+  int get todaySleepMinutes => _todaySleepMinutes;
   String _sleepDate = '';
 
   String _bloodPressure = '--/--';
@@ -447,6 +455,11 @@ class HealthVitalsController extends GetxController {
           final v = _vitalFromDbMap(r);
           _historyByKey.putIfAbsent(v.key.toLowerCase(), () => []).add(v);
         }
+
+        // As AlloConnect's updateTodaySleepMinutes: a night and a nap both
+        // count toward today's sleep.
+        _todaySleepMinutes =
+            await SleepUtils.getSleepMinutesForDay(currentUserId);
       } catch (e) {
         debugPrint('Error loading latest vitals from local storage: $e');
       }
@@ -513,7 +526,6 @@ class HealthVitalsController extends GetxController {
   /// recorded on it, or nothing.
   static const List<String> dayScopedVitalKeys = <String>[
     'steps',
-    'sleep',
     'sleep_data',
     'heart_rate',
     'blood_oxygen',
@@ -591,26 +603,28 @@ class HealthVitalsController extends GetxController {
     final sortedVitals = List<VitalsStreamResponse>.from(vitalsList)
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
+    // Today's steps and sleep only, as AlloConnect reads them: the newest row
+    // counts only if it is from today, so yesterday's total never shows as
+    // today's.
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    bool isToday(VitalsStreamResponse v) => !v.createdAt.isBefore(startOfToday);
+
     // Steps
     final stepsEntry = sortedVitals
         .where((v) => v.key.toLowerCase() == 'steps')
         .firstOrNull;
-    _stepsVital = stepsEntry;
-    if (stepsEntry != null) {
-      _steps = stepsEntry.value.toInt();
-    } else {
-      _steps = 0;
-    }
+    _stepsVital = stepsEntry != null && isToday(stepsEntry) ? stepsEntry : null;
+    _steps = _stepsVital?.value.toInt() ?? 0;
 
     // Sleep
-    final sleepEntry = sortedVitals
+    final newestSleep = sortedVitals
         .where(
-          (v) =>
-              v.key.toLowerCase() == 'sleep' ||
-              v.key.toLowerCase() == 'sleep_data' ||
-              v.key.toLowerCase() == 'sleep_hours',
+          (v) => v.key.toLowerCase() == 'sleep_data',
         )
         .firstOrNull;
+    final sleepEntry =
+        newestSleep != null && isToday(newestSleep) ? newestSleep : null;
     _sleepVital = sleepEntry;
     if (sleepEntry != null) {
       if (sleepEntry.unit.toLowerCase().contains('min') ||
@@ -876,7 +890,10 @@ class HealthVitalsController extends GetxController {
     }
   }
 
-  /// Adds a new vital entry, persists locally in SQLite and attempts server sync
+  /// Adds a new vital entry, persists locally in SQLite and attempts server sync.
+  ///
+  /// Callers pass AlloConnect's key, unit and data (see [VitalShapes]); a
+  /// `food` row also gets AlloConnect's `total_calorie_intake`.
   Future<VitalsStreamResponse?> addVitalEntry({
     required String key,
     required double value,
@@ -894,6 +911,13 @@ class HealthVitalsController extends GetxController {
           : this.userId;
       final recordTime = createdAt ?? DateTime.now();
       final vitalId = const Uuid().v7();
+
+      data = await VitalShapes.completeData(
+        key: key,
+        value: value,
+        createdAt: recordTime,
+        data: data,
+      );
 
       // Save to SQLite first (mark as unsynced)
       await VitalsSqLiteService().saveVital(
@@ -922,6 +946,12 @@ class HealthVitalsController extends GetxController {
           .insert(0, localVital);
       update();
 
+      // AlloConnect keeps BMI as its own row, written beside each height or
+      // weight reading.
+      if (key == 'weight' || key == 'height') {
+        await _saveBmiRow(recordTime, targetUserId);
+      }
+
       // Attempt background API sync through HealthVitalSyncService if online
       if (ConnectionController.instance.isInternetAvailable) {
         HealthVitalSyncService.instance.syncUnsyncedVitals();
@@ -937,6 +967,64 @@ class HealthVitalsController extends GetxController {
       _isLoading = false;
       update();
     }
+  }
+
+  /// A meal, snack or drink in AlloConnect's shape: key `food`, unit `kcal`,
+  /// `type` and `meal_type` naming it. [mealType] is `breakfast`, `lunch`,
+  /// `dinner` or `snacks`; for a drink pass [drinkType] (`tea`, `coffee` or
+  /// `beverages`) instead.
+  Future<VitalsStreamResponse?> addFoodEntry({
+    String? mealType,
+    String? drinkType,
+    required double kcal,
+    DateTime? createdAt,
+    String? userId,
+    Map<String, dynamic> data = const {},
+  }) {
+    assert((mealType == null) != (drinkType == null));
+    return addVitalEntry(
+      key: VitalShapes.food,
+      value: kcal,
+      unit: 'kcal',
+      createdAt: createdAt,
+      userId: userId,
+      data: drinkType != null
+          ? VitalShapes.drinkData(drinkType, extra: data)
+          : VitalShapes.mealData(mealType!, extra: data),
+    );
+  }
+
+  /// Water in AlloConnect's shape: key `water`, [ml] in the value, unit `ml`.
+  /// Rows are increments; a negative [ml] undoes some.
+  Future<VitalsStreamResponse?> addWaterEntry({
+    required double ml,
+    DateTime? createdAt,
+    String? userId,
+    String? details,
+  }) {
+    return addVitalEntry(
+      key: VitalShapes.water,
+      value: ml,
+      unit: 'ml',
+      createdAt: createdAt,
+      userId: userId,
+      data: {'details': details ?? '${ml.round()} ml', 'type': 'water'},
+    );
+  }
+
+  /// Every `food` row (and AlloConnect's older per-meal keys) in [period]
+  /// that is [mealType] — `breakfast`, `lunch`, `dinner`, `snacks` or
+  /// `drinks` — oldest first.
+  List<VitalsStreamResponse> getMealHistoryForPeriod(
+    String mealType,
+    String period,
+  ) {
+    return [
+      for (final key in VitalShapes.foodReadKeys)
+        ...getHistoryForPeriod(key, period).where(
+          (v) => VitalShapes.mealTypeOf(v.key, v.data) == mealType,
+        ),
+    ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
   }
 
   Future<VitalsStreamResponse?> addBloodPressureEntry({
@@ -978,14 +1066,20 @@ class HealthVitalsController extends GetxController {
     required int steps,
     DateTime? createdAt,
   }) async {
-    final km = (steps * 0.00078).toStringAsFixed(2);
-    final kcal = (steps * 0.04).toInt();
+    // AlloConnect's steps data: distance (km) and calories as numbers.
+    final km = double.parse((steps * 0.00078).toStringAsFixed(2));
+    final kcal = (steps * 0.04).round();
     return addVitalEntry(
       key: 'steps',
       value: steps.toDouble(),
       unit: 'steps',
       createdAt: createdAt,
-      data: {'steps': steps, 'distanceKm': km, 'calories': kcal},
+      data: {
+        'source': 'manual',
+        'distance': km,
+        'calories': kcal,
+        'steps': steps,
+      },
     );
   }
 
@@ -994,18 +1088,20 @@ class HealthVitalsController extends GetxController {
     DateTime? createdAt,
     double? deepSleepHours,
   }) async {
-    final mins = (hours * 60).toInt();
-    final deep = deepSleepHours ?? (hours * 0.25);
+    // AlloConnect's manual sleep row: `sleep_data`, minutes, the window.
+    final mins = (hours * 60).round();
+    final awake = createdAt ?? DateTime.now();
+    final asleep = awake.subtract(Duration(minutes: mins));
     return addVitalEntry(
-      key: 'sleep',
-      value: hours,
-      unit: 'hours',
-      createdAt: createdAt,
+      key: 'sleep_data',
+      value: mins.toDouble(),
+      unit: 'minutes',
+      createdAt: awake,
       data: {
-        'totalMinutes': mins,
-        'hours': hours,
-        'deepSleep': deep,
-        'lightSleep': hours - deep,
+        'source': 'manual',
+        'sleep_time': asleep.toIso8601String(),
+        'awake_time': awake.toIso8601String(),
+        'total_sleep_duration': mins,
       },
     );
   }
@@ -1041,11 +1137,11 @@ class HealthVitalsController extends GetxController {
     DateTime? createdAt,
   }) async {
     return addVitalEntry(
+      // AlloConnect's stress row: the score in the value, unit `level`.
       key: 'stress',
       value: stressScore.toDouble(),
-      unit: 'score',
+      unit: 'level',
       createdAt: createdAt,
-      data: {'stressScore': stressScore},
     );
   }
 
@@ -1192,6 +1288,13 @@ class HealthVitalsController extends GetxController {
       final recordTime = createdAt ?? DateTime.now();
       final vitalId = const Uuid().v7();
 
+      data = await VitalShapes.completeData(
+        key: key,
+        value: value,
+        createdAt: recordTime,
+        data: data,
+      );
+
       await VitalsSqLiteService().saveVital(
         id: vitalId,
         key: key,
@@ -1295,6 +1398,37 @@ class HealthVitalsController extends GetxController {
     }
   }
 
+  /// Writes AlloConnect's `bmi` row from the latest weight and height.
+  Future<void> _saveBmiRow(DateTime at, String userId) async {
+    try {
+      final latest = await VitalsSqLiteService().getLatestVitals(userId);
+      double? of(String k) {
+        for (final row in latest) {
+          if (row['key'] == k && row['value'] is num) {
+            return (row['value'] as num).toDouble();
+          }
+        }
+        return null;
+      }
+
+      final weight = of('weight');
+      final height = of('height');
+      final bmi = VitalShapes.bmiOf(weight, height);
+      if (bmi == null) return;
+      await VitalsSqLiteService().saveVital(
+        key: VitalShapes.bmi,
+        value: bmi,
+        unit: 'kg/m²',
+        createdAt: at,
+        userId: userId,
+        additionalData: {'height': height, 'weight': weight},
+        synced: 0,
+      );
+    } catch (e) {
+      debugPrint('⚠️ [HealthVitalsController] saving BMI failed: $e');
+    }
+  }
+
   Future<VitalsStreamResponse?> updateVitalEntry({
     required String vitalId,
     required String key,
@@ -1311,6 +1445,14 @@ class HealthVitalsController extends GetxController {
       final targetUserId = userId?.trim().isNotEmpty == true
           ? userId!.trim()
           : this.userId;
+
+      data = await VitalShapes.completeData(
+        key: key,
+        value: value,
+        createdAt: createdAt,
+        data: data,
+        excludeId: vitalId,
+      );
 
       await VitalsSqLiteService().saveVital(
         id: vitalId,
@@ -1457,12 +1599,7 @@ class HealthVitalsController extends GetxController {
               vital.createdAt.isAtSameMomentAs(startOfToday)) &&
           vital.createdAt.isBefore(endOfToday)) {
         final k = vital.key.toLowerCase();
-        if (k == 'food' ||
-            k == 'break_fast' ||
-            k == 'breakfast' ||
-            k == 'lunch' ||
-            k == 'dinner' ||
-            k == 'snacks') {
+        if (VitalShapes.foodReadKeys.contains(k)) {
           if (excludeVitalId != null && vital.id == excludeVitalId) {
             continue;
           }

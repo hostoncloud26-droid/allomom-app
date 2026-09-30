@@ -26,6 +26,8 @@ import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
+import 'package:allomom/allowear/allowear_home.dart';
+import 'package:localstorage/localstorage.dart';
 
 final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -61,6 +63,9 @@ void main() async {
   // below has a session to restore at all.
   await ApiBase.init();
   await SqLiteService.init();
+  // The AlloWear controller reads the paired band synchronously, so its store
+  // is loaded before anything can create it.
+  await initLocalStorage();
   AuthController.instance.init();
   await MainController.instance.bootstrap();
   await ConnectionController.instance.init();
@@ -90,6 +95,9 @@ void main() async {
         rootNavigatorKey.currentState?.push(
           MaterialPageRoute(builder: (_) => const RemindersPage()),
         );
+      } else if (screen == 'allowear') {
+        // The "charge your AlloWear" reminder.
+        Get.to(() => const AllowearHome());
       }
     };
 

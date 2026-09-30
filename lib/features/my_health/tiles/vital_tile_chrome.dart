@@ -658,12 +658,16 @@ class VitalTileActionChip extends StatelessWidget {
   final VoidCallback onTap;
   final bool pulse;
 
+  /// Shown when not pulsing; a "+" by default, a play arrow for START.
+  final IconData icon;
+
   const VitalTileActionChip({
     super.key,
     required this.color,
     required this.onTap,
     this.label = 'LOG',
     this.pulse = false,
+    this.icon = Icons.add_rounded,
   });
 
   @override
@@ -691,7 +695,7 @@ class VitalTileActionChip extends StatelessWidget {
             if (pulse)
               _PulseDot(color: color)
             else
-              Icon(Icons.add_rounded, size: 14, color: color),
+              Icon(icon, size: 14, color: color),
             SizedBox(width: pulse ? 8 : 4),
             Text(
               label,

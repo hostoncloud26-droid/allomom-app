@@ -124,13 +124,11 @@ Future<bool> showMealLogSheet(
                       double.tryParse(calController.text.trim()) ?? 300.0;
                   final text = itemController.text.trim();
 
-                  await HealthVitalsController.instance.addVitalEntry(
-                    key: mealType.toLowerCase(),
-                    value: cal,
-                    unit: 'kcal',
-                    createdAt: DateTime.now(),
+                  await HealthVitalsController.instance.addFoodEntry(
+                    mealType: mealType.toLowerCase(),
+                    kcal: cal,
                     userId: userId,
-                    data: {'items': text, 'meal': label},
+                    data: {'items': text, 'details': text, 'meal': label},
                   );
 
                   if (ctx.mounted) Navigator.pop(ctx, true);

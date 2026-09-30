@@ -4,9 +4,8 @@
 // this sheet reuses the look of AlloConnect's body-composition "Update" sheet
 // and the stress bands / colours of its StressSummaryScreen.
 //
-// Data shape matches Allomom's existing log sheet:
-// `HealthVitalsController.addStressEntry` → key `stress`, unit `score`,
-// value 1–100, data {stressScore}.
+// Stored in AlloConnect's shape via `HealthVitalsController.addStressEntry`:
+// key `stress`, unit `level`, value 1–100.
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';

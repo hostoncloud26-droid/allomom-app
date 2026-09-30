@@ -1,3 +1,4 @@
+import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -86,27 +87,34 @@ class _NutritionTilesState extends State<NutritionTiles> {
         return r.map(vitalFromRow).toList();
       }
 
+      // AlloConnect's `food` rows, sorted by `meal_type`, plus rows still
+      // under Allomom's older per-meal keys.
       final results = await Future.wait([
-        rows('breakfast'),
-        rows('break_fast'),
-        rows('lunch'),
-        rows('dinner'),
-        rows('snacks'),
-        rows('drinks'),
-        rows('water'),
+        for (final key in VitalShapes.foodReadKeys) rows(key),
+        rows(VitalShapes.water),
       ]);
       if (!mounted || seq != _loadSeq) return;
 
       int newestFirst(VitalsStreamResponse a, VitalsStreamResponse b) =>
           b.createdAt.compareTo(a.createdAt);
 
-      final water = results[6].fold<double>(0, (s, v) => s + v.value).round();
+      final byMeal = <String, List<VitalsStreamResponse>>{};
+      for (final v in results.take(VitalShapes.foodReadKeys.length).expand((r) => r)) {
+        final meal = VitalShapes.mealTypeOf(v.key, v.data);
+        if (meal != null) byMeal.putIfAbsent(meal, () => []).add(v);
+      }
+      List<VitalsStreamResponse> of(String meal) =>
+          (byMeal[meal] ?? [])..sort(newestFirst);
+
+      final water = results.last
+          .fold<double>(0, (s, v) => s + VitalShapes.waterGlasses(v.value))
+          .round();
       setState(() {
-        _breakfast = [...results[0], ...results[1]]..sort(newestFirst);
-        _lunch = results[2]..sort(newestFirst);
-        _dinner = results[3]..sort(newestFirst);
-        _snacks = results[4]..sort(newestFirst);
-        _drinks = results[5]..sort(newestFirst);
+        _breakfast = of(VitalShapes.breakfast);
+        _lunch = of(VitalShapes.lunch);
+        _dinner = of(VitalShapes.dinner);
+        _snacks = of(VitalShapes.snacks);
+        _drinks = of(VitalShapes.drinks);
         _waterGlasses = water < 0 ? 0 : water;
       });
     } catch (e) {
@@ -140,8 +148,8 @@ class _NutritionTilesState extends State<NutritionTiles> {
     setState(() => _waterGlasses += glasses);
     await HealthVitalsController.instance.addVitalEntry(
       key: 'water',
-      value: glasses.toDouble(),
-      unit: 'glasses',
+      value: (glasses * VitalShapes.mlPerGlass).toDouble(),
+      unit: 'ml',
       createdAt: DateTime.now(),
       userId: _userId,
       data: {
@@ -155,11 +163,11 @@ class _NutritionTilesState extends State<NutritionTiles> {
     if (_readOnly || _waterGlasses <= 0) return;
     setState(() => _waterGlasses -= 1);
     // Rows hold increments (the reader sums them), so a correction is logged
-    // as -1, not as the new total.
+    // as one glass less, not as the new total.
     await HealthVitalsController.instance.addVitalEntry(
       key: 'water',
-      value: -1,
-      unit: 'glasses',
+      value: -VitalShapes.mlPerGlass.toDouble(),
+      unit: 'ml',
       createdAt: DateTime.now(),
       userId: _userId,
       data: const {'details': 'Corrected by 1 glass', 'type': 'water'},
