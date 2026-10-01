@@ -2,28 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>AlloBot uses speech recognition to understand what you say and assist you during your pregnancy.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>AlloBot uses the microphone to listen to your voice questions and commands.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>We need access to read your step count and health data to display in the app.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>We need access to write step count and health data to sync with Apple Health.</string>
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Allomom uses Bluetooth to connect to your AlloWear device and sync your vitals.</string>
-	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Required to connect to your AlloWear health device.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Allomom uses your location only to discover nearby AlloWear devices over Bluetooth.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Allomom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Allomom saves photos taken with your AlloWear bracelet to your photo library.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>bluetooth-central</string>
-	</array>
+	<key>CADisableMinimumFrameDurationOnPhone</key>
+	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -46,6 +26,51 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Allomom uses Bluetooth to connect to your AlloWear device and sync your vitals.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Required to connect to your AlloWear health device.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allomom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>We need access to read your step count and health data to display in the app.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>We need access to write step count and health data to sync with Apple Health.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Allomom uses your location only to discover nearby AlloWear devices over Bluetooth.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>AlloBot uses the microphone to listen to your voice questions and commands.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Allomom saves photos taken with your AlloWear bracelet to your photo library.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>AlloBot uses speech recognition to understand what you say and assist you during your pregnancy.</string>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneClassName</key>
+					<string>UIWindowScene</string>
+					<key>UISceneConfigurationName</key>
+					<string>flutter</string>
+					<key>UISceneDelegateClassName</key>
+					<string>FlutterSceneDelegate</string>
+					<key>UISceneStoryboardFile</key>
+					<string>Main</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
+	<key>UIApplicationSupportsIndirectInputEvents</key>
+	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>bluetooth-central</string>
+	</array>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
@@ -63,9 +88,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>UIApplicationSupportsIndirectInputEvents</key>
-	<true/>
 </dict>
 </plist>
