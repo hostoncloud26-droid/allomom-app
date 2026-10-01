@@ -49,7 +49,7 @@ dependencies:
   http_parser: ^4.1.2
   shared_preferences: ^2.3.5
   # Tokens live in the Keychain / Android Keystore, never in SharedPreferences.
-  flutter_secure_storage: ^9.2.4
+  flutter_secure_storage: ^10.3.1
   flutter_tts: ^4.2.3
   speech_to_text: ^7.3.0
   flutter_local_notifications: ^20.1.0
@@ -96,6 +96,13 @@ dependencies:
   fluttertoast: ^9.0.0
   health: ^13.3.1
   geolocator: ^13.0.2
+  # Talk2Baby's Gemini Live call (AlloBaby's Talk to Your Baby page).
+  audio_visualizer: ^1.1.0
+  flutter_pcm_sound: ^3.3.3
+  flutter_voice_engine: ^0.0.1
+  wakelock_plus: ^1.4.0
+  auto_size_text: ^3.0.0
+  image: ^4.8.0
 
 dev_dependencies:
   flutter_test:

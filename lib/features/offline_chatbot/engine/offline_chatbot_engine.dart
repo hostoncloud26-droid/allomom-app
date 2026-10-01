@@ -396,6 +396,10 @@ class BotSegment {
 class BotReply {
   final List<BotSegment> segments = [];
   final List<Map<String, dynamic>> actions = [];
+
+  /// Whether nothing in the catalogue matched and this is the fallback's
+  /// answer.
+  bool isFallback = false;
   double _pendingDelay = 0;
 
   void wait(double seconds) => _pendingDelay += seconds;
@@ -1006,14 +1010,7 @@ class OfflineChatbotEngine {
               return await _runIntent(
                   loose.intent, loose.variables, turnContext, session);
             }
-            final fallback = bundle.fallbackFor(langCode);
-            if (fallback != null) {
-              return await _runIntent(fallback, const {}, turnContext, session);
-            }
-            session.clear();
-            return BotReply()
-              ..say(
-                  "I'm sorry, I didn't catch that. Could you please rephrase, or try saying 'hi'?");
+            return await _fallback(langCode, turnContext, session);
           }
         }
 
@@ -1088,13 +1085,27 @@ class OfflineChatbotEngine {
       return await _runIntent(match.intent, match.variables, turnContext, session);
     }
 
-    final fallback = bundle.fallbackFor(langCode);
-    if (fallback != null) {
-      return await _runIntent(fallback, const {}, turnContext, session);
-    }
+    return await _fallback(langCode, turnContext, session);
+  }
 
-    return BotReply()
-      ..say(
-          "I'm sorry, I didn't catch that. Could you please rephrase, or try saying 'hi'?");
+  /// The answer to a message nothing in the catalogue matched: its fallback
+  /// intent, else an apology. Flagged [BotReply.isFallback], so Talk2Baby can
+  /// hand the question to Gemini Live instead.
+  Future<BotReply> _fallback(
+    String? langCode,
+    Map<String, dynamic> turnContext,
+    BotSession session,
+  ) async {
+    final fallback = bundle.fallbackFor(langCode);
+    final BotReply reply;
+    if (fallback != null) {
+      reply = await _runIntent(fallback, const {}, turnContext, session);
+    } else {
+      session.clear();
+      reply = BotReply()
+        ..say(
+            "I'm sorry, I didn't catch that. Could you please rephrase, or try saying 'hi'?");
+    }
+    return reply..isFallback = true;
   }
 }

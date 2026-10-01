@@ -1,20 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/api/chatbot_api.dart';
+import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/allobot/pages/gemini_live_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_actions.dart';
 import 'package:allomom/features/offline_chatbot/data/offline_chatbot_profile.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
+import 'package:allomom/main.dart' show rootNavigatorKey;
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
@@ -1148,6 +1151,14 @@ class OfflineChatbotController extends GetxController {
         session: _session,
         profile: await offlineChatbotProfile(),
       );
+      // Nothing in the catalogue answers it: the baby thinks it over, then
+      // takes the question to a Gemini Live call, as AlloBaby's Talk to Your
+      // Baby does. Offline, the fallback's own words are all there is.
+      if (reply.isFallback &&
+          ConnectionController.instance.isInternetAvailable) {
+        await _handOffToLive(message, delivery);
+        return;
+      }
       await _deliverReply(reply, delivery, speak: speak);
     } catch (e) {
       _show(
@@ -1160,6 +1171,27 @@ class OfflineChatbotController extends GetxController {
       await _persistTranscript();
       update();
     }
+  }
+
+  /// Opens Gemini Live on [question], the message the catalogue had no answer
+  /// for.
+  ///
+  /// The thinking indicator stays up a beat first, so the hand-over reads as
+  /// the baby mulling it over; the live page carries on thinking while it
+  /// connects, and opens the call with the question.
+  Future<void> _handOffToLive(String question, int delivery) async {
+    await Future.delayed(const Duration(milliseconds: 800));
+    if (_delivery != delivery) return;
+
+    _endTurn();
+    await _persistTranscript();
+    update();
+
+    rootNavigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => GeminiLivePage(initialPrompt: question),
+      ),
+    );
   }
 
   /// Delivers a [BotReply]'s segments, pauses, and actions to the transcript.
