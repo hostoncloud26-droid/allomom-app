@@ -532,12 +532,6 @@ class _FeedingTrackerStatsPageState extends State<FeedingTrackerStatsPage> {
             ),
           ],
         ),
-        const SizedBox(width: 8),
-        Icon(
-          Icons.chevron_right_rounded,
-          color: _p.pick(const Color(0xFF9CA3AF), _p.textMuted),
-          size: 20,
-        ),
       ],
     );
   }

@@ -81,27 +81,40 @@ class _ScanQrPageState extends State<ScanQrPage> {
             errorBuilder: (context, error) =>
                 _ScannerError(error: error, onOpenSettings: openAppSettings),
           ),
-          IgnorePointer(
-            child: Center(
-              child: Container(
-                width: 240,
-                height: 240,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white, width: 3),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-              ),
-            ),
-          ),
-          const Positioned(
-            left: 24,
-            right: 24,
-            bottom: 40,
-            child: Text(
-              'Point the camera at your partner\'s Family Invite Code QR',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
+          // Hide the scan frame and hint when the camera failed to start, so
+          // they don't overlap the full-screen error message.
+          ValueListenableBuilder<MobileScannerState>(
+            valueListenable: _controller,
+            builder: (context, state, _) {
+              if (state.error != null) return const SizedBox.shrink();
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  IgnorePointer(
+                    child: Center(
+                      child: Container(
+                        width: 240,
+                        height: 240,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white, width: 3),
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 24,
+                    right: 24,
+                    bottom: 40,
+                    child: Text(
+                      'Point the camera at your partner\'s Family Invite Code QR',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
           if (_handling)
             const ColoredBox(

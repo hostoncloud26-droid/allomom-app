@@ -243,6 +243,11 @@ class AppTheme {
         color: p.card,
         surfaceTintColor: Colors.transparent,
       ),
+      // Floating, so a snackbar sits above the shell's docked mic button
+      // instead of running underneath it along the bottom edge.
+      snackBarTheme: const SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+      ),
       dividerTheme: DividerThemeData(color: p.divider),
       textSelectionTheme: const TextSelectionThemeData(
         cursorColor: primaryColor,

@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -93,13 +94,16 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       size: _postsPageSize,
     );
     if (!mounted || requestId != _postsRequestId) return;
-    final items = res.success ? FeedContent.listFrom(res.items) : <FeedContent>[];
+    final items = res.success
+        ? FeedContent.listFrom(res.items)
+        : <FeedContent>[];
     setState(() {
       _postsLoading = false;
       _postsFailed = !res.success;
       _postsPage = 1;
       _posts = items;
-      _postsHasMore = res.success && _postsHaveNext(res.pagination, items.length);
+      _postsHasMore =
+          res.success && _postsHaveNext(res.pagination, items.length);
     });
   }
 
@@ -114,14 +118,17 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
     if (!mounted || requestId != _postsRequestId) return;
     final seen = _posts.map((c) => c.id).toSet();
-    final items = res.success ? FeedContent.listFrom(res.items) : <FeedContent>[];
+    final items = res.success
+        ? FeedContent.listFrom(res.items)
+        : <FeedContent>[];
     setState(() {
       _postsLoadingMore = false;
       if (res.success) {
         _postsPage += 1;
         _posts = [..._posts, ...items.where((c) => !seen.contains(c.id))];
       }
-      _postsHasMore = res.success && _postsHaveNext(res.pagination, items.length);
+      _postsHasMore =
+          res.success && _postsHaveNext(res.pagination, items.length);
     });
   }
 
@@ -197,149 +204,333 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
         backgroundColor: _p.scaffoldSoft,
         body: RefreshIndicator(
           onRefresh: _refreshAll,
-          child: ListView(
+          edgeOffset: MediaQuery.paddingOf(context).top + 10,
+          child: CustomScrollView(
             controller: _scroll,
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    height: 170,
-                    width: double.infinity,
-                    color: _p.tint(primaryColor, accentLight),
-                    child: banner == null || banner.isEmpty
-                        ? null
-                        : CachedNetworkImage(
-                            imageUrl: banner,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, _, _) => const SizedBox.shrink(),
-                          ),
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            slivers: [
+              // ── Collapsing Hero Banner with Parallax Zoom ───────────────
+              SliverAppBar(
+                pinned: true,
+                stretch: true,
+                expandedHeight: 230 + MediaQuery.paddingOf(context).top,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                backgroundColor: Colors.transparent,
+                leadingWidth: 58,
+                automaticallyImplyLeading: false,
+                leading: Center(
+                  child: _FrostedIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'Back',
+                    onPressed: () => Navigator.pop(context, _changed),
                   ),
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: CircleAvatar(
-                        backgroundColor: _p.card.withValues(alpha: 0.9),
-                        child: IconButton(
-                          icon: Icon(Icons.arrow_back, color: _p.textPrimary),
-                          onPressed: () => Navigator.pop(context, _changed),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 20,
-                    bottom: -40,
-                    child: Container(
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: _p.card,
-                      ),
-                      child: CommunityAvatar(community: c, size: 80),
-                    ),
-                  ),
-                ],
+                ),
+                flexibleSpace: _CommunityFlexibleHeader(
+                  community: c,
+                  banner: banner,
+                ),
               ),
-              const SizedBox(height: 52),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      c.name,
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        color: _p.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (c.isJoined) const CommunityJoinedBadge(),
-                        Text(
-                          '${c.memberCount} '
-                          '${c.memberCount == 1 ? 'member' : 'members'}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: _p.textSecondary,
-                          ),
-                        ),
-                        if (place.isNotEmpty)
-                          Text(
-                            place,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: _p.textSecondary,
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-                    if (c.description != null && c.description!.isNotEmpty) ...[
+
+              // ── Community Details & Feed Content ────────────────────────
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 14),
+
+                      // Community Name — full width, no wrapping risk
                       Text(
-                        'About',
+                        c.name,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
+                          height: 1.2,
+                          letterSpacing: -0.3,
                           color: _p.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        c.description!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.5,
-                          color: _p.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 28),
-                    ],
-                    if (c.isJoined)
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: _busy ? null : _leave,
-                          icon: const Icon(Icons.logout_rounded),
-                          label: const Text(
-                            'Leave community',
-                            style: TextStyle(fontWeight: FontWeight.w700),
+                      const SizedBox(height: 10),
+
+                      // Join / Joined+Leave action buttons
+                      if (c.isJoined)
+                        _buildJoinedActions()
+                      else
+                        _buildJoinPill(),
+                      const SizedBox(height: 12),
+
+                      // Info Chips Row (Members, Location, Safe Space)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          _buildStatChip(
+                            icon: Icons.groups_rounded,
+                            label:
+                                '${c.memberCount} ${c.memberCount == 1 ? 'member' : 'members'}',
                           ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: dangerRed,
-                            side: const BorderSide(color: dangerRed),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                          if (place.isNotEmpty)
+                            _buildStatChip(
+                              icon: Icons.location_on_rounded,
+                              label: place,
+                            ),
+                          _buildStatChip(
+                            icon: Icons.verified_user_rounded,
+                            label: 'Safe Space for Moms',
+                            color: const Color(0xFF15803D),
+                            backgroundColor: _p.tint(
+                              const Color(0xFF22C55E),
+                              const Color(0xFFDCFCE7),
                             ),
                           ),
-                        ),
-                      )
-                    else
-                      CommunityJoinButton(
-                        joined: false,
-                        busy: _busy,
-                        onJoin: _join,
-                        expand: true,
+                        ],
                       ),
-                    const SizedBox(height: 28),
-                    _buildPosts(),
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 18),
+
+                      // About Section in modern card container
+                      if (c.description != null &&
+                          c.description!.trim().isNotEmpty) ...[
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: _p.card,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _p.border.withValues(alpha: 0.6),
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.02),
+                                blurRadius: 10,
+                                offset: const Offset(0, 3),
+                              ),
+                            ],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'About',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: _p.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                c.description!.trim(),
+                                style: TextStyle(
+                                  fontSize: 13.5,
+                                  height: 1.5,
+                                  color: _p.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
+                      // Community Discussions & Posts
+                      _buildPosts(),
+                      // Clear the system navigation bar / gesture area; the
+                      // page draws edge to edge, so the last post would
+                      // otherwise sit underneath it.
+                      SizedBox(
+                        height: 24 + MediaQuery.viewPaddingOf(context).bottom,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildStatChip({
+    required IconData icon,
+    required String label,
+    Color? color,
+    Color? backgroundColor,
+  }) {
+    final ink = color ?? _p.textSecondary;
+    final bg = backgroundColor ?? _p.card;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _p.border.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: ink),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: ink,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildJoinPill() {
+    return GestureDetector(
+      onTap: _busy ? null : _join,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: _busy
+              ? null
+              : const LinearGradient(
+                  colors: [primaryColor, Color(0xFFFF6B8B)],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+          color: _busy ? primaryColor.withValues(alpha: 0.5) : null,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: _busy
+              ? []
+              : [
+                  BoxShadow(
+                    color: primaryColor.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_busy)
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            else
+              const Icon(Icons.add_rounded, size: 16, color: Colors.white),
+            const SizedBox(width: 6),
+            Text(
+              _busy ? 'Joining...' : 'Join Community',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Colors.white,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJoinedActions() {
+    final greenText = _p.isDark
+        ? Color.lerp(const Color(0xFF4ADE80), Colors.white, 0.3)!
+        : const Color(0xFF15803D);
+    final greenBg = _p.tint(const Color(0xFF22C55E), const Color(0xFFDCFCE7));
+
+    final pill = BorderRadius.circular(24);
+
+    return Row(
+      children: [
+        // ✓ Joined status
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: greenBg,
+              borderRadius: pill,
+              border: Border.all(color: greenText.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.check_circle_rounded, size: 16, color: greenText),
+                const SizedBox(width: 6),
+                Text(
+                  'Joined',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: greenText,
+                    letterSpacing: 0.1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+
+        // Leave
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _busy ? null : _leave,
+            borderRadius: pill,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              decoration: BoxDecoration(
+                borderRadius: pill,
+                border: Border.all(color: dangerRed.withValues(alpha: 0.5)),
+              ),
+              child: _busy
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: dangerRed.withValues(alpha: 0.7),
+                      ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.logout_rounded,
+                          size: 16,
+                          color: dangerRed.withValues(alpha: 0.9),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Leave',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: dangerRed.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -376,15 +567,19 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
     final Widget body;
     if (!_community.isJoined) {
-      body = message(Icons.lock_outline_rounded, "Join to see this community's posts");
-    } else if (_postsLoading) {
-      body = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
+      body = message(
+        Icons.lock_outline_rounded,
+        "Join to see this community's posts",
       );
+    } else if (_postsLoading) {
+      body = const CommunityPostSkeletonList();
     } else if (_posts.isEmpty) {
       body = _postsFailed
-          ? message(Icons.cloud_off_rounded, "Couldn't load posts", retry: _loadPosts)
+          ? message(
+              Icons.cloud_off_rounded,
+              "Couldn't load posts",
+              retry: _loadPosts,
+            )
           : message(Icons.dynamic_feed_rounded, 'No posts yet');
     } else {
       body = Column(
@@ -411,6 +606,395 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [heading, const SizedBox(height: 12), body],
+    );
+  }
+}
+
+// ── Frosted Glass & Aurora Header Components ────────────────────────────────
+
+class _FrostedIconButton extends StatelessWidget {
+  const _FrostedIconButton({
+    required this.icon,
+    required this.onPressed,
+    this.tooltip,
+  });
+
+  final IconData icon;
+  final VoidCallback onPressed;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = p.isDark;
+
+    return ClipOval(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: (isDark ? Colors.black : Colors.white).withValues(
+              alpha: 0.65,
+            ),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.6),
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.12),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: IconButton(
+            icon: Icon(icon, size: 18, color: p.textPrimary),
+            onPressed: onPressed,
+            tooltip: tooltip,
+            padding: EdgeInsets.zero,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CommunityFlexibleHeader extends StatelessWidget {
+  const _CommunityFlexibleHeader({
+    required this.community,
+    required this.banner,
+  });
+
+  final Community community;
+  final String? banner;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = p.isDark;
+    final topPadding = MediaQuery.paddingOf(context).top;
+    final minHeight = kToolbarHeight + topPadding;
+    final maxHeight = 230.0 + topPadding;
+    const shelfHeight = 44.0;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final currentHeight = constraints.biggest.height;
+        // shrinkFraction goes from 0.0 (fully expanded) to 1.0 (fully collapsed)
+        final double shrinkFraction =
+            ((maxHeight - currentHeight) / (maxHeight - minHeight)).clamp(
+              0.0,
+              1.0,
+            );
+
+        // Opacity of the collapsed title & frosted glass bar
+        final double collapsedBarOpacity = ((shrinkFraction - 0.55) / 0.45)
+            .clamp(0.0, 1.0);
+
+        // Opacity of the large avatar and action buttons
+        final double avatarOpacity = ((currentHeight - 140) / 70).clamp(
+          0.0,
+          1.0,
+        );
+
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. Background Image or Aurora Mesh Gradient (banner area)
+            Positioned(
+              top: topPadding,
+              left: 0,
+              right: 0,
+              bottom: shelfHeight - 1,
+              child: banner != null && banner!.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: banner!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, _, _) =>
+                          _AuroraMeshBackground(community: community),
+                    )
+                  : _AuroraMeshBackground(community: community),
+            ),
+
+            // 2. Top ambient vignette for back & share button contrast
+            Positioned(
+              top: topPadding,
+              left: 0,
+              right: 0,
+              height: kToolbarHeight + 24,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.4),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            // Safe area: the banner starts below the status bar, so the
+            // clock / battery icons sit on a plain background, never over
+            // the photo.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: topPadding,
+              child: ColoredBox(color: p.scaffoldSoft),
+            ),
+
+            // 3. Lower shelf background matching page scaffold
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: shelfHeight,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: p.scaffoldSoft,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(24),
+                  ),
+                ),
+              ),
+            ),
+
+            // 4. Overlapping Avatar (half on banner, half on shelf)
+            if (avatarOpacity > 0.01)
+              Positioned(
+                left: 20,
+                bottom: 2,
+                child: IgnorePointer(
+                  ignoring: avatarOpacity < 0.5,
+                  child: Opacity(
+                    opacity: avatarOpacity,
+                    child: Container(
+                      padding: const EdgeInsets.all(3.5),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: p.card,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: CommunityAvatar(community: community, size: 82),
+                    ),
+                  ),
+                ),
+              ),
+
+            // 4. Frosted Glass Navigation Bar (collapses smoothly at the top)
+            if (collapsedBarOpacity > 0.01)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: minHeight,
+                child: Opacity(
+                  opacity: collapsedBarOpacity,
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+                      child: Container(
+                        padding: EdgeInsets.only(
+                          top: topPadding,
+                          left: 64, // clear back button
+                          right: 64, // clear share button
+                        ),
+                        decoration: BoxDecoration(
+                          color: (isDark ? p.card : Colors.white).withValues(
+                            alpha: isDark ? 0.8 : 0.85,
+                          ),
+                          border: Border(
+                            bottom: BorderSide(
+                              color: p.border.withValues(alpha: 0.5),
+                              width: 0.8,
+                            ),
+                          ),
+                        ),
+                        alignment: Alignment.center,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CommunityAvatar(community: community, size: 28),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                community.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: p.textPrimary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AuroraMeshBackground extends StatelessWidget {
+  const _AuroraMeshBackground({required this.community});
+
+  final Community community;
+
+  static const _palette = <Color>[
+    primaryColor,
+    Color(0xFF3B82F6),
+    Color(0xFF10B981),
+    Color(0xFFF59E0B),
+    Color(0xFF8B5CF6),
+    Color(0xFFEC4899),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = p.isDark;
+
+    final accent = _palette[community.name.hashCode.abs() % _palette.length];
+
+    final baseGradient = isDark
+        ? const LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF261928), Color(0xFF1B1B34), Color(0xFF13202E)],
+          )
+        : LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              const Color(0xFFFFF1F4),
+              const Color(0xFFF5EEFF),
+              const Color(0xFFEFF6FF),
+              p.scaffoldSoft,
+            ],
+            stops: const [0.0, 0.35, 0.7, 1.0],
+          );
+
+    return Container(
+      decoration: BoxDecoration(gradient: baseGradient),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Aurora Orb 1 (Top-Left: community accent)
+          Positioned(
+            top: -40,
+            left: -30,
+            width: 220,
+            height: 220,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    accent.withValues(alpha: isDark ? 0.4 : 0.32),
+                    accent.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Aurora Orb 2 (Right Center: warm primary rose glow)
+          Positioned(
+            top: 20,
+            right: -50,
+            width: 240,
+            height: 240,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    primaryColor.withValues(alpha: isDark ? 0.35 : 0.25),
+                    primaryColor.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Aurora Orb 3 (Bottom Center: lilac glow)
+          Positioned(
+            bottom: -30,
+            left: 60,
+            width: 180,
+            height: 180,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    const Color(
+                      0xFF818CF8,
+                    ).withValues(alpha: isDark ? 0.3 : 0.2),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          // Floating Sparkles & Soft Warmth
+          Positioned(
+            top: 60,
+            right: 80,
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              size: 20,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.35)
+                  : primaryColor.withValues(alpha: 0.35),
+            ),
+          ),
+          Positioned(
+            bottom: 45,
+            left: 40,
+            child: Icon(
+              Icons.star_rounded,
+              size: 16,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.25)
+                  : const Color(0xFF818CF8).withValues(alpha: 0.35),
+            ),
+          ),
+          Positioned(
+            top: 95,
+            left: 120,
+            child: Icon(
+              Icons.favorite_rounded,
+              size: 14,
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : primaryColor.withValues(alpha: 0.25),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

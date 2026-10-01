@@ -212,7 +212,7 @@ class _AllCommunitiesPageState extends State<AllCommunitiesPage> {
 
   Widget _list() {
     if (_loading && _communities.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const AllCommunitiesSkeletonList();
     }
     return RefreshIndicator(
       onRefresh: _load,

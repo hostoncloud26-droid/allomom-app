@@ -275,45 +275,27 @@ class _EditProfilePageState extends State<EditProfilePage> {
                             ),
                           ),
                           const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final option in const [
-                                ('female', 'Female'),
-                                ('male', 'Male'),
-                              ])
-                                ChoiceChip(
-                                  avatar: QuickActionImage(
-                                    QuickActionImages.person(gender: option.$1),
-                                    size: 22,
-                                  ),
-                                  label: Text(
-                                    option.$2,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  selected: _gender == option.$1,
-                                  showCheckmark: false,
-                                  selectedColor: const Color(0xFFFF4E6A),
-                                  labelStyle: TextStyle(
-                                    color: _gender == option.$1
-                                        ? Colors.white
-                                        : p.textSecondary,
-                                  ),
-                                  backgroundColor: p.pick(
-                                    const Color(0xFFF3F4F6),
-                                    p.inputFill,
-                                  ),
-                                  onSelected: (sel) {
-                                    if (sel) {
-                                      setState(() => _gender = option.$1);
-                                    }
-                                  },
+                          // Gender is read-only once registered.
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Chip(
+                              avatar: QuickActionImage(
+                                QuickActionImages.person(gender: _gender),
+                                size: 22,
+                              ),
+                              label: Text(
+                                _gender == 'male' ? 'Male' : 'Female',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: p.textSecondary,
                                 ),
-                            ],
+                              ),
+                              backgroundColor: p.pick(
+                                const Color(0xFFF3F4F6),
+                                p.inputFill,
+                              ),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           _buildDateTile(

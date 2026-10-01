@@ -1867,10 +1867,7 @@ class _PeoplePageState extends State<PeoplePage> {
           _buildCommunitySearchBar(),
           mediumSpacingBox(),
           if (_isLoadingCommunities && _myCommunities.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(24),
-              child: Center(child: CircularProgressIndicator()),
-            )
+            const MyCommunitiesSkeletonList()
           else if (myCommunities.isEmpty)
             _buildMyCommunitiesEmpty(searching: query.isNotEmpty)
           else
@@ -1914,10 +1911,7 @@ class _PeoplePageState extends State<PeoplePage> {
   /// sideways.
   Widget _buildFeaturedCommunitiesGrid() {
     if (_isLoadingCommunities && _featuredCommunities.isEmpty) {
-      return const SizedBox(
-        height: 190,
-        child: Center(child: CircularProgressIndicator()),
-      );
+      return const FeaturedCommunitySkeletonList();
     }
     if (_featuredCommunities.isEmpty) {
       return Padding(

@@ -222,6 +222,17 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
   }
 
   Widget _buildTrendChart(List<BloodPressureEntry> entries, bool isDark) {
+    // Expand the Y range so manually entered extreme values stay inside the chart.
+    var minY = 40.0;
+    var maxY = 200.0;
+    for (final e in entries) {
+      if (e.systolic > maxY) maxY = e.systolic.toDouble();
+      if (e.systolic < minY) minY = e.systolic.toDouble();
+      if (e.diastolic < minY) minY = e.diastolic.toDouble();
+    }
+    maxY = (maxY / 10).ceil() * 10 + 10.0;
+    minY = ((minY / 10).floor() * 10 - 10.0).clamp(0.0, 40.0);
+
     return Container(
       height: 250,
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 12),
@@ -239,12 +250,26 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
       ),
       child: LineChart(
         LineChartData(
-          minY: 40,
-          maxY: 200,
+          minY: minY,
+          maxY: maxY,
+          clipData: const FlClipData.all(),
           gridData: const FlGridData(show: true, drawVerticalLine: false),
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                interval: ((maxY - minY) / 5 / 10).ceil() * 10.0,
+                getTitlesWidget: (value, meta) {
+                  if (value == meta.min || value == meta.max) {
+                    return const SizedBox();
+                  }
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  );
+                },
+              ),
             ),
             topTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),
@@ -289,6 +314,7 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
                   )
                   .toList(),
               isCurved: true,
+              preventCurveOverShooting: true,
               color: const Color(0xFFE91E63),
               barWidth: 4,
               dotData: const FlDotData(show: true),
@@ -307,6 +333,7 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
                   )
                   .toList(),
               isCurved: true,
+              preventCurveOverShooting: true,
               color: const Color(0xFF2196F3),
               barWidth: 4,
               dotData: const FlDotData(show: true),
