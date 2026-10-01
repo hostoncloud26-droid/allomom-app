@@ -19,6 +19,7 @@ import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
 import 'package:allomom/features/allobot/widgets/allobot_mic_button.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/services/allobot/allobaby_live_session.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/services/part_of_day.dart';
@@ -192,6 +193,7 @@ class _MainLayoutState extends State<MainLayout> {
         listenable: Listenable.merge([
           _tts.isSpeakingNotifier,
           _tts.isGeneratingNotifier,
+          AlloBabyLiveSession.instance,
         ]),
         builder: (context, _) {
           if (!BackgroundAudioController.isReady) return _micButton(context);

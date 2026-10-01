@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
@@ -10,14 +10,13 @@ import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/api/chatbot_api.dart';
 import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
-import 'package:allomom/features/allobot/pages/gemini_live_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/offline_chatbot/actions/offline_chatbot_actions.dart';
 import 'package:allomom/features/offline_chatbot/data/offline_chatbot_profile.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
 import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
-import 'package:allomom/main.dart' show rootNavigatorKey;
+import 'package:allomom/services/allobot/allobaby_live_session.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/tts_service.dart';
@@ -1038,6 +1037,7 @@ class OfflineChatbotController extends GetxController {
   /// restored greeting ([_narrate]) runs after the turn has ended, and without
   /// it a stop would only silence one line before the next was read out.
   Future<void> stopCurrentTurn() async {
+    unawaited(_live.stop(owner: this));
     final wasBusy = isBusy.value;
     _delivery++;
     _pending.clear();
@@ -1051,7 +1051,9 @@ class OfflineChatbotController extends GetxController {
   /// turn still being said here is dropped — the card only talks on Home,
   /// where she has moved on from this one.
   void _claimVoice() => SpeechActivity.instance.claim(this, () {
-    if (isBusy.value || isSpeaking.value) unawaited(stopCurrentTurn());
+    if (isBusy.value || isSpeaking.value || isLive.value) {
+      unawaited(stopCurrentTurn());
+    }
   });
 
   /// Silences the line being read without abandoning the turn.
@@ -1123,6 +1125,8 @@ class OfflineChatbotController extends GetxController {
 
   /// Runs one turn. The user's message is already on screen by now.
   Future<void> _answer(String message, {bool speak = true}) async {
+    // A new question is answered by the catalogue again, not the call.
+    unawaited(_live.stop(owner: this));
     // Whatever is being said belongs to the previous turn. Not awaited: the
     // stop is a platform round-trip, and the mother's own message should not
     // wait on it to appear.
@@ -1151,14 +1155,16 @@ class OfflineChatbotController extends GetxController {
         session: _session,
         profile: await offlineChatbotProfile(),
       );
-      // Nothing in the catalogue answers it: the baby thinks it over, then
-      // takes the question to a Gemini Live call, as AlloBaby's Talk to Your
-      // Baby does. Offline, the fallback's own words are all there is.
+      // Nothing in the catalogue answers it: the baby keeps thinking while a
+      // Gemini Live call connects — AlloBaby's Talk to Your Baby — and answers
+      // in it, right here. Offline, or if the call will not connect, the
+      // fallback's own words are said instead.
       if (reply.isFallback &&
-          ConnectionController.instance.isInternetAvailable) {
-        await _handOffToLive(message, delivery);
+          ConnectionController.instance.isInternetAvailable &&
+          await _goLive(message, delivery)) {
         return;
       }
+      if (_delivery != delivery) return;
       await _deliverReply(reply, delivery, speak: speak);
     } catch (e) {
       _show(
@@ -1173,25 +1179,55 @@ class OfflineChatbotController extends GetxController {
     }
   }
 
-  /// Opens Gemini Live on [question], the message the catalogue had no answer
-  /// for.
-  ///
-  /// The thinking indicator stays up a beat first, so the hand-over reads as
-  /// the baby mulling it over; the live page carries on thinking while it
-  /// connects, and opens the call with the question.
-  Future<void> _handOffToLive(String question, int delivery) async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (_delivery != delivery) return;
-
-    _endTurn();
-    await _persistTranscript();
-    update();
-
-    rootNavigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (_) => GeminiLivePage(initialPrompt: question),
-      ),
+  /// Takes [question], the message the catalogue had no answer for, to a
+  /// Gemini Live call. True once the call is live: from then the baby's line
+  /// follows what she says in it, and each exchange lands in the transcript.
+  Future<bool> _goLive(String question, int delivery) async {
+    _joiningLive = true;
+    final live = await _live.start(
+      owner: this,
+      question: question,
+      onTurn: _onLiveTurn,
     );
+    _joiningLive = false;
+    if (!live || _delivery != delivery) return false;
+
+    isLive.value = true;
+    _live.addListener(_onLiveChanged);
+    // The call is answering now; she can talk to it, or type to end it.
+    _endTurn();
+    _onLiveChanged();
+    return true;
+  }
+
+  final AlloBabyLiveSession _live = AlloBabyLiveSession.instance;
+
+  /// While [_goLive] waits on the call — see [AlloBabyLiveSession.start].
+  bool _joiningLive = false;
+
+  /// Whether a Gemini Live call is answering in place of the catalogue.
+  final RxBool isLive = false.obs;
+
+  void _onLiveChanged() {
+    if (_joiningLive) return;
+    if (_live.isOwnedBy(this)) {
+      _speaking(_live.line);
+      isSpeaking.value = _live.isBabySpeaking;
+      return;
+    }
+    _live.removeListener(_onLiveChanged);
+    isLive.value = false;
+    isSpeaking.value = false;
+    unawaited(_persistTranscript());
+  }
+
+  /// One exchange of the call, kept in the transcript like any other turn.
+  void _onLiveTurn(String userText, String babyText) {
+    if (userText.isNotEmpty) {
+      messages.add(OfflineChatMessage(text: userText, fromUser: true));
+    }
+    if (babyText.isNotEmpty) messages.add(OfflineChatMessage(text: babyText));
+    unawaited(_persistTranscript());
   }
 
   /// Delivers a [BotReply]'s segments, pauses, and actions to the transcript.

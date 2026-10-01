@@ -113,6 +113,8 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   drift_dev: ^2.24.0
   build_runner: ^2.4.13
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -167,3 +169,28 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App icon — `dart run flutter_launcher_icons` regenerates it.
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/logo/allomomlogo.png"
+  # The logo is transparent; iOS icons may not be.
+  remove_alpha_ios: true
+  background_color_ios: "#FFFFFF"
+  # The generator insets the foreground 16%, which keeps the ring clear of
+  # the round mask.
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo/allomomlogo.png"
+  min_sdk_android: 26
+
+# Launch screen — `dart run flutter_native_splash:create` regenerates it.
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/logo/allomomlogo.png"
+  android_12:
+    color: "#FFFFFF"
+    # Padded: Android 12 crops the splash icon to a circle.
+    image: "assets/logo/allomomlogo_padded.png"
+    icon_background_color: "#FFFFFF"
+  fullscreen: false

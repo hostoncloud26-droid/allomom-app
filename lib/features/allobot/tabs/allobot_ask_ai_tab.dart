@@ -731,7 +731,12 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         ),
       );
     } else if (reply != null && reply.trim().isNotEmpty) {
-      content = AlloBotHeroLine(key: ValueKey(reply), text: reply);
+      // One widget for the whole of a live call, whose line grows as the baby
+      // speaks; a new key per word would fade it in again each time.
+      content = AlloBotHeroLine(
+        key: controller.isLive.value ? const ValueKey('live') : ValueKey(reply),
+        text: reply,
+      );
     } else {
       content = Column(
         key: const ValueKey('intro'),

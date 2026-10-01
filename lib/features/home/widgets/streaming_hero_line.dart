@@ -50,9 +50,15 @@ class _StreamingHeroLineState extends State<StreamingHeroLine> {
 
   void _start() {
     _timer?.cancel();
-    _plain = alloBotPlainText(widget.text);
-    _shown = 0;
-    if (_scroll.hasClients) _scroll.jumpTo(0);
+    final next = alloBotPlainText(widget.text);
+    // A line that only grew — a live call's words arriving as she says them —
+    // carries on from where the typing was rather than starting over.
+    final grew = _plain.isNotEmpty && next.startsWith(_plain);
+    _plain = next;
+    if (!grew) {
+      _shown = 0;
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+    }
     _timer = Timer.periodic(widget.charDelay, (timer) {
       if (!mounted) return timer.cancel();
       if (_shown >= _plain.length) return timer.cancel();

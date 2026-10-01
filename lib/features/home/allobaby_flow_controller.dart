@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
+import 'package:allomom/controllers/connection_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
+import 'package:allomom/services/allobot/allobaby_live_session.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
@@ -51,6 +55,15 @@ class AlloBabyFlowController extends ChangeNotifier {
 
   /// Whether the flow has been started at all this session.
   bool hasRun = false;
+
+  final AlloBabyLiveSession _call = AlloBabyLiveSession.instance;
+
+  /// Whether the card is in a Gemini Live call — a question the catalogue had
+  /// no answer for, taken to AlloBaby's Talk to Your Baby call right here.
+  bool get isLive => _call.isOwnedBy(this);
+
+  /// Whether the baby's live voice is sounding, so her mouth moves with it.
+  bool get isLiveSpeaking => isLive && _call.isBabySpeaking;
 
   /// Starts the opening flow from the top. Completes once it has been said —
   /// or stopped — so a caller can sequence what comes after it.
@@ -110,7 +123,56 @@ class AlloBabyFlowController extends ChangeNotifier {
       message: option,
     );
     if (generation != _generation) return;
+    // Nothing in the catalogue answers it: the baby keeps thinking while a
+    // Gemini Live call connects, then answers in it. Offline, or if the call
+    // will not connect, the fallback's own words are said instead.
+    if (reply != null &&
+        reply.isFallback &&
+        ConnectionController.instance.isInternetAvailable &&
+        await _goLive(option, generation)) {
+      return;
+    }
+    if (generation != _generation) return;
     await _deliver(reply, generation);
+  }
+
+  /// Takes [question] to a Gemini Live call shown in this card. True once the
+  /// call is live; the card follows it until it ends.
+  Future<bool> _goLive(String question, int generation) async {
+    _joiningLive = true;
+    _call.addListener(_onLiveChanged);
+    final live = await _call.start(owner: this, question: question);
+    _joiningLive = false;
+    if (!live || generation != _generation) {
+      _call.removeListener(_onLiveChanged);
+      return false;
+    }
+    _onLiveChanged();
+    return true;
+  }
+
+  /// While [_goLive] waits on the call: the session clears whatever call came
+  /// before, and that is not this card's call ending.
+  bool _joiningLive = false;
+
+  /// Mirrors the call into the card: what the baby is saying while it is on,
+  /// and the card handed back once it ends — hung up, failed or taken over.
+  void _onLiveChanged() {
+    if (_joiningLive) return;
+    if (_call.isOwnedBy(this)) {
+      if (_call.isConnecting) return;
+      isThinking = false;
+      line = _call.line;
+      notifyListeners();
+      return;
+    }
+    _call.removeListener(_onLiveChanged);
+    if (!isRunning) return;
+    _generation++;
+    SpeechActivity.instance.release(this);
+    isRunning = false;
+    isThinking = false;
+    notifyListeners();
   }
 
   /// Silences the card and abandons the rest of the turn.
@@ -123,6 +185,8 @@ class AlloBabyFlowController extends ChangeNotifier {
   /// running.
   bool _abandon() {
     _generation++;
+    _call.removeListener(_onLiveChanged);
+    unawaited(_call.stop(owner: this));
     SpeechActivity.instance.release(this);
     final wasRunning = isRunning;
     isRunning = false;
