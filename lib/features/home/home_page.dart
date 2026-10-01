@@ -216,9 +216,7 @@ class _HomePageState extends State<HomePage> {
 
   /// Whether AlloBaby's voice is sounding right now — the baby card's mouth
   /// follows it.
-  bool get _alloBabySpeaking =>
-      (_alloBaby.isRunning && TtsService().isSpeaking) ||
-      _alloBaby.isLiveSpeaking;
+  bool get _alloBabySpeaking => _alloBaby.isRunning && TtsService().isSpeaking;
 
   /// The docked mic was tapped to silence her: the rest of the greeting, the
   /// AlloBaby flow and AlloBot all stand down.

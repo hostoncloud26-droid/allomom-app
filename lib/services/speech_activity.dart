@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
-import 'package:allomom/services/allobot/allobaby_live_session.dart';
 import 'package:allomom/services/tts_service.dart';
 
 /// Whether the baby is saying anything anywhere in the app, and the one way to
@@ -51,9 +50,6 @@ class SpeechActivity {
   /// True while a line is sounding or its clip is loading.
   bool get isActive {
     if (_tts.isSpeaking || _tts.isGenerating) return true;
-    // A Gemini Live call counts the whole time it is open: the mic is how she
-    // hangs up.
-    if (AlloBabyLiveSession.instance.isOn) return true;
     return BackgroundAudioController.isReady &&
         BackgroundAudioController.to.isPlaying.value;
   }
