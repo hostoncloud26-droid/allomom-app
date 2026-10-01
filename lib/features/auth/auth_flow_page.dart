@@ -171,16 +171,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
     return s.contains('pregnan');
   }
 
-  final List<String> _testNumbers = const [
-    '9999999999',
-    '8888888888',
-    '7639744744',
-    '1111122222',
-    '9363286517',
-    '9876543210',
-    '1234567890',
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -562,11 +552,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       controller.clear();
     }
 
-    final isTest = _testNumbers.contains(phone);
     _showMessage(
-      isTest
-          ? 'OTP sent to $_countryCode $phone (test code: 999777)'
-          : 'OTP sent to $_countryCode $phone via ${OtpChannel.label(channel)}',
+      'OTP sent to $_countryCode $phone via ${OtpChannel.label(channel)}',
     );
 
     _goToStep(AuthFlowStep.verifyOtp);

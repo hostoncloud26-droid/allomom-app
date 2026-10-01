@@ -265,9 +265,7 @@ class _SettingsPageState extends State<SettingsPage> {
     final name = session.userName.isNotEmpty ? session.userName : 'Mommy';
     final contact = session.userEmail.isNotEmpty
         ? session.userEmail
-        : (session.userPhone.isNotEmpty
-              ? session.userPhone
-              : 'deekshaveeramanikandan@gmail.com');
+        : session.userPhone;
     final avatarUrl = session.image;
 
     return GestureDetector(
@@ -335,27 +333,28 @@ class _SettingsPageState extends State<SettingsPage> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.mail_outline_rounded,
-                        size: 15,
-                        color: _textMuted,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          contact,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            color: _textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                  if (contact.isNotEmpty)
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.mail_outline_rounded,
+                          size: 15,
+                          color: _textMuted,
                         ),
-                      ),
-                    ],
-                  ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            contact,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: _textSecondary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
                   if (isPregnant || session.isNewMom) ...[
                     const SizedBox(height: 8),
                     Container(
