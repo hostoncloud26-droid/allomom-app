@@ -67,6 +67,11 @@ class CryController extends GetxController {
   bool _analysing = false;
   bool _finished = false;
 
+  /// Bumped by every start and cancel. Async work captures it and bails when
+  /// it changes, so a cancel that lands mid-await cannot be undone by the
+  /// work it interrupted (e.g. restarting a recorder that was just disposed).
+  int _session = 0;
+
   // ─── Observable session state ───────────────────────────────────────────
 
   final Rx<CryListeningState> state = CryListeningState.idle.obs;
@@ -120,7 +125,9 @@ class CryController extends GetxController {
   /// unavailable, which the recording screen turns into a permission prompt.
   Future<bool> startListening() async {
     if (isListening) return true;
+    final session = ++_session;
     if (!await loadModel()) return false;
+    if (session != _session) return false;
 
     _finished = false;
     _analysing = false;
@@ -132,12 +139,24 @@ class CryController extends GetxController {
     final recorder = AudioRecorder();
     _recorder = recorder;
 
-    if (!await recorder.hasPermission()) {
-      await _disposeRecorder();
+    try {
+      if (!await recorder.hasPermission() || session != _session) {
+        await _disposeRecorder(recorder);
+        return false;
+      }
+      await recorder.start(_recordConfig, path: await _nextClipPath());
+    } catch (e) {
+      debugPrint('⚠️ [CryController] recorder start failed: $e');
+      await _disposeRecorder(recorder);
       return false;
     }
 
-    await recorder.start(_recordConfig, path: await _nextClipPath());
+    // Cancelled while the recorder was starting: release it now that the
+    // start has settled, instead of leaving the microphone open.
+    if (session != _session) {
+      await _disposeRecorder(recorder);
+      return false;
+    }
     state.value = CryListeningState.listening;
 
     _ticker?.cancel();
@@ -147,6 +166,7 @@ class CryController extends GetxController {
 
   /// Stops recording without analysing — she tapped cancel or left the screen.
   Future<void> cancelListening() async {
+    _session++;
     _finished = true;
     _ticker?.cancel();
     await _disposeRecorder();
@@ -175,13 +195,16 @@ class CryController extends GetxController {
     final recorder = _recorder;
     if (recorder == null || _finished) return;
 
+    final session = _session;
+    bool stale() => _finished || session != _session;
+
     _analysing = true;
     try {
       final path = await recorder.stop();
-      if (path == null || _finished) return;
+      if (path == null || stale()) return;
 
       final analysis = await _classifier.analyze(path);
-      if (_finished) return;
+      if (stale()) return;
 
       _applyCoaching(analysis);
 
@@ -190,8 +213,12 @@ class CryController extends GetxController {
         return;
       }
 
-      // No cry yet — keep listening into a fresh clip.
-      await recorder.start(_recordConfig, path: await _nextClipPath());
+      // No cry yet — keep listening into a fresh clip. Re-checked after the
+      // path lookup: starting a recorder that cancel already disposed crashes
+      // the native side.
+      final nextPath = await _nextClipPath();
+      if (stale() || !identical(recorder, _recorder)) return;
+      await recorder.start(_recordConfig, path: nextPath);
     } catch (e) {
       debugPrint('⚠️ [CryController] rolling analysis failed: $e');
     } finally {
@@ -338,6 +365,9 @@ class CryController extends GetxController {
   /// is not on screen; the home page loads it again on the way back in.
   Future<void> releaseModel() async {
     await cancelListening();
+    // A pass that is still reading its clip would otherwise run inference on
+    // interpreters closed underneath it — a native crash, not an exception.
+    await _awaitRollingPass();
     _classifier.dispose();
     await clearScratchClips();
   }
@@ -391,9 +421,11 @@ class CryController extends GetxController {
     return p.join(dir.path, 'allocry_${_uuid.v7()}.wav');
   }
 
-  Future<void> _disposeRecorder() async {
-    final recorder = _recorder;
-    _recorder = null;
+  /// Releases [only] when given (and clears [_recorder] if it is still that
+  /// one), otherwise whichever recorder is current.
+  Future<void> _disposeRecorder([AudioRecorder? only]) async {
+    final recorder = only ?? _recorder;
+    if (identical(recorder, _recorder)) _recorder = null;
     if (recorder == null) return;
     try {
       if (await recorder.isRecording()) await recorder.stop();

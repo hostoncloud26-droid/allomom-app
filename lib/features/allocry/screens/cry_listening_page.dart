@@ -60,9 +60,10 @@ class _CryListeningPageState extends State<CryListeningPage>
   Future<void> _begin() async {
     final started = await _controller.startListening();
     if (!mounted) return;
-    if (!started) {
+    if (!started && !_leaving) {
+      _leaving = true;
       _showMicrophoneUnavailable();
-      Navigator.of(context).maybePop();
+      Navigator.of(context).pop();
     }
   }
 
@@ -93,10 +94,14 @@ class _CryListeningPageState extends State<CryListeningPage>
   /// the automatic one, so there is only ever one path off this screen.
   void _stop() => _controller.stopAndAnalyze();
 
+  /// Uses `pop`, not `maybePop`: this route has `canPop: false`, so
+  /// `maybePop` would re-enter [_cancel] through `onPopInvokedWithResult` and
+  /// spin forever, freezing the app until the OS killed it.
   Future<void> _cancel() async {
+    if (_leaving) return;
     _leaving = true;
     await _controller.cancelListening();
-    if (mounted) Navigator.of(context).maybePop();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

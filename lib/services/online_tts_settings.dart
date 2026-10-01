@@ -20,7 +20,11 @@ class OnlineTtsSettings extends GetxController {
   /// What the field is pre-filled with the first time it is opened — the
   /// emulator's route to a server running on the development machine.
   // static const String defaultBaseUrl = 'http://10.0.2.2:7860';
-  static const String defaultBaseUrl = "http://47.29.133.221:30834";
+  static const String defaultBaseUrl = 'http://47.29.133.221:32149';
+
+  /// Earlier defaults, swapped for [defaultBaseUrl] when found in storage so
+  /// installs that never changed the field follow the server when it moves.
+  static const List<String> _retiredDefaults = ['http://47.29.133.221:30834'];
 
   static OnlineTtsSettings get instance => Get.isRegistered<OnlineTtsSettings>()
       ? Get.find<OnlineTtsSettings>()
@@ -66,7 +70,9 @@ class OnlineTtsSettings extends GetxController {
       // A blank stored URL is treated as never set, which also repairs the
       // installs where an empty field was saved over the real address.
       final stored = prefs.getString(_kBaseUrl)?.trim() ?? '';
-      baseUrl.value = stored.isEmpty ? defaultBaseUrl : stored;
+      baseUrl.value = stored.isEmpty || _retiredDefaults.contains(stored)
+          ? defaultBaseUrl
+          : stored;
     } catch (e) {
       debugPrint('OnlineTtsSettings: could not read settings: $e');
       baseUrl.value = defaultBaseUrl;
