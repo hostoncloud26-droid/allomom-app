@@ -175,8 +175,9 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
               const SizedBox(height: 16),
               _buildVoiceModelCard(),
               const SizedBox(height: 16),
-              _buildOnlineVoiceCard(),
-              const SizedBox(height: 16),
+              // OmniVoice server config hidden for now.
+              // _buildOnlineVoiceCard(),
+              // const SizedBox(height: 16),
               _buildSyncCard(),
               const SizedBox(height: 20),
               _buildFootnote(),
@@ -478,6 +479,7 @@ class _AlloBotSettingsTabState extends State<AlloBotSettingsTab> {
 
   // ── Online voice ─────────────────────────────────────────────────────────
 
+  // ignore: unused_element
   Widget _buildOnlineVoiceCard() {
     return _card(
       icon: Icons.record_voice_over_rounded,
