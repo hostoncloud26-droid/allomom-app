@@ -200,13 +200,22 @@ class _CommentsSheetState extends State<_CommentsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final bottomInset = media.viewInsets.bottom;
+    final bottomSafe = media.padding.bottom;
+    final screenHeight = media.size.height;
+    final baseHeight = screenHeight * 0.65;
+    final height = bottomInset > 0
+        ? (baseHeight + bottomInset).clamp(baseHeight, screenHeight * 0.9)
+        : baseHeight;
+
     return Container(
-      height: MediaQuery.of(context).size.height * 0.65,
+      height: height,
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
         top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        bottom: bottomInset > 0 ? bottomInset + 16 : bottomSafe + 16,
       ),
       decoration: BoxDecoration(
         color: _p.card,
@@ -246,6 +255,7 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           const Divider(height: 1),
           const SizedBox(height: 10),
           Expanded(child: _buildList()),
+          const SizedBox(height: 8),
           _buildInput(),
         ],
       ),
@@ -258,29 +268,32 @@ class _CommentsSheetState extends State<_CommentsSheet> {
     }
     if (_comments.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              _loadFailed ? Icons.cloud_off_rounded : Icons.chat_bubble_outline_rounded,
-              size: 36,
-              color: _p.pick(const Color(0xFFFFB3C1), _p.textMuted),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _loadFailed ? "Couldn't load comments" : 'Be the first to comment',
-              style: GoogleFonts.poppins(
-                fontSize: 13,
-                color: _p.pick(const Color(0xFF5A5D64), _p.textSecondary),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _loadFailed ? Icons.cloud_off_rounded : Icons.chat_bubble_outline_rounded,
+                size: 36,
+                color: _p.pick(const Color(0xFFFFB3C1), _p.textMuted),
               ),
-            ),
-            if (_loadFailed)
-              TextButton(
-                onPressed: _load,
-                style: TextButton.styleFrom(foregroundColor: _accent),
-                child: const Text('Try again'),
+              const SizedBox(height: 10),
+              Text(
+                _loadFailed ? "Couldn't load comments" : 'Be the first to comment',
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  color: _p.pick(const Color(0xFF5A5D64), _p.textSecondary),
+                ),
               ),
-          ],
+              if (_loadFailed)
+                TextButton(
+                  onPressed: _load,
+                  style: TextButton.styleFrom(foregroundColor: _accent),
+                  child: const Text('Try again'),
+                ),
+            ],
+          ),
         ),
       );
     }

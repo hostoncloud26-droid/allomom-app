@@ -195,31 +195,33 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       },
       child: Scaffold(
         backgroundColor: _p.scaffoldSoft,
-        body: RefreshIndicator(
-          onRefresh: _refreshAll,
-          child: ListView(
-            controller: _scroll,
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.zero,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Container(
-                    height: 170,
-                    width: double.infinity,
-                    color: _p.tint(primaryColor, accentLight),
-                    child: banner == null || banner.isEmpty
-                        ? null
-                        : CachedNetworkImage(
-                            imageUrl: banner,
-                            fit: BoxFit.cover,
-                            errorWidget: (_, _, _) => const SizedBox.shrink(),
-                          ),
-                  ),
-                  SafeArea(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
+        body: SafeArea(
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: _refreshAll,
+            child: ListView(
+              controller: _scroll,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: [
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      height: 170,
+                      width: double.infinity,
+                      color: _p.tint(primaryColor, accentLight),
+                      child: banner == null || banner.isEmpty
+                          ? null
+                          : CachedNetworkImage(
+                              imageUrl: banner,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, _, _) => const SizedBox.shrink(),
+                            ),
+                    ),
+                    Positioned(
+                      top: 8,
+                      left: 8,
                       child: CircleAvatar(
                         backgroundColor: _p.card.withValues(alpha: 0.9),
                         child: IconButton(
@@ -228,7 +230,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         ),
                       ),
                     ),
-                  ),
                   Positioned(
                     left: 20,
                     bottom: -40,
@@ -340,8 +341,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildPosts() {
     final heading = Text(
@@ -378,10 +380,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     if (!_community.isJoined) {
       body = message(Icons.lock_outline_rounded, "Join to see this community's posts");
     } else if (_postsLoading) {
-      body = const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
-      );
+      body = const CommunityPostSkeletonList();
     } else if (_posts.isEmpty) {
       body = _postsFailed
           ? message(Icons.cloud_off_rounded, "Couldn't load posts", retry: _loadPosts)

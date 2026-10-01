@@ -201,3 +201,400 @@ Future<bool> leaveCommunityWithConfirm(
   }
   return res.success;
 }
+
+// ── Skeleton & Shimmer Loaders ──────────────────────────────────────────────
+
+/// Applies a smooth diagonal shimmering gradient over its opaque children.
+class CommunityShimmer extends StatefulWidget {
+  const CommunityShimmer({
+    super.key,
+    required this.child,
+    this.baseColor,
+    this.highlightColor,
+    this.duration = const Duration(milliseconds: 1400),
+  });
+
+  final Widget child;
+  final Color? baseColor;
+  final Color? highlightColor;
+  final Duration duration;
+
+  @override
+  State<CommunityShimmer> createState() => _CommunityShimmerState();
+}
+
+class _CommunityShimmerState extends State<CommunityShimmer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: widget.duration)
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    final isDark = p.isDark;
+    final base = widget.baseColor ??
+        (isDark ? const Color(0xFF282C35) : const Color(0xFFE5E9F0));
+    final highlight = widget.highlightColor ??
+        (isDark ? const Color(0xFF3E4554) : const Color(0xFFF7F9FC));
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: const Alignment(-1.0, -0.3),
+              end: const Alignment(1.0, 0.3),
+              colors: [base, highlight, base],
+              stops: const [0.15, 0.5, 0.85],
+              transform: _SlidingGradientTransform(_controller.value),
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: widget.child,
+    );
+  }
+}
+
+class _SlidingGradientTransform extends GradientTransform {
+  const _SlidingGradientTransform(this.slidePercent);
+  final double slidePercent;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) {
+    return Matrix4.translationValues(
+      bounds.width * (slidePercent * 2.4 - 1.2),
+      0.0,
+      0.0,
+    );
+  }
+}
+
+/// A placeholder shape (rectangle, rounded rect, or circle) intended to sit
+/// inside a [CommunityShimmer].
+class ShimmerBox extends StatelessWidget {
+  const ShimmerBox({
+    super.key,
+    this.width,
+    this.height,
+    this.borderRadius,
+    this.shape = BoxShape.rectangle,
+  });
+
+  final double? width;
+  final double? height;
+  final BorderRadius? borderRadius;
+  final BoxShape shape;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: shape,
+        borderRadius: shape == BoxShape.circle
+            ? null
+            : (borderRadius ?? const BorderRadius.all(Radius.circular(8))),
+      ),
+    );
+  }
+}
+
+/// Skeleton for a single featured community card in the horizontal carousel.
+class FeaturedCommunityCardSkeleton extends StatelessWidget {
+  const FeaturedCommunityCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const CommunityShimmer(
+        child: Column(
+          children: [
+            ShimmerBox(width: 54, height: 54, shape: BoxShape.circle),
+            SizedBox(height: 12),
+            ShimmerBox(width: 86, height: 14),
+            SizedBox(height: 6),
+            ShimmerBox(width: 54, height: 12),
+            Spacer(),
+            ShimmerBox(
+              width: double.infinity,
+              height: 36,
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal carousel of featured community skeleton cards.
+class FeaturedCommunitySkeletonList extends StatelessWidget {
+  const FeaturedCommunitySkeletonList({super.key, this.itemCount = 3});
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const gap = 14.0;
+        final cardWidth = (constraints.maxWidth - gap) / 2;
+        return SizedBox(
+          height: 190,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: itemCount,
+            separatorBuilder: (_, _) => const SizedBox(width: gap),
+            itemBuilder: (_, _) => SizedBox(
+              width: cardWidth,
+              child: const FeaturedCommunityCardSkeleton(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Skeleton for a community in the "My Communities" list.
+class CommunityListItemSkeleton extends StatelessWidget {
+  const CommunityListItemSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const CommunityShimmer(
+        child: Row(
+          children: [
+            ShimmerBox(width: 48, height: 48, shape: BoxShape.circle),
+            SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ShimmerBox(width: 120, height: 15),
+                  SizedBox(height: 8),
+                  ShimmerBox(
+                    width: 62,
+                    height: 16,
+                    borderRadius: BorderRadius.all(Radius.circular(8)),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(width: 12),
+            ShimmerBox(width: 40, height: 40, shape: BoxShape.circle),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Vertical column of skeleton cards for the My Communities section.
+class MyCommunitiesSkeletonList extends StatelessWidget {
+  const MyCommunitiesSkeletonList({super.key, this.itemCount = 3});
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < itemCount; i++) ...[
+          const CommunityListItemSkeleton(),
+          const SizedBox(height: 16),
+        ],
+      ],
+    );
+  }
+}
+
+/// Skeleton for an item on the All Communities exploration page.
+class AllCommunitiesCardSkeleton extends StatelessWidget {
+  const AllCommunitiesCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: p.border),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: const CommunityShimmer(
+        child: Row(
+          children: [
+            ShimmerBox(width: 56, height: 56, shape: BoxShape.circle),
+            SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ShimmerBox(width: 130, height: 16),
+                  SizedBox(height: 8),
+                  ShimmerBox(width: 70, height: 13),
+                ],
+              ),
+            ),
+            SizedBox(width: 12),
+            ShimmerBox(
+              width: 68,
+              height: 36,
+              borderRadius: BorderRadius.all(Radius.circular(16)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full skeleton list for the All Communities page.
+class AllCommunitiesSkeletonList extends StatelessWidget {
+  const AllCommunitiesSkeletonList({super.key, this.itemCount = 6});
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      itemCount: itemCount,
+      separatorBuilder: (_, _) => const SizedBox(height: 14),
+      itemBuilder: (_, _) => const AllCommunitiesCardSkeleton(),
+    );
+  }
+}
+
+/// Skeleton for a community post card (matching ContentListCard).
+class CommunityPostCardSkeleton extends StatelessWidget {
+  const CommunityPostCardSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const CommunityShimmer(
+        child: Row(
+          children: [
+            ShimmerBox(
+              width: 92,
+              height: 92,
+              borderRadius: BorderRadius.all(Radius.circular(14)),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  ShimmerBox(
+                    width: 60,
+                    height: 14,
+                    borderRadius: BorderRadius.all(Radius.circular(6)),
+                  ),
+                  SizedBox(height: 8),
+                  ShimmerBox(width: double.infinity, height: 15),
+                  SizedBox(height: 6),
+                  ShimmerBox(width: 110, height: 13),
+                  SizedBox(height: 12),
+                  Row(
+                    children: [
+                      ShimmerBox(width: 36, height: 12),
+                      SizedBox(width: 16),
+                      ShimmerBox(width: 36, height: 12),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// List of skeleton cards for loading community posts.
+class CommunityPostSkeletonList extends StatelessWidget {
+  const CommunityPostSkeletonList({super.key, this.itemCount = 3});
+
+  final int itemCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        for (var i = 0; i < itemCount; i++) ...[
+          const CommunityPostCardSkeleton(),
+          const SizedBox(height: 12),
+        ],
+      ],
+    );
+  }
+}
+

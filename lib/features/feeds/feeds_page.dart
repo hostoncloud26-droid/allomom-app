@@ -620,16 +620,24 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
           // Top Visual Section (attachments)
           Expanded(
             flex: 55,
-            child: item.attachments.isEmpty
-                ? const _AttachmentPlaceholder()
-                : _AttachmentCarousel(
-                    attachments: item.attachments,
-                    active: _currentIndex < _items.length &&
-                        _items[_currentIndex].id == item.id &&
-                        _appActive &&
-                        _routeVisible,
-                    muted: _muted,
-                  ),
+            child: _InstagramDoubleTapLike(
+              key: ValueKey('tip_double_tap_${item.id}'),
+              onDoubleTap: () {
+                if (!item.isLiked) {
+                  _toggleLike(item);
+                }
+              },
+              child: item.attachments.isEmpty
+                  ? const _AttachmentPlaceholder()
+                  : _AttachmentCarousel(
+                      attachments: item.attachments,
+                      active: _currentIndex < _items.length &&
+                          _items[_currentIndex].id == item.id &&
+                          _appActive &&
+                          _routeVisible,
+                      muted: _muted,
+                    ),
+            ),
           ),
 
           // Bottom Content Section (White Background)
@@ -842,8 +850,14 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
         item.reelVideo == null || _failedVideos.contains(item.id);
     final captionOpen = _captionOpenId == item.id;
 
-    return GestureDetector(
+    return _InstagramDoubleTapLike(
+      key: ValueKey('reel_double_tap_${item.id}'),
       onTap: controller == null ? null : () => _toggleReelPlayback(item),
+      onDoubleTap: () {
+        if (!item.isLiked) {
+          _toggleLike(item);
+        }
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -903,28 +917,29 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
               },
             ),
 
-          // Scrim so the caption stays legible over bright footage
-          if (captionOpen)
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              height: 320,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        Colors.black.withValues(alpha: 0.7),
-                      ],
-                    ),
+          // Scrim so the caption, like, and comment buttons stay legible without being overly dark
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: captionOpen ? 300 : 190,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: captionOpen ? 0.25 : 0.08),
+                      Colors.black.withValues(alpha: captionOpen ? 0.6 : 0.4),
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
                   ),
                 ),
               ),
             ),
+          ),
 
           // Top Right Audio / Sound Toggle Button
           Positioned(
@@ -942,6 +957,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                   _muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
                   color: Colors.white,
                   size: 18,
+                  shadows: _floatingActionShadows,
                 ),
               ),
             ),
@@ -985,6 +1001,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
+                      shadows: _floatingActionShadows,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -996,8 +1013,9 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                     overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.poppins(
                       fontSize: 12.5,
-                      color: Colors.white.withValues(alpha: 0.85),
+                      color: Colors.white.withValues(alpha: 0.95),
                       height: 1.35,
+                      shadows: _floatingActionShadows,
                     ),
                   ),
                 ],
@@ -1022,6 +1040,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                             : Icons.favorite_border_rounded,
                         color: item.isLiked ? const Color(0xFFFF4E6A) : Colors.white,
                         size: 26,
+                        shadows: _floatingActionShadows,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1030,6 +1049,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          shadows: _floatingActionShadows,
                         ),
                       ),
                     ],
@@ -1046,6 +1066,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                         Icons.chat_bubble_outline_rounded,
                         color: Colors.white,
                         size: 24,
+                        shadows: _floatingActionShadows,
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -1054,6 +1075,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: Colors.white,
+                          shadows: _floatingActionShadows,
                         ),
                       ),
                     ],
@@ -1070,6 +1092,7 @@ class _FeedsPageState extends State<FeedsPage> with WidgetsBindingObserver {
                     captionOpen ? Icons.info_rounded : Icons.info_outline_rounded,
                     color: Colors.white,
                     size: 26,
+                    shadows: _floatingActionShadows,
                   ),
                 ),
               ],
@@ -1646,3 +1669,312 @@ class _DescriptionScrollerState extends State<_DescriptionScroller> {
     );
   }
 }
+
+/// Soft, subtle drop shadows ensuring white action icons and text remain crisp
+/// without looking harsh or heavy in the heart and comment section.
+const List<Shadow> _floatingActionShadows = [
+  Shadow(offset: Offset(0, 1.5), blurRadius: 6, color: Colors.black45),
+];
+
+/// Wraps video or carousel content to support Instagram-style double tap to like.
+/// Plays a spring-animated heart burst in the center and invokes [onDoubleTap].
+class _InstagramDoubleTapLike extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDoubleTap;
+  final VoidCallback? onTap;
+
+  const _InstagramDoubleTapLike({
+    super.key,
+    required this.child,
+    required this.onDoubleTap,
+    this.onTap,
+  });
+
+  @override
+  State<_InstagramDoubleTapLike> createState() => _InstagramDoubleTapLikeState();
+}
+
+class _InstagramDoubleTapLikeState extends State<_InstagramDoubleTapLike>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+  late final Animation<double> _scale;
+  late final Animation<double> _opacity;
+  late final Animation<double> _translateY;
+  bool _showHeart = false;
+  Offset _heartPosition = Offset.zero;
+  Timer? _tapTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    // 4.0 seconds total Instagram-style heartbeat animation:
+    // 1. Punchy spring pop-in with playful tilt
+    // 2. Rhythmic "lub-DUB" heartbeat pulses while holding & floating upwards
+    // 3. Graceful shrink and fade out
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 4000),
+    );
+
+    _scale = TweenSequence<double>([
+      // ── Pop-in bounce (~480ms) ──
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.32)
+            .chain(CurveTween(curve: Curves.easeOutBack)),
+        weight: 5,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.32, end: 0.88)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 3,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.88, end: 1.08)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.08, end: 1.00)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 2,
+      ),
+
+      // ── Rest 1 (~640ms) ──
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 16,
+      ),
+
+      // ── Heartbeat Pulse 1 ("lub-DUB" ~400ms) ──
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.00, end: 1.15)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.15, end: 0.94)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.94, end: 1.20)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 3,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.20, end: 1.00)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 3,
+      ),
+
+      // ── Rest 2 (~800ms) ──
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 20,
+      ),
+
+      // ── Heartbeat Pulse 2 ("lub-DUB" ~400ms) ──
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.00, end: 1.14)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.14, end: 0.95)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.95, end: 1.18)
+            .chain(CurveTween(curve: Curves.easeOutQuad)),
+        weight: 3,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.18, end: 1.00)
+            .chain(CurveTween(curve: Curves.easeInOut)),
+        weight: 3,
+      ),
+
+      // ── Rest 3 (~800ms) ──
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 20,
+      ),
+
+      // ── Exit Shrink (~480ms) ──
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.00, end: 1.10)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 2,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.10, end: 0.00)
+            .chain(CurveTween(curve: Curves.easeInBack)),
+        weight: 10,
+      ),
+    ]).animate(_anim);
+
+    _opacity = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeIn)),
+        weight: 4,
+      ),
+      TweenSequenceItem(
+        tween: ConstantTween<double>(1.0),
+        weight: 84,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 0.0)
+            .chain(CurveTween(curve: Curves.easeOut)),
+        weight: 12,
+      ),
+    ]).animate(_anim);
+
+    _translateY = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: ConstantTween<double>(0.0),
+        weight: 10,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0.0, end: -50.0)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 90,
+      ),
+    ]).animate(_anim);
+
+    _anim.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) setState(() => _showHeart = false);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tapTimer?.cancel();
+    _anim.dispose();
+    super.dispose();
+  }
+
+  void _handleTap() {
+    if (widget.onTap == null) return;
+    // If a double-tap down or 1st tap is waiting, cancel it
+    if (_tapTimer != null && _tapTimer!.isActive) {
+      _tapTimer!.cancel();
+      _tapTimer = null;
+      return;
+    }
+    // Delay single tap slightly so double click NEVER pauses the video
+    _tapTimer = Timer(const Duration(milliseconds: 280), () {
+      if (mounted) {
+        widget.onTap?.call();
+      }
+    });
+  }
+
+  void _handleDoubleTapDown(TapDownDetails details) {
+    // Immediately cancel single tap timer so video never pauses on double tap!
+    _tapTimer?.cancel();
+    _tapTimer = null;
+    _heartPosition = details.localPosition;
+  }
+
+  void _handleDoubleTap() {
+    _tapTimer?.cancel();
+    _tapTimer = null;
+    if (mounted) {
+      setState(() => _showHeart = true);
+      _anim.forward(from: 0.0);
+    }
+    // Defer the like callback post-frame so parent setState does not stutter the pop-in frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onDoubleTap();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _handleTap,
+      onDoubleTapDown: _handleDoubleTapDown,
+      onDoubleTap: _handleDoubleTap,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          widget.child,
+          if (_showHeart)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double touchX = _heartPosition == Offset.zero
+                        ? constraints.maxWidth / 2
+                        : _heartPosition.dx;
+                    final double touchY = _heartPosition == Offset.zero
+                        ? constraints.maxHeight / 2
+                        : _heartPosition.dy;
+
+                    // Center 84px icon on touch point, clamped safely inside boundaries
+                    final double left = (touchX - 42).clamp(
+                      10.0,
+                      (constraints.maxWidth - 94.0).clamp(10.0, double.infinity),
+                    );
+                    final double top = (touchY - 42).clamp(
+                      36.0,
+                      (constraints.maxHeight - 110.0).clamp(36.0, double.infinity),
+                    );
+
+                    return Stack(
+                      children: [
+                        Positioned(
+                          left: left,
+                          top: top,
+                          child: AnimatedBuilder(
+                            animation: _anim,
+                            builder: (context, _) {
+                              return Opacity(
+                                opacity: _opacity.value.clamp(0.0, 1.0),
+                                child: Transform.translate(
+                                  offset: Offset(0, _translateY.value),
+                                  child: Transform.rotate(
+                                    angle: -0.12, // ~-7° subtle Instagram tilt
+                                    child: Transform.scale(
+                                      scale: _scale.value.clamp(0.0, 2.0),
+                                      child: const Icon(
+                                        Icons.favorite_rounded,
+                                        size: 84,
+                                        color: Color(0xFFFF2D55),
+                                        shadows: [
+                                          Shadow(
+                                            color: Colors.black45,
+                                            blurRadius: 20,
+                                            offset: Offset(0, 5),
+                                          ),
+                                          Shadow(
+                                            color: Colors.black26,
+                                            blurRadius: 6,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+

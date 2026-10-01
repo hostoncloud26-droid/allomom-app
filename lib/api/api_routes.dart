@@ -14,11 +14,11 @@ class Apiroutes extends GetxController {
 
   // Emulator (10.0.2.2 is the special alias for the host machine's localhost
   // — only resolves inside the emulator, never on a real device):
-  String baseUrl = "http://10.0.2.2:8000";
+  //String baseUrl = "http://10.0.2.2:8000";
 
   // String baseUrl = "http://192.168.0.18:8000";
 
-  // String baseUrl = "https://api.allomom.savemom.app";
+   String baseUrl = "https://api.allomom.savemom.app";
 
   @override
   void onInit() {
