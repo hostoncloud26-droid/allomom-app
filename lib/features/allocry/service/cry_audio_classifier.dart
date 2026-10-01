@@ -114,6 +114,12 @@ class CryAudioClassifier {
 
     final waveform = await _readWaveform(audioPath);
 
+    // [dispose] may have closed the interpreters while the clip was read.
+    // Invoking a closed one is a native use-after-free, so fail in Dart.
+    if (!identical(yamnet, _yamnet) || !identical(classifier, _cryClassifier)) {
+      throw StateError('CryAudioClassifier was disposed during analysis');
+    }
+
     final scores = Float32List(_frames * _scoreClasses)
         .reshape([_frames, _scoreClasses]);
     yamnet.runInference([waveform.toList()]);
