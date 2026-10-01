@@ -465,7 +465,7 @@ void main() {
 
     // The profile carries its own `profile` key, the person block.
     final profile = <String, dynamic>{
-      'profile': {'name': 'Deeksha'},
+      'profile': {'name': 'Test Mom'},
       'today_nutrition': {'had_breakfast': true},
     };
     final engine = engineFor([start, check]);

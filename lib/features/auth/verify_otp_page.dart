@@ -61,21 +61,8 @@ class VerifyOtpStepView extends StatelessWidget {
     this.isKeyboardOpen = false,
   });
 
-  static const List<String> testNumbers = [
-    '9999999999',
-    '8888888888',
-    '7639744744',
-    '1111122222',
-    '9363286517',
-    '9876543210',
-    '1234567890',
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final cleanPhone = phone.trim().replaceAll(' ', '').replaceAll('-', '');
-    final isTest = testNumbers.contains(cleanPhone);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -108,39 +95,6 @@ class VerifyOtpStepView extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (isTest) ...[
-                    const SizedBox(height: 6),
-                    InkWell(
-                      onTap: () {
-                        const code = '999777';
-                        for (int i = 0; i < 6; i++) {
-                          otpControllers[i].text = code[i];
-                        }
-                        otpFocusNodes[5].requestFocus();
-                        otpControllers[5].selection =
-                            const TextSelection.collapsed(offset: 1);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF0F3),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: const Color(0xFFFF8FA3)),
-                        ),
-                        child: Text(
-                          '⚡ Test Number: Tap to fill 999777',
-                          style: GoogleFonts.poppins(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFFFF4E6A),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
                   SizedBox(height: isKeyboardOpen ? 8 : 14),
 
                   // ─── 6 DIGIT OTP BOXES ───
