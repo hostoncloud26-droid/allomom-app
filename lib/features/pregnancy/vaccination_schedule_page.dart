@@ -3,6 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/features/pregnancy/widgets/care_schedule_common.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/services/pregnancy_care_plan.dart';
@@ -11,8 +16,7 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/schedule_status.dart';
 import 'package:allomom/services/sq_lite/services/health_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
-import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
+import 'package:allomom/services/tts_service.dart';
 
 /// The maternal vaccine doses booked locally when the pregnancy was registered.
 class VaccinationSchedulePage extends StatefulWidget {
@@ -24,6 +28,9 @@ class VaccinationSchedulePage extends StatefulWidget {
 }
 
 class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
+  static const _vaccinesIntentKey = NarrationKeys.screenPregnancyVaccinesInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   bool _isLoading = true;
   String? _pregnancyId;
   List<PregnancyImmunizationRecord> _vaccines = const [];
@@ -31,14 +38,37 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _vaccinesIntentKey);
     _load();
   }
 
-  /// What the card says: the tour of the screen, or, when there is nothing
-  /// scheduled, the line that tells her how to get something on it.
-  String get _narrationKey => (_pregnancyId == null || _vaccines.isEmpty)
-      ? NarrationKeys.pgVaccEmpty
-      : NarrationKeys.pgVaccOpen;
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
+  }
 
   Future<void> _load() async {
     setState(() => _isLoading = true);
@@ -100,71 +130,79 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final week = MainController.instance.currentGestationalWeek;
-
     final p = context.palette;
 
-    return Scaffold(
-      backgroundColor: p.scaffoldSoft,
-      appBar: AppBar(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
         backgroundColor: p.scaffoldSoft,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: Color(0xFFFF3B5C),
-            size: 20,
+        appBar: AppBar(
+          backgroundColor: p.scaffoldSoft,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: const Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: Color(0xFFFF3B5C),
+              size: 20,
+            ),
+            onPressed: () => Navigator.pop(context),
           ),
-          onPressed: () => Navigator.pop(context),
+          title: Text(
+            'Vaccinations',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: p.pick(const Color(0xFF1E2024), p.textPrimary),
+            ),
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'About vaccinations',
+              icon: Icon(Icons.info_outline_rounded, color: p.textPrimary),
+              onPressed: _showInfo,
+            ),
+            const SizedBox(width: 4),
+          ],
         ),
-        title: Text(
-          'Vaccinations',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: p.pick(const Color(0xFF1E2024), p.textPrimary),
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'About vaccinations',
-            icon: Icon(Icons.info_outline_rounded, color: p.textPrimary),
-            onPressed: _showInfo,
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(
-                child: CircularProgressIndicator(color: Color(0xFFFF3B5C)),
-              )
-            : RefreshIndicator(
-                onRefresh: _load,
-                color: const Color(0xFFFF3B5C),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 6,
-                  ),
-                  children: [
-                    BabyHeroBanner(
-                      // The line plays, then the card goes back to its own
-                      // copy — which counts the weeks, and the script cannot.
-                      narrationKey: _narrationKey,
-                      bindNarrationText: false,
-                      speechText:
-                          "Week $week, Amma!\nWe're growing together. Can you feel the kicks?",
-                      bubblePosition: SpeechBubblePosition.left,
-                      height: 230,
-                      greetingText: '',
+        body: SafeArea(
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFFF3B5C)),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: const Color(0xFFFF3B5C),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                    const SizedBox(height: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 6,
+                    ),
+                    children: [
+                      BabyHeroBanner(
+                        speechText: _baby.line.trim().isNotEmpty
+                            ? _baby.line.trim()
+                            : (NarrationCatalog.textFor(_vaccinesIntentKey) ?? ''),
+                        bubblePosition: SpeechBubblePosition.left,
+                        height: 230,
+                        speakingOverride: _baby.isRunning,
+                        onSpeakerTap: () {
+                          if (_baby.isRunning) {
+                            _stopSpeaking();
+                          } else {
+                            _baby.start(intentKey: _vaccinesIntentKey);
+                          }
+                          setState(() {});
+                        },
+                      ),
+                      const SizedBox(height: 16),
 
                     if (_pregnancyId == null || _vaccines.isEmpty)
                       CareScheduleEmpty(
@@ -209,6 +247,7 @@ class _VaccinationSchedulePageState extends State<VaccinationSchedulePage> {
                   ],
                 ),
               ),
+        ),
       ),
     );
   }

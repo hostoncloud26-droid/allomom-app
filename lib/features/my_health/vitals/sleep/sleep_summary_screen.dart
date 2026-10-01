@@ -2,7 +2,12 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -41,6 +46,9 @@ class SleepSummaryScreen extends StatefulWidget {
 }
 
 class _SleepSummaryScreenState extends State<SleepSummaryScreen> {
+  static const _sleepIntentKey = NarrationKeys.screenSleepAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   final HealthVitalsController _vitalsController =
       HealthVitalsController.instance;
 
@@ -60,7 +68,36 @@ class _SleepSummaryScreenState extends State<SleepSummaryScreen> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _sleepIntentKey);
     _fetchSleepHistory();
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   void _showSleepEntrySheet({_SleepSession? session}) {
@@ -378,75 +415,97 @@ class _SleepSummaryScreenState extends State<SleepSummaryScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showSleepEntrySheet,
-        backgroundColor: Theme.of(context).primaryColor,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: Text(
-          'Log Sleep',
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _showSleepEntrySheet,
+          backgroundColor: Theme.of(context).primaryColor,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: Text(
+            'Log Sleep',
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      ),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
+            ),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
+          title: Text(
+            'Sleep Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          centerTitle: true,
         ),
-        title: Text(
-          'Sleep Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchSleepHistory,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const VitalBabyBanner(),
-                _buildFilterToggle(isDarkMode, textColor),
-                const SizedBox(height: 24),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.05, 0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                  child: _buildCurrentView(isDarkMode, textColor),
-                ),
-                // Keeps the last card clear of the Log Sleep FAB.
-                const SizedBox(height: 96),
-              ],
+        body: RefreshIndicator(
+          onRefresh: _fetchSleepHistory,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BabyHeroBanner(
+                    speechText: _baby.line.trim().isNotEmpty
+                        ? _baby.line.trim()
+                        : (NarrationCatalog.textFor(_sleepIntentKey) ?? ''),
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 230,
+                    speakingOverride: _baby.isRunning,
+                    onSpeakerTap: () {
+                      if (_baby.isRunning) {
+                        _stopSpeaking();
+                      } else {
+                        _baby.start(intentKey: _sleepIntentKey);
+                      }
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  _buildFilterToggle(isDarkMode, textColor),
+                  const SizedBox(height: 24),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.05, 0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                    child: _buildCurrentView(isDarkMode, textColor),
+                  ),
+                  // Keeps the last card clear of the Log Sleep FAB.
+                  const SizedBox(height: 96),
+                ],
+              ),
             ),
           ),
         ),

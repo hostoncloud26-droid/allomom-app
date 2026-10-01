@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
 import 'package:allomom/components/lmp_wheel_picker.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
@@ -274,26 +273,20 @@ class _PregnancyConfirmationPageState extends State<PregnancyConfirmationPage> {
   /// as sign-up — this is that step again for a mother who skipped it then.
   /// Her bubble is the only instruction the page needs.
   Widget _buildHeader() {
-    return Column(
-      children: [
-        BabyHeroBanner(
-          speechText: _baby.line.trim().isNotEmpty
-              ? _baby.line.trim()
-              : 'Mommy, when did your last period start?',
-          speakingOverride: _baby.isRunning,
-          height: 210,
-        ),
-        if (_baby.isRunning) ...[
-          const SizedBox(height: 10),
-          StopSpeakingButton(
-            onTap: () {
-              _stopSpeaking();
-              setState(() {});
-            },
-            accentColor: _accent,
-          ),
-        ],
-      ],
+    return BabyHeroBanner(
+      speechText: _baby.line.trim().isNotEmpty
+          ? _baby.line.trim()
+          : 'Mommy, when did your last period start?',
+      speakingOverride: _baby.isRunning,
+      height: 210,
+      onSpeakerTap: () {
+        if (_baby.isRunning) {
+          _stopSpeaking();
+        } else {
+          _baby.start(intentKey: NarrationKeys.screenRegisterPregnancyHint);
+        }
+        setState(() {});
+      },
     );
   }
 

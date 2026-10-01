@@ -284,9 +284,26 @@ class NarrationKeys {
   static const screenPregnancyJourneyInfo = 'screen_pregnancy_journey_info';
   static const screenRegisterPregnancyInfo = 'screen_register_pregnancy_info';
   static const screenSettingsInfo = 'screen_settings_info';
+  static const screenPregnancyVaccinesInfo = 'screen_pregnancy_vaccines_info';
+  static const screenAncCareInfo = 'screen_anc_care_info';
+  static const screenReportsScansInfo = 'screen_reports_scans_info';
+  static const screenStepsAnalysisInfo = 'screen_steps_analysis_info';
+  static const screenSleepAnalysisInfo = 'screen_sleep_analysis_info';
+  static const screenHeartRateAnalysisInfo = 'screen_heart_rate_analysis_info';
+  static const screenBloodOxygenAnalysisInfo = 'screen_blood_oxygen_analysis_info';
+  static const screenBloodPressureAnalysisInfo = 'screen_blood_pressure_analysis_info';
+  static const screenStressAnalysisInfo = 'screen_stress_analysis_info';
+  static const screenBloodGlucoseAnalysisInfo = 'screen_blood_glucose_analysis_info';
+  static const screenWaterTrackingInfo = 'screen_water_tracking_info';
+  static const screenBodyCompositionInfo = 'screen_body_composition_info';
+  static const screenHemoglobinAnalysisInfo = 'screen_hemoglobin_analysis_info';
+  static const screenHrvAnalysisInfo = 'screen_hrv_analysis_info';
 
-  // ─── Screen Hint Intent Keys (Played on subsequent visits) ───
+  // ─── Screen Hint Intent Keys (Played on subsequent visits / sheets) ───
   static const screenAllocryHint = 'screen_allocry_hint';
+  static const screenBodyCompositionHint = 'screen_body_composition_hint';
+  static const screenHemoglobinAnalysisHint = 'screen_hemoglobin_analysis_hint';
+  static const screenHrvAnalysisHint = 'screen_hrv_analysis_hint';
   static const screenBabyMilestonesHint = 'screen_baby_milestones_hint';
   static const screenBabyVaccinesHint = 'screen_baby_vaccines_hint';
   static const screenBabyProfileHint = 'screen_baby_profile_hint';
@@ -313,4 +330,41 @@ class NarrationKeys {
   static const screenPregnancyJourneyHint = 'screen_pregnancy_journey_hint';
   static const screenRegisterPregnancyHint = 'screen_register_pregnancy_hint';
   static const screenSettingsHint = 'screen_settings_hint';
+  static const screenPregnancyVaccinesHint = 'screen_pregnancy_vaccines_hint';
+  static const screenAncCareHint = 'screen_anc_care_hint';
+  static const screenReportsScansHint = 'screen_reports_scans_hint';
+  static const screenStepsAnalysisHint = 'screen_steps_analysis_hint';
+  static const screenSleepAnalysisHint = 'screen_sleep_analysis_hint';
+  static const screenHeartRateAnalysisHint = 'screen_heart_rate_analysis_hint';
+  static const screenBloodOxygenAnalysisHint = 'screen_blood_oxygen_analysis_hint';
+  static const screenBloodPressureAnalysisHint = 'screen_blood_pressure_analysis_hint';
+  static const screenStressAnalysisHint = 'screen_stress_analysis_hint';
+  static const screenBloodGlucoseAnalysisHint = 'screen_blood_glucose_analysis_hint';
+  static const screenWaterTrackingHint = 'screen_water_tracking_hint';
+  static const screenAddReportHint = 'screen_add_report_hint';
+  static const screenLogBreakfastHint = 'screen_log_breakfast_hint';
+  static const screenLogLunchHint = 'screen_log_lunch_hint';
+  static const screenLogDinnerHint = 'screen_log_dinner_hint';
+  static const screenLogSnacksHint = 'screen_log_snacks_hint';
+  static const screenLogDrinkHint = 'screen_log_drink_hint';
+  static const screenChildrenDetailsHint = 'screen_children_details_hint';
+  static const screenAddBabyBirthDateHint = 'screen_add_baby_birth_date_hint';
+  static const screenAddBabyDetailsHint = 'screen_add_baby_details_hint';
+  static const screenAddBabyPhotoHint = 'screen_add_baby_photo_hint';
+  static const screenAddPrescriptionUploadHint = 'screen_add_prescription_upload_hint';
+  static const screenAddPrescriptionMedicinesHint = 'screen_add_prescription_medicines_hint';
+
+  // ─── AlloCry Cry Results ───
+  static const hungerCryMom = 'hunger_cry_mom';
+  static const hungerCryDad = 'hunger_cry_dad';
+  static const sleepCryMom = 'sleep_cry_mom';
+  static const sleepCryDad = 'sleep_cry_dad';
+  static const burpingCryMom = 'burping_cry_mom';
+  static const burpingCryDad = 'burping_cry_dad';
+  static const discomfortCryMom = 'discomfort_cry_mom';
+  static const discomfortCryDad = 'discomfort_cry_dad';
+  static const colicCryMom = 'colic_cry_mom';
+  static const colicCryDad = 'colic_cry_dad';
+  static const attentionCryMom = 'attention_cry_mom';
+  static const attentionCryDad = 'attention_cry_dad';
 }

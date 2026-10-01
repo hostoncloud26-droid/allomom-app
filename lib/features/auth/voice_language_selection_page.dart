@@ -31,8 +31,6 @@ class _VoiceLanguageStepViewState extends State<VoiceLanguageStepView> {
     {'code': 'gu', 'name': 'Gujarati', 'char': 'ગુ', 'iconType': 'char'},
   ];
 
-  String? _syncingCode;
-
   @override
   void initState() {
     super.initState();
@@ -63,7 +61,6 @@ class _VoiceLanguageStepViewState extends State<VoiceLanguageStepView> {
   }
 
   void _handleSelect(String code) {
-    setState(() => _syncingCode = code);
     widget.onVoiceLanguageSelected(code);
   }
 
@@ -170,71 +167,53 @@ class _VoiceLanguageStepViewState extends State<VoiceLanguageStepView> {
         widget.selectedVoiceLanguageCode.toLowerCase().trim() ==
             code.toLowerCase().trim();
 
-    return Obx(() {
-      final isGlobalSyncing =
-          OfflineChatbotController.instance.isSyncing.value;
-      final isSyncing = isGlobalSyncing &&
-          (_syncingCode == code || (isSelected && _syncingCode == null));
-
-      return GestureDetector(
-        onTap: isSyncing ? null : () => _handleSelect(code),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: isSelected
-                  ? const Color(0xFFFF4E6A)
-                  : const Color(0xFFE5E7EB),
-              width: isSelected ? 1.5 : 1,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: isSelected
-                    ? const Color(0xFFFF4E6A).withValues(alpha: 0.08)
-                    : Colors.black.withValues(alpha: 0.02),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return GestureDetector(
+      onTap: () => _handleSelect(code),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFFFF0F3) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFFFF4E6A)
+                : const Color(0xFFE5E7EB),
+            width: isSelected ? 1.5 : 1,
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (isSyncing)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(Color(0xFFFF4E6A)),
-                  ),
-                )
-              else
-                _buildLeadingIcon(lang, isSelected),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  lang['name'] as String,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
-                    color: isSelected
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFFFF4E6A).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            _buildLeadingIcon(lang, isSelected),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                lang['name'] as String,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.poppins(
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected
                       ? const Color(0xFFFF4E6A)
                       : const Color(0xFF1E2024),
-                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-      );
-    });
+      ),
+    );
   }
 
   Widget _buildLeadingIcon(Map<String, dynamic> lang, bool isSelected) {

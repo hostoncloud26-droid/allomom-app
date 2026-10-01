@@ -101,19 +101,13 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   }
 
   void _startSpeech() {
-    if (ScreenVoiceHintService.hasPlayedInSession(_askAlloIntentKey)) {
-      if (widget.initialListening) {
-        startListening();
-      }
-      return;
-    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted) return;
+      if (!mounted || !widget.isActive) return;
       await controller.ready;
       final targetKey = await ScreenVoiceHintService.resolveIntentKey(
         introKey: _askAlloIntentKey,
       );
-      if (!mounted) return;
+      if (!mounted || !widget.isActive) return;
       await controller.startIntentByKey(targetKey, speak: true);
       if (widget.initialListening) {
         startListening();
@@ -617,13 +611,20 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
             padding: const EdgeInsets.only(bottom: 20),
             child: Column(
               children: [
-                SizedBox(
-                  width: 180,
-                  height: 180,
-                  child: FittedBox(
-                    child: AlloBotGeminiOrb(
-                      isSpeaking: controller.isSpeaking.value,
-                      isThinking: isTyping,
+                GestureDetector(
+                  onTap: () {
+                    if (controller.isSpeaking.value) {
+                      _stopSpeaking();
+                    }
+                  },
+                  child: SizedBox(
+                    width: 180,
+                    height: 180,
+                    child: FittedBox(
+                      child: AlloBotGeminiOrb(
+                        isSpeaking: controller.isSpeaking.value,
+                        isThinking: isTyping,
+                      ),
                     ),
                   ),
                 ),

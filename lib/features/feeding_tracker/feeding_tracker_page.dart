@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
@@ -257,12 +256,16 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                 speakingOverride: _baby.isRunning,
                 bubblePosition: SpeechBubblePosition.topCenter,
                 height: 250,
+                onSpeakerTap: () {
+                  if (_baby.isRunning) {
+                    _stopSpeaking();
+                  } else {
+                    _baby.start(intentKey: _feedingIntentKey);
+                  }
+                  setState(() {});
+                },
               ),
             ),
-            if (_baby.isRunning) ...[
-              const SizedBox(height: 10),
-              StopSpeakingButton(onTap: _stopSpeaking),
-            ],
 
             const SizedBox(height: 14),
 

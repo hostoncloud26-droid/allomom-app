@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:get/get.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/heart_rate/edit_heart_rate_dialog.dart';
@@ -16,9 +21,46 @@ class HeartRateSummaryScreen extends StatefulWidget {
 }
 
 class _HeartRateSummaryScreenState extends State<HeartRateSummaryScreen> {
+  static const _heartRateIntentKey = NarrationKeys.screenHeartRateAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   final HealthVitalsController _controller = HealthVitalsController.instance;
   final RxInt _selectedTab = 0.obs;
   int _refreshTick = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _heartRateIntentKey);
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
+  }
 
   Future<void> _openEntryDialog() async {
     final saved = await showHeartRateEntryDialog(context);
@@ -46,50 +88,72 @@ class _HeartRateSummaryScreenState extends State<HeartRateSummaryScreen> {
         ? const Color(0xFF0F131A)
         : const Color(0xFFF8F9FE);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      // As on AlloConnect: Start measures (AlloWear, or the phone camera).
-      // Typing a reading in is the + in the app bar.
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () =>
-            showHeartRateMeasureSheet(context, onDone: _refreshAnalysis),
-        backgroundColor: theme.primaryColor,
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.favorite_outline_rounded),
-        label: const Text('Start'),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(isDarkMode, textColor),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshAnalysis,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  // Bottom inset keeps the last card clear of the FAB.
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                  child: Column(
-                    children: [
-                      const VitalBabyBanner(),
-                      // Tabs sit under the baby card and scroll with it, as on Sleep.
-                      _buildFilterToggle(isDarkMode, textColor),
-                      Obx(() {
-                        final userId = _controller.userId.trim();
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        // As on AlloConnect: Start measures (AlloWear, or the phone camera).
+        // Typing a reading in is the + in the app bar.
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () =>
+              showHeartRateMeasureSheet(context, onDone: _refreshAnalysis),
+          backgroundColor: theme.primaryColor,
+          foregroundColor: Colors.white,
+          icon: const Icon(Icons.favorite_outline_rounded),
+          label: const Text('Start'),
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(isDarkMode, textColor),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshAnalysis,
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    // Bottom inset keeps the last card clear of the FAB.
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
+                    child: Column(
+                      children: [
+                        BabyHeroBanner(
+                          speechText: _baby.line.trim().isNotEmpty
+                              ? _baby.line.trim()
+                              : (NarrationCatalog.textFor(_heartRateIntentKey) ?? ''),
+                          bubblePosition: SpeechBubblePosition.topCenter,
+                          height: 230,
+                          speakingOverride: _baby.isRunning,
+                          onSpeakerTap: () {
+                            if (_baby.isRunning) {
+                              _stopSpeaking();
+                            } else {
+                              _baby.start(intentKey: _heartRateIntentKey);
+                            }
+                            setState(() {});
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Tabs sit under the baby card and scroll with it, as on Sleep.
+                        _buildFilterToggle(isDarkMode, textColor),
+                        Obx(() {
+                          final userId = _controller.userId.trim();
 
-                        return AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: _buildSelectedView(userId),
-                        );
-                      }),
-                    ],
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 300),
+                            child: _buildSelectedView(userId),
+                          );
+                        }),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

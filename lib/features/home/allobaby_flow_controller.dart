@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_chatbot_engine.dart';
+import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/speech_activity.dart';
 import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
@@ -71,6 +73,7 @@ class AlloBabyFlowController extends ChangeNotifier {
     hasRun = true;
     options = const [];
     isRunning = true;
+    line = '';
     notifyListeners();
 
     final chatbot = OfflineChatbotController.instance;
@@ -94,6 +97,44 @@ class AlloBabyFlowController extends ChangeNotifier {
         intentKey: intentKey,
       );
     }
+
+    if (reply == null && targetKey != null && targetKey.isNotEmpty) {
+      final audioCtrl = BackgroundAudioController.isReady
+          ? BackgroundAudioController.to
+          : null;
+      var lang = (audioCtrl != null && audioCtrl.languageCode.value.trim().isNotEmpty)
+          ? audioCtrl.languageCode.value.trim().toLowerCase()
+          : (OfflineChatbotController.instance.langCode.value.trim().isNotEmpty
+              ? OfflineChatbotController.instance.langCode.value.trim().toLowerCase()
+              : AppLanguage.voiceCachedOrFallback);
+      if (lang.isEmpty || lang == 'all') lang = 'en';
+      if (lang != 'en' && !NarrationCatalog.hasRecordedAudio(targetKey, lang)) {
+        lang = 'en';
+      }
+      final text = audioCtrl?.textFor(targetKey, lang) ??
+          NarrationCatalog.textFor(targetKey, languageCode: lang) ??
+          '';
+      if (text.isNotEmpty) {
+        final url = OfflineChatbotEngine.audioUrlForKey(
+          targetKey,
+          lang,
+        );
+        reply = BotReply()
+          ..say(text)
+          ..addAudio(url)
+          ..endStep();
+      }
+    }
+
+    debugPrint(
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      '👶 [AlloBabyFlowController Start]\n'
+      '   📍 Requested Intent Key : "$intentKey"\n'
+      '   🎯 Resolved Target Key  : "$targetKey"\n'
+      '   💬 Spoken Line          : "${reply?.segments.firstOrNull?.text ?? reply?.segments.firstOrNull?.utterances.firstOrNull?.text}"\n'
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    );
+
     if (generation != _generation) return;
     await _deliver(reply, generation);
   }
@@ -224,6 +265,10 @@ class AlloBabyFlowController extends ChangeNotifier {
       audioUrl: OfflineChatbotController.resolveAudioUrl(audioUrl),
       language: lang.isEmpty || lang == 'all' ? null : lang,
       designedVoiceOnly: true,
+      onFallbackToEnglish: (enText) {
+        line = enText;
+        notifyListeners();
+      },
     );
   }
 }

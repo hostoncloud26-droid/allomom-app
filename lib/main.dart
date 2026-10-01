@@ -10,7 +10,6 @@ import 'package:allomom/services/sq_lite/sqlite_service.dart';
 import 'package:allomom/api/api_base.dart';
 import 'package:allomom/api/api_routes.dart';
 import 'package:allomom/firebase_options.dart';
-
 import 'package:allomom/features/auth/language_selection_page.dart';
 import 'package:allomom/features/main_layout.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';

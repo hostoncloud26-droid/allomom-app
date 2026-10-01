@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/services/screen_voice_hint_service.dart';
 
 /// What a narrated widget needs to know to draw itself.
 class NarrationState {
@@ -128,13 +129,18 @@ class _BabyNarrationState extends State<BabyNarration> {
     final controller = BackgroundAudioController.to;
 
     return Obx(() {
-      final isCurrent = controller.currentKey.value == widget.narrationKey;
+      final hintKey = ScreenVoiceHintService.getHintKeyFor(widget.narrationKey);
+      final currentKey = controller.currentKey.value;
+      final isCurrent = currentKey == widget.narrationKey ||
+          (hintKey != null && currentKey == hintKey);
       final speaking = isCurrent && controller.isPlaying.value;
 
       final live = controller.currentText.value;
       final scripted = isCurrent && live.isNotEmpty
           ? live
-          : controller.textFor(widget.narrationKey);
+          : (currentKey.isNotEmpty && isCurrent
+              ? controller.textFor(currentKey)
+              : controller.textFor(widget.narrationKey));
 
       final showScripted = widget.bindText || speaking;
       final text = showScripted && scripted.isNotEmpty
@@ -147,7 +153,7 @@ class _BabyNarrationState extends State<BabyNarration> {
           text: text,
           speaking: speaking,
           voiceEnabled: controller.isVoiceEnabled.value,
-          onSpeakerTap: () => controller.replay(widget.narrationKey),
+          onSpeakerTap: () => controller.replay(currentKey.isNotEmpty ? currentKey : widget.narrationKey),
         ),
       );
     });

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
@@ -164,20 +163,19 @@ class _BabyCareTrackPageState extends State<BabyCareTrackPage> {
                       bubblePosition: SpeechBubblePosition.topCenter,
                       height: 250,
                       speakingOverride: _baby.isRunning,
-                    ),
-                    if (_baby.isRunning) ...[
-                      const SizedBox(height: 10),
-                      StopSpeakingButton(
-                        onTap: () {
+                      onSpeakerTap: () {
+                        if (_baby.isRunning) {
                           _stopSpeaking();
-                          setState(() {});
-                        },
-                        accentColor: const Color(0xFFFF3B5C),
-                      ),
-                      const SizedBox(height: 14),
-                    ] else ...[
-                      const SizedBox(height: 16),
-                    ],
+                        } else {
+                          final intentKey = widget.mode == BabyTrackMode.milestones
+                              ? _milestonesIntentKey
+                              : _vaccinesIntentKey;
+                          _baby.start(intentKey: intentKey);
+                        }
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 16),
                     BabyGrowthTrack(
                       baby: baby,
                       doses: _doses,

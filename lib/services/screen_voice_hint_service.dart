@@ -51,6 +51,20 @@ class ScreenVoiceHintService {
     'screen_pregnancy_journey_info': 'screen_pregnancy_journey_hint',
     'screen_register_pregnancy_info': 'screen_register_pregnancy_hint',
     'screen_settings_info': 'screen_settings_hint',
+    'screen_pregnancy_vaccines_info': 'screen_pregnancy_vaccines_hint',
+    'screen_anc_care_info': 'screen_anc_care_hint',
+    'screen_reports_scans_info': 'screen_reports_scans_hint',
+    'screen_steps_analysis_info': 'screen_steps_analysis_hint',
+    'screen_sleep_analysis_info': 'screen_sleep_analysis_hint',
+    'screen_heart_rate_analysis_info': 'screen_heart_rate_analysis_hint',
+    'screen_blood_oxygen_analysis_info': 'screen_blood_oxygen_analysis_hint',
+    'screen_blood_pressure_analysis_info': 'screen_blood_pressure_analysis_hint',
+    'screen_stress_analysis_info': 'screen_stress_analysis_hint',
+    'screen_blood_glucose_analysis_info': 'screen_blood_glucose_analysis_hint',
+    'screen_water_tracking_info': 'screen_water_tracking_hint',
+    'screen_body_composition_info': 'screen_body_composition_hint',
+    'screen_hemoglobin_analysis_info': 'screen_hemoglobin_analysis_hint',
+    'screen_hrv_analysis_info': 'screen_hrv_analysis_hint',
   };
 
   /// Preloads visited keys into memory for zero latency.

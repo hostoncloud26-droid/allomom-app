@@ -6,7 +6,6 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allocry/controller/cry_controller.dart';
 import 'package:allomom/features/allocry/data/cry_data.dart';
@@ -162,21 +161,17 @@ class _AlloCryPageState extends State<AlloCryPage>
                       bubblePosition: SpeechBubblePosition.right,
                       height: 270,
                       speakingOverride: _baby.isRunning,
+                      onSpeakerTap: () {
+                        if (_baby.isRunning) {
+                          _stopSpeaking();
+                        } else {
+                          _baby.start(intentKey: NarrationKeys.screenAllocryHint);
+                        }
+                        setState(() {});
+                      },
                     ),
                   ),
-
-                  if (_baby.isRunning) ...[
-                    const SizedBox(height: 10),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: StopSpeakingButton(
-                        onTap: () {
-                          _stopSpeaking();
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ],
+                  const SizedBox(height: 16),
                   const SizedBox(height: 26),
                   _buildTitle(),
                   const SizedBox(height: 22),

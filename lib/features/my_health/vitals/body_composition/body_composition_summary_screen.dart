@@ -6,7 +6,12 @@
 // BMI inside each weight entry's `data` rather than as separate `bmi` rows;
 // any legacy `bmi` rows are still shown when present).
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
@@ -37,6 +42,10 @@ class BodyCompositionSummaryScreen extends StatefulWidget {
 
 class _BodyCompositionSummaryScreenState
     extends State<BodyCompositionSummaryScreen> {
+  static const _bodyCompositionIntentKey =
+      NarrationKeys.screenBodyCompositionInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   final HealthVitalsController _vitalsController =
       HealthVitalsController.instance;
   String _historyError = '';
@@ -57,8 +66,37 @@ class _BodyCompositionSummaryScreenState
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _bodyCompositionIntentKey);
     _loadFromLocalDb();
     _syncInBackground();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   Future<void> _loadFromLocalDb() async {
@@ -423,52 +461,74 @@ class _BodyCompositionSummaryScreenState
     final filteredWeightHistory = _filterHistory(_weightHistory, _weightFilter);
     final filteredHeightHistory = _filterHistory(_heightHistory, _heightFilter);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Body Composition',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
             icon: Icon(
-              Icons.info_outline_rounded,
-              color: textColor.withValues(alpha: 0.8),
-              size: 22,
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
             ),
-            onPressed: () => _showInfoDialog(context),
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          const SizedBox(width: 6),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshScreenData,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
+          title: Text(
+            'Body Composition',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const VitalBabyBanner(),
-              if (_historyError.isNotEmpty &&
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.info_outline_rounded,
+                color: textColor.withValues(alpha: 0.8),
+                size: 22,
+              ),
+              onPressed: () => _showInfoDialog(context),
+            ),
+            const SizedBox(width: 6),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _refreshScreenData,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BabyHeroBanner(
+                  speechText: _baby.line.trim().isNotEmpty
+                      ? _baby.line.trim()
+                      : (NarrationCatalog.textFor(_bodyCompositionIntentKey) ??
+                          ''),
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 230,
+                  speakingOverride: _baby.isRunning,
+                  onSpeakerTap: () {
+                    if (_baby.isRunning) {
+                      _stopSpeaking();
+                    } else {
+                      _baby.start(intentKey: _bodyCompositionIntentKey);
+                    }
+                    setState(() {});
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (_historyError.isNotEmpty &&
                   _heightHistory.isEmpty &&
                   _weightHistory.isEmpty &&
                   height <= 0 &&
@@ -622,8 +682,9 @@ class _BodyCompositionSummaryScreenState
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildBmiOverviewCard({
     required double bmi,

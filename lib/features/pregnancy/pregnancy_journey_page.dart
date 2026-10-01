@@ -661,11 +661,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                 progressFraction: progressFraction,
                 progressPercent: progressPercent,
               ),
-              // Only while the baby is saying the week; stops the voice.
-              if (_weeklyPlaying) ...[
-                const SizedBox(height: 10),
-                _buildStopSpeakingButton(),
-              ],
               const SizedBox(height: 14),
               // Kick Counter, ANC, Vaccination and Lab Reports, swiped
               // sideways as the baby's features are.
@@ -1041,51 +1036,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
     );
   }
 
-  /// A frosted-glass bar under the baby, as on the kick counter: the page
-  /// shows through a blurred, tinted fill, with the accent red on the label.
-  Widget _buildStopSpeakingButton() {
-    const accent = Color(0xFFFF4E6A);
-    final radius = BorderRadius.circular(12);
-    return ClipRRect(
-      borderRadius: radius,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Material(
-          color: Colors.white.withValues(alpha: _p.isDark ? 0.08 : 0.55),
-          shape: RoundedRectangleBorder(
-            borderRadius: radius,
-            side: BorderSide(
-              color: _p.isDark
-                  ? Colors.white.withValues(alpha: 0.16)
-                  : accent.withValues(alpha: 0.25),
-            ),
-          ),
-          child: InkWell(
-            onTap: _stopWeeklySummary,
-            child: const SizedBox(
-              width: double.infinity,
-              height: 36,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.stop_rounded, size: 18, color: accent),
-                  SizedBox(width: 6),
-                  Text(
-                    'Stop Speaking',
-                    style: TextStyle(
-                      color: accent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
   /// One small card in the overview's right half: an icon, then the label
   /// over its value.
   Widget _buildInfoStat({
@@ -1665,11 +1615,6 @@ class _PregnancyJourneyPageState extends State<PregnancyJourneyPage>
                 ? 'Birth week'
                 : 'Week ${babyWeek - WeeklyBabyTalk.birthWeek}',
           ),
-        // Only while the week is being said; stops the voice.
-        if (_weeklyPlaying) ...[
-          _buildStopSpeakingButton(),
-          const SizedBox(height: 16),
-        ],
         const SizedBox(height: 4),
 
         // ─── MILESTONE TRAIN ───

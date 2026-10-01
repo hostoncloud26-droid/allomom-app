@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -53,23 +54,33 @@ class CryResultPage extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 36),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeroCard(type, p),
-            const SizedBox(height: 18),
-            _buildPlayerCard(type, p),
-            const SizedBox(height: 18),
-            _buildWhatItSoundsLike(type, p),
-            const SizedBox(height: 18),
-            _buildRecommendations(type, p),
-            const SizedBox(height: 20),
-            _buildSavedNote(p),
-          ],
-        ),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildHeroCard(type, p),
+                const SizedBox(height: 18),
+                _buildPlayerCard(type, p),
+                const SizedBox(height: 18),
+                _buildWhatItSoundsLike(type, p),
+                const SizedBox(height: 18),
+                _buildRecommendations(type, p),
+                const SizedBox(height: 20),
+                _buildSavedNote(p),
+              ],
+            ),
+          ),
+          FloatingBabySpeechOverlay(
+            intentKey: type.intentKey(),
+            fallbackText: type.fallbackSpokenLine(),
+            playEveryVisit: true,
+            bottom: 16,
+          ),
+        ],
       ),
     );
   }

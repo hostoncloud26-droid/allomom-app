@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 
 /// My Health's "Log meal" sheet: a description and a kcal figure, saved as
 /// one `addVitalEntry` under [mealType] (`breakfast`, `lunch`, `dinner`,
@@ -47,6 +49,18 @@ Future<bool> showMealLogSheet(
         color: p.pick(const Color(0xFF475569), p.textSecondary),
       );
 
+      String? promptKey;
+      final lower = mealType.toLowerCase();
+      if (lower == 'breakfast') {
+        promptKey = NarrationKeys.screenLogBreakfastHint;
+      } else if (lower == 'lunch') {
+        promptKey = NarrationKeys.screenLogLunchHint;
+      } else if (lower == 'dinner') {
+        promptKey = NarrationKeys.screenLogDinnerHint;
+      } else if (lower == 'snacks') {
+        promptKey = NarrationKeys.screenLogSnacksHint;
+      }
+
       return Container(
         padding: EdgeInsets.fromLTRB(
           24,
@@ -75,6 +89,13 @@ Future<bool> showMealLogSheet(
                 ),
               ),
             ),
+            if (promptKey != null) ...[
+              const SizedBox(height: 16),
+              BabySheetPrompt(
+                narrationKey: promptKey,
+                margin: EdgeInsets.zero,
+              ),
+            ],
             const SizedBox(height: 20),
             Row(
               children: [

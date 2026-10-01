@@ -1519,7 +1519,13 @@ class OfflineChatbotController extends GetxController {
 
       final all = bundle?.intents ?? const <BotIntent>[];
       final keys = {key, if (key == 'inital') 'initial'};
-      final lang = langCode.value.trim().toLowerCase();
+      final activeLang = (langCode.value.trim().isNotEmpty)
+          ? langCode.value.trim().toLowerCase()
+          : (BackgroundAudioController.isReady &&
+                  BackgroundAudioController.to.languageCode.value.trim().isNotEmpty)
+              ? BackgroundAudioController.to.languageCode.value.trim().toLowerCase()
+              : (await AppLanguage.voice()).trim().toLowerCase();
+      final lang = (activeLang.isEmpty || activeLang == 'all') ? 'en' : activeLang;
       BotIntent? intent;
       for (final candidate in {if (lang.isNotEmpty) lang, 'en', null}) {
         for (final entry in all) {
@@ -1532,23 +1538,53 @@ class OfflineChatbotController extends GetxController {
         if (intent != null) break;
       }
       if (intent == null) {
-        final audio = libraryAudioNow(key, lang);
-        if (audio != null) {
-          final transcription = (audio.transcription ?? '').trim();
-          final reply = BotReply();
-          reply.say(transcription.isNotEmpty ? transcription : key);
-          reply.addAudio(audio.url);
-          return reply;
+        var effectiveLang = lang;
+        if (effectiveLang != 'en' && !NarrationCatalog.hasRecordedAudio(key, effectiveLang)) {
+          effectiveLang = 'en';
         }
-        final text = NarrationCatalog.textFor(key, languageCode: lang);
-        if (text != null && text.trim().isNotEmpty) {
+        final audio = libraryAudioNow(key, effectiveLang) ?? libraryAudioNow(key, 'en');
+        var transcription = (audio?.transcription ?? '').trim();
+        if (transcription.isEmpty ||
+            transcription == key ||
+            transcription.endsWith('_mom') ||
+            transcription.endsWith('_dad') ||
+            NarrationCatalog.contains(transcription)) {
+          transcription = NarrationCatalog.textFor(key, languageCode: effectiveLang) ??
+              NarrationCatalog.textFor(key, languageCode: 'en') ??
+              '';
+        }
+
+        if (transcription.isNotEmpty) {
           final reply = BotReply();
-          reply.say(text.trim());
+          reply.say(transcription.trim());
+          final url = (audio != null && audio.url.trim().isNotEmpty)
+              ? _absoluteAudioUrl(audio.url)
+              : OfflineChatbotEngine.audioUrlForKey(key, effectiveLang);
+          if (url != null && url.isNotEmpty) {
+            reply.addAudio(url);
+          }
           return reply;
         }
         return null;
       }
-      return await engine.runIntent(intent, session: session, profile: profile);
+      final reply = await engine.runIntent(intent, session: session, profile: profile);
+      for (final segment in reply.segments) {
+        for (final utterance in segment.utterances) {
+          final text = utterance.text.trim();
+          if (text.isEmpty || text == key || text.endsWith('_mom') || text.endsWith('_dad')) {
+            var effectiveLang = lang;
+            if (effectiveLang != 'en' && !NarrationCatalog.hasRecordedAudio(key, effectiveLang)) {
+              effectiveLang = 'en';
+            }
+            final catalogText = NarrationCatalog.textFor(key, languageCode: effectiveLang) ??
+                NarrationCatalog.textFor(key, languageCode: 'en');
+            if (catalogText != null && catalogText.trim().isNotEmpty) {
+              utterance.text = catalogText.trim();
+            }
+          }
+        }
+      }
+      return reply;
     } catch (e) {
       debugPrint('Chatbot: detached turn failed: $e');
       return null;
@@ -1576,10 +1612,21 @@ class OfflineChatbotController extends GetxController {
   /// [libraryAudio] without waiting: whatever the catalogue in memory holds.
   BotAudio? libraryAudioNow(String key, String lang) {
     final audios = bundle?.audios ?? const <BotAudio>[];
+    if (audios.isEmpty) return null;
     final clean = lang.trim().toLowerCase();
+    final cleanKey = key.trim();
+    if (cleanKey.isEmpty) return null;
+    final resolvedKey = NarrationCatalog.resolveAudioKey(cleanKey);
+    final baseKey = resolvedKey.replaceAll(
+      RegExp(r'_(en|ta|hi|kn|te|mr|gu)$', caseSensitive: false),
+      '',
+    );
+    final keyCandidates = {cleanKey, resolvedKey, baseKey, '${baseKey}_$clean', '${baseKey}_en'};
+
     for (final candidate in {clean, 'en'}) {
       for (final audio in audios) {
-        if (audio.key == key && audio.langCode.toLowerCase() == candidate) {
+        if (keyCandidates.contains(audio.key) &&
+            audio.langCode.toLowerCase() == candidate) {
           return audio;
         }
       }
@@ -1752,9 +1799,12 @@ class OfflineChatbotController extends GetxController {
   }
 
   /// Switches AlloBot's speech/voice catalogue language.
-  Future<void> setLanguage(String code) async {
+  Future<void> setLanguage(String code, {bool syncNow = true}) async {
     final next = code.trim().toLowerCase();
     if (next.isEmpty) return;
+
+    langCode.value = next;
+    update();
 
     if (BackgroundAudioController.isReady) {
       await BackgroundAudioController.to.setLanguage(next);
@@ -1764,10 +1814,10 @@ class OfflineChatbotController extends GetxController {
     // language even if the download below fails.
     await AppLanguage.saveVoice(next);
 
-    if (isSyncing.value) await isSyncing.stream.firstWhere((s) => !s);
-    langCode.value = next;
-    update();
-    await sync(language: next);
+    if (syncNow) {
+      if (isSyncing.value) await isSyncing.stream.firstWhere((s) => !s);
+      await sync(language: next);
+    }
   }
 
   /// Sets the app's UI language without overriding the speech/voice language.

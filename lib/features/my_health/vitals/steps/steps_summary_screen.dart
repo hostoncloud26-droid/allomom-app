@@ -1,6 +1,10 @@
-// Ported from AlloConnect lib/features/health_section/vitals/steps/steps_summary_screen.dart.
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:get/get.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/steps/views/daily_steps_view.dart';
@@ -28,8 +32,45 @@ class StepsSummaryScreen extends StatefulWidget {
 }
 
 class _StepsSummaryScreenState extends State<StepsSummaryScreen> {
+  static const _stepsIntentKey = NarrationKeys.screenStepsAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   int _selectedFilterIndex = 0; // 0: Daily, 1: Weekly, 2: Monthly
   final List<String> _filters = ['Daily', 'Weekly', 'Monthly'];
+
+  @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _stepsIntentKey);
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
+  }
 
   String get _userId {
     final id = widget.userId?.trim() ?? '';
@@ -44,59 +85,81 @@ class _StepsSummaryScreenState extends State<StepsSummaryScreen> {
         isDarkMode ? const Color(0xFF0A111F) : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: textColor, size: 20),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Steps Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded,
+                color: textColor, size: 20),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
+          title: Text(
+            'Steps Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          centerTitle: true,
         ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const VitalBabyBanner(),
-              _buildFilterToggle(isDarkMode, textColor),
-              const SizedBox(height: 24),
-              GetBuilder<HealthVitalsController>(
-                init: HealthVitalsController.instance,
-                builder: (vitals) => AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.05, 0),
-                          end: Offset.zero,
-                        ).animate(animation),
-                        child: child,
-                      ),
-                    );
+        body: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                BabyHeroBanner(
+                  speechText: _baby.line.trim().isNotEmpty
+                      ? _baby.line.trim()
+                      : (NarrationCatalog.textFor(_stepsIntentKey) ?? ''),
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 230,
+                  speakingOverride: _baby.isRunning,
+                  onSpeakerTap: () {
+                    if (_baby.isRunning) {
+                      _stopSpeaking();
+                    } else {
+                      _baby.start(intentKey: _stepsIntentKey);
+                    }
+                    setState(() {});
                   },
-                  child: _buildCurrentView(vitals.currentStepTarget),
                 ),
-              ),
-              const SizedBox(height: 40),
-            ],
+                const SizedBox(height: 16),
+                _buildFilterToggle(isDarkMode, textColor),
+                const SizedBox(height: 24),
+                GetBuilder<HealthVitalsController>(
+                  init: HealthVitalsController.instance,
+                  builder: (vitals) => AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0.05, 0),
+                            end: Offset.zero,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: _buildCurrentView(vitals.currentStepTarget),
+                  ),
+                ),
+                const SizedBox(height: 40),
+              ],
+            ),
           ),
         ),
       ),

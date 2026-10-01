@@ -9,6 +9,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/offline_chatbot/engine/offline_matching.dart';
 import 'package:allomom/features/offline_chatbot/model/offline_chatbot_models.dart';
 
@@ -567,8 +568,24 @@ class OfflineChatbotEngine {
   }
 
   /// The library URL a key resolves to in [langCode].
-  static String audioUrlForKey(String key, String? langCode) =>
-      '$audioLibraryBase/${_audioLang(langCode)}/$key.mp3';
+  static String audioUrlForKey(String key, String? langCode) {
+    final lang = _audioLang(langCode);
+    final cleanKey = key.trim();
+    if (cleanKey.isEmpty) return '';
+    final resolvedKey = NarrationCatalog.resolveAudioKey(cleanKey);
+    final baseKey = resolvedKey.replaceAll(
+      RegExp(r'_(en|ta|hi|kn|te|mr|gu)$', caseSensitive: false),
+      '',
+    );
+    if (baseKey.startsWith('hint_') ||
+        baseKey.startsWith('scr_') ||
+        baseKey.startsWith('screen_') ||
+        baseKey.startsWith('info_') ||
+        baseKey.contains('_cry_')) {
+      return '$audioLibraryBase/$lang/${baseKey}_$lang.mp3';
+    }
+    return '$audioLibraryBase/$lang/$resolvedKey.mp3';
+  }
 
   /// The language a clip is looked up in. "all" is the catalogue's wildcard,
   /// not a language anything is recorded in.

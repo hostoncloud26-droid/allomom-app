@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:allomom/components/baby_bottom_avatar.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
 import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
@@ -25,6 +26,7 @@ class FloatingBabySpeechOverlay extends StatefulWidget {
     this.controller,
     this.bottom = 4.0,
     this.autoStart = true,
+    this.playEveryVisit = false,
     this.showScrim = false,
     this.scrimHeight = 160.0,
     this.onDismissed,
@@ -44,6 +46,9 @@ class FloatingBabySpeechOverlay extends StatefulWidget {
 
   /// Whether to automatically trigger [intentKey] on initial layout.
   final bool autoStart;
+
+  /// If true, always plays on every visit regardless of session history and skips hint derivation.
+  final bool playEveryVisit;
 
   /// Whether to render a dark bottom gradient scrim (e.g., above bottom navigation bar).
   final bool showScrim;
@@ -72,10 +77,10 @@ class FloatingBabySpeechOverlayState extends State<FloatingBabySpeechOverlay> {
     _setupController();
     if (widget.autoStart && widget.intentKey != null) {
       final key = widget.intentKey!;
-      if (!ScreenVoiceHintService.hasPlayedInSession(key)) {
+      if (widget.playEveryVisit || !ScreenVoiceHintService.hasPlayedInSession(key)) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted) return;
-          start(key: widget.intentKey, isAutoStart: true);
+          start(key: widget.intentKey, isAutoStart: !widget.playEveryVisit);
         });
       }
     }
@@ -103,8 +108,8 @@ class FloatingBabySpeechOverlayState extends State<FloatingBabySpeechOverlay> {
       _setupController();
     }
     if (oldWidget.intentKey != widget.intentKey && widget.intentKey != null) {
-      if (!ScreenVoiceHintService.hasPlayedInSession(widget.intentKey!)) {
-        start(key: widget.intentKey, isAutoStart: true);
+      if (widget.playEveryVisit || !ScreenVoiceHintService.hasPlayedInSession(widget.intentKey!)) {
+        start(key: widget.intentKey, isAutoStart: !widget.playEveryVisit);
       }
     }
   }
@@ -141,6 +146,7 @@ class FloatingBabySpeechOverlayState extends State<FloatingBabySpeechOverlay> {
     final targetKey = key ?? widget.intentKey;
     if (targetKey != null &&
         isAutoStart &&
+        !widget.playEveryVisit &&
         ScreenVoiceHintService.hasPlayedInSession(targetKey)) {
       return;
     }
@@ -149,7 +155,10 @@ class FloatingBabySpeechOverlayState extends State<FloatingBabySpeechOverlay> {
     if (!_visible && mounted) {
       setState(() => _visible = true);
     }
-    _controller.start(intentKey: targetKey);
+    _controller.start(
+      intentKey: targetKey,
+      resolveHint: !widget.playEveryVisit,
+    );
   }
 
   /// Safely stops speaking, resets audio/TTS, and hides the overlay.
@@ -225,7 +234,14 @@ class FloatingBabySpeechOverlayState extends State<FloatingBabySpeechOverlay> {
   @override
   Widget build(BuildContext context) {
     final line = _controller.line.trim();
-    final displayText = line.isNotEmpty ? line : widget.fallbackText.trim();
+    final catalogText = widget.intentKey != null
+        ? NarrationCatalog.textFor(widget.intentKey!)
+        : null;
+    final displayText = line.isNotEmpty
+        ? line
+        : ((catalogText != null && catalogText.isNotEmpty)
+            ? catalogText
+            : widget.fallbackText.trim());
 
     if (!widget.showScrim) {
       return _buildBubble(displayText);

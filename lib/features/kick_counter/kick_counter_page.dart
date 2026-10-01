@@ -5,7 +5,6 @@ import 'package:allomom/features/kick_counter/kick_counter_stats_page.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 
 class KickCounterPage extends StatefulWidget {
   const KickCounterPage({super.key});
@@ -161,19 +160,16 @@ class _KickCounterPageState extends State<KickCounterPage>
                   bubblePosition: SpeechBubblePosition.topCenter,
                   expand: true,
                   speakingOverride: _baby.isRunning,
+                  onSpeakerTap: () {
+                    if (_baby.isRunning) {
+                      _baby.stop();
+                    } else {
+                      _baby.start(intentKey: 'screen_kick_counter_hint');
+                    }
+                  },
                 ),
               ),
             ),
-
-            // Only while the baby is talking; stops the flow and the voice
-            // together.
-            if (_baby.isRunning) ...[
-              const SizedBox(height: 10),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: StopSpeakingButton(onTap: _baby.stop),
-              ),
-            ],
 
             if (!_baby.isRunning && _baby.options.isNotEmpty) ...[
               const SizedBox(height: 10),

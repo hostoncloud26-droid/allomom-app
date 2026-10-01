@@ -462,10 +462,11 @@ class CareItemActions {
       target: item.dailyTarget,
       presets: item.presets,
       subtitle: item.subtitle,
-      // Water is the only count with a recorded line; the rest open silent.
       narrationKey: item.countVitalKey == 'water'
-          ? NarrationKeys.pgNutritionWater
-          : null,
+          ? NarrationKeys.screenWaterTrackingHint
+          : (item.countVitalKey == 'snacks'
+              ? NarrationKeys.screenLogSnacksHint
+              : null),
     );
     if (amount == null || !context.mounted) return;
 

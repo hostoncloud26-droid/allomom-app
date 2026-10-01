@@ -1,7 +1,10 @@
-// Ported from AlloConnect lib/features/health_section/vitals/blood_pressure/blood_pressure_summary_screen.dart.
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/blood_pressure/blood_pressure_add_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/blood_pressure/views/blood_pressure_daily_view.dart';
@@ -21,9 +24,46 @@ class BloodPressureSummaryScreen extends StatefulWidget {
 
 class _BloodPressureSummaryScreenState
     extends State<BloodPressureSummaryScreen> {
+  static const _bpIntentKey = NarrationKeys.screenBloodPressureAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   final HealthVitalsController _controller = HealthVitalsController.instance;
   int _selectedTab = 0;
   int _refreshTick = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _bpIntentKey);
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
+  }
 
   String get _userId {
     final id = widget.userId?.trim() ?? '';
@@ -60,48 +100,68 @@ class _BloodPressureSummaryScreenState
         ? const Color(0xFF0F131A)
         : const Color(0xFFF8F9FE);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddBottomSheet,
-        backgroundColor: const Color(0xFFE91E63),
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text(
-          'Add BP',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _openAddBottomSheet,
+          backgroundColor: const Color(0xFFE91E63),
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'Add BP',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
         ),
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildAppBar(isDarkMode, textColor),
-            Expanded(
-              child: RefreshIndicator(
-                onRefresh: _refreshAnalysis,
-                color: const Color(0xFFE91E63),
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  // Bottom inset keeps the last card clear of the FAB.
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
-                  child: Column(
-                    children: [
-                      const VitalBabyBanner(
-                        narrationKey: NarrationKeys.pgVitalsBp,
-                      ),
-                      // Tabs sit under the baby card and scroll with it, as on Sleep.
-                      _buildFilterToggle(isDarkMode, textColor),
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 300),
-                        child: _buildSelectedView(_userId),
-                      ),
-                    ],
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildAppBar(isDarkMode, textColor),
+              Expanded(
+                child: RefreshIndicator(
+                  onRefresh: _refreshAnalysis,
+                  color: const Color(0xFFE91E63),
+                  child: SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
+                    // Bottom inset keeps the last card clear of the FAB.
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 96),
+                    child: Column(
+                      children: [
+                        BabyHeroBanner(
+                          speechText: _baby.line.trim().isNotEmpty
+                              ? _baby.line.trim()
+                              : (NarrationCatalog.textFor(_bpIntentKey) ?? ''),
+                          bubblePosition: SpeechBubblePosition.topCenter,
+                          height: 230,
+                          speakingOverride: _baby.isRunning,
+                          onSpeakerTap: () {
+                            if (_baby.isRunning) {
+                              _stopSpeaking();
+                            } else {
+                              _baby.start(intentKey: _bpIntentKey);
+                            }
+                            setState(() {});
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        // Tabs sit under the baby card and scroll with it, as on Sleep.
+                        _buildFilterToggle(isDarkMode, textColor),
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _buildSelectedView(_userId),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

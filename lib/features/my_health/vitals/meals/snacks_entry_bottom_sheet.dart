@@ -5,6 +5,8 @@ import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
@@ -172,6 +174,11 @@ class _SnacksEntryBottomSheetState extends State<SnacksEntryBottomSheet> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              const BabySheetPrompt(
+                narrationKey: NarrationKeys.screenLogSnacksHint,
+                margin: EdgeInsets.zero,
               ),
               const SizedBox(height: 24),
 
