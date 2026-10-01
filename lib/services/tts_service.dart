@@ -20,6 +20,11 @@ class TtsService {
 
   final FlutterTts _flutterTts = FlutterTts();
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  /// Plays a line said while the designed voice is still being fetched, on a
+  /// player of its own so the line it is filling in for is not cancelled.
+  final AudioPlayer _fillerPlayer = AudioPlayer();
+  Completer<void>? _fillerDone;
   StreamSubscription? _playerCompleteSub;
   StreamSubscription? _playerErrorSub;
   bool _isPlayingAudioPlayer = false;
@@ -28,6 +33,11 @@ class TtsService {
   VoidCallback? _flutterTtsOnComplete;
   final ValueNotifier<bool> isSpeakingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<bool> isGeneratingNotifier = ValueNotifier<bool>(false);
+
+  /// Whether the designed voice is being fetched from the server — the line
+  /// exists but cannot be heard yet. Stays up through a filler line, since
+  /// the line it fills in for still has to be voiced after it.
+  final ValueNotifier<bool> isSynthesisingNotifier = ValueNotifier<bool>(false);
   final ValueNotifier<String?> currentSpeakingText = ValueNotifier<String?>(null);
 
   /// Opens when the line being spoken stops sounding, however it stopped.
@@ -41,8 +51,13 @@ class TtsService {
   /// start playing before the line is spoken by TTS instead.
   static const Duration recordedClipTimeout = Duration(seconds: 2);
 
+  /// How long the designed voice may keep a line waiting before the caller's
+  /// filler is said in the meantime.
+  static const Duration slowVoiceAfter = Duration(seconds: 5);
+
   bool get isSpeaking => isSpeakingNotifier.value;
   bool get isGenerating => isGeneratingNotifier.value;
+  bool get isSynthesising => isSynthesisingNotifier.value;
   bool get isPluginAvailable => _isPluginAvailable;
 
   /// Playback context shared by init() and every clip.
@@ -209,6 +224,10 @@ class TtsService {
   /// the server's `/chatbot/ai/tts`. Nothing else stands in for it: when that
   /// voice cannot be had, the line is left unspoken rather than read by a
   /// voice that does not sound like the baby.
+  ///
+  /// [onSlowVoice] is called when that voice has kept the line waiting for
+  /// [slowVoiceAfter], to say something in the meantime (see [playFiller]).
+  /// The line is played once both it and the voice are done.
   Future<void> speak(
     String text, {
     VoidCallback? onComplete,
@@ -216,6 +235,7 @@ class TtsService {
     String? audioUrl,
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
+    Future<void> Function()? onSlowVoice,
   }) async {
     await _speak(
       text,
@@ -224,6 +244,7 @@ class TtsService {
       audioUrl: audioUrl,
       recordedOnly: recordedOnly,
       designedVoiceOnly: designedVoiceOnly,
+      onSlowVoice: onSlowVoice,
     );
   }
 
@@ -245,6 +266,7 @@ class TtsService {
     String? audioUrl,
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
+    Future<void> Function()? onSlowVoice,
   }) async {
     final Completer<void> gate;
     try {
@@ -255,6 +277,7 @@ class TtsService {
         audioUrl: audioUrl,
         recordedOnly: recordedOnly,
         designedVoiceOnly: designedVoiceOnly,
+        onSlowVoice: onSlowVoice,
       );
     } catch (e) {
       // Nothing is sounding, so there is nothing to wait for.
@@ -291,6 +314,7 @@ class TtsService {
     String? audioUrl,
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
+    Future<void> Function()? onSlowVoice,
   }) async {
     // stop() bumps _speakGeneration, so the token for this call has to be
     // taken *after* it. Taking it first made every later `generation ==
@@ -346,8 +370,21 @@ class TtsService {
 
     if (designedVoiceOnly) {
       if (cleanText.isNotEmpty) {
+        isSynthesisingNotifier.value = true;
+        Future<void>? filler;
+        final slow = onSlowVoice == null
+            ? null
+            : Timer(slowVoiceAfter, () {
+                if (generation != _speakGeneration) return;
+                filler = onSlowVoice().catchError(
+                  (Object e) => debugPrint('TtsService: filler failed: $e'),
+                );
+              });
         final clip = await _synthesiseDesignedVoice(cleanText, language);
+        slow?.cancel();
+        if (filler != null) await filler;
         if (generation != _speakGeneration) return gate;
+        isSynthesisingNotifier.value = false;
         if (clip != null) {
           final started = await _playAudio(
             DeviceFileSource(clip, mimeType: 'audio/wav'),
@@ -678,6 +715,51 @@ class TtsService {
     }
   }
 
+  /// Plays the clip at [url] while the line [speak] was given is still being
+  /// voiced, and returns once it has finished, failed, or been stopped.
+  ///
+  /// Only for the [onSlowVoice] callback: it leaves the pending line alone,
+  /// where [speak] would cancel it.
+  Future<void> playFiller(String url) async {
+    await _stopFiller();
+    final done = Completer<void>();
+    _fillerDone = done;
+    final sub = _fillerPlayer.onPlayerComplete.listen((_) {
+      if (!done.isCompleted) done.complete();
+    });
+    try {
+      await _fillerPlayer.setReleaseMode(ReleaseMode.stop);
+      await _fillerPlayer.setAudioContext(_speechAudioContext);
+      await _fillerPlayer.setVolume(1.0);
+      await _fillerPlayer.play(UrlSource(url)).timeout(recordedClipTimeout);
+      if (done.isCompleted) return;
+      isSpeakingNotifier.value = true;
+      await done.future.timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => debugPrint('TtsService: filler did not report its end'),
+      );
+    } catch (e) {
+      debugPrint('TtsService: filler unplayable: $e');
+    } finally {
+      await sub.cancel();
+      if (identical(_fillerDone, done)) {
+        _fillerDone = null;
+        isSpeakingNotifier.value = false;
+      }
+      if (!done.isCompleted) done.complete();
+    }
+  }
+
+  Future<void> _stopFiller() async {
+    final done = _fillerDone;
+    _fillerDone = null;
+    if (done == null) return;
+    if (!done.isCompleted) done.complete();
+    try {
+      await _fillerPlayer.stop();
+    } catch (_) {}
+  }
+
   /// Opens the gate [speakAndWait] is holding, if one is held.
   void _releaseSpeechGate() {
     final gate = _speechGate;
@@ -689,6 +771,9 @@ class TtsService {
     _speakGeneration++;
     _flutterTtsOnComplete = null;
     isGeneratingNotifier.value = false;
+    isSynthesisingNotifier.value = false;
+    // Ends the filler's wait at once; the player itself is stopped below.
+    final fillerStopped = _stopFiller();
     // Whatever was waiting on this voice is released: stopping is an ending,
     // and a flow gated on narration would otherwise wait for a line that is
     // never going to finish.
@@ -697,6 +782,8 @@ class TtsService {
     _playerCompleteSub = null;
     _playerErrorSub?.cancel();
     _playerErrorSub = null;
+
+    await fillerStopped;
 
     if (_isPlayingAudioPlayer) {
       _isPlayingAudioPlayer = false;
@@ -722,5 +809,6 @@ class TtsService {
     _playerCompleteSub?.cancel();
     _playerErrorSub?.cancel();
     _audioPlayer.dispose();
+    _fillerPlayer.dispose();
   }
 }

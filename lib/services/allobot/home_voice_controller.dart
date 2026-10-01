@@ -239,6 +239,8 @@ class HomeVoiceController extends ChangeNotifier {
     _tts.speak(
       spoken,
       language: _language,
+      // The baby's server voice or nothing — never the phone's own.
+      designedVoiceOnly: true,
       onComplete: () {
         _isSpeaking = false;
         notifyListeners();

@@ -13,8 +13,10 @@ import 'package:allomom/services/tts_service.dart';
 /// traversed by the same engine — conditions, redirects and actions included —
 /// but in a session of its own, so nothing lands in the chat transcript and
 /// the chat's own flow is left alone. Each step is shown as it is said and the
-/// next waits for it, with the step's recording preferred and the device voice
-/// taking over when the clip will not play (see [TtsService.speakAndWait]).
+/// next waits for it, with the step's recording preferred and the server's
+/// designed voice taking over when there is none or it will not play. The
+/// phone's own voice is never used: a line the server cannot voice stays
+/// silent (see [TtsService.speakAndWait]).
 class AlloBabyFlowController extends ChangeNotifier {
   AlloBabyFlowController() {
     _live.add(this);
@@ -221,6 +223,7 @@ class AlloBabyFlowController extends ChangeNotifier {
       text,
       audioUrl: OfflineChatbotController.resolveAudioUrl(audioUrl),
       language: lang.isEmpty || lang == 'all' ? null : lang,
+      designedVoiceOnly: true,
     );
   }
 }

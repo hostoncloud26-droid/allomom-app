@@ -563,7 +563,11 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   Widget _buildVoiceContent() {
     return Obx(() {
-      final isTyping = controller.isTyping.value;
+      // A line waiting on its voice is not shown until it can be heard, but
+      // what the baby says to fill a long wait is.
+      final delay = controller.delayLine.value;
+      final isTyping = controller.isTyping.value ||
+          (controller.isVoicePending.value && delay == null);
       // Rebuild once a catalogue sync lands, so its triggers show.
       controller.isSyncing.value;
 
@@ -626,7 +630,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                 const SizedBox(height: 10),
                 _buildHeroText(
                   isTyping: isTyping,
-                  reply: hasInteracted ? spoken : null,
+                  reply: delay ?? (hasInteracted ? spoken : null),
                   intro: _headlineMessage(spoken),
                 ),
               ],

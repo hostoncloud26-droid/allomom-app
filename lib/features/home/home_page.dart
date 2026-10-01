@@ -23,7 +23,7 @@ import 'package:allomom/features/home/widgets/cycle_summary_card.dart';
 import 'package:allomom/features/home/widgets/time_of_day_scene.dart';
 import 'package:allomom/controllers/baby_controller.dart';
 import 'package:allomom/features/home/widgets/pregnancy_home_cards.dart';
-import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/features/home/talk2baby_home_bridge.dart';
 import 'package:allomom/features/allobot/allobot_page.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/allobot/widgets/allobot_home_view.dart';
@@ -103,9 +103,10 @@ class _HomePageState extends State<HomePage> {
   /// Whether the carousel has already slid off AlloBot onto the summary.
   bool _hasAdvancedToDailySummary = false;
 
-  /// Ask Allo's opening flow, run in the AlloBaby card once the week has been
-  /// said. Static so the card keeps its last line when she comes back to Home.
-  static final AlloBabyFlowController _alloBaby = AlloBabyFlowController();
+  /// Talk2Baby's conversation, shown and heard in the AlloBaby card: its
+  /// opening flow once the week has been said, and whatever she asks here.
+  /// Shared with Ask Allo, so either screen picks up where the other left off.
+  static final Talk2BabyHomeBridge _alloBaby = Talk2BabyHomeBridge();
 
   /// The baby's own line while the home greeting runs, then null.
   ///

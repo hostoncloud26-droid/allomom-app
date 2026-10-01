@@ -24,6 +24,7 @@ import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/features/auth/role_selection_page.dart';
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/features/home/talk2baby_home_bridge.dart';
 import 'package:allomom/features/offline_chatbot/controller/offline_chatbot_controller.dart';
 import 'package:allomom/features/offline_chatbot/speech/allobot_speech_controller.dart';
 import 'package:allomom/components/baby_bottom_avatar.dart';
@@ -155,6 +156,7 @@ class AllomomApp extends StatelessWidget {
               navigatorObservers: [
                 BabyOnScreen.observer,
                 AlloBabyFlowController.observer,
+                Talk2BabyHomeBridge.observer,
               ],
               title: 'Allomom',
               debugShowCheckedModeBanner: false,

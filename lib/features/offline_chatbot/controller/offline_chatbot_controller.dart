@@ -220,6 +220,18 @@ class OfflineChatbotController extends GetxController {
   /// Whether speech or reply is currently being generated/synthesised.
   final RxBool isGenerating = false.obs;
 
+  /// Whether the line now due is waiting on the server to voice it. Ask Allo
+  /// keeps "Thinking…" up meanwhile instead of showing words not yet heard.
+  final RxBool isVoicePending = false.obs;
+
+  /// What the baby says while a slow voice keeps her waiting — the
+  /// [speakingDelayIntentKey] intent's line, shown in place of "Thinking…"
+  /// while it plays.
+  final RxnString delayLine = RxnString();
+
+  /// The intent said when the designed voice is slow to arrive.
+  static const String speakingDelayIntentKey = 'ai_speaking_delay';
+
   /// Something the voice input needs to say — that it did not catch the words,
   /// or that the phone cannot listen at all.
   ///
@@ -305,6 +317,7 @@ class OfflineChatbotController extends GetxController {
     _tts.init();
     _tts.isSpeakingNotifier.addListener(_onSpeakingChanged);
     _tts.isGeneratingNotifier.addListener(_onGeneratingChanged);
+    _tts.isSynthesisingNotifier.addListener(_onSynthesisingChanged);
     _bootstrapFuture = _bootstrap();
     unawaited(_bootstrapFuture!);
   }
@@ -314,6 +327,7 @@ class OfflineChatbotController extends GetxController {
     _voiceNoticeTimer?.cancel();
     _tts.isSpeakingNotifier.removeListener(_onSpeakingChanged);
     _tts.isGeneratingNotifier.removeListener(_onGeneratingChanged);
+    _tts.isSynthesisingNotifier.removeListener(_onSynthesisingChanged);
     _tts.stop();
     super.onClose();
   }
@@ -336,6 +350,8 @@ class OfflineChatbotController extends GetxController {
   void _onSpeakingChanged() => isSpeaking.value = _tts.isSpeakingNotifier.value;
   void _onGeneratingChanged() =>
       isGenerating.value = _tts.isGeneratingNotifier.value;
+  void _onSynthesisingChanged() =>
+      isVoicePending.value = _tts.isSynthesisingNotifier.value;
 
   /// Reads the cached catalogue and transcript, then downloads a fresh
   /// catalogue if there is none.
@@ -777,7 +793,10 @@ class OfflineChatbotController extends GetxController {
   /// week 1 is the baby talking; the phone's synthesised voice reading the
   /// screen aloud the moment a page opens is not, so a step with no clip
   /// simply opens quietly.
-  Future<void> openConversation() async {
+  ///
+  /// [recordedOnly] false voices the steps without a clip as well — for Home,
+  /// where the baby greets her out loud rather than opening quietly.
+  Future<void> openConversation({bool recordedOnly = true}) async {
     await ready;
 
     // Mid-flow on something else — she asked a question last visit and the
@@ -785,7 +804,7 @@ class OfflineChatbotController extends GetxController {
     // throw that away, so the conversation is left exactly where she left it.
     if (_session.isActive && !_isInitialIntent(_session.intentKey)) return;
 
-    await startInitialIntentFlow(speak: true, recordedOnly: true);
+    await startInitialIntentFlow(speak: true, recordedOnly: recordedOnly);
   }
 
   /// Whether [key] names the intent the page opens on, allowing for the
@@ -1002,6 +1021,7 @@ class OfflineChatbotController extends GetxController {
     _session.clear();
     activeOptions.clear();
     currentLine.value = null;
+    delayLine.value = null;
     messages.clear();
     if (announce) {
       messages.add(
@@ -1356,8 +1376,32 @@ class OfflineChatbotController extends GetxController {
       audioUrl: clip,
       recordedOnly: recordedOnly,
       designedVoiceOnly: true,
+      onSlowVoice: _sayVoiceDelay,
     );
     return true;
+  }
+
+  /// Says the [speakingDelayIntentKey] intent while the line due is still
+  /// being voiced, then hands the screen back to "Thinking…".
+  ///
+  /// Run on its own, so nothing is printed and the conversation's flow is
+  /// left where it was. A step without a clip is shown for a reading pause.
+  Future<void> _sayVoiceDelay() async {
+    try {
+      final lines = await runIntentDetached(speakingDelayIntentKey);
+      for (final line in lines) {
+        if (!_tts.isSynthesising) break;
+        delayLine.value = line.text;
+        final clip = line.audioUrl;
+        if (clip != null) {
+          await _tts.playFiller(clip);
+        } else {
+          await Future.delayed(_readingPause(line.text));
+        }
+      }
+    } finally {
+      delayLine.value = null;
+    }
   }
 
   /// How long a step stays on its own when there is no voice to pace it.
