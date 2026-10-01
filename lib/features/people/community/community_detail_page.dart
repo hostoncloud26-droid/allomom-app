@@ -94,13 +94,16 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       size: _postsPageSize,
     );
     if (!mounted || requestId != _postsRequestId) return;
-    final items = res.success ? FeedContent.listFrom(res.items) : <FeedContent>[];
+    final items = res.success
+        ? FeedContent.listFrom(res.items)
+        : <FeedContent>[];
     setState(() {
       _postsLoading = false;
       _postsFailed = !res.success;
       _postsPage = 1;
       _posts = items;
-      _postsHasMore = res.success && _postsHaveNext(res.pagination, items.length);
+      _postsHasMore =
+          res.success && _postsHaveNext(res.pagination, items.length);
     });
   }
 
@@ -115,14 +118,17 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     );
     if (!mounted || requestId != _postsRequestId) return;
     final seen = _posts.map((c) => c.id).toSet();
-    final items = res.success ? FeedContent.listFrom(res.items) : <FeedContent>[];
+    final items = res.success
+        ? FeedContent.listFrom(res.items)
+        : <FeedContent>[];
     setState(() {
       _postsLoadingMore = false;
       if (res.success) {
         _postsPage += 1;
         _posts = [..._posts, ...items.where((c) => !seen.contains(c.id))];
       }
-      _postsHasMore = res.success && _postsHaveNext(res.pagination, items.length);
+      _postsHasMore =
+          res.success && _postsHaveNext(res.pagination, items.length);
     });
   }
 
@@ -183,16 +189,6 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     if (ok) _loadPosts();
   }
 
-  void _shareCommunity() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Sharing "${_community.name}" with friends!'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = _community;
@@ -219,7 +215,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               SliverAppBar(
                 pinned: true,
                 stretch: true,
-                expandedHeight: 230,
+                expandedHeight: 230 + MediaQuery.paddingOf(context).top,
                 elevation: 0,
                 scrolledUnderElevation: 0,
                 backgroundColor: Colors.transparent,
@@ -232,23 +228,9 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                     onPressed: () => Navigator.pop(context, _changed),
                   ),
                 ),
-                actions: [
-                  Center(
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 14),
-                      child: _FrostedIconButton(
-                        icon: Icons.share_outlined,
-                        tooltip: 'Share community',
-                        onPressed: _shareCommunity,
-                      ),
-                    ),
-                  ),
-                ],
                 flexibleSpace: _CommunityFlexibleHeader(
                   community: c,
                   banner: banner,
-                  actionWidget:
-                      c.isJoined ? _buildJoinedActions() : _buildJoinPill(),
                 ),
               ),
 
@@ -259,13 +241,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 14),
 
-                      // Community Name
+                      // Community Name — full width, no wrapping risk
                       Text(
                         c.name,
                         style: TextStyle(
-                          fontSize: 24,
+                          fontSize: 22,
                           fontWeight: FontWeight.w800,
                           height: 1.2,
                           letterSpacing: -0.3,
@@ -273,6 +255,13 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
+
+                      // Join / Joined+Leave action buttons
+                      if (c.isJoined)
+                        _buildJoinedActions()
+                      else
+                        _buildJoinPill(),
+                      const SizedBox(height: 12),
 
                       // Info Chips Row (Members, Location, Safe Space)
                       Wrap(
@@ -351,8 +340,11 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
                       // Community Discussions & Posts
                       _buildPosts(),
+                      // Clear the system navigation bar / gesture area; the
+                      // page draws edge to edge, so the last post would
+                      // otherwise sit underneath it.
                       SizedBox(
-                        height: MediaQuery.paddingOf(context).bottom + 40,
+                        height: 24 + MediaQuery.viewPaddingOf(context).bottom,
                       ),
                     ],
                   ),
@@ -403,7 +395,8 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
       onTap: _busy ? null : _join,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
           gradient: _busy
               ? null
@@ -425,6 +418,7 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
                 ],
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (_busy)
@@ -458,50 +452,25 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
     final greenText = _p.isDark
         ? Color.lerp(const Color(0xFF4ADE80), Colors.white, 0.3)!
         : const Color(0xFF15803D);
-    final greenBg = _p.tint(
-      const Color(0xFF22C55E),
-      const Color(0xFFDCFCE7),
-    );
+    final greenBg = _p.tint(const Color(0xFF22C55E), const Color(0xFFDCFCE7));
 
-    return Container(
-      decoration: BoxDecoration(
-        color: _p.card,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: _p.border.withValues(alpha: 0.6),
-          width: 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // ✓ Joined section
-          Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+    final pill = BorderRadius.circular(24);
+
+    return Row(
+      children: [
+        // ✓ Joined status
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 11),
+            decoration: BoxDecoration(
+              color: greenBg,
+              borderRadius: pill,
+              border: Border.all(color: greenText.withValues(alpha: 0.25)),
+            ),
             child: Row(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 18,
-                  height: 18,
-                  decoration: BoxDecoration(
-                    color: greenBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.check_rounded,
-                    size: 11,
-                    color: Color(0xFF15803D),
-                  ),
-                ),
+                Icon(Icons.check_circle_rounded, size: 16, color: greenText),
                 const SizedBox(width: 6),
                 Text(
                   'Joined',
@@ -515,47 +484,53 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
               ],
             ),
           ),
+        ),
+        const SizedBox(width: 10),
 
-          // Divider
-          Container(
-            width: 1,
-            height: 28,
-            color: _p.border.withValues(alpha: 0.5),
-          ),
-
-          // Leave icon
-          Tooltip(
-            message: 'Leave community',
-            child: InkWell(
-              onTap: _busy ? null : _leave,
-              borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(24),
-                bottomRight: Radius.circular(24),
+        // Leave
+        Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: _busy ? null : _leave,
+            borderRadius: pill,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+              decoration: BoxDecoration(
+                borderRadius: pill,
+                border: Border.all(color: dangerRed.withValues(alpha: 0.5)),
               ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 9,
-                ),
-                child: _busy
-                    ? SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: dangerRed.withValues(alpha: 0.7),
-                        ),
-                      )
-                    : Icon(
-                        Icons.logout_rounded,
-                        size: 16,
-                        color: dangerRed.withValues(alpha: 0.8),
+              child: _busy
+                  ? SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: dangerRed.withValues(alpha: 0.7),
                       ),
-              ),
+                    )
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.logout_rounded,
+                          size: 16,
+                          color: dangerRed.withValues(alpha: 0.9),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Leave',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: dangerRed.withValues(alpha: 0.9),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -592,12 +567,19 @@ class _CommunityDetailPageState extends State<CommunityDetailPage> {
 
     final Widget body;
     if (!_community.isJoined) {
-      body = message(Icons.lock_outline_rounded, "Join to see this community's posts");
+      body = message(
+        Icons.lock_outline_rounded,
+        "Join to see this community's posts",
+      );
     } else if (_postsLoading) {
       body = const CommunityPostSkeletonList();
     } else if (_posts.isEmpty) {
       body = _postsFailed
-          ? message(Icons.cloud_off_rounded, "Couldn't load posts", retry: _loadPosts)
+          ? message(
+              Icons.cloud_off_rounded,
+              "Couldn't load posts",
+              retry: _loadPosts,
+            )
           : message(Icons.dynamic_feed_rounded, 'No posts yet');
     } else {
       body = Column(
@@ -654,8 +636,9 @@ class _FrostedIconButton extends StatelessWidget {
           height: 38,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color:
-                (isDark ? Colors.black : Colors.white).withValues(alpha: 0.65),
+            color: (isDark ? Colors.black : Colors.white).withValues(
+              alpha: 0.65,
+            ),
             border: Border.all(
               color: Colors.white.withValues(alpha: isDark ? 0.15 : 0.6),
               width: 1,
@@ -684,12 +667,10 @@ class _CommunityFlexibleHeader extends StatelessWidget {
   const _CommunityFlexibleHeader({
     required this.community,
     required this.banner,
-    required this.actionWidget,
   });
 
   final Community community;
   final String? banner;
-  final Widget actionWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -697,7 +678,7 @@ class _CommunityFlexibleHeader extends StatelessWidget {
     final isDark = p.isDark;
     final topPadding = MediaQuery.paddingOf(context).top;
     final minHeight = kToolbarHeight + topPadding;
-    const maxHeight = 230.0;
+    final maxHeight = 230.0 + topPadding;
     const shelfHeight = 44.0;
 
     return LayoutBuilder(
@@ -705,23 +686,27 @@ class _CommunityFlexibleHeader extends StatelessWidget {
         final currentHeight = constraints.biggest.height;
         // shrinkFraction goes from 0.0 (fully expanded) to 1.0 (fully collapsed)
         final double shrinkFraction =
-            ((maxHeight - currentHeight) / (maxHeight - minHeight))
-                .clamp(0.0, 1.0);
+            ((maxHeight - currentHeight) / (maxHeight - minHeight)).clamp(
+              0.0,
+              1.0,
+            );
 
         // Opacity of the collapsed title & frosted glass bar
-        final double collapsedBarOpacity =
-            ((shrinkFraction - 0.55) / 0.45).clamp(0.0, 1.0);
+        final double collapsedBarOpacity = ((shrinkFraction - 0.55) / 0.45)
+            .clamp(0.0, 1.0);
 
         // Opacity of the large avatar and action buttons
-        final double avatarOpacity =
-            ((currentHeight - 140) / 70).clamp(0.0, 1.0);
+        final double avatarOpacity = ((currentHeight - 140) / 70).clamp(
+          0.0,
+          1.0,
+        );
 
         return Stack(
           fit: StackFit.expand,
           children: [
             // 1. Background Image or Aurora Mesh Gradient (banner area)
             Positioned(
-              top: 0,
+              top: topPadding,
               left: 0,
               right: 0,
               bottom: shelfHeight - 1,
@@ -737,10 +722,10 @@ class _CommunityFlexibleHeader extends StatelessWidget {
 
             // 2. Top ambient vignette for back & share button contrast
             Positioned(
-              top: 0,
+              top: topPadding,
               left: 0,
               right: 0,
-              height: 100,
+              height: kToolbarHeight + 24,
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -753,6 +738,17 @@ class _CommunityFlexibleHeader extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+
+            // Safe area: the banner starts below the status bar, so the
+            // clock / battery icons sit on a plain background, never over
+            // the photo.
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: topPadding,
+              child: ColoredBox(color: p.scaffoldSoft),
             ),
 
             // 3. Lower shelf background matching page scaffold
@@ -799,20 +795,6 @@ class _CommunityFlexibleHeader extends StatelessWidget {
                 ),
               ),
 
-            // 5. Action Buttons (Join / Joined + Leave) on the shelf
-            if (avatarOpacity > 0.01)
-              Positioned(
-                right: 20,
-                bottom: 6,
-                child: IgnorePointer(
-                  ignoring: avatarOpacity < 0.5,
-                  child: Opacity(
-                    opacity: avatarOpacity,
-                    child: actionWidget,
-                  ),
-                ),
-              ),
-
             // 4. Frosted Glass Navigation Bar (collapses smoothly at the top)
             if (collapsedBarOpacity > 0.01)
               Positioned(
@@ -832,8 +814,9 @@ class _CommunityFlexibleHeader extends StatelessWidget {
                           right: 64, // clear share button
                         ),
                         decoration: BoxDecoration(
-                          color: (isDark ? p.card : Colors.white)
-                              .withValues(alpha: isDark ? 0.8 : 0.85),
+                          color: (isDark ? p.card : Colors.white).withValues(
+                            alpha: isDark ? 0.8 : 0.85,
+                          ),
                           border: Border(
                             bottom: BorderSide(
                               color: p.border.withValues(alpha: 0.5),
@@ -892,18 +875,13 @@ class _AuroraMeshBackground extends StatelessWidget {
     final p = context.palette;
     final isDark = p.isDark;
 
-    final accent =
-        _palette[community.name.hashCode.abs() % _palette.length];
+    final accent = _palette[community.name.hashCode.abs() % _palette.length];
 
     final baseGradient = isDark
         ? const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF261928),
-              Color(0xFF1B1B34),
-              Color(0xFF13202E),
-            ],
+            colors: [Color(0xFF261928), Color(0xFF1B1B34), Color(0xFF13202E)],
           )
         : LinearGradient(
             begin: Alignment.topLeft,
@@ -971,8 +949,9 @@ class _AuroraMeshBackground extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF818CF8)
-                        .withValues(alpha: isDark ? 0.3 : 0.2),
+                    const Color(
+                      0xFF818CF8,
+                    ).withValues(alpha: isDark ? 0.3 : 0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -1019,4 +998,3 @@ class _AuroraMeshBackground extends StatelessWidget {
     );
   }
 }
-

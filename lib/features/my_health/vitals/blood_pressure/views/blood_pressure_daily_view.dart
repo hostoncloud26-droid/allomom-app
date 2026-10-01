@@ -227,6 +227,7 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
     var maxY = 200.0;
     for (final e in entries) {
       if (e.systolic > maxY) maxY = e.systolic.toDouble();
+      if (e.systolic < minY) minY = e.systolic.toDouble();
       if (e.diastolic < minY) minY = e.diastolic.toDouble();
     }
     maxY = (maxY / 10).ceil() * 10 + 10.0;
@@ -254,8 +255,21 @@ class _BloodPressureDailyViewState extends State<BloodPressureDailyView> {
           clipData: const FlClipData.all(),
           gridData: const FlGridData(show: true, drawVerticalLine: false),
           titlesData: FlTitlesData(
-            leftTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
+            leftTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                reservedSize: 36,
+                interval: ((maxY - minY) / 5 / 10).ceil() * 10.0,
+                getTitlesWidget: (value, meta) {
+                  if (value == meta.min || value == meta.max) {
+                    return const SizedBox();
+                  }
+                  return Text(
+                    value.toInt().toString(),
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  );
+                },
+              ),
             ),
             topTitles: const AxisTitles(
               sideTitles: SideTitles(showTitles: false),

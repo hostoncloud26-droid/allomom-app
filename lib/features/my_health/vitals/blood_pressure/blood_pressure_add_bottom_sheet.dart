@@ -77,8 +77,26 @@ class _BloodPressureAddBottomSheetState
     final dia = int.tryParse(_diastolicController.text);
     final pulse = int.tryParse(_pulseController.text);
 
-    if (sys == null || dia == null || sys <= 0 || dia <= 0) {
+    if (sys == null || dia == null) {
       setState(() => _errorMessage = 'Please enter valid BP values');
+      return;
+    }
+    if (sys < 60 || sys > 250) {
+      setState(() => _errorMessage = 'Systolic must be between 60 and 250');
+      return;
+    }
+    if (dia < 30 || dia > 150) {
+      setState(() => _errorMessage = 'Diastolic must be between 30 and 150');
+      return;
+    }
+    if (sys <= dia) {
+      setState(
+        () => _errorMessage = 'Systolic must be higher than diastolic',
+      );
+      return;
+    }
+    if (pulse != null && (pulse < 30 || pulse > 220)) {
+      setState(() => _errorMessage = 'Pulse must be between 30 and 220');
       return;
     }
 

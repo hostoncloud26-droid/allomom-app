@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
@@ -98,7 +98,21 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
     });
   }
 
-  void _saveFeedSession() {
+  Future<void> _logSolidMeal() async {
+    final result = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _SolidMealSheet(),
+    );
+    if (result == null || !mounted) return;
+    _saveFeedSession(
+      solidFood: result['food'],
+      solidPortion: result['portion'],
+    );
+  }
+
+  void _saveFeedSession({String? solidFood, String? solidPortion}) {
     _pauseTimer();
     final totalMin = ((_leftSeconds + _rightSeconds) / 60).ceil();
     if (totalMin > 0 || _selectedFeedType == 1 || _selectedFeedType == 2) {
@@ -143,7 +157,8 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
       } else if (_selectedFeedType == 1) {
         detailStr = 'Formula / Milk';
       } else {
-        detailStr = 'Puree / Mash';
+        final food = (solidFood ?? '').isEmpty ? 'Puree / Mash' : solidFood!;
+        detailStr = (solidPortion ?? '').isEmpty ? food : '$food · $solidPortion';
       }
 
       // Sync with Vitals Stream
@@ -160,6 +175,10 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
           'type': feedTypeStr,
           'time': timeStr,
           'detail': detailStr,
+          if (_selectedFeedType == 2 && (solidFood ?? '').isNotEmpty)
+            'food': solidFood,
+          if (_selectedFeedType == 2 && (solidPortion ?? '').isNotEmpty)
+            'portion': solidPortion,
         },
       );
 
@@ -187,7 +206,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
         } else {
           _recentFeeds.insert(0, {
             'type': 'Solid Food',
-            'detail': 'Puree / Mash',
+            'detail': detailStr,
             'time': timeStr,
             'icon': Icons.restaurant_rounded,
             'color': const Color(0xFF10B981),
@@ -658,11 +677,7 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
                   backgroundColor: const Color(0xFFFF4E6A),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Solid feed recorded! 🥣')),
-                  );
-                },
+                onPressed: _logSolidMeal,
                 icon: const Icon(Icons.add_rounded, color: Colors.white),
                 label: const Text('Log Meal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
               ),
@@ -906,6 +921,124 @@ class _FeedingTrackerPageState extends State<FeedingTrackerPage> {
           ),
         );
       },
+    );
+  }
+}
+
+class _SolidMealSheet extends StatefulWidget {
+  const _SolidMealSheet();
+
+  @override
+  State<_SolidMealSheet> createState() => _SolidMealSheetState();
+}
+
+class _SolidMealSheetState extends State<_SolidMealSheet> {
+  static const _quickFoods = [
+    'Fruit puree',
+    'Mashed veggies',
+    'Oats porridge',
+    'Rice cereal',
+    'Banana',
+    'Egg yolk',
+  ];
+  static const _portions = ['A few spoons', 'Half bowl', 'Full bowl'];
+
+  final TextEditingController _foodCtrl = TextEditingController();
+  String _portion = _portions[1];
+
+  @override
+  void dispose() {
+    _foodCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.palette;
+    return Container(
+      decoration: BoxDecoration(
+        color: p.card,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        20,
+        20,
+        20 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'What did baby eat?',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: p.pick(const Color(0xFF1E2024), p.textPrimary),
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _foodCtrl,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'e.g. Banana puree',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final f in _quickFoods)
+                ActionChip(
+                  label: Text(f),
+                  onPressed: () => setState(() => _foodCtrl.text = f),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final o in _portions)
+                ChoiceChip(
+                  label: Text(o),
+                  selected: _portion == o,
+                  onSelected: (_) => setState(() => _portion = o),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                backgroundColor: const Color(0xFFFF4E6A),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+              onPressed: () => Navigator.pop(context, {
+                'food': _foodCtrl.text.trim(),
+                'portion': _portion,
+              }),
+              child: const Text(
+                'Save Meal',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

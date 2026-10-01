@@ -196,6 +196,18 @@ class _VitalLogBottomSheetState extends State<VitalLogBottomSheet> {
         if (sys == null || dia == null || sys <= 0 || dia <= 0) {
           throw Exception('Please enter valid Systolic and Diastolic numbers');
         }
+        if (sys < 60 || sys > 250) {
+          throw Exception('Systolic must be between 60 and 250');
+        }
+        if (dia < 30 || dia > 150) {
+          throw Exception('Diastolic must be between 30 and 150');
+        }
+        if (sys <= dia) {
+          throw Exception('Systolic must be higher than diastolic');
+        }
+        if (pulse != null && (pulse < 30 || pulse > 220)) {
+          throw Exception('Pulse must be between 30 and 220');
+        }
         await vitals.addBloodPressureEntry(
           systolic: sys,
           diastolic: dia,
