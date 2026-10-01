@@ -9,6 +9,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'package:allomom/api/chatbot_api.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/omnivoice_service.dart';
 import 'package:allomom/services/online_tts_settings.dart';
@@ -162,7 +163,7 @@ class TtsService {
         '',
       )
       .replaceAll(
-        RegExp(r"[^\p{L}\p{N}\s,.!?'-]", unicode: true),
+        RegExp(r"[^\p{L}\p{M}\p{N}\s,.!?'-]", unicode: true),
         ' ',
       )
       .replaceAll(RegExp(r'\s{2,}'), ' ')
@@ -236,6 +237,7 @@ class TtsService {
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
     Future<void> Function()? onSlowVoice,
+    ValueChanged<String>? onFallbackToEnglish,
   }) async {
     await _speak(
       text,
@@ -245,20 +247,12 @@ class TtsService {
       recordedOnly: recordedOnly,
       designedVoiceOnly: designedVoiceOnly,
       onSlowVoice: onSlowVoice,
+      onFallbackToEnglish: onFallbackToEnglish,
     );
   }
 
   /// Speaks [text] and returns only once the voice has actually stopped —
   /// because it reached the end of the line, or because something stopped it.
-  ///
-  /// The gate a conversation advances on. [speak] returns as soon as playback
-  /// *starts*, which is right for a one-off line but wrong for a flow: the
-  /// next step would print and start speaking over the step before it, and
-  /// since every [speak] begins by stopping the last one, only the final
-  /// bubble of a multi-step turn was ever heard.
-  ///
-  /// A manual [stop] opens the gate too, so tapping "stop talking" moves the
-  /// flow on rather than stranding it behind a voice nobody is listening to.
   Future<void> speakAndWait(
     String text, {
     VoidCallback? onComplete,
@@ -267,6 +261,7 @@ class TtsService {
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
     Future<void> Function()? onSlowVoice,
+    ValueChanged<String>? onFallbackToEnglish,
   }) async {
     final Completer<void> gate;
     try {
@@ -278,6 +273,7 @@ class TtsService {
         recordedOnly: recordedOnly,
         designedVoiceOnly: designedVoiceOnly,
         onSlowVoice: onSlowVoice,
+        onFallbackToEnglish: onFallbackToEnglish,
       );
     } catch (e) {
       // Nothing is sounding, so there is nothing to wait for.
@@ -286,10 +282,6 @@ class TtsService {
     }
     if (gate.isCompleted) return;
 
-    // A backstop, not the mechanism: every voice here reports its own end, but
-    // a player that neither completes nor errors would otherwise hold the
-    // whole conversation open. Scaled to the line, since a long paragraph read
-    // slowly is minutes rather than seconds.
     final limit = Duration(
       seconds: (text.length / 5).clamp(30, 300).round(),
     );
@@ -303,10 +295,6 @@ class TtsService {
   }
 
   /// Starts the voice and hands back the gate that opens when it stops.
-  ///
-  /// A [Completer] rather than its future, because Dart flattens a returned
-  /// `Future<Future<void>>` and the gate would be indistinguishable from this
-  /// method's own completion.
   Future<Completer<void>> _speak(
     String text, {
     VoidCallback? onComplete,
@@ -315,16 +303,11 @@ class TtsService {
     bool recordedOnly = false,
     bool designedVoiceOnly = false,
     Future<void> Function()? onSlowVoice,
+    ValueChanged<String>? onFallbackToEnglish,
   }) async {
-    // stop() bumps _speakGeneration, so the token for this call has to be
-    // taken *after* it. Taking it first made every later `generation ==
-    // _speakGeneration` check fail, and speak() bailed out between
-    // synthesising the clip and playing it.
     await stop();
     final generation = ++_speakGeneration;
 
-    // The gate for this line. `stop()` above already released the previous
-    // one, so nothing is left waiting on a voice that has been superseded.
     final gate = Completer<void>();
     _speechGate = gate;
 
@@ -337,9 +320,6 @@ class TtsService {
     final cleanText = cleanForSpeech(text);
     final recordedUrl = audioUrl?.trim() ?? '';
 
-    // The words decide the voice: Tamil read by an English voice is noise,
-    // and most callers pass no language at all. Text the script does not
-    // settle keeps whatever was asked for, else English.
     final requested = language?.trim().toLowerCase() ?? '';
     language = AppLanguage.fromScript(cleanText, hint: requested) ??
         ((requested.isEmpty || requested == 'all') ? 'en' : requested);
@@ -351,21 +331,47 @@ class TtsService {
     currentSpeakingText.value = text;
     isGeneratingNotifier.value = true;
 
-    // 1. The recorded clip the answer came with. It gets [recordedClipTimeout]
-    // to start sounding; past that the line is read by a synthesised voice
-    // instead, so a slow or missing clip never holds the conversation up.
-    // That holds for [recordedOnly] too: the line was meant to be heard.
+    // 1. Primary recorded clip in requested language.
     if (recordedUrl.isNotEmpty) {
       final started = await _playAudio(
         UrlSource(recordedUrl),
         generation,
         done,
+        language: language,
         startTimeout: recordedClipTimeout,
         deviceFallback: !designedVoiceOnly,
       );
       if (started) return gate;
       if (generation != _speakGeneration) return gate;
-      debugPrint('Intent audio unplayable, falling back to TTS: $recordedUrl');
+      debugPrint('Primary language audio unplayable ($recordedUrl)');
+
+      // 1b. Fallback to English recorded audio + English text if primary language is not English
+      if (requested != 'en') {
+        final enAudioUrl = deriveEnglishAudioUrl(recordedUrl);
+        if (enAudioUrl != null && enAudioUrl.isNotEmpty && enAudioUrl != recordedUrl) {
+          debugPrint('Attempting English audio fallback: $enAudioUrl');
+          final enStarted = await _playAudio(
+            UrlSource(enAudioUrl),
+            generation,
+            done,
+            language: 'en',
+            startTimeout: recordedClipTimeout,
+            deviceFallback: !designedVoiceOnly,
+          );
+          if (enStarted) {
+            final key = _extractKeyFromUrl(recordedUrl);
+            final enText = (key != null && key.isNotEmpty)
+                ? NarrationCatalog.textFor(key, languageCode: 'en')
+                : null;
+            if (enText != null && enText.trim().isNotEmpty) {
+              currentSpeakingText.value = enText.trim();
+              onFallbackToEnglish?.call(enText.trim());
+            }
+            return gate;
+          }
+          if (generation != _speakGeneration) return gate;
+        }
+      }
     }
 
     if (designedVoiceOnly) {
@@ -404,23 +410,43 @@ class TtsService {
       return gate;
     }
 
-    // 2. The online voice, only when it has been switched on and pointed
-    // somewhere — asking an unconfigured server would cost every reply a
-    // timeout before the phone's own voice got its turn.
+    // 2. The online voice, only when it has been switched on and pointed somewhere
     if (cleanText.isNotEmpty) {
       final online = await _synthesiseOnline(cleanText, language);
       if (generation != _speakGeneration) return gate;
 
       if (online != null && online.isNotEmpty) {
-        final started = await _playAudio(UrlSource(online), generation, done);
+        final started = await _playAudio(
+          UrlSource(online),
+          generation,
+          done,
+          language: language,
+        );
         if (started) return gate;
         if (generation != _speakGeneration) return gate;
       }
     }
 
-    // 3. The engine on the phone.
+    // 3. Fallback to Device TTS
     isGeneratingNotifier.value = false;
     if (cleanText.isEmpty) {
+      // Check if fallback text exists for the key
+      final key = _extractKeyFromUrl(recordedUrl);
+      final fallbackText = (key != null && key.isNotEmpty)
+          ? (NarrationCatalog.textFor(key, languageCode: requested) ??
+              NarrationCatalog.textFor(key, languageCode: 'en'))
+          : null;
+      if (fallbackText != null && fallbackText.trim().isNotEmpty) {
+        final cleanFallback = cleanForSpeech(fallbackText);
+        final fallbackLang = AppLanguage.fromScript(cleanFallback, hint: requested) ?? 'en';
+        if (fallbackLang == 'en') {
+          currentSpeakingText.value = fallbackText.trim();
+          onFallbackToEnglish?.call(fallbackText.trim());
+        }
+        await _speakWithDeviceTts(cleanFallback, generation, fallbackLang, done);
+        return gate;
+      }
+
       isSpeakingNotifier.value = false;
       currentSpeakingText.value = null;
       done();
@@ -428,6 +454,67 @@ class TtsService {
     }
     await _speakWithDeviceTts(cleanText, generation, language, done);
     return gate;
+  }
+
+  /// Derives the corresponding English audio URL for a given language clip URL.
+  static String? deriveEnglishAudioUrl(String url) {
+    final clean = url.trim();
+    if (clean.isEmpty) return null;
+
+    final m1 = RegExp(
+      r'^(https?://[^/]+/allomom)/([a-z]{2})/(.+?)_([a-z]{2})\.mp3$',
+      caseSensitive: false,
+    ).firstMatch(clean);
+    if (m1 != null) {
+      final base = m1.group(1)!;
+      final key = m1.group(3)!;
+      if (key.startsWith('hint_') ||
+          key.startsWith('scr_') ||
+          key.startsWith('screen_') ||
+          key.startsWith('info_')) {
+        return '$base/en/${key}_en.mp3';
+      }
+      return '$base/en/$key.mp3';
+    }
+
+    final m2 = RegExp(
+      r'^(https?://[^/]+/allomom)/([a-z]{2})/(.+?)\.mp3$',
+      caseSensitive: false,
+    ).firstMatch(clean);
+    if (m2 != null) {
+      final base = m2.group(1)!;
+      var key = m2.group(3)!;
+      key = key.replaceAll(
+        RegExp(r'_(en|ta|hi|kn|te|mr|gu)$', caseSensitive: false),
+        '',
+      );
+      if (key.startsWith('hint_') ||
+          key.startsWith('scr_') ||
+          key.startsWith('screen_') ||
+          key.startsWith('info_')) {
+        return '$base/en/${key}_en.mp3';
+      }
+      return '$base/en/$key.mp3';
+    }
+
+    return null;
+  }
+
+  /// Extracts the base key from an audio URL for catalog text lookup.
+  static String? _extractKeyFromUrl(String url) {
+    final clean = url.trim();
+    if (clean.isEmpty) return null;
+    final lastSlash = clean.lastIndexOf('/');
+    if (lastSlash == -1) return null;
+    var filename = clean.substring(lastSlash + 1);
+    if (filename.endsWith('.mp3')) {
+      filename = filename.substring(0, filename.length - 4);
+    }
+    filename = filename.replaceAll(
+      RegExp(r'_(en|ta|hi|kn|te|mr|gu)$', caseSensitive: false),
+      '',
+    );
+    return filename;
   }
 
   /// Asks the configured server for a clip, or returns null when the online
@@ -491,10 +578,6 @@ class TtsService {
 
   /// Plays [source], returning whether playback actually began.
   ///
-  /// `setSourceUrl` + `resume` rather than `play` so a prepare failure (404,
-  /// unreachable host, unsupported codec) throws here and the caller can fall
-  /// back, instead of leaving the UI stuck on a clip that never sounds.
-  ///
   /// [startTimeout] is how long the clip has, from this call, to be heard:
   /// loading it past that throws here, and a clip loaded but still not
   /// playing by then is handed to the device voice.
@@ -505,6 +588,7 @@ class TtsService {
     Source source,
     int generation,
     VoidCallback? onComplete, {
+    String? language,
     Duration startTimeout = const Duration(seconds: 5),
     bool deviceFallback = true,
   }) async {
@@ -527,15 +611,14 @@ class TtsService {
 
       debugPrint('TtsService playing audio: $source');
 
-      // release(), not stop(): handed the URL it already holds, the Android
-      // player skips preparing and reports it ready at once — even when the
-      // last attempt at that URL never finished loading. Resuming then shows
-      // "playing" while nothing sounds, and the stall check below is fooled.
-      await _audioPlayer.release();
+      try {
+        await _audioPlayer.stop();
+      } catch (_) {}
+
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       await _audioPlayer.setAudioContext(_speechAudioContext);
       await _audioPlayer.setVolume(1.0);
-      final load = _audioPlayer.setSource(source);
+      final load = _audioPlayer.play(source);
       // Past the timeout nobody awaits the load any more, but it still fails
       // eventually (a 404 takes the player ~30s to give up on); that late
       // error must not surface as an unhandled exception.
@@ -543,21 +626,17 @@ class TtsService {
       await load.timeout(startTimeout - started.elapsed);
 
       if (generation != _speakGeneration) {
-        await _audioPlayer.stop();
+        try {
+          await _audioPlayer.stop();
+        } catch (_) {}
         return false;
       }
-
-      await _audioPlayer.resume();
 
       _isPlayingAudioPlayer = true;
       isGeneratingNotifier.value = false;
       isSpeakingNotifier.value = true;
 
-      // Anything not actually sounding by [startTimeout] is stalled rather
-      // than slow. The player's state is no evidence — resume() sets it to
-      // "playing" before a single sample is heard — so the check is whether
-      // the position has moved. A little grace past the deadline, so a clip
-      // that loaded just in time is not cut off before its first frame.
+      // Watchdog: If audio does not start sounding, fallback to device TTS
       var remaining = startTimeout - started.elapsed;
       const grace = Duration(milliseconds: 400);
       if (remaining < grace) remaining = grace;
@@ -582,12 +661,10 @@ class TtsService {
             '${deviceFallback ? ', using device TTS' : ''}',
           );
           _isPlayingAudioPlayer = false;
-          // The abandoned clip may still "complete" once it gives up; that
-          // must not end the line the device voice is now reading.
           await _playerCompleteSub?.cancel();
           _playerCompleteSub = null;
           try {
-            await _audioPlayer.release();
+            await _audioPlayer.stop();
           } catch (_) {}
           if (generation != _speakGeneration) return;
           isSpeakingNotifier.value = false;
@@ -596,10 +673,12 @@ class TtsService {
             onComplete?.call();
             return;
           }
+          final textToSpeak = currentSpeakingText.value ?? '';
+          final resolvedLang = language ?? AppLanguage.fromScript(textToSpeak) ?? 'en';
           await _speakWithDeviceTts(
-            cleanForSpeech(currentSpeakingText.value ?? ''),
+            cleanForSpeech(textToSpeak),
             generation,
-            null,
+            resolvedLang,
             onComplete,
           );
         }),
@@ -612,7 +691,7 @@ class TtsService {
       await _playerCompleteSub?.cancel();
       _playerCompleteSub = null;
       try {
-        await _audioPlayer.release();
+        await _audioPlayer.stop();
       } catch (_) {}
       return false;
     }
@@ -643,6 +722,8 @@ class TtsService {
       }
 
       if (language != null) await setLanguage(language);
+
+      debugPrint('🗣️ [TtsService -> Device TTS] Speaking in "$language": "$cleanText"');
 
       _flutterTtsGeneration = generation;
       _flutterTtsOnComplete = onComplete;

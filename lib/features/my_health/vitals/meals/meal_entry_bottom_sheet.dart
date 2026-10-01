@@ -5,6 +5,8 @@ import 'package:allomom/models/vital_shapes.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 
@@ -284,6 +286,15 @@ class _MealEntryBottomSheetState extends State<MealEntryBottomSheet> {
                   ),
                 ),
               ),
+              if (_meal == MealKind.lunch || _meal == MealKind.dinner) ...[
+                const SizedBox(height: 16),
+                BabySheetPrompt(
+                  narrationKey: _meal == MealKind.lunch
+                      ? NarrationKeys.screenLogLunchHint
+                      : NarrationKeys.screenLogDinnerHint,
+                  margin: EdgeInsets.zero,
+                ),
+              ],
               const SizedBox(height: 24),
 
               // Header

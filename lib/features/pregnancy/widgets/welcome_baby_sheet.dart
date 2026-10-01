@@ -77,19 +77,19 @@ class _WelcomeBabySheetState extends State<WelcomeBabySheet> {
       title: 'When was baby born?',
       subtitle: 'Pick the delivery date',
       icon: Icons.event_available_rounded,
-      narration: NarrationKeys.pgBirthDate,
+      narration: NarrationKeys.screenAddBabyBirthDateHint,
     ),
     (
       title: 'About your baby',
       subtitle: 'Delivery, gender and birth weight',
       icon: Icons.child_care_rounded,
-      narration: NarrationKeys.pgBirthDetails,
+      narration: NarrationKeys.screenAddBabyDetailsHint,
     ),
     (
       title: "Baby's first photo",
       subtitle: 'Optional — you can add it later',
       icon: Icons.photo_camera_rounded,
-      narration: NarrationKeys.pgBirthPhoto,
+      narration: NarrationKeys.screenAddBabyPhotoHint,
     ),
   ];
 

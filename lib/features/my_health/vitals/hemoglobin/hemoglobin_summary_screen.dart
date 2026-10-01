@@ -2,8 +2,12 @@
 // lib/features/health_section/vitals/blood_oxygen/blood_oxygen_summary_screen.dart
 // (AlloConnect has no hemoglobin screen). Data: key `hemoglobin`, g/dL.
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:intl/intl.dart';
 
 import 'hemoglobin_entry_sheet.dart';
@@ -31,6 +35,10 @@ class HemoglobinSummaryScreen extends StatefulWidget {
 }
 
 class _HemoglobinSummaryScreenState extends State<HemoglobinSummaryScreen> {
+  static const _hemoglobinIntentKey =
+      NarrationKeys.screenHemoglobinAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   late int _selectedFilterIndex = widget.initialTab.clamp(0, 2);
   final List<String> _filters = const ['Day', 'Week', 'Month'];
   late DateTime _selectedDate;
@@ -39,11 +47,41 @@ class _HemoglobinSummaryScreenState extends State<HemoglobinSummaryScreen> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _hemoglobinIntentKey);
     final now = DateTime.now();
     final d = widget.initialDate ?? now;
     _selectedDate = d.isAfter(now)
         ? DateUtils.dateOnly(now)
         : DateUtils.dateOnly(d);
+  }
+
+  void _onBabyChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   void _refresh() {
@@ -67,25 +105,30 @@ class _HemoglobinSummaryScreenState extends State<HemoglobinSummaryScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
+            ),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Hemoglobin Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
+          title: Text(
+            'Hemoglobin Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -112,7 +155,23 @@ class _HemoglobinSummaryScreenState extends State<HemoglobinSummaryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const VitalBabyBanner(narrationKey: NarrationKeys.pgVitalsHb),
+                BabyHeroBanner(
+                  speechText: _baby.line.trim().isNotEmpty
+                      ? _baby.line.trim()
+                      : (NarrationCatalog.textFor(_hemoglobinIntentKey) ?? ''),
+                  bubblePosition: SpeechBubblePosition.topCenter,
+                  height: 230,
+                  speakingOverride: _baby.isRunning,
+                  onSpeakerTap: () {
+                    if (_baby.isRunning) {
+                      _stopSpeaking();
+                    } else {
+                      _baby.start(intentKey: _hemoglobinIntentKey);
+                    }
+                    setState(() {});
+                  },
+                ),
+                const SizedBox(height: 16),
                 _buildFilterToggle(isDarkMode, textColor),
                 if (_selectedFilterIndex == 0) ...[
                   const SizedBox(height: 16),
@@ -139,8 +198,9 @@ class _HemoglobinSummaryScreenState extends State<HemoglobinSummaryScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildDateNavigator(bool isDark, Color textColor) {
     final today = DateUtils.dateOnly(DateTime.now());

@@ -1,10 +1,10 @@
-// Blood glucose summary, built in the shape of AlloConnect's
-// lib/features/health_section/vitals/blood_oxygen/blood_oxygen_summary_screen.dart
-// (AlloConnect has no glucose screen). Data: key `glucose` (legacy
-// `blood_glucose` read too), mg/dL, data['mealPhase'].
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:intl/intl.dart';
 
 import 'blood_glucose_entry_sheet.dart';
@@ -32,6 +32,9 @@ class BloodGlucoseSummaryScreen extends StatefulWidget {
 }
 
 class _BloodGlucoseSummaryScreenState extends State<BloodGlucoseSummaryScreen> {
+  static const _glucoseIntentKey = NarrationKeys.screenBloodGlucoseAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   late int _selectedFilterIndex = widget.initialTab.clamp(0, 2);
   final List<String> _filters = const ['Day', 'Week', 'Month'];
   late DateTime _selectedDate;
@@ -40,11 +43,40 @@ class _BloodGlucoseSummaryScreenState extends State<BloodGlucoseSummaryScreen> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _glucoseIntentKey);
     final now = DateTime.now();
     final d = widget.initialDate ?? now;
     _selectedDate = d.isAfter(now)
         ? DateUtils.dateOnly(now)
         : DateUtils.dateOnly(d);
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   void _refresh() {
@@ -68,74 +100,96 @@ class _BloodGlucoseSummaryScreenState extends State<BloodGlucoseSummaryScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
+            ),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
+          title: Text(
+            'Blood Glucose Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          centerTitle: true,
         ),
-        title: Text(
-          'Blood Glucose Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _openAddSheet,
+          backgroundColor: kGlucoseColor,
+          icon: const Icon(Icons.add_rounded, color: Colors.white),
+          label: const Text(
+            'Add Glucose',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddSheet,
-        backgroundColor: kGlucoseColor,
-        icon: const Icon(Icons.add_rounded, color: Colors.white),
-        label: const Text(
-          'Add Glucose',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
-      body: RefreshIndicator(
-        color: kGlucoseColor,
-        onRefresh: () async => _refresh(),
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const VitalBabyBanner(narrationKey: NarrationKeys.pgVitalsGlucose),
-                _buildFilterToggle(isDarkMode, textColor),
-                if (_selectedFilterIndex == 0) ...[
-                  const SizedBox(height: 16),
-                  _buildDateNavigator(isDarkMode, textColor),
-                ],
-                const SizedBox(height: 24),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder: (child, animation) => FadeTransition(
-                    opacity: animation,
-                    child: SlideTransition(
-                      position: Tween<Offset>(
-                        begin: const Offset(0.05, 0),
-                        end: Offset.zero,
-                      ).animate(animation),
-                      child: child,
-                    ),
+        body: RefreshIndicator(
+          color: kGlucoseColor,
+          onRefresh: () async => _refresh(),
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BabyHeroBanner(
+                    speechText: _baby.line.trim().isNotEmpty
+                        ? _baby.line.trim()
+                        : (NarrationCatalog.textFor(_glucoseIntentKey) ?? ''),
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 230,
+                    speakingOverride: _baby.isRunning,
+                    onSpeakerTap: () {
+                      if (_baby.isRunning) {
+                        _stopSpeaking();
+                      } else {
+                        _baby.start(intentKey: _glucoseIntentKey);
+                      }
+                      setState(() {});
+                    },
                   ),
-                  child: _buildCurrentView(),
-                ),
-                const SizedBox(height: 100),
-              ],
+                  const SizedBox(height: 16),
+                  _buildFilterToggle(isDarkMode, textColor),
+                  if (_selectedFilterIndex == 0) ...[
+                    const SizedBox(height: 16),
+                    _buildDateNavigator(isDarkMode, textColor),
+                  ],
+                  const SizedBox(height: 24),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.05, 0),
+                          end: Offset.zero,
+                        ).animate(animation),
+                        child: child,
+                      ),
+                    ),
+                    child: _buildCurrentView(),
+                  ),
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
           ),
         ),

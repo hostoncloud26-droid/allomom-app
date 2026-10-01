@@ -14,7 +14,11 @@ import 'package:uuid/uuid.dart';
 import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/prescription_db_service.dart';
 import 'package:allomom/local_notification/services/local_reminder_scheduler.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/services/prescription_parser/on_device_prescription_parser.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/controllers/main_controller.dart';
 
 class MyPrescriptionAdd extends StatefulWidget {
@@ -55,8 +59,22 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
         offset: const Offset(0, 6),
       );
 
+  void _stopAudio() {
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _setStep(int newStep) {
+    if (_currentStep == newStep) return;
+    _stopAudio();
+    setState(() => _currentStep = newStep);
+  }
+
   @override
   void dispose() {
+    _stopAudio();
     description.dispose();
     for (final item in medicines) {
       item.dispose();
@@ -276,6 +294,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
 
       HapticFeedback.mediumImpact();
       if (mounted) {
+        _stopAudio();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Prescription & reminders saved successfully! 🎉'),
@@ -584,38 +603,59 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       data: Theme.of(context).copyWith(
         textTheme: GoogleFonts.manropeTextTheme(Theme.of(context).textTheme),
       ),
-      child: Scaffold(
-        backgroundColor: bgColor,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back_ios_new_rounded, color: onSurface, size: 20),
-            onPressed: () => Navigator.pop(context),
-          ),
-          title: Text(
-            'Add Prescription',
-            style: GoogleFonts.manrope(
-              color: onSurface,
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
+      child: PopScope(
+        canPop: true,
+        onPopInvokedWithResult: (didPop, result) {
+          _stopAudio();
+        },
+        child: Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded, color: onSurface, size: 20),
+              onPressed: () {
+                _stopAudio();
+                Navigator.pop(context);
+              },
             ),
-          ),
-          centerTitle: true,
-        ),
-        body: Column(
-          children: [
-            _buildStepperHeader(),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: _buildCurrentStepContent(),
+            title: Text(
+              'Add Prescription',
+              style: GoogleFonts.manrope(
+                color: onSurface,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
               ),
             ),
-            _buildBottomControls(),
-          ],
+            centerTitle: true,
+          ),
+          body: Column(
+            children: [
+              _buildStepperHeader(),
+              Expanded(
+                child: SingleChildScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BabySheetPrompt(
+                        key: ValueKey('prescription_step_$_currentStep'),
+                        narrationKey: _currentStep == 0
+                            ? NarrationKeys.screenAddPrescriptionUploadHint
+                            : NarrationKeys.screenAddPrescriptionMedicinesHint,
+                        margin: const EdgeInsets.only(bottom: 16),
+                      ),
+                      _buildCurrentStepContent(),
+                    ],
+                  ),
+                ),
+              ),
+              _buildBottomControls(),
+            ],
+          ),
         ),
       ),
     );
@@ -627,9 +667,15 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
       child: Row(
         children: [
-          _stepIndicator(0, 'Upload & OCR'),
+          GestureDetector(
+            onTap: () => _setStep(0),
+            child: _stepIndicator(0, 'Upload & OCR'),
+          ),
           _stepLine(0),
-          _stepIndicator(1, medCount > 0 ? 'Medicines ($medCount)' : 'Medicines'),
+          GestureDetector(
+            onTap: () => _setStep(1),
+            child: _stepIndicator(1, medCount > 0 ? 'Medicines ($medCount)' : 'Medicines'),
+          ),
         ],
       ),
     );
@@ -1477,7 +1523,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               child: Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: _customButton(
-                  onPressed: () => setState(() => _currentStep -= 1),
+                  onPressed: () => _setStep(_currentStep - 1),
                   label: 'Back',
                   isPrimary: false,
                 ),
@@ -1498,7 +1544,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
               child: Padding(
                 padding: const EdgeInsets.only(left: 12),
                 child: _customButton(
-                  onPressed: () => setState(() => _currentStep = 1),
+                  onPressed: () => _setStep(1),
                   label: 'Skip',
                   isPrimary: false,
                 ),
@@ -1511,7 +1557,7 @@ class _MyPrescriptionAddState extends State<MyPrescriptionAdd>
 
   void _handleContinue() {
     if (_currentStep == 0) {
-      setState(() => _currentStep += 1);
+      _setStep(1);
     } else {
       final preparedMedicines = _buildMedicinePayload(medicineStartDate ?? DateTime.now());
       if (preparedMedicines.isEmpty) {

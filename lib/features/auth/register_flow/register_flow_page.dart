@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/controllers/family_controller.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
@@ -286,9 +285,7 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
         _narrationKey = NarrationFlowKeys.of(_status).kids;
         break;
       case RegisterStep.kids:
-        _narrationKey = isNewMomRegistrationLabel(_status) && _children.isEmpty
-            ? NarrationKeys.newChildrenList
-            : NarrationFlowKeys.of(_status).kids;
+        _narrationKey = NarrationKeys.screenChildrenDetailsHint;
         break;
       case RegisterStep.dadSetup:
         _narrationKey = NarrationKeys.dadFamilyChoice;
@@ -985,27 +982,19 @@ class _RegisterFlowPageState extends State<RegisterFlowPage> {
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: BabyHeroBanner(
-                                  speechText: currentText,
-                                  bubblePosition: SpeechBubblePosition.topCenter,
-                                  expand: true,
-                                  speakingOverride: isSpeaking,
-                                  onSpeakerTap: () => _say(_narrationKey),
-                                ),
-                              ),
-                              if (isSpeaking) ...[
-                                const SizedBox(height: 8),
-                                StopSpeakingButton(
-                                  onTap: () {
-                                    _stopSpeaking();
-                                    setState(() {});
-                                  },
-                                ),
-                              ],
-                            ],
+                          child: BabyHeroBanner(
+                            speechText: currentText,
+                            bubblePosition: SpeechBubblePosition.topCenter,
+                            expand: true,
+                            speakingOverride: isSpeaking,
+                            onSpeakerTap: () {
+                              if (isSpeaking) {
+                                _stopSpeaking();
+                              } else {
+                                _say(_narrationKey);
+                              }
+                              setState(() {});
+                            },
                           ),
                         ),
                       ),

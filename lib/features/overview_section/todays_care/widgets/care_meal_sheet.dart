@@ -75,6 +75,17 @@ class _CareMealSheetState extends State<CareMealSheet> {
   int _caloriesFor(int portionIndex) =>
       (widget.meal.typicalCalories * _portions[portionIndex].factor).round();
 
+  String get _narrationKey {
+    switch (widget.meal) {
+      case CareMeal.lunch:
+        return NarrationKeys.screenLogLunchHint;
+      case CareMeal.dinner:
+        return NarrationKeys.screenLogDinnerHint;
+      case CareMeal.breakfast:
+        return NarrationKeys.pgNutritionMeal;
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -181,8 +192,8 @@ class _CareMealSheetState extends State<CareMealSheet> {
 
               // The baby head card for the sheet — slim, since the keyboard
               // takes most of it once she starts typing.
-              const BabySheetPrompt(
-                narrationKey: NarrationKeys.pgNutritionMeal,
+              BabySheetPrompt(
+                narrationKey: _narrationKey,
                 margin: EdgeInsets.zero,
               ),
               const SizedBox(height: 16),

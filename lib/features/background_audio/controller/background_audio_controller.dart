@@ -198,7 +198,8 @@ class BackgroundAudioController extends GetxController {
   Future<void> toggleVoice() => setVoiceEnabled(!isVoiceEnabled.value);
 
   /// The text the baby head card should show for [key], preferring the
-  /// audio library transcription from the bot bundle/file.
+  /// audio library transcription from the bot bundle/file, then registered text,
+  /// then NarrationCatalog.
   String textFor(String key, [String? langCode]) {
     final cleanKey = key.trim();
     if (cleanKey.isEmpty) return '';
@@ -220,6 +221,11 @@ class BackgroundAudioController extends GetxController {
     final registered = _registeredText[cleanKey];
     if (registered != null && registered.trim().isNotEmpty) {
       return registered.trim();
+    }
+
+    final catalogText = NarrationCatalog.textFor(cleanKey, languageCode: lang);
+    if (catalogText != null && catalogText.trim().isNotEmpty) {
+      return catalogText.trim();
     }
 
     return '';
@@ -272,8 +278,7 @@ class BackgroundAudioController extends GetxController {
     if (trimmed.isEmpty) return;
 
     if (!isVoiceEnabled.value) {
-      // Still surface the line: the card reads it out in text even when the
-      // baby has been told to keep quiet.
+      debugPrint('🔇 [AudioPlayback] Voice is disabled in settings. Skipping "$trimmed"');
       currentKey.value = trimmed;
       currentText.value = textFor(trimmed);
       return;
@@ -303,6 +308,16 @@ class BackgroundAudioController extends GetxController {
       _playedKeysThisSession.remove(trimmed);
       return;
     }
+
+    debugPrint(
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+      '🔊 [AlloMom Audio Playback]\n'
+      '   📍 Requested Key : "$trimmed"\n'
+      '   🎯 Resolved Key  : "$targetKey" (force: $force, queue: $queue)\n'
+      '   🌐 Language      : "${languageCode.value}"\n'
+      '   📝 Spoken Text   : "${clip.text}"\n'
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    );
 
     currentKey.value = targetKey;
     currentText.value = clip.text;
@@ -376,15 +391,19 @@ class BackgroundAudioController extends GetxController {
     _speakingViaTts = true;
     isPlaying.value = true;
     try {
+      debugPrint('🎙️ [BackgroundAudio -> TtsService] Speaking "$key": URL=$url, Text="$text"');
       await TtsService().speakAndWait(
         text,
         language: languageCode.value,
         audioUrl: url,
         // No words to fall back on: the recording plays or nothing does.
         recordedOnly: text.trim().isEmpty,
+        onFallbackToEnglish: (enText) {
+          currentText.value = enText;
+        },
       );
     } catch (e) {
-      debugPrint('BackgroundAudio: could not voice "$key": $e');
+      debugPrint('⚠️ [BackgroundAudio] Could not voice "$key": $e');
     } finally {
       if (generation == _generation) {
         _speakingViaTts = false;

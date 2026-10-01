@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:allomom/components/baby_hero_banner.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/config/app_theme.dart';
 import 'package:allomom/controllers/auth_controller.dart';
 import 'package:allomom/controllers/connection_controller.dart';
@@ -143,8 +142,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
   // Partner state
   final TextEditingController _partnerNameController = TextEditingController();
   final TextEditingController _partnerPhoneController = TextEditingController();
-  String? _partnerName;
-  String? _partnerPhone;
 
   // Family & Kids state
   bool _hasKids = false;
@@ -464,21 +461,22 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   // ─── STEP 0B: VOICE LANGUAGE ACTIONS ───
   void _handleVoiceLanguageSelected(String code) {
+    final clean = code.trim().toLowerCase();
     setState(() {
-      _selectedVoiceLanguageCode = code;
+      _selectedVoiceLanguageCode = clean;
     });
     if (BackgroundAudioController.isReady) {
-      BackgroundAudioController.to.setLanguage(code);
+      BackgroundAudioController.to.setLanguage(clean);
     }
-    OfflineChatbotController.instance.setLanguage(code);
+    OfflineChatbotController.instance.setLanguage(clean);
     _say(NarrationKeys.onbLangSelected);
   }
 
   Future<void> _handleVoiceLanguageProceed() async {
     if (BackgroundAudioController.isReady) {
-      await BackgroundAudioController.to.setLanguage(_selectedVoiceLanguageCode);
+      BackgroundAudioController.to.setLanguage(_selectedVoiceLanguageCode);
     }
-    await OfflineChatbotController.instance.setLanguage(_selectedVoiceLanguageCode);
+    AppLanguage.saveVoice(_selectedVoiceLanguageCode);
     _goToStep(AuthFlowStep.contact);
   }
 
@@ -829,8 +827,6 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
       return;
     }
 
-    _partnerName = pName;
-    _partnerPhone = pPhone;
     _say(NarrationKeys.pregPartnerSaved);
     _goToAfterPartner();
   }
@@ -1186,12 +1182,15 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   Widget _buildFlow(BuildContext context) {
     final isKeyboardOpen = MediaQuery.of(context).viewInsets.bottom > 0;
-    final String activeLanguageForNarration =
-        _currentStep == AuthFlowStep.language
-            ? 'en'
-            : (_selectedVoiceLanguageCode.isNotEmpty
-                ? _selectedVoiceLanguageCode
-                : 'en');
+    final String targetVoiceLang = _currentStep == AuthFlowStep.language
+        ? 'en'
+        : (_selectedVoiceLanguageCode.isNotEmpty
+            ? _selectedVoiceLanguageCode
+            : 'en');
+    final String activeLanguageForNarration = (targetVoiceLang != 'en' &&
+            !NarrationCatalog.hasRecordedAudio(_narrationKey, targetVoiceLang))
+        ? 'en'
+        : targetVoiceLang;
 
     final String currentText = _baby.line.trim().isNotEmpty
         ? _baby.line.trim()
@@ -1285,27 +1284,19 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: Column(
-                            children: [
-                              Expanded(
-                                child: BabyHeroBanner(
-                                  speechText: currentText,
-                                  bubblePosition: SpeechBubblePosition.topCenter,
-                                  expand: true,
-                                  speakingOverride: isSpeaking,
-                                  onSpeakerTap: () => _say(_narrationKey),
-                                ),
-                              ),
-                              if (isSpeaking) ...[
-                                const SizedBox(height: 8),
-                                StopSpeakingButton(
-                                  onTap: () {
-                                    _stopSpeaking();
-                                    setState(() {});
-                                  },
-                                ),
-                              ],
-                            ],
+                          child: BabyHeroBanner(
+                            speechText: currentText,
+                            bubblePosition: SpeechBubblePosition.topCenter,
+                            expand: true,
+                            speakingOverride: isSpeaking,
+                            onSpeakerTap: () {
+                              if (isSpeaking) {
+                                _stopSpeaking();
+                              } else {
+                                _say(_narrationKey);
+                              }
+                              setState(() {});
+                            },
                           ),
                         ),
                       ),

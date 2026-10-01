@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:intl/intl.dart';
 
 import 'package:allomom/controllers/health_vital_controller.dart';
@@ -37,6 +41,9 @@ class WaterOverviewScreen extends StatefulWidget {
 }
 
 class _WaterOverviewScreenState extends State<WaterOverviewScreen> {
+  static const _waterIntentKey = NarrationKeys.screenWaterTrackingInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   int _selectedTabIndex = 0; // 0: Today, 1: History
   final List<String> _tabs = ['Today', 'History'];
 
@@ -55,7 +62,36 @@ class _WaterOverviewScreenState extends State<WaterOverviewScreen> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _waterIntentKey);
     _loadData();
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -206,59 +242,81 @@ class _WaterOverviewScreenState extends State<WaterOverviewScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
-          ),
-          onPressed: () => Navigator.of(context).maybePop(),
-        ),
-        title: Text(
-          'Water Tracking',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openCustomLogBottomSheet(),
-        backgroundColor: _waterColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(
-          Icons.water_drop_rounded,
-          color: Colors.white,
-          size: 22,
-        ),
-        label: const Text(
-          'Log Water',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
-        ),
-      ),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const VitalBabyBanner(
-              narrationKey: NarrationKeys.pgNutritionWater,
-              margin: EdgeInsets.fromLTRB(20, 10, 20, 6),
-              // Fixed above the list here, so kept short.
-              height: 170,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
             ),
-            // Stats Panel
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              child: _buildStatsPanel(isDarkMode, textColor),
+            onPressed: () => Navigator.of(context).maybePop(),
+          ),
+          title: Text(
+            'Water Tracking',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
             ),
+          ),
+          centerTitle: true,
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () => _openCustomLogBottomSheet(),
+          backgroundColor: _waterColor,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          icon: const Icon(
+            Icons.water_drop_rounded,
+            color: Colors.white,
+            size: 22,
+          ),
+          label: const Text(
+            'Log Water',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          ),
+        ),
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+                child: Column(
+                  children: [
+                    BabyHeroBanner(
+                      speechText: _baby.line.trim().isNotEmpty
+                          ? _baby.line.trim()
+                          : (NarrationCatalog.textFor(_waterIntentKey) ?? ''),
+                      bubblePosition: SpeechBubblePosition.topCenter,
+                      height: 180,
+                      speakingOverride: _baby.isRunning,
+                      onSpeakerTap: () {
+                        if (_baby.isRunning) {
+                          _stopSpeaking();
+                        } else {
+                          _baby.start(intentKey: _waterIntentKey);
+                        }
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              // Stats Panel
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                child: _buildStatsPanel(isDarkMode, textColor),
+              ),
 
             // Tab bar toggle
             Padding(
@@ -284,7 +342,8 @@ class _WaterOverviewScreenState extends State<WaterOverviewScreen> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildStatsPanel(bool isDarkMode, Color textColor) {

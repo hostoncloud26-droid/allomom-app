@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:allomom/controllers/main_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
 
 /// What AlloCry can tell a mother about each kind of cry.
 ///
@@ -48,6 +50,28 @@ class CryType {
     required this.color,
     required this.icon,
   });
+
+  /// The audio intent key for this cry type, resolved for Mom or Dad.
+  String intentKey({bool? isDad}) {
+    final dad = isDad ?? MainController.instance.isDad;
+    final role = dad ? 'dad' : 'mom';
+    return switch (id) {
+      'Hunger Cry' => 'hunger_cry_$role',
+      'Sleepy Cry' => 'sleep_cry_$role',
+      'Burping Cry' => 'burping_cry_$role',
+      'Discomfort Cry' => 'discomfort_cry_$role',
+      'Pain Cry' => 'colic_cry_$role',
+      'Attention Cry' => 'attention_cry_$role',
+      _ => 'hunger_cry_$role',
+    };
+  }
+
+  /// The fallback spoken line for this cry type.
+  String fallbackSpokenLine({bool? isDad}) {
+    final dad = isDad ?? MainController.instance.isDad;
+    final key = intentKey(isDad: dad);
+    return NarrationCatalog.textFor(key) ?? shortDescription;
+  }
 }
 
 class CryDescriptionLine {

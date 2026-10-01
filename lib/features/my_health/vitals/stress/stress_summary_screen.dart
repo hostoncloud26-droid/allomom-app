@@ -1,11 +1,13 @@
-// Ported from AlloConnect
-// lib/features/health_section/vitals/stress/stress_summary_screen.dart
-// (Allomom addition: a "+" action that opens showStressEntrySheet).
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:intl/intl.dart';
 import 'package:allomom/models/vitals_stream_model.dart';
 import 'package:allomom/features/my_health/vitals/common/vitals_empty_state.dart';
@@ -31,6 +33,9 @@ class StressSummaryScreen extends StatefulWidget {
 }
 
 class _StressSummaryScreenState extends State<StressSummaryScreen> {
+  static const _stressIntentKey = NarrationKeys.screenStressAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   int _selectedFilterIndex = 0;
   final List<String> _filters = ['Overview', 'Trend', 'Insights'];
 
@@ -43,7 +48,36 @@ class _StressSummaryScreenState extends State<StressSummaryScreen> {
   @override
   void initState() {
     super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _stressIntentKey);
     _fetchStressHistory();
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
   }
 
   Future<void> _fetchStressHistory() async {
@@ -445,86 +479,108 @@ class _StressSummaryScreenState extends State<StressSummaryScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
-          ),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          'Stress Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: 'Log stress',
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
             icon: Icon(
-              Icons.add_circle_outline_rounded,
-              color: textColor.withValues(alpha: 0.8),
-              size: 24,
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
             ),
-            onPressed: _openEntrySheet,
+            onPressed: () => Navigator.of(context).pop(),
           ),
-          const SizedBox(width: 6),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _fetchStressHistory,
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
+          title: Text(
+            'Stress Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const VitalBabyBanner(),
-                _buildFilterToggle(isDarkMode, textColor),
-                const SizedBox(height: 22),
-                if (_historyError.isNotEmpty)
-                  _buildErrorBanner(isDarkMode, textColor),
-                if (_isLoadingHistory && _history.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 60),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: const Color(0xFF0EA5E9),
-                      ),
-                    ),
-                  )
-                else
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 350),
-                    transitionBuilder:
-                        (Widget child, Animation<double> animation) {
-                          return FadeTransition(
-                            opacity: animation,
-                            child: SlideTransition(
-                              position: Tween<Offset>(
-                                begin: const Offset(0.04, 0),
-                                end: Offset.zero,
-                              ).animate(animation),
-                              child: child,
-                            ),
-                          );
-                        },
-                    child: _buildCurrentView(isDarkMode, textColor),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: 'Log stress',
+              icon: Icon(
+                Icons.add_circle_outline_rounded,
+                color: textColor.withValues(alpha: 0.8),
+                size: 24,
+              ),
+              onPressed: _openEntrySheet,
+            ),
+            const SizedBox(width: 6),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchStressHistory,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BabyHeroBanner(
+                    speechText: _baby.line.trim().isNotEmpty
+                        ? _baby.line.trim()
+                        : (NarrationCatalog.textFor(_stressIntentKey) ?? ''),
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 230,
+                    speakingOverride: _baby.isRunning,
+                    onSpeakerTap: () {
+                      if (_baby.isRunning) {
+                        _stopSpeaking();
+                      } else {
+                        _baby.start(intentKey: _stressIntentKey);
+                      }
+                      setState(() {});
+                    },
                   ),
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 16),
+                  _buildFilterToggle(isDarkMode, textColor),
+                  const SizedBox(height: 22),
+                  if (_historyError.isNotEmpty)
+                    _buildErrorBanner(isDarkMode, textColor),
+                  if (_isLoadingHistory && _history.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 60),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: const Color(0xFF0EA5E9),
+                        ),
+                      ),
+                    )
+                  else
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 350),
+                      transitionBuilder:
+                          (Widget child, Animation<double> animation) {
+                            return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.04, 0),
+                                  end: Offset.zero,
+                                ).animate(animation),
+                                child: child,
+                              ),
+                            );
+                          },
+                      child: _buildCurrentView(isDarkMode, textColor),
+                    ),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
           ),
         ),

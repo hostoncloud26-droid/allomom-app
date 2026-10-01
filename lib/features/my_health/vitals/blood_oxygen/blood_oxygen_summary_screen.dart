@@ -1,7 +1,10 @@
-// Ported from AlloConnect lib/features/health_section/vitals/blood_oxygen/blood_oxygen_summary_screen.dart.
-// Measuring on the AlloWear is the app bar's "Start"; a manual "Add SpO₂" flow sits beside it.
 import 'package:flutter/material.dart';
-import 'package:allomom/features/my_health/vitals/common/vital_baby_banner.dart';
+import 'package:allomom/components/baby_hero_banner.dart';
+import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
+import 'package:allomom/features/background_audio/data/narration_catalog.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
+import 'package:allomom/features/home/allobaby_flow_controller.dart';
+import 'package:allomom/services/tts_service.dart';
 import 'package:allomom/controllers/health_vital_controller.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_add_bottom_sheet.dart';
 import 'package:allomom/features/my_health/vitals/blood_oxygen/blood_oxygen_analysis_bottom_sheet.dart';
@@ -21,11 +24,48 @@ class BloodOxygenSummaryScreen extends StatefulWidget {
 }
 
 class _BloodOxygenSummaryScreenState extends State<BloodOxygenSummaryScreen> {
+  static const _oxygenIntentKey = NarrationKeys.screenBloodOxygenAnalysisInfo;
+  final AlloBabyFlowController _baby = AlloBabyFlowController();
+
   int _selectedFilterIndex = 0; // 0: Daily, 1: Weekly, 2: Monthly
   final List<String> _filters = ['Daily', 'Weekly', 'Monthly'];
   int _refreshTick = 0;
 
   static const Color _oxygenColor = Color(0xFF00E5FF);
+
+  @override
+  void initState() {
+    super.initState();
+    _baby.addListener(_onBabyChanged);
+    _baby.start(intentKey: _oxygenIntentKey);
+  }
+
+  void _stopSpeaking() {
+    _baby.stop();
+    if (BackgroundAudioController.isReady) {
+      BackgroundAudioController.to.stop();
+    }
+    TtsService().stop();
+  }
+
+  void _onBabyChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void deactivate() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _baby.removeListener(_onBabyChanged);
+    _stopSpeaking();
+    _baby.dispose();
+    super.dispose();
+  }
 
   String get _userId {
     final id = widget.userId?.trim() ?? '';
@@ -52,87 +92,109 @@ class _BloodOxygenSummaryScreenState extends State<BloodOxygenSummaryScreen> {
         : const Color(0xFFF8FAFF);
     final textColor = isDarkMode ? Colors.white : const Color(0xFF1A1C1E);
 
-    return Scaffold(
-      backgroundColor: backgroundColor,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _openAddBottomSheet,
-        backgroundColor: _oxygenColor,
-        icon: const Icon(Icons.add_rounded, color: Color(0xFF0A111F)),
-        label: const Text(
-          'Add SpO₂',
-          style: TextStyle(
-            color: Color(0xFF0A111F),
-            fontWeight: FontWeight.bold,
+    return PopScope(
+      onPopInvokedWithResult: (didPop, _) {
+        _baby.removeListener(_onBabyChanged);
+        _stopSpeaking();
+      },
+      child: Scaffold(
+        backgroundColor: backgroundColor,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: _openAddBottomSheet,
+          backgroundColor: _oxygenColor,
+          icon: const Icon(Icons.add_rounded, color: Color(0xFF0A111F)),
+          label: const Text(
+            'Add SpO₂',
+            style: TextStyle(
+              color: Color(0xFF0A111F),
+              fontWeight: FontWeight.bold,
+            ),
           ),
         ),
-      ),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textColor,
-            size: 20,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textColor,
+              size: 20,
+            ),
+            onPressed: () => Navigator.of(context).maybePop(),
           ),
-          onPressed: () => Navigator.of(context).maybePop(),
+          title: Text(
+            'Blood Oxygen Analysis',
+            style: TextStyle(
+              color: textColor,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              tooltip: 'Measure with AlloWear',
+              icon: Icon(Icons.play_circle_outline_rounded, color: textColor),
+              onPressed: () =>
+                  showBloodOxygenMeasureSheet(context, onDone: _refresh),
+            ),
+          ],
         ),
-        title: Text(
-          'Blood Oxygen Analysis',
-          style: TextStyle(
-            color: textColor,
-            fontSize: 20,
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            tooltip: 'Measure with AlloWear',
-            icon: Icon(Icons.play_circle_outline_rounded, color: textColor),
-            onPressed: () =>
-                showBloodOxygenMeasureSheet(context, onDone: _refresh),
-          ),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        color: _oxygenColor,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const VitalBabyBanner(),
-                // Premium Filter Toggle
-                _buildFilterToggle(isDarkMode, textColor),
-                const SizedBox(height: 24),
+        body: RefreshIndicator(
+          onRefresh: _refresh,
+          color: _oxygenColor,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BabyHeroBanner(
+                    speechText: _baby.line.trim().isNotEmpty
+                        ? _baby.line.trim()
+                        : (NarrationCatalog.textFor(_oxygenIntentKey) ?? ''),
+                    bubblePosition: SpeechBubblePosition.topCenter,
+                    height: 230,
+                    speakingOverride: _baby.isRunning,
+                    onSpeakerTap: () {
+                      if (_baby.isRunning) {
+                        _stopSpeaking();
+                      } else {
+                        _baby.start(intentKey: _oxygenIntentKey);
+                      }
+                      setState(() {});
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  // Premium Filter Toggle
+                  _buildFilterToggle(isDarkMode, textColor),
+                  const SizedBox(height: 24),
 
-                // Dynamic View Switcher
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 400),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: SlideTransition(
-                            position: Tween<Offset>(
-                              begin: const Offset(0.05, 0),
-                              end: Offset.zero,
-                            ).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                  child: _buildCurrentView(),
-                ),
+                  // Dynamic View Switcher
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 400),
+                    transitionBuilder:
+                        (Widget child, Animation<double> animation) {
+                          return FadeTransition(
+                            opacity: animation,
+                            child: SlideTransition(
+                              position: Tween<Offset>(
+                                begin: const Offset(0.05, 0),
+                                end: Offset.zero,
+                              ).animate(animation),
+                              child: child,
+                            ),
+                          );
+                        },
+                    child: _buildCurrentView(),
+                  ),
 
-                const SizedBox(height: 100),
-              ],
+                  const SizedBox(height: 100),
+                ],
+              ),
             ),
           ),
         ),

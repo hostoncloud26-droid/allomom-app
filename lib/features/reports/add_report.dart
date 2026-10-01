@@ -13,6 +13,8 @@ import 'package:allomom/services/sq_lite/drift_database.dart';
 import 'package:allomom/services/sq_lite/services/report_db_service.dart';
 import 'package:allomom/services/sq_lite/services/pregnancy_care_db_service.dart';
 import 'package:allomom/services/report_parser/on_device_report_parser.dart';
+import 'package:allomom/components/floating_baby_speech_overlay.dart';
+import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/controllers/main_controller.dart';
 import 'package:allomom/controllers/pregnancy_controller.dart';
 
@@ -297,129 +299,139 @@ class _AddReportState extends State<AddReport> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (widget.checklistId != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: _p.tint(
-                    const Color(0xFFFF3B5C),
-                    const Color(0xFFFFECEF),
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFFFF3B5C).withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'Lab Test Checklist',
-                      style: GoogleFonts.manrope(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFFFF3B5C),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.checklistId != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: _p.tint(
+                        const Color(0xFFFF3B5C),
+                        const Color(0xFFFFECEF),
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFFF3B5C).withValues(alpha: 0.3),
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.checklistName ?? '',
-                      style: GoogleFonts.manrope(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: _ink,
-                      ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'Lab Test Checklist',
+                          style: GoogleFonts.manrope(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFFFF3B5C),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          widget.checklistName ?? '',
+                          style: GoogleFonts.manrope(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: _ink,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Upload / Preview Section
+                if (_selectedFiles.isEmpty)
+                  _buildEmptyUploadCard()
+                else
+                  _buildSelectedFilesSection(),
+
+                // On-Device OCR Analysis Status
+                if (_isAnalyzing) _buildScanningCard(),
+
+                const SizedBox(height: 24),
+
+                // Report Name Selector
+                Text(
+                  'Report Name',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _body,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Upload / Preview Section
-            if (_selectedFiles.isEmpty)
-              _buildEmptyUploadCard()
-            else
-              _buildSelectedFilesSection(),
-
-            // On-Device OCR Analysis Status
-            if (_isAnalyzing) _buildScanningCard(),
-
-            const SizedBox(height: 24),
-
-            // Report Name Selector
-            Text(
-              'Report Name',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: _body,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: _p.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _line, width: 1.2),
-              ),
-              child: TextFormField(
-                controller: reportName,
-                textCapitalization: TextCapitalization.words,
-                style: GoogleFonts.manrope(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: _ink,
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _p.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _line, width: 1.2),
+                  ),
+                  child: TextFormField(
+                    controller: reportName,
+                    textCapitalization: TextCapitalization.words,
+                    style: GoogleFonts.manrope(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: _ink,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter report name',
+                      hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 14),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                  ),
                 ),
-                decoration: InputDecoration(
-                  hintText: 'Enter report name',
-                  hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 14),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
+                const SizedBox(height: 20),
 
-            // Description / Clinical Notes
-            Text(
-              'Description / Clinical Notes',
-              style: GoogleFonts.manrope(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: _body,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              decoration: BoxDecoration(
-                color: _p.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: _line, width: 1.2),
-              ),
-              child: TextFormField(
-                controller: description,
-                maxLines: 4,
-                style: GoogleFonts.manrope(fontSize: 14, color: _ink),
-                decoration: InputDecoration(
-                  hintText:
-                      'Enter clinical observations, lab values, or doctor remarks...',
-                  hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 13),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.all(16),
+                // Description / Clinical Notes
+                Text(
+                  'Description / Clinical Notes',
+                  style: GoogleFonts.manrope(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: _body,
+                  ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: _p.card,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: _line, width: 1.2),
+                  ),
+                  child: TextFormField(
+                    controller: description,
+                    maxLines: 4,
+                    style: GoogleFonts.manrope(fontSize: 14, color: _ink),
+                    decoration: InputDecoration(
+                      hintText:
+                          'Enter clinical observations, lab values, or doctor remarks...',
+                      hintStyle: GoogleFonts.manrope(color: _muted, fontSize: 13),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.all(16),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const FloatingBabySpeechOverlay(
+            intentKey: NarrationKeys.screenAddReportHint,
+            fallbackText:
+                "Upload your prescription or lab test report to keep all your medical records organized, Mommy.",
+            bottom: 12,
+          ),
+        ],
       ),
       bottomNavigationBar: _buildBottomBar(),
     );
