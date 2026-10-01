@@ -67,6 +67,24 @@ class ChatbotApi {
     }, timeout: inferenceTimeout);
   }
 
+  /// Reads [text] aloud in AlloBaby's designed voice.
+  ///
+  /// The server answers with the clip base64-encoded under `item.audio` and
+  /// its type under `item.mime_type`. [langCode] is the picker code the line
+  /// is in; the server maps it to the tag the model reads it with.
+  static Future<APIResponse> synthesizeSpeech({
+    required String text,
+    String? langCode,
+  }) {
+    return ApiBase.post('/chatbot/ai/tts', {
+      'text': text,
+      'lang_code': langCode,
+    }, timeout: speechTimeout);
+  }
+
+  /// How long a line waits on its voice before it is left unspoken.
+  static const Duration speechTimeout = Duration(seconds: 30);
+
   /// How long a turn waits on the model before falling back to the flow's own
   /// wording.
   ///

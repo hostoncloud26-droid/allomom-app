@@ -1349,8 +1349,14 @@ class OfflineChatbotController extends GetxController {
       'Chatbot: Speaking reply: "$text"${clip == null ? '' : ' (clip $clip)'}',
     );
     // Returns when the line has actually been said, not when it started being
-    // said, so the caller can hold the flow until then.
-    await _tts.speakAndWait(text, audioUrl: clip, recordedOnly: recordedOnly);
+    // said, so the caller can hold the flow until then. Only the baby's
+    // designed voice reads it: if that fails, the line goes unspoken.
+    await _tts.speakAndWait(
+      text,
+      audioUrl: clip,
+      recordedOnly: recordedOnly,
+      designedVoiceOnly: true,
+    );
     return true;
   }
 

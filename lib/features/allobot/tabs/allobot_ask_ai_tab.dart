@@ -32,7 +32,6 @@ import 'package:allomom/features/offline_chatbot/widgets/offline_chat_widgets.da
 import 'package:allomom/features/background_audio/controller/background_audio_controller.dart';
 import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
-import 'package:allomom/components/stop_speaking_button.dart';
 import 'package:allomom/services/screen_voice_hint_service.dart';
 import 'package:allomom/services/tts_service.dart';
 
@@ -630,12 +629,6 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
                   reply: hasInteracted ? spoken : null,
                   intro: _headlineMessage(spoken),
                 ),
-                if (controller.isSpeaking.value) ...[
-                  const SizedBox(height: 12),
-                  StopSpeakingButton(
-                    onTap: _stopSpeaking,
-                  ),
-                ],
               ],
             ),
           ),
@@ -712,7 +705,7 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
 
   /// Before her first question: "Hello! I am AlloBaby" over the intro card.
   /// Afterwards the line being read out takes the heading's place, in the
-  /// same gradient — no card.
+  /// same gradient, inside the card Home puts her line in.
   Widget _buildHeroText({
     required bool isTyping,
     required String? reply,
@@ -720,18 +713,23 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
   }) {
     final Widget content;
     if (isTyping) {
-      content = GradientText(
+      content = _buildResponseCard(
         key: const ValueKey('typing'),
-        text: 'Thinking…',
-        gradient: alloBotHeroGradient,
-        style: GoogleFonts.outfit(
-          fontSize: 24,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.3,
+        child: GradientText(
+          text: 'Thinking…',
+          gradient: alloBotHeroGradient,
+          style: GoogleFonts.outfit(
+            fontSize: 24,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.3,
+          ),
         ),
       );
     } else if (reply != null && reply.trim().isNotEmpty) {
-      content = AlloBotHeroLine(key: ValueKey(reply), text: reply);
+      content = _buildResponseCard(
+        key: ValueKey(reply),
+        child: AlloBotHeroLine(text: reply),
+      );
     } else {
       content = Column(
         key: const ValueKey('intro'),
@@ -759,6 +757,28 @@ class AlloBotAskAiTabState extends State<AlloBotAskAiTab> {
         duration: const Duration(milliseconds: 250),
         child: content,
       ),
+    );
+  }
+
+  /// The card around her reply — the same one Home puts her line in.
+  Widget _buildResponseCard({required Key key, required Widget child}) {
+    return Container(
+      key: key,
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: _p.isDark ? _p.card : Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: _p.divider, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: _p.isDark ? 0.2 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Center(child: child),
     );
   }
 

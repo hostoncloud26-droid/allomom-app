@@ -1,10 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:path_provider/path_provider.dart';
 
+import 'package:allomom/api/chatbot_api.dart';
 import 'package:allomom/services/app_language.dart';
 import 'package:allomom/services/omnivoice_service.dart';
 import 'package:allomom/services/online_tts_settings.dart';
@@ -200,12 +204,18 @@ class TtsService {
   /// at all: a line without a clip stays silent. For the replies that arrive
   /// without the mother having asked for them — the flow the page opens on.
   /// A line that does name a clip is still read aloud if the clip fails.
+  ///
+  /// [designedVoiceOnly] replaces 2 and 3 with AlloBaby's designed voice from
+  /// the server's `/chatbot/ai/tts`. Nothing else stands in for it: when that
+  /// voice cannot be had, the line is left unspoken rather than read by a
+  /// voice that does not sound like the baby.
   Future<void> speak(
     String text, {
     VoidCallback? onComplete,
     String? language,
     String? audioUrl,
     bool recordedOnly = false,
+    bool designedVoiceOnly = false,
   }) async {
     await _speak(
       text,
@@ -213,6 +223,7 @@ class TtsService {
       language: language,
       audioUrl: audioUrl,
       recordedOnly: recordedOnly,
+      designedVoiceOnly: designedVoiceOnly,
     );
   }
 
@@ -233,6 +244,7 @@ class TtsService {
     String? language,
     String? audioUrl,
     bool recordedOnly = false,
+    bool designedVoiceOnly = false,
   }) async {
     final Completer<void> gate;
     try {
@@ -242,6 +254,7 @@ class TtsService {
         language: language,
         audioUrl: audioUrl,
         recordedOnly: recordedOnly,
+        designedVoiceOnly: designedVoiceOnly,
       );
     } catch (e) {
       // Nothing is sounding, so there is nothing to wait for.
@@ -277,6 +290,7 @@ class TtsService {
     String? language,
     String? audioUrl,
     bool recordedOnly = false,
+    bool designedVoiceOnly = false,
   }) async {
     // stop() bumps _speakGeneration, so the token for this call has to be
     // taken *after* it. Taking it first made every later `generation ==
@@ -318,15 +332,39 @@ class TtsService {
     // instead, so a slow or missing clip never holds the conversation up.
     // That holds for [recordedOnly] too: the line was meant to be heard.
     if (recordedUrl.isNotEmpty) {
-      final started = await _playNetworkAudio(
-        recordedUrl,
+      final started = await _playAudio(
+        UrlSource(recordedUrl),
         generation,
         done,
         startTimeout: recordedClipTimeout,
+        deviceFallback: !designedVoiceOnly,
       );
       if (started) return gate;
       if (generation != _speakGeneration) return gate;
       debugPrint('Intent audio unplayable, falling back to TTS: $recordedUrl');
+    }
+
+    if (designedVoiceOnly) {
+      if (cleanText.isNotEmpty) {
+        final clip = await _synthesiseDesignedVoice(cleanText, language);
+        if (generation != _speakGeneration) return gate;
+        if (clip != null) {
+          final started = await _playAudio(
+            DeviceFileSource(clip, mimeType: 'audio/wav'),
+            generation,
+            done,
+            deviceFallback: false,
+          );
+          if (started) return gate;
+          if (generation != _speakGeneration) return gate;
+        }
+      }
+      debugPrint('TtsService: designed voice unavailable — line left unspoken');
+      isGeneratingNotifier.value = false;
+      isSpeakingNotifier.value = false;
+      currentSpeakingText.value = null;
+      done();
+      return gate;
     }
 
     // 2. The online voice, only when it has been switched on and pointed
@@ -337,7 +375,7 @@ class TtsService {
       if (generation != _speakGeneration) return gate;
 
       if (online != null && online.isNotEmpty) {
-        final started = await _playNetworkAudio(online, generation, done);
+        final started = await _playAudio(UrlSource(online), generation, done);
         if (started) return gate;
         if (generation != _speakGeneration) return gate;
       }
@@ -385,7 +423,36 @@ class TtsService {
     }
   }
 
-  /// Streams the synthesised clip, returning whether playback actually began.
+  /// Fetches [cleanText] in AlloBaby's designed voice and saves it to a file
+  /// the player can open, or returns null when the server could not voice it.
+  ///
+  /// A file rather than [BytesSource], which iOS does not support.
+  Future<String?> _synthesiseDesignedVoice(
+    String cleanText,
+    String? language,
+  ) async {
+    try {
+      final res = await ChatbotApi.synthesizeSpeech(
+        text: cleanText,
+        langCode: language,
+      );
+      final item = res.item;
+      final audio = item is Map ? item['audio'] : null;
+      if (!res.success || audio is! String || audio.isEmpty) {
+        debugPrint('Designed voice TTS failed: ${res.detail}');
+        return null;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File('${dir.path}/allobot_tts.wav');
+      await file.writeAsBytes(base64Decode(audio), flush: true);
+      return file.path;
+    } catch (e) {
+      debugPrint('Designed voice TTS failed: $e');
+      return null;
+    }
+  }
+
+  /// Plays [source], returning whether playback actually began.
   ///
   /// `setSourceUrl` + `resume` rather than `play` so a prepare failure (404,
   /// unreachable host, unsupported codec) throws here and the caller can fall
@@ -394,11 +461,15 @@ class TtsService {
   /// [startTimeout] is how long the clip has, from this call, to be heard:
   /// loading it past that throws here, and a clip loaded but still not
   /// playing by then is handed to the device voice.
-  Future<bool> _playNetworkAudio(
-    String audioUrl,
+  ///
+  /// [deviceFallback] off, a clip that stalls ends the line in silence instead
+  /// of handing it to the phone's voice.
+  Future<bool> _playAudio(
+    Source source,
     int generation,
     VoidCallback? onComplete, {
     Duration startTimeout = const Duration(seconds: 5),
+    bool deviceFallback = true,
   }) async {
     final started = Stopwatch()..start();
     try {
@@ -417,7 +488,7 @@ class TtsService {
         debugPrint('AudioPlayer state: $state');
       });
 
-      debugPrint('TtsService streaming audio URL: $audioUrl');
+      debugPrint('TtsService playing audio: $source');
 
       // release(), not stop(): handed the URL it already holds, the Android
       // player skips preparing and reports it ready at once — even when the
@@ -427,7 +498,7 @@ class TtsService {
       await _audioPlayer.setReleaseMode(ReleaseMode.stop);
       await _audioPlayer.setAudioContext(_speechAudioContext);
       await _audioPlayer.setVolume(1.0);
-      final load = _audioPlayer.setSourceUrl(audioUrl);
+      final load = _audioPlayer.setSource(source);
       // Past the timeout nobody awaits the load any more, but it still fails
       // eventually (a 404 takes the player ~30s to give up on); that late
       // error must not surface as an unhandled exception.
@@ -470,7 +541,8 @@ class TtsService {
           if (generation != _speakGeneration || !_isPlayingAudioPlayer) return;
           debugPrint(
             'Clip not sounding after ${started.elapsed.inMilliseconds}ms '
-            '($state, position $position), using device TTS',
+            '($state, position $position)'
+            '${deviceFallback ? ', using device TTS' : ''}',
           );
           _isPlayingAudioPlayer = false;
           // The abandoned clip may still "complete" once it gives up; that
@@ -482,6 +554,11 @@ class TtsService {
           } catch (_) {}
           if (generation != _speakGeneration) return;
           isSpeakingNotifier.value = false;
+          if (!deviceFallback) {
+            currentSpeakingText.value = null;
+            onComplete?.call();
+            return;
+          }
           await _speakWithDeviceTts(
             cleanForSpeech(currentSpeakingText.value ?? ''),
             generation,

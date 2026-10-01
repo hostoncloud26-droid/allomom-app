@@ -96,13 +96,6 @@ dependencies:
   fluttertoast: ^9.0.0
   health: ^13.3.1
   geolocator: ^13.0.2
-  # Talk2Baby's Gemini Live call (AlloBaby's Talk to Your Baby page).
-  audio_visualizer: ^1.1.0
-  flutter_pcm_sound: ^3.3.3
-  flutter_voice_engine: ^0.0.1
-  wakelock_plus: ^1.4.0
-  auto_size_text: ^3.0.0
-  image: ^4.8.0
 
 dev_dependencies:
   flutter_test:
