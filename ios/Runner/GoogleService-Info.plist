@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>478575784185-9c2e7ve7bi04qb42rmrbiaddb5i2j273.apps.googleusercontent.com</string>
+	<string>478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.478575784185-9c2e7ve7bi04qb42rmrbiaddb5i2j273</string>
+	<string>com.googleusercontent.apps.478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019</string>
 	<key>ANDROID_CLIENT_ID</key>
 	<string>478575784185-6l5h71n82m6vbosstrtf04j2qbqe5490.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.savemom.nurseapp</string>
+	<string>in.savemom.allomom</string>
 	<key>PROJECT_ID</key>
 	<string>savemomapps</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,7 +31,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:478575784185:ios:8f03e91e9c1ff9877d3228</string>
+	<string>1:478575784185:ios:0d2d62f00b172ca87d3228</string>
 	<key>DATABASE_URL</key>
 	<string>https://savemomapps-default-rtdb.asia-southeast1.firebasedatabase.app</string>
 </dict>

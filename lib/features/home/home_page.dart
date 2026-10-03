@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:allomom/allowear/allowear_images.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/allowear/allowear_home.dart';
@@ -1450,7 +1451,7 @@ class _HomePageState extends State<HomePage> {
           image: QuickActionImages.dad,
           page: const MyHealthPage(),
         ),
-        alloWear,
+        if (Platform.isAndroid) alloWear,
       ]);
     }
 
@@ -1467,7 +1468,7 @@ class _HomePageState extends State<HomePage> {
         image: 'assets/Quick Actions/Health.png',
         page: const MyHealthPage(),
       ),
-      alloWear,
+      if (Platform.isAndroid) alloWear,
       journey,
       _quickAction(
         id: 'allocry',
