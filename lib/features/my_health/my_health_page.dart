@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:allomom/config/app_theme.dart';
@@ -18,6 +20,7 @@ import 'package:allomom/features/my_health/widgets/advanced_health_summary_card.
 import 'package:allomom/features/my_health/widgets/step_target_tile.dart';
 import 'package:allomom/features/my_health/widgets/fitness_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/calories_tracker_tile.dart';
+import 'package:allomom/features/my_health/widgets/connect_health_tile.dart';
 import 'package:allomom/features/my_health/widgets/nutrition_tiles.dart';
 import 'package:allomom/features/my_health/widgets/fitness_tiles.dart';
 import 'package:allomom/features/my_health/tiles/step_tile.dart';
@@ -61,6 +64,12 @@ class _MyHealthPageState extends State<MyHealthPage> {
   /// her name instead.
   bool _healthCollapsed = false;
   late final PageController _pageController;
+
+  /// The Health tab's state, so the iOS centre button can run its refresh.
+  final GlobalKey<_MyHealthSectionState> _healthSectionKey = GlobalKey();
+
+  /// The iOS centre button's refresh is running.
+  bool _refreshing = false;
 
   // Accent colours stay fixed; surfaces and neutral text follow light / dark.
   AppPalette get _p => context.palette;
@@ -160,8 +169,12 @@ class _MyHealthPageState extends State<MyHealthPage> {
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      // His band syncs to his own record, so it is not offered on his wife's.
-      floatingActionButton: MainController.instance.isViewingMember
+      // AlloWear is Android-only, so on iOS the centre button refreshes the
+      // Health tab instead. His band syncs to his own record, so it is not
+      // offered on his wife's.
+      floatingActionButton: Platform.isIOS
+          ? _buildRefreshFab()
+          : MainController.instance.isViewingMember
           ? null
           : FloatingActionButton(
         heroTag: 'my_health_allowear_fab',
@@ -214,6 +227,7 @@ class _MyHealthPageState extends State<MyHealthPage> {
           // Tab 0: Health Section — owns its own scroll view, pull-to-refresh
           // and collapsing profile header.
           MyHealthSection(
+            key: _healthSectionKey,
             onOpenProfile: () => _goToTab(3),
             onCollapsedChanged: (collapsed) {
               if (collapsed != _healthCollapsed) {
@@ -233,6 +247,41 @@ class _MyHealthPageState extends State<MyHealthPage> {
         ],
       ),
     );
+  }
+
+  Widget _buildRefreshFab() {
+    return FloatingActionButton(
+      heroTag: 'my_health_refresh_fab',
+      onPressed: _refreshing ? null : _refreshHealth,
+      backgroundColor: const Color(0xFFFF3B5C),
+      elevation: 6,
+      shape: const CircleBorder(),
+      child: _refreshing
+          ? const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                color: Colors.white,
+              ),
+            )
+          : const Icon(Icons.refresh_rounded, color: Colors.white, size: 30),
+    );
+  }
+
+  /// Brings the Health tab up and runs its pull-to-refresh.
+  Future<void> _refreshHealth() async {
+    _goToTab(0);
+    setState(() => _refreshing = true);
+    try {
+      // Coming from another tab, the Health page builds on the next frame.
+      if (_healthSectionKey.currentState == null) {
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      await _healthSectionKey.currentState?._refresh();
+    } finally {
+      if (mounted) setState(() => _refreshing = false);
+    }
   }
 
   void _goToTab(int index) {
@@ -349,6 +398,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     _vitals.addListener(_onVitalsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _vitals.fetchLatestVitals();
+      if (!MainController.instance.isViewingMember) {
+        PhoneHealthLink.syncIfConnected();
+      }
     });
     _loadDayVitals();
   }
@@ -490,6 +542,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     if (!MainController.instance.isViewingMember &&
         allowear.connectedDevice.value != null) {
       await allowear.startSync();
+    }
+    // Without a band, steps come from Apple Health / Health Connect once
+    // she has linked it.
+    if (!MainController.instance.isViewingMember) {
+      await PhoneHealthLink.syncIfConnected();
     }
     await _vitals.syncAllVitals();
     await _loadDayVitals();
@@ -715,6 +772,12 @@ class _MyHealthSectionState extends State<MyHealthSection> {
         : (_dayVitals['glucose'] ?? _dayVitals['blood_glucose']);
 
     final tiles = <Widget>[
+      // No band paired: offer the phone's health store as the step source.
+      // Only for today, and not on a family member's record.
+      if (today &&
+          !MainController.instance.isViewingMember &&
+          PhoneHealthLink.isAvailable)
+        ConnectHealthTile(onSynced: onLogged),
       StepTile(
         vital: _vitalFor('steps', c.stepsVital),
         steps: today ? c.stepsValue : null,

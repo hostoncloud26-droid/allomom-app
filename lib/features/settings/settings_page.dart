@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:allomom/config/app_theme.dart';
@@ -9,6 +11,7 @@ import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/settings/app_info_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
+import 'package:allomom/features/settings/help_support_page.dart';
 import 'package:allomom/features/settings/hospital/my_hospitals_page.dart';
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
@@ -21,6 +24,8 @@ import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -31,6 +36,17 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
+  String? _versionLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(() => _versionLabel = 'Version ${info.version}');
+      }
+    });
+  }
 
   // AlloMom Theme Color Palette from config/colors.dart
   static const Color _accentPrimary = primaryColor;
@@ -61,198 +77,210 @@ class _SettingsPageState extends State<SettingsPage> {
 
                 return SingleChildScrollView(
                   physics: const BouncingScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  // ─── PROFILE HEADER (FLAT, NO CARD WRAPPER) ───
-                  _buildProfileHeader(
-                    context,
-                    session,
-                    isPregnant,
-                    gestationalWeek,
-                    trimester,
-                  ),
-                  const SizedBox(height: 12),
-
-                  // ─── SUBTLE SECTION DIVIDER ───
-                  Divider(height: 1, thickness: 1, color: _dividerTheme),
-                  const SizedBox(height: 6),
-
-                  // ─── FLAT SETTINGS LIST ───
-                  // 1. Edit Profile
-                  _buildListTile(
-                    icon: Icons.edit_outlined,
-                    title: 'Edit Profile',
-                    subtitle: 'Personal info, address & pregnancy details',
-                    onTap: () {
-                      speak(NarrationKeys.pgSettingsProfile);
-                      Navigator.push(
+                      // ─── PROFILE HEADER (FLAT, NO CARD WRAPPER) ───
+                      _buildProfileHeader(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const EditProfilePage(),
-                        ),
-                      );
-                    },
-                  ),
-                  _buildItemDivider(),
-                  _buildListTile(
-                    icon: Icons.local_hospital_outlined,
-                    title: 'My Hospital',
-                    subtitle: 'Add, leave or remove your hospital',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const MyHospitalsPage(),
+                        session,
+                        isPregnant,
+                        gestationalWeek,
+                        trimester,
                       ),
-                    ),
+                      const SizedBox(height: 12),
+
+                      // ─── SUBTLE SECTION DIVIDER ───
+                      Divider(height: 1, thickness: 1, color: _dividerTheme),
+                      const SizedBox(height: 6),
+
+                      // ─── FLAT SETTINGS LIST ───
+                      // 1. Edit Profile
+                      _buildListTile(
+                        icon: Icons.edit_outlined,
+                        title: 'Edit Profile',
+                        subtitle: 'Personal info, address & pregnancy details',
+                        onTap: () {
+                          speak(NarrationKeys.pgSettingsProfile);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const EditProfilePage(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildItemDivider(),
+                      _buildListTile(
+                        icon: Icons.local_hospital_outlined,
+                        title: 'My Hospital',
+                        subtitle: 'Add, leave or remove your hospital',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const MyHospitalsPage(),
+                          ),
+                        ),
+                      ),
+                      _buildItemDivider(),
+
+                      // AlloWear — pair, sync and manage the band.
+                      if (!Platform.isIOS)
+                        Obx(() {
+                          final device = allowear.connectedDevice.value;
+                          final saved = allowear.savedDevice.value;
+                          return _buildListTile(
+                            icon: Icons.watch_rounded,
+                            title: 'AlloWear',
+                            subtitle: device != null
+                                ? 'Connected · ${device.name}'
+                                : saved != null
+                                ? 'Looking for ${saved.name}…'
+                                : 'Pair your bracelet, Fit or NX watch',
+                            onTap: () {
+                              speak(NarrationKeys.pgSettingsBand);
+                              Get.to(() => const AllowearHome());
+                            },
+                          );
+                        }),
+                      _buildItemDivider(),
+
+                      // 5. Language
+                      _buildListTile(
+                        icon: Icons.translate_rounded,
+                        title: 'Language',
+                        subtitle: 'English',
+                        onTap: () {
+                          speak(NarrationKeys.pgSettingsLanguage);
+                          _showLanguagePickerModal(context);
+                        },
+                      ),
+                      _buildItemDivider(),
+
+                      // 5b. Theme — light, dark, or follow the phone.
+                      Obx(() {
+                        final theme = ThemeController.instance;
+                        return _buildListTile(
+                          icon: theme.themeModeIcon,
+                          title: 'Theme',
+                          subtitle: '${theme.themeModeLabel} mode',
+                          onTap: () => _showThemePickerModal(context),
+                        );
+                      }),
+                      _buildItemDivider(),
+
+                      // 6. Notifications (Switch Toggle)
+                      _buildSwitchTile(
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Notifications',
+                        subtitle: _notificationsEnabled
+                            ? 'Enabled · Real-time alerts & tips'
+                            : 'Disabled',
+                        isSubtitleAccent: _notificationsEnabled,
+                        value: _notificationsEnabled,
+                        onChanged: (val) {
+                          setState(() => _notificationsEnabled = val);
+                        },
+                      ),
+                      _buildItemDivider(),
+
+                      // 6b. Baby's voice (Switch Toggle)
+                      //
+                      // The one control over the background audio: off means the
+                      // baby stops speaking everywhere, and the speech bubbles keep
+                      // showing her lines in text. Persisted, so it stays off.
+                      if (BackgroundAudioController.isReady) ...[
+                        Obx(() {
+                          final enabled =
+                              BackgroundAudioController.to.isVoiceEnabled.value;
+                          return _buildSwitchTile(
+                            icon: Icons.record_voice_over_outlined,
+                            title: "Baby's voice",
+                            subtitle: enabled
+                                ? 'On · I read every screen out to you'
+                                : 'Off · You will still see what I say',
+                            isSubtitleAccent: enabled,
+                            value: enabled,
+                            onChanged:
+                                BackgroundAudioController.to.setVoiceEnabled,
+                          );
+                        }),
+                        _buildItemDivider(),
+                      ],
+
+                      // 7. Reminders
+                      _buildListTile(
+                        icon: Icons.alarm_rounded,
+                        title: 'Reminders',
+                        subtitle: 'Medicine & nutrition alerts',
+                        onTap: () => _showRemindersModal(context),
+                      ),
+                      _buildItemDivider(),
+
+                      // 9. Help & Support
+                      _buildListTile(
+                        icon: Icons.help_outline_rounded,
+                        title: 'Help & Support',
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HelpSupportPage(),
+                          ),
+                        ),
+                      ),
+                      _buildItemDivider(),
+
+                      // 10. Terms & Privacy Policy
+                      _buildListTile(
+                        icon: Icons.description_outlined,
+                        title: 'Terms & Privacy Policy',
+                        onTap: _openTermsAndPrivacy,
+                      ),
+                      _buildItemDivider(),
+
+                      // 11. App Info
+                      _buildListTile(
+                        icon: Icons.info_outline_rounded,
+                        title: 'App Info',
+                        // subtitle: _versionLabel,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const AppInfoPage(),
+                          ),
+                        ),
+                      ),
+
+                      _buildItemDivider(),
+
+                      // 13. Log out
+                      _buildListTile(
+                        icon: Icons.logout_rounded,
+                        title: 'Log out',
+                        isLogout: true,
+                        onTap: () => _showLogoutConfirmation(context),
+                      ),
+
+                      const SizedBox(height: 100),
+                    ],
                   ),
-                  _buildItemDivider(),
-
-                  // AlloWear — pair, sync and manage the band.
-                  Obx(() {
-                    final device = allowear.connectedDevice.value;
-                    final saved = allowear.savedDevice.value;
-                    return _buildListTile(
-                      icon: Icons.watch_rounded,
-                      title: 'AlloWear',
-                      subtitle: device != null
-                          ? 'Connected · ${device.name}'
-                          : saved != null
-                          ? 'Looking for ${saved.name}…'
-                          : 'Pair your bracelet, Fit or NX watch',
-                      onTap: () {
-                        speak(NarrationKeys.pgSettingsBand);
-                        Get.to(() => const AllowearHome());
-                      },
-                    );
-                  }),
-                  _buildItemDivider(),
-
-                  // 5. Language
-                  _buildListTile(
-                    icon: Icons.translate_rounded,
-                    title: 'Language',
-                    subtitle: 'English',
-                    onTap: () {
-                      speak(NarrationKeys.pgSettingsLanguage);
-                      _showLanguagePickerModal(context);
-                    },
-                  ),
-                  _buildItemDivider(),
-
-                  // 5b. Theme — light, dark, or follow the phone.
-                  Obx(() {
-                    final theme = ThemeController.instance;
-                    return _buildListTile(
-                      icon: theme.themeModeIcon,
-                      title: 'Theme',
-                      subtitle: '${theme.themeModeLabel} mode',
-                      onTap: () => _showThemePickerModal(context),
-                    );
-                  }),
-                  _buildItemDivider(),
-
-                  // 6. Notifications (Switch Toggle)
-                  _buildSwitchTile(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifications',
-                    subtitle: _notificationsEnabled
-                        ? 'Enabled · Real-time alerts & tips'
-                        : 'Disabled',
-                    isSubtitleAccent: _notificationsEnabled,
-                    value: _notificationsEnabled,
-                    onChanged: (val) {
-                      setState(() => _notificationsEnabled = val);
-                    },
-                  ),
-                  _buildItemDivider(),
-
-                  // 6b. Baby's voice (Switch Toggle)
-                  //
-                  // The one control over the background audio: off means the
-                  // baby stops speaking everywhere, and the speech bubbles keep
-                  // showing her lines in text. Persisted, so it stays off.
-                  if (BackgroundAudioController.isReady) ...[
-                    Obx(() {
-                      final enabled =
-                          BackgroundAudioController.to.isVoiceEnabled.value;
-                      return _buildSwitchTile(
-                        icon: Icons.record_voice_over_outlined,
-                        title: "Baby's voice",
-                        subtitle: enabled
-                            ? 'On · I read every screen out to you'
-                            : 'Off · You will still see what I say',
-                        isSubtitleAccent: enabled,
-                        value: enabled,
-                        onChanged: BackgroundAudioController.to.setVoiceEnabled,
-                      );
-                    }),
-                    _buildItemDivider(),
-                  ],
-
-                  // 7. Reminders
-                  _buildListTile(
-                    icon: Icons.alarm_rounded,
-                    title: 'Reminders',
-                    subtitle: 'Medicine & nutrition alerts',
-                    onTap: () => _showRemindersModal(context),
-                  ),
-                  _buildItemDivider(),
-
-                  // 9. Help & Support
-                  _buildListTile(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Help & Support',
-                    onTap: () => _showHelpModal(context),
-                  ),
-                  _buildItemDivider(),
-
-                  // 10. Terms & Privacy Policy
-                  _buildListTile(
-                    icon: Icons.description_outlined,
-                    title: 'Terms & Privacy Policy',
-                    onTap: () => _showPrivacyPolicyModal(context),
-                  ),
-                  _buildItemDivider(),
-
-                  // 11. App Info
-                  _buildListTile(
-                    icon: Icons.info_outline_rounded,
-                    title: 'App Info',
-                    subtitle: 'Version 1.0.4 (Build 2026)',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AppInfoPage()),
-                    ),
-                  ),
-
-                  _buildItemDivider(),
-
-                  // 13. Log out
-                  _buildListTile(
-                    icon: Icons.logout_rounded,
-                    title: 'Log out',
-                    isLogout: true,
-                    onTap: () => _showLogoutConfirmation(context),
-                  ),
-
-                  const SizedBox(height: 100),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+            const FloatingBabySpeechOverlay(
+              intentKey: NarrationKeys.screenSettingsInfo,
+              fallbackText: 'Manage your app settings and preferences here!',
+              bottom: 4,
+            ),
+          ],
         ),
-        const FloatingBabySpeechOverlay(
-          intentKey: NarrationKeys.screenSettingsInfo,
-          fallbackText: 'Manage your app settings and preferences here!',
-          bottom: 4,
-        ),
-      ],
-    ),
-  ),
-);
-}
+      ),
+    );
+  }
 
   // ─── PROFILE HEADER (FLAT / NO CARD WRAPPER) ───
   Widget _buildProfileHeader(
@@ -749,38 +777,14 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showPrivacyPolicyModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _cardTheme,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Privacy & Terms',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _textDark,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Your maternal vitals and medical data are end-to-end encrypted and safeguarded with strict clinical standards.',
-              style: TextStyle(fontSize: 13, color: _textSecondary),
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
+  Future<void> _openTermsAndPrivacy() async {
+    final uri = Uri.parse('https://savemom.in/terms');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Terms & Privacy Policy')),
+      );
+    }
   }
 
   void _showLogoutConfirmation(BuildContext context) {
