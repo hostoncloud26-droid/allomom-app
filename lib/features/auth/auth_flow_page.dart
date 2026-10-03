@@ -1,5 +1,6 @@
 // ignore_for_file: unused_import, unused_local_variable
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -653,6 +654,8 @@ class _AuthFlowPageState extends State<AuthFlowPage> {
 
   // ─── STEP 4: NAME ACTIONS ───
   Future<void> _prefillFromGoogle() async {
+    // Google sign-in is not offered on iOS; the user types their name instead.
+    if (defaultTargetPlatform == TargetPlatform.iOS) return;
     final GoogleSignInAccount? account;
     try {
       account = await GoogleAuthService.signIn();
