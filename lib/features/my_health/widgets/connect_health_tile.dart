@@ -75,7 +75,7 @@ class _ConnectHealthTileState extends State<ConnectHealthTile> {
       messenger.showSnackBar(
         SnackBar(
           content: Text(
-            'Could not read steps. Allow step access for Savemom in '
+            'Could not read steps. Allow step access for AlloMoM in '
             '${PhoneHealthLink.storeName}.',
           ),
         ),

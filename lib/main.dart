@@ -157,7 +157,7 @@ class AllomomApp extends StatelessWidget {
                 AlloBabyFlowController.observer,
                 Talk2BabyHomeBridge.observer,
               ],
-              title: 'Allomom',
+              title: 'AlloMoM',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light,
               darkTheme: AppTheme.dark,

@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Allomom</string>
+	<string>AlloMoM</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -40,29 +40,29 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>Savemom uses Bluetooth to connect to your AlloWear device and sync your vitals.</string>
+	<string>AlloMoM uses Bluetooth to connect to your AlloWear device and sync your vitals.</string>
 	<key>NSBluetoothPeripheralUsageDescription</key>
-	<string>Savemom uses Bluetooth to connect to your AlloWear health device.</string>
+	<string>AlloMoM uses Bluetooth to connect to your AlloWear health device.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Savemom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
+	<string>AlloMoM uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Savemom reads your step count from Health to show your daily activity.</string>
+	<string>AlloMoM reads your step count from Health to show your daily activity.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>Savemom does not write data to Health; this is declared because the Health integration requires it.</string>
+	<string>AlloMoM does not write data to Health; this is declared because the Health integration requires it.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Savemom uses your location to discover nearby AlloWear devices over Bluetooth and provide relevant health services.</string>
+	<string>AlloMoM uses your location to discover nearby AlloWear devices over Bluetooth and provide relevant health services.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Savemom uses your location to discover nearby AlloWear devices over Bluetooth.</string>
+	<string>AlloMoM uses your location to discover nearby AlloWear devices over Bluetooth.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Savemom uses your location to discover nearby AlloWear devices over Bluetooth.</string>
+	<string>AlloMoM uses your location to discover nearby AlloWear devices over Bluetooth.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Savemom uses the microphone to listen to your voice questions and commands.</string>
+	<string>AlloMoM uses the microphone to listen to your voice questions and commands.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Savemom saves photos taken with your AlloWear bracelet to your photo library.</string>
+	<string>AlloMoM saves photos taken with your AlloWear bracelet to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Savemom needs access to your photo library to select photos, documents, and upload medical reports.</string>
+	<string>AlloMoM needs access to your photo library to select photos, documents, and upload medical reports.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Savemom uses speech recognition to understand what you say and assist you during your pregnancy.</string>
+	<string>AlloMoM uses speech recognition to understand what you say and assist you during your pregnancy.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
