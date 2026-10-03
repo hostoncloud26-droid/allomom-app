@@ -20,6 +20,7 @@ import 'package:allomom/features/my_health/widgets/advanced_health_summary_card.
 import 'package:allomom/features/my_health/widgets/step_target_tile.dart';
 import 'package:allomom/features/my_health/widgets/fitness_summary_card.dart';
 import 'package:allomom/features/my_health/widgets/calories_tracker_tile.dart';
+import 'package:allomom/features/my_health/widgets/connect_health_tile.dart';
 import 'package:allomom/features/my_health/widgets/nutrition_tiles.dart';
 import 'package:allomom/features/my_health/widgets/fitness_tiles.dart';
 import 'package:allomom/features/my_health/tiles/step_tile.dart';
@@ -397,6 +398,9 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     _vitals.addListener(_onVitalsChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _vitals.fetchLatestVitals();
+      if (!MainController.instance.isViewingMember) {
+        PhoneHealthLink.syncIfConnected();
+      }
     });
     _loadDayVitals();
   }
@@ -538,6 +542,11 @@ class _MyHealthSectionState extends State<MyHealthSection> {
     if (!MainController.instance.isViewingMember &&
         allowear.connectedDevice.value != null) {
       await allowear.startSync();
+    }
+    // Without a band, steps come from Apple Health / Health Connect once
+    // she has linked it.
+    if (!MainController.instance.isViewingMember) {
+      await PhoneHealthLink.syncIfConnected();
     }
     await _vitals.syncAllVitals();
     await _loadDayVitals();
@@ -763,6 +772,12 @@ class _MyHealthSectionState extends State<MyHealthSection> {
         : (_dayVitals['glucose'] ?? _dayVitals['blood_glucose']);
 
     final tiles = <Widget>[
+      // No band paired: offer the phone's health store as the step source.
+      // Only for today, and not on a family member's record.
+      if (today &&
+          !MainController.instance.isViewingMember &&
+          PhoneHealthLink.isAvailable)
+        ConnectHealthTile(onSynced: onLogged),
       StepTile(
         vital: _vitalFor('steps', c.stepsVital),
         steps: today ? c.stepsValue : null,

@@ -11,6 +11,7 @@ import 'package:flutter_blue_classic/flutter_blue_classic.dart';
 import 'package:gal/gal.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:health/health.dart';
 import 'package:localstorage/localstorage.dart';
 import 'package:permission_handler/permission_handler.dart';
 
@@ -1513,6 +1514,112 @@ class AllowearController extends GetxController with WidgetsBindingObserver {
       debugPrint('[Allowear] sync finished with errors: ${result.errors}');
     }
     _finishSync();
+  }
+
+  /// Pulls today's steps from the phone's own health store (Health Connect /
+  /// HealthKit). Used when no Allowear is paired, or when the user has picked
+  /// the phone sensor as their step source.
+  ///
+  /// Returns false (and does nothing) when an Allowear MAC is on record — the
+  /// wearable is then the authority for steps.
+  Future<bool> syncDeviceHealthData({
+    bool requestPermissionIfDenied = false,
+  }) async {
+    try {
+      final savedMac = getConnectedAllowearMac();
+      if (savedMac != null && savedMac.isNotEmpty) {
+        debugPrint(
+            '[Allowear] wearable $savedMac on record; skipping phone step sync');
+        return false;
+      }
+
+      final health = Health();
+      await health.configure();
+
+      const types = [HealthDataType.STEPS];
+      const permissions = [HealthDataAccess.READ];
+
+      var granted =
+          await health.hasPermissions(types, permissions: permissions) ?? false;
+      if (!granted) {
+        if (requestPermissionIfDenied) {
+          if (defaultTargetPlatform == TargetPlatform.android) {
+            final status = await health.getHealthConnectSdkStatus();
+            if (status == null ||
+                status.name.toLowerCase().contains('notinstalled')) {
+              await health.installHealthConnect();
+              return false;
+            }
+          }
+          granted = await health.requestAuthorization(types,
+              permissions: permissions);
+        }
+        if (!granted) {
+          debugPrint('[Allowear] phone health permission not granted');
+          return false;
+        }
+      }
+
+      final now = DateTime.now();
+      final midnight = DateTime(now.year, now.month, now.day);
+      final steps = await health.getTotalStepsInInterval(midnight, now);
+      if (steps == null) return false;
+
+      var points = <HealthDataPoint>[];
+      try {
+        points = await health.getHealthDataFromTypes(
+          startTime: midnight,
+          endTime: now,
+          types: types,
+        );
+      } catch (_) {}
+
+      final hourlySteps = <int, int>{};
+      for (final pt in points) {
+        final value = pt.value is NumericHealthValue
+            ? (pt.value as NumericHealthValue).numericValue
+            : num.tryParse(pt.value.toString()) ?? 0;
+        hourlySteps[pt.dateFrom.hour] =
+            (hourlySteps[pt.dateFrom.hour] ?? 0) + value.toInt();
+      }
+
+      final hourlyData = [
+        for (var hour = 0; hour < 24; hour++)
+          {
+            'hour': hour,
+            'steps': hourlySteps[hour] ?? 0,
+            'calorie': ((hourlySteps[hour] ?? 0) * 0.04).round(),
+            'distance': (hourlySteps[hour] ?? 0) * 0.0008,
+          }
+      ];
+
+      await VitalsSqLiteService().saveVitalsBulkDailyDataWithIds([
+        VitalSyncItem(
+          key: 'steps',
+          value: steps.toDouble(),
+          createdAt: midnight,
+          unit: 'steps',
+          data: {
+            'source': 'device_health',
+            'distance': steps * 0.0008,
+            'calories': (steps * 0.04).round(),
+            'steps': steps,
+            'active_time': (steps / 100).round(),
+            'hourly_data': hourlyData,
+          },
+        )
+      ], synced: 0);
+
+      if (Get.isRegistered<HealthVitalsController>()) {
+        Get.find<HealthVitalsController>().fetchLatestVitals();
+      }
+
+      debugPrint('[Allowear] phone steps synced: $steps');
+      return true;
+    } catch (e) {
+      debugPrint('[Allowear] phone health sync failed: $e');
+      return false;
+    }
   }
 
   // ═══════════════════════ Timed monitoring configuration ════════════════════
