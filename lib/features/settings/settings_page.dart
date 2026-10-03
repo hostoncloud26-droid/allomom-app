@@ -11,6 +11,7 @@ import 'package:allomom/controllers/theme_controller.dart';
 import 'package:allomom/features/auth/contact_number_page.dart';
 import 'package:allomom/features/settings/app_info_page.dart';
 import 'package:allomom/features/settings/edit_profile_page.dart';
+import 'package:allomom/features/settings/help_support_page.dart';
 import 'package:allomom/features/settings/hospital/my_hospitals_page.dart';
 import 'package:allomom/components/language_selector.dart';
 import 'package:allomom/features/reminders/reminders_page.dart';
@@ -23,6 +24,8 @@ import 'package:allomom/features/background_audio/data/narration_keys.dart';
 import 'package:allomom/components/floating_baby_speech_overlay.dart';
 import 'package:allomom/features/background_audio/widgets/baby_narration.dart';
 import 'package:get/get.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -33,6 +36,17 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   bool _notificationsEnabled = true;
+  String? _versionLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(() => _versionLabel = 'Version ${info.version}');
+      }
+    });
+  }
 
   // AlloMom Theme Color Palette from config/colors.dart
   static const Color _accentPrimary = primaryColor;
@@ -211,7 +225,12 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildListTile(
                         icon: Icons.help_outline_rounded,
                         title: 'Help & Support',
-                        onTap: () => _showHelpModal(context),
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const HelpSupportPage(),
+                          ),
+                        ),
                       ),
                       _buildItemDivider(),
 
@@ -219,7 +238,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildListTile(
                         icon: Icons.description_outlined,
                         title: 'Terms & Privacy Policy',
-                        onTap: () => _showPrivacyPolicyModal(context),
+                        onTap: _openTermsAndPrivacy,
                       ),
                       _buildItemDivider(),
 
@@ -227,7 +246,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       _buildListTile(
                         icon: Icons.info_outline_rounded,
                         title: 'App Info',
-                        subtitle: 'Version 1.0.4 (Build 2026)',
+                        // subtitle: _versionLabel,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -758,38 +777,14 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
-  void _showPrivacyPolicyModal(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: _cardTheme,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Privacy & Terms',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: _textDark,
-              ),
-            ),
-            SizedBox(height: 12),
-            Text(
-              'Your maternal vitals and medical data are end-to-end encrypted and safeguarded with strict clinical standards.',
-              style: TextStyle(fontSize: 13, color: _textSecondary),
-            ),
-            SizedBox(height: 20),
-          ],
-        ),
-      ),
-    );
+  Future<void> _openTermsAndPrivacy() async {
+    final uri = Uri.parse('https://savemom.in/terms');
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open Terms & Privacy Policy')),
+      );
+    }
   }
 
   void _showLogoutConfirmation(BuildContext context) {
