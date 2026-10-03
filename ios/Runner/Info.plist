@@ -22,8 +22,21 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019.apps.googleusercontent.com</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
@@ -32,10 +45,6 @@
 	<string>Savemom uses Bluetooth to connect to your AlloWear health device.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Savemom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Savemom reads your step count and health data to display them in the app.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>Savemom writes step count and health data to keep them in sync with Apple Health.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Savemom uses your location to discover nearby AlloWear devices over Bluetooth and provide relevant health services.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
@@ -96,18 +105,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019</string>
-			</array>
-		</dict>
-	</array>
-	<key>GIDClientID</key>
-	<string>478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019.apps.googleusercontent.com</string>
 </dict>
 </plist>
