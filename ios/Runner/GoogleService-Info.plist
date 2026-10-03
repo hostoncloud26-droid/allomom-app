@@ -3,11 +3,11 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>478575784185-altevf9lqpi68qgivvcqcrb5u0j8b7sb.apps.googleusercontent.com</string>
+	<string>478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.478575784185-altevf9lqpi68qgivvcqcrb5u0j8b7sb</string>
+	<string>com.googleusercontent.apps.478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019</string>
 	<key>ANDROID_CLIENT_ID</key>
-	<string>478575784185-dlttp8g4h04t5171hmmc88rmvhr16lo5.apps.googleusercontent.com</string>
+	<string>478575784185-6l5h71n82m6vbosstrtf04j2qbqe5490.apps.googleusercontent.com</string>
 	<key>API_KEY</key>
 	<string>AIzaSyDLtLw7V1taKcyywQW8Gu-TjvGgPB112lo</string>
 	<key>GCM_SENDER_ID</key>
@@ -15,7 +15,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.savemom.allomom</string>
+	<string>in.savemom.allomom</string>
 	<key>PROJECT_ID</key>
 	<string>savemomapps</string>
 	<key>STORAGE_BUCKET</key>
@@ -31,7 +31,7 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:478575784185:ios:ad95a7d5ea47d92a7d3228</string>
+	<string>1:478575784185:ios:0d2d62f00b172ca87d3228</string>
 	<key>DATABASE_URL</key>
 	<string>https://savemomapps-default-rtdb.asia-southeast1.firebasedatabase.app</string>
 </dict>

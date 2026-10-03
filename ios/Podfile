@@ -44,6 +44,12 @@ post_install do |installer|
     # on — without these, Bluetooth and location always read as denied and
     # AlloWear can never scan. Microphone is what AlloBot already asks for.
     target.build_configurations.each do |config|
+      # Xcode no longer accepts deployment targets below 15.0, and many pods
+      # still declare 9.0–14.0.
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.0
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      end
+
       config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
         '$(inherited)',
         'PERMISSION_BLUETOOTH=1',
