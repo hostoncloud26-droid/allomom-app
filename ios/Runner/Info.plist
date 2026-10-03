@@ -45,6 +45,10 @@
 	<string>Savemom uses Bluetooth to connect to your AlloWear health device.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Savemom uses the camera to take photos, scan codes, and to capture pictures with your AlloWear bracelet's shutter button.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Savemom reads your step count from Health to show your daily activity.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Savemom does not write data to Health; this is declared because the Health integration requires it.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Savemom uses your location to discover nearby AlloWear devices over Bluetooth and provide relevant health services.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
