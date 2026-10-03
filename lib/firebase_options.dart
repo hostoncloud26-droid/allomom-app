@@ -68,13 +68,13 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDLtLw7V1taKcyywQW8Gu-TjvGgPB112lo',
-    appId: '1:478575784185:ios:0d2d62f00b172ca87d3228',
+    appId: '1:478575784185:ios:8f03e91e9c1ff9877d3228',
     messagingSenderId: '478575784185',
     projectId: 'savemomapps',
     databaseURL: 'https://savemomapps-default-rtdb.asia-southeast1.firebasedatabase.app',
     storageBucket: 'savemomapps.firebasestorage.app',
     androidClientId: '478575784185-6l5h71n82m6vbosstrtf04j2qbqe5490.apps.googleusercontent.com',
-    iosClientId: '478575784185-jrvact0nbmd1tor1g6q0bn6lkkmht019.apps.googleusercontent.com',
-    iosBundleId: 'in.savemom.allomom',
+    iosClientId: '478575784185-9c2e7ve7bi04qb42rmrbiaddb5i2j273.apps.googleusercontent.com',
+    iosBundleId: 'com.savemom.nurseapp',
   );
 }
